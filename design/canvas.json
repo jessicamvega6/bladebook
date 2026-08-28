@@ -1,0 +1,105 @@
+{
+  "artboards": [
+    {
+      "file": "SchedHabit.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 1000,
+      "title": "Schedule creator",
+      "page": "page-3"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "1 · Pick a day",
+      "page": "page-1"
+    },
+    {
+      "file": "Timeline.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1206,
+      "h": 1147,
+      "title": "2 · Pick your times",
+      "page": "page-1"
+    },
+    {
+      "file": "Recurring.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 700,
+      "h": 820,
+      "title": "3 · Confirm & repeat",
+      "page": "page-1"
+    },
+    {
+      "file": "Confirmation.dc.html",
+      "x": 3400,
+      "y": 0,
+      "w": 1200,
+      "h": 820,
+      "title": "4 · Result",
+      "page": "page-1"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "sched",
+      "x": 1300,
+      "y": 0,
+      "w": 520,
+      "text": "Habit won a six-way build. The finding that outlived the five alternatives: all of them independently chose a COMPOSITE preview over active-tab-only, and the literal spec build showed why — read literally each tab owns its own calendar, so a coach cannot see a Monday collision until validation rejects it.",
+      "page": "page-3"
+    },
+    {
+      "id": "flow",
+      "x": 0,
+      "y": -250,
+      "w": 560,
+      "text": "The client booking flow, end to end, in the Forest theme.\n\nThe three-month window on step 1 is a UI restriction only — nothing validates against it server-side, which is what lets a recurring booking run past it.",
+      "page": "page-1"
+    },
+    {
+      "id": "step2",
+      "x": 1300,
+      "y": -250,
+      "w": 540,
+      "text": "CHOSEN: Timeline, the measured strip. Width IS duration — a 60-minute lesson occupies twice the space of a 30-minute one, and the two-hour midday gap is real empty space rather than a label.\n\nOpen problem carried forward: that squeezes the 30-minute slots narrow enough that their labels rotate 90°. Needs a rethink at phone width, not a reflow.",
+      "page": "page-1"
+    },
+    {
+      "id": "student",
+      "x": 0,
+      "y": -460,
+      "w": 540,
+      "text": "The student picker in the header is not in the spec — added because price resolves from the student's override before the block price, so the page cannot render a price until it knows who the lesson is for.",
+      "page": "page-1"
+    },
+    {
+      "id": "partial",
+      "x": 3400,
+      "y": -250,
+      "w": 420,
+      "text": "Partial success is the normal case, not an error state. The reason is deliberately merged — saying \\\"already taken\\\" would leak that another family holds that slot.",
+      "page": "page-1"
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-3"
+  },
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Client — booking flow"
+    },
+    {
+      "id": "page-3",
+      "name": "Coach — schedule creator"
+    }
+  ]
+}

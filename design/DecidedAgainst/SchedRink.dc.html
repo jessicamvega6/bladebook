@@ -1,0 +1,521 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Space Grotesk', ui-sans-serif, system-ui, 'Helvetica Neue', sans-serif; background: oklch(0.14 0.025 258); }
+    a { color: oklch(0.845 0.155 82); text-decoration: none; }
+    a:hover { color: oklch(0.91 0.13 92); }
+  </style>
+</helmet>
+<div style="width: 1200px; height: 1000px; position: relative; overflow: hidden; display: flex; flex-direction: column; color: oklch(0.965 0.012 220); background: radial-gradient(1150px 640px at 6% -14%, oklch(0.36 0.075 242) 0%, transparent 62%), radial-gradient(900px 720px at 104% 116%, oklch(0.42 0.095 60) 0%, transparent 58%), linear-gradient(180deg, oklch(0.195 0.032 254) 0%, oklch(0.155 0.028 258) 100%);">
+
+  <svg width="1200" height="1000" viewBox="0 0 1200 1000" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true">
+    <g fill="none" stroke-linecap="round" style="stroke: oklch(0.94 0.04 220); opacity: 0.075;">
+      <path d="M-80 244 C 260 82, 720 104, 1290 356" stroke-width="1.2"></path>
+      <path d="M-80 306 C 300 138, 780 164, 1290 440" stroke-width="0.9"></path>
+      <path d="M-80 720 C 220 602, 640 654, 1290 534" stroke-width="1.1"></path>
+    </g>
+    <g fill="none" stroke-linecap="round" style="stroke: oklch(0.88 0.14 76); opacity: 0.09;">
+      <path d="M-40 946 C 380 860, 820 902, 1290 794" stroke-width="1.4"></path>
+      <path d="M120 998 C 520 930, 900 962, 1290 902" stroke-width="0.9"></path>
+    </g>
+  </svg>
+
+  <div style="position: relative; flex: none; height: 96px; padding: 0 36px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid oklch(0.36 0.042 250);">
+
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="width: 44px; height: 44px; flex: none; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, oklch(0.88 0.11 214) 0%, oklch(0.66 0.13 236) 100%); box-shadow: 0 6px 18px oklch(0.66 0.13 236 / 0.35);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4.2 16.6 C 8.4 16.6, 14.6 15.6, 18.8 11.4 C 20.4 9.8, 20.8 7.6, 20 5.6" stroke-width="2.1" stroke-linecap="round" style="stroke: oklch(0.19 0.045 258);"></path>
+          <path d="M3.2 20.2 H 20.6" stroke-width="2.1" stroke-linecap="round" style="stroke: oklch(0.19 0.045 258);"></path>
+        </svg>
+      </div>
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.26em; color: oklch(0.80 0.115 218);">BLADEBOOK</span>
+      <div style="width: 1px; height: 38px; background: oklch(0.38 0.04 250);"></div>
+      <div style="width: 40px; height: 40px; flex: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; border: 1px solid oklch(0.44 0.05 246); background: oklch(0.30 0.045 250);">
+        <span style="font-size: 13px; font-weight: 700; color: oklch(0.88 0.05 222);">DW</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">Dana Whitfield</span>
+        <span style="font-size: 11.5px; color: oklch(0.735 0.028 245); letter-spacing: 0.05em;">Coach setup &middot; this is what clients will see</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 9px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.28em; color: oklch(0.80 0.115 218);">STEP 2 OF 4</span>
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.005em;">Teaching pattern</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 46px; height: 5px; border-radius: 3px; background: oklch(0.62 0.09 222);"></div>
+        <div style="width: 46px; height: 5px; border-radius: 3px; background: oklch(0.845 0.155 82);"></div>
+        <div style="width: 46px; height: 5px; border-radius: 3px; background: oklch(0.32 0.03 252);"></div>
+        <div style="width: 46px; height: 5px; border-radius: 3px; background: oklch(0.32 0.03 252);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; flex: 1; min-height: 0; padding: 26px 36px; display: flex; gap: 32px;">
+
+    <div style="width: 476px; flex: none; display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="height: 44px; flex: none; display: flex; align-items: flex-end; gap: 12px;">
+        <span style="font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-size: 28px; line-height: 1;">Set your teaching week</span>
+      </div>
+
+      <div style="height: 60px; flex: none; display: flex; align-items: stretch; gap: 10px;">
+
+        <div style="flex: 1; min-width: 0; display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; background: oklch(0.215 0.03 256); border: 1px solid oklch(0.38 0.04 250); cursor: pointer;">
+          <div style="flex: 1; min-width: 0; padding: 0 0 0 12px; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; flex: none; border-radius: 999px; background: oklch(0.66 0.11 224);"></div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-size: 13.5px; font-weight: 600; color: oklch(0.90 0.02 230); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Morning skills</span>
+              <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.05em; color: oklch(0.70 0.028 245); white-space: nowrap;">MON WED FRI &middot; 30m &middot; $50</span>
+            </div>
+          </div>
+          <div style="width: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M6 6 L14 14 M14 6 L6 14" stroke-width="1.9" stroke-linecap="round" style="stroke: oklch(0.68 0.028 248);"></path>
+            </svg>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 0; display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; background: linear-gradient(180deg, oklch(0.315 0.05 250) 0%, oklch(0.265 0.042 254) 100%); border: 1px solid oklch(0.76 0.13 84); box-shadow: 0 0 0 3px oklch(0.845 0.155 82 / 0.16); cursor: pointer;">
+          <div style="width: 4px; flex: none; background: oklch(0.845 0.155 82);"></div>
+          <div style="flex: 1; min-width: 0; padding: 0 0 0 10px; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; flex: none; border-radius: 999px; background: oklch(0.845 0.155 82);"></div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Afternoon hour</span>
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: oklch(0.86 0.10 88); white-space: nowrap;">MON &middot; 60m &middot; $80</span>
+            </div>
+          </div>
+          <div style="width: 44px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M6 6 L14 14 M14 6 L6 14" stroke-width="2" stroke-linecap="round" style="stroke: oklch(0.88 0.06 90);"></path>
+            </svg>
+          </div>
+        </div>
+
+        <div style="width: 52px; flex: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px dashed oklch(0.44 0.045 250); background: oklch(0.19 0.026 256); cursor: pointer;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5 V19 M5 12 H19" stroke-width="2.1" stroke-linecap="round" style="stroke: oklch(0.82 0.10 220);"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 0; padding: 20px; border-radius: 18px; border: 1px solid oklch(0.42 0.05 248 / 0.8); background: linear-gradient(180deg, oklch(0.275 0.042 252 / 0.92) 0%, oklch(0.225 0.034 256 / 0.92) 100%); box-shadow: 0 18px 44px oklch(0.08 0.03 258 / 0.45); display: flex; flex-direction: column; gap: 18px;">
+
+        <div style="flex: none; display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">PATTERN NAME</span>
+            <span style="font-size: 10px; color: oklch(0.62 0.028 248); letter-spacing: 0.04em;">optional</span>
+          </div>
+          <div style="height: 52px; padding: 0 14px; display: flex; align-items: center; border-radius: 12px; background: oklch(0.185 0.026 256); border: 1px solid oklch(0.42 0.045 250);">
+            <span style="font-size: 15.5px; font-weight: 500;">Afternoon hour</span>
+          </div>
+        </div>
+
+        <div style="flex: none; display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">DAYS</span>
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.88 0.12 86);">REQUIRED</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">SUN</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: linear-gradient(180deg, oklch(0.895 0.135 88) 0%, oklch(0.825 0.155 78) 100%); border: 1px solid oklch(0.91 0.13 90); box-shadow: 0 0 0 3px oklch(0.845 0.155 82 / 0.20); cursor: pointer;">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="18" height="18" rx="5" style="fill: oklch(0.20 0.045 258);"></rect>
+                <path d="M5.8 10.3 L8.7 13.1 L14.2 7.1" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.90 0.13 90);"></path>
+              </svg>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.20 0.045 258);">MON</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">TUE</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">WED</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">THU</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">FRI</span>
+            </div>
+
+            <div style="height: 68px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; background: oklch(0.185 0.026 256); border: 1px dashed oklch(0.38 0.03 252); cursor: pointer;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid oklch(0.46 0.035 250);"></div>
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.64 0.025 250);">SAT</span>
+            </div>
+
+          </div>
+          <span style="font-size: 11px; line-height: 1.5; color: oklch(0.70 0.028 245);">This pattern repeats every week &mdash; no dates, no end. Morning skills already covers Mon, Wed and Fri.</span>
+        </div>
+
+        <div style="flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">START OF DAY</span>
+            <div style="height: 52px; padding: 0 12px 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-radius: 12px; background: oklch(0.185 0.026 256); border: 1px solid oklch(0.42 0.045 250); cursor: pointer;">
+              <span style="font-size: 16px; font-weight: 600;">3:00 pm</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9.5 L12 15.5 L18 9.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.78 0.03 235);"></path>
+              </svg>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">END OF DAY</span>
+            <div style="height: 52px; padding: 0 12px 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-radius: 12px; background: oklch(0.185 0.026 256); border: 1px solid oklch(0.42 0.045 250); cursor: pointer;">
+              <span style="font-size: 16px; font-weight: 600;">5:00 pm</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9.5 L12 15.5 L18 9.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.78 0.03 235);"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">LESSON LENGTH</span>
+            <div style="height: 52px; padding: 0 12px 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-radius: 12px; background: oklch(0.185 0.026 256); border: 1px solid oklch(0.42 0.045 250); cursor: pointer;">
+              <span style="font-size: 16px; font-weight: 600;">60 minutes</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9.5 L12 15.5 L18 9.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.78 0.03 235);"></path>
+              </svg>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.74 0.028 245);">LESSON COST</span>
+            <div style="height: 52px; padding: 0 14px; display: flex; align-items: center; gap: 4px; border-radius: 12px; background: oklch(0.185 0.026 256); border: 1px solid oklch(0.42 0.045 250);">
+              <span style="font-size: 15px; font-weight: 600; color: oklch(0.72 0.028 245);">$</span>
+              <span style="font-size: 16px; font-weight: 700;">80</span>
+              <span style="flex: 1;"></span>
+              <span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.66 0.028 248);">USD / LESSON</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex: none; padding: 14px 16px; border-radius: 14px; background: oklch(0.20 0.03 256 / 0.85); border: 1px solid oklch(0.40 0.045 250 / 0.7); border-left: 3px solid oklch(0.845 0.155 82); display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.86 0.10 88);">IN PLAIN ENGLISH</span>
+          <span style="font-size: 14.5px; line-height: 1.5; color: oklch(0.95 0.014 224);">Every <strong style="font-weight: 700;">Monday</strong>, 3:00 pm to 5:00 pm. Two 60-minute lessons at $80 each.</span>
+        </div>
+
+        <div style="flex: none; height: 46px; padding: 0 14px; display: flex; align-items: center; gap: 10px; border-radius: 12px; background: oklch(0.30 0.05 230 / 0.4); border: 1px solid oklch(0.50 0.08 224);">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" style="flex: none;" aria-hidden="true">
+            <circle cx="10" cy="10" r="8.5" stroke-width="1.5" style="stroke: oklch(0.82 0.10 220);"></circle>
+            <path d="M6 10.3 L8.8 13 L14 7.2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.86 0.10 218);"></path>
+          </svg>
+          <span style="font-size: 11.5px; line-height: 1.4; color: oklch(0.90 0.03 226);">No clash with Morning skills &mdash; that pattern ends at 11:30 am.</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-size: 25px; line-height: 1;">Week preview</span>
+          <div style="padding: 6px 11px; border-radius: 999px; border: 1px solid oklch(0.46 0.06 232); background: oklch(0.28 0.045 236 / 0.5);">
+            <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; color: oklch(0.86 0.07 224);">REPEATS EVERY WEEK &middot; NO DATES</span>
+          </div>
+        </div>
+        <div style="height: 54px; padding: 5px; display: flex; align-items: stretch; gap: 4px; border-radius: 13px; background: oklch(0.175 0.026 256); border: 1px solid oklch(0.40 0.045 250);">
+          <div style="padding: 0 15px; display: flex; align-items: center; gap: 7px; border-radius: 9px; background: linear-gradient(180deg, oklch(0.345 0.05 250) 0%, oklch(0.295 0.044 254) 100%); border: 1px solid oklch(0.50 0.055 248); cursor: pointer;">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="2" y="3" width="7" height="14" rx="2" style="fill: oklch(0.66 0.11 224);"></rect>
+              <rect x="11" y="3" width="7" height="14" rx="2" style="fill: oklch(0.845 0.155 82);"></rect>
+            </svg>
+            <span style="font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;">All tabs</span>
+          </div>
+          <div style="padding: 0 15px; display: flex; align-items: center; border-radius: 9px; cursor: pointer;">
+            <span style="font-size: 12.5px; font-weight: 500; color: oklch(0.66 0.028 248);">This tab only</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 108px; flex: none; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.178 0.024 256); border: 1px dashed oklch(0.34 0.026 252);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.60 0.025 250);">SUN</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 22; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.58 0.025 250); letter-spacing: 0.03em;">no lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: linear-gradient(180deg, oklch(0.31 0.046 252) 0%, oklch(0.255 0.038 254) 100%); border: 1px solid oklch(0.72 0.045 226); box-shadow: 0 0 0 3px oklch(0.72 0.045 226 / 0.14);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.97 0.012 220);">MON</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 11; background: oklch(0.60 0.095 224);"></div>
+            <div style="flex: 7; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+            <div style="flex: 4; background: oklch(0.845 0.155 82);"></div>
+          </div>
+          <span style="font-size: 10.5px; font-weight: 700; color: oklch(0.95 0.014 224); letter-spacing: 0.03em;">13 lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.178 0.024 256); border: 1px dashed oklch(0.34 0.026 252);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.60 0.025 250);">TUE</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 22; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.58 0.025 250); letter-spacing: 0.03em;">no lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.225 0.032 256); border: 1px solid oklch(0.40 0.045 250);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.90 0.02 230);">WED</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 11; background: oklch(0.60 0.095 224);"></div>
+            <div style="flex: 11; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.80 0.028 240); letter-spacing: 0.03em;">11 lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.178 0.024 256); border: 1px dashed oklch(0.34 0.026 252);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.60 0.025 250);">THU</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 22; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.58 0.025 250); letter-spacing: 0.03em;">no lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.225 0.032 256); border: 1px solid oklch(0.40 0.045 250);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.90 0.02 230);">FRI</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 11; background: oklch(0.60 0.095 224);"></div>
+            <div style="flex: 11; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.80 0.028 240); letter-spacing: 0.03em;">11 lessons</span>
+        </div>
+
+        <div style="padding: 11px 9px; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 9px; background: oklch(0.178 0.024 256); border: 1px dashed oklch(0.34 0.026 252);">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: oklch(0.60 0.025 250);">SAT</span>
+          <div style="width: 100%; height: 22px; display: flex; gap: 2px; border-radius: 4px; overflow: hidden;">
+            <div style="flex: 22; background: oklch(0.225 0.02 256); box-shadow: inset 0 0 0 1px oklch(0.30 0.02 254);"></div>
+          </div>
+          <span style="font-size: 10.5px; color: oklch(0.58 0.025 250); letter-spacing: 0.03em;">no lessons</span>
+        </div>
+
+      </div>
+
+      <div style="flex: 1; min-height: 0; padding: 18px; border-radius: 18px; border: 1px solid oklch(0.42 0.05 248 / 0.8); background: linear-gradient(180deg, oklch(0.265 0.04 252 / 0.92) 0%, oklch(0.215 0.032 256 / 0.92) 100%); box-shadow: 0 18px 44px oklch(0.08 0.03 258 / 0.45); display: flex; flex-direction: column; gap: 14px;">
+
+        <div style="height: 46px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; align-items: baseline; gap: 12px;">
+            <span style="font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-size: 30px; line-height: 1;">Every Monday</span>
+            <span style="font-size: 12px; color: oklch(0.74 0.028 245); letter-spacing: 0.03em;">both patterns, stacked</span>
+          </div>
+          <div style="padding: 8px 13px; border-radius: 999px; border: 1px solid oklch(0.46 0.05 248); background: oklch(0.20 0.03 256);">
+            <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.88 0.03 230);">13 LESSONS &middot; $770</span>
+          </div>
+        </div>
+
+        <div style="flex: none; display: flex; flex-direction: column; gap: 10px;">
+          <div style="height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 3px; height: 22px; border-radius: 3px; background: oklch(0.66 0.11 224);"></div>
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.82 0.09 222);">MORNING SKILLS</span>
+              <span style="font-size: 13px; font-weight: 600; color: oklch(0.93 0.016 224);">6:00 &ndash; 11:30 am</span>
+            </div>
+            <div style="padding: 7px 12px; border-radius: 999px; border: 1px solid oklch(0.50 0.075 224); background: oklch(0.66 0.11 224 / 0.14);">
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.11em; color: oklch(0.88 0.08 222);">30 MIN &middot; $50</span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">6:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">6:30 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">7:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">7:30 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">8:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">8:30 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">9:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">9:30 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">10:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">10:30 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+            <div style="height: 54px; padding: 0 10px; border-radius: 11px; display: flex; flex-direction: column; justify-content: center; gap: 3px; cursor: pointer; background: linear-gradient(180deg, oklch(0.385 0.062 228) 0%, oklch(0.325 0.056 234) 100%); border: 1px solid oklch(0.58 0.095 222);">
+              <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">11:00 am</span>
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.10em; color: oklch(0.86 0.05 224);">30 MIN &middot; $50</span>
+            </div>
+
+            <div style="grid-column: span 2; height: 54px; display: flex; align-items: center; padding-left: 12px; border-left: 1px dashed oklch(0.34 0.026 252);">
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; color: oklch(0.60 0.025 250);">PATTERN ENDS 11:30 AM</span>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="position: relative; flex: none; height: 44px; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 12px; background: oklch(0.152 0.026 258); box-shadow: inset 0 2px 6px oklch(0.05 0.02 258 / 0.6);">
+          <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;" aria-hidden="true">
+            <defs>
+              <pattern id="gapHatch" width="14" height="14" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="14" stroke-width="1.4" style="stroke: oklch(0.60 0.03 245);"></line>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#gapHatch)" opacity="0.10"></rect>
+          </svg>
+          <div style="position: relative; width: 70px; height: 1px; background: linear-gradient(90deg, transparent, oklch(0.44 0.03 250));"></div>
+          <span style="position: relative; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: oklch(0.70 0.026 248);">11:30 AM &ndash; 3:00 PM &middot; NO PATTERN COVERS THIS</span>
+          <div style="position: relative; width: 70px; height: 1px; background: linear-gradient(90deg, oklch(0.44 0.03 250), transparent);"></div>
+        </div>
+
+        <div style="flex: none; display: flex; flex-direction: column; gap: 10px;">
+          <div style="height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 3px; height: 22px; border-radius: 3px; background: oklch(0.845 0.155 82);"></div>
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.24em; color: oklch(0.88 0.12 86);">AFTERNOON HOUR</span>
+              <span style="font-size: 13px; font-weight: 600; color: oklch(0.95 0.014 224);">3:00 &ndash; 5:00 pm</span>
+              <div style="padding: 4px 9px; border-radius: 999px; background: oklch(0.845 0.155 82);">
+                <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: oklch(0.20 0.045 258);">EDITING</span>
+              </div>
+            </div>
+            <div style="padding: 7px 12px; border-radius: 999px; border: 1px solid oklch(0.68 0.12 84); background: oklch(0.845 0.155 82 / 0.16);">
+              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.11em; color: oklch(0.90 0.11 88);">60 MIN &middot; $80</span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+
+            <div style="grid-column: span 2; height: 54px; padding: 0 12px; border-radius: 11px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; background: linear-gradient(180deg, oklch(0.895 0.135 88) 0%, oklch(0.825 0.155 78) 100%); border: 1px solid oklch(0.91 0.13 90); box-shadow: 0 0 0 3px oklch(0.845 0.155 82 / 0.20), 0 10px 22px oklch(0.845 0.155 82 / 0.16);">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: oklch(0.20 0.045 258);">3:00 pm</span>
+                <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.34 0.065 70);">60 MIN &middot; ENDS 4:00 PM &middot; $80</span>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="flex: none;" aria-hidden="true">
+                <circle cx="10" cy="10" r="9" style="fill: oklch(0.20 0.045 258);"></circle>
+                <path d="M5.8 10.4 L8.7 13.2 L14.2 7.2" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.90 0.13 90);"></path>
+              </svg>
+            </div>
+
+            <div style="grid-column: span 2; height: 54px; padding: 0 12px; border-radius: 11px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; background: linear-gradient(180deg, oklch(0.895 0.135 88) 0%, oklch(0.825 0.155 78) 100%); border: 1px solid oklch(0.91 0.13 90); box-shadow: 0 0 0 3px oklch(0.845 0.155 82 / 0.20), 0 10px 22px oklch(0.845 0.155 82 / 0.16);">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: oklch(0.20 0.045 258);">4:00 pm</span>
+                <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em; color: oklch(0.34 0.065 70);">60 MIN &middot; ENDS 5:00 PM &middot; $80</span>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="flex: none;" aria-hidden="true">
+                <circle cx="10" cy="10" r="9" style="fill: oklch(0.20 0.045 258);"></circle>
+                <path d="M5.8 10.4 L8.7 13.2 L14.2 7.2" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.90 0.13 90);"></path>
+              </svg>
+            </div>
+
+            <div style="height: 54px; display: flex; align-items: center; padding-left: 12px; border-left: 1px dashed oklch(0.34 0.026 252);">
+              <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; line-height: 1.6; color: oklch(0.60 0.025 250);">ICE OFF<br>5:00 PM</span>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="flex: 1; min-height: 0;"></div>
+
+        <div style="flex: none; height: 44px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 12px; background: oklch(0.175 0.026 256); border: 1px solid oklch(0.36 0.035 252);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 30px; height: 20px; border-radius: 6px; background: linear-gradient(180deg, oklch(0.895 0.135 88), oklch(0.825 0.155 78));"></div>
+            <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: oklch(0.86 0.028 240);">Tab you&#39;re editing</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 30px; height: 20px; border-radius: 6px; background: linear-gradient(180deg, oklch(0.385 0.062 228), oklch(0.325 0.056 234)); border: 1px solid oklch(0.58 0.095 222);"></div>
+            <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: oklch(0.86 0.028 240);">Other tabs</span>
+          </div>
+          <div style="position: relative; display: flex; align-items: center; gap: 8px;">
+            <div style="position: relative; width: 30px; height: 20px; border-radius: 6px; overflow: hidden; background: oklch(0.185 0.02 256); border: 1px dashed oklch(0.42 0.028 252);">
+              <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;" aria-hidden="true">
+                <defs>
+                  <pattern id="offHatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                    <line x1="0" y1="0" x2="0" y2="7" stroke-width="1.1" style="stroke: oklch(0.66 0.03 245);"></line>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#offHatch)" opacity="0.30"></rect>
+              </svg>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: oklch(0.78 0.028 244);">Switched off &mdash; a break</span>
+          </div>
+          <span style="font-size: 10px; color: oklch(0.72 0.028 246); letter-spacing: 0.02em;">Click any slot to switch it off.</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; flex: none; height: 88px; padding: 0 36px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid oklch(0.36 0.042 250); background: oklch(0.165 0.028 258 / 0.6);">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex: none;" aria-hidden="true">
+        <rect x="3.5" y="5" width="17" height="15" rx="3" stroke-width="1.6" style="stroke: oklch(0.76 0.03 240);"></rect>
+        <path d="M3.5 9.5 H20.5 M8 3.5 V6.5 M16 3.5 V6.5" stroke-width="1.6" stroke-linecap="round" style="stroke: oklch(0.76 0.03 240);"></path>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 14px; font-weight: 600; letter-spacing: -0.005em;">2 patterns &middot; Mon, Wed, Fri &middot; 35 lessons a week</span>
+        <span style="font-size: 11.5px; color: oklch(0.72 0.028 245);">Monday carries both: 30-minute lessons at $50, then 60-minute lessons at $80.</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="height: 52px; padding: 0 22px; display: flex; align-items: center; border-radius: 13px; border: 1px solid oklch(0.44 0.045 250); background: oklch(0.22 0.03 256); cursor: pointer;">
+        <span style="font-size: 14.5px; font-weight: 600; color: oklch(0.90 0.02 232);">Back</span>
+      </div>
+      <div style="height: 52px; padding: 0 26px; display: flex; align-items: center; gap: 10px; border-radius: 13px; cursor: pointer; background: linear-gradient(180deg, oklch(0.90 0.135 88) 0%, oklch(0.83 0.155 79) 100%); box-shadow: 0 10px 26px oklch(0.845 0.155 82 / 0.26);">
+        <span style="font-size: 15px; font-weight: 700; color: oklch(0.19 0.045 258);">Next</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4.5 12 H19 M13 6 L19 12 L13 18" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke: oklch(0.19 0.045 258);"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

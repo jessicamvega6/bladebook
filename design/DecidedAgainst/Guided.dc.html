@@ -1,0 +1,387 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Manrope', 'Helvetica Neue', Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: oklch(0.45 0.11 245); text-decoration: none; } a:hover { color: oklch(0.35 0.13 245); }
+  </style>
+</helmet>
+<div style="width: 1200px; height: 1000px; background: oklch(0.94 0.022 236); padding: 34px 48px 32px 48px; display: flex; flex-direction: column; gap: 22px; font-family: 'Manrope', 'Helvetica Neue', Helvetica, sans-serif;">
+
+  <!-- ============ CANVAS HEADER ============ -->
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; padding-bottom: 18px; border-bottom: 1px solid oklch(0.84 0.03 240);">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.55 0.08 248);">BladeBook &middot; Guided booking</div>
+      <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 32px; line-height: 1.05; color: oklch(0.27 0.05 262);">One question at a time.</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 3px; text-align: right;">
+        <div style="font-size: 13px; font-weight: 700; color: oklch(0.30 0.04 262);">Mia Chen with Dana Whitfield</div>
+        <div style="font-size: 13px; font-weight: 500; color: oklch(0.52 0.04 258);">Monday 14 September 2026</div>
+      </div>
+      <div style="width: 46px; height: 46px; border-radius: 14px; background: oklch(0.27 0.05 262); color: oklch(0.94 0.02 236); display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 18px;">DW</div>
+    </div>
+  </div>
+
+  <!-- ============ THREE SCREENS ============ -->
+  <div style="display: flex; gap: 42px; align-items: flex-start;">
+
+    <!-- ---------- SCREEN 1 : HOW LONG ---------- -->
+    <div style="width: 340px; height: 820px; background: oklch(0.185 0.025 262); border-radius: 30px; padding: 18px 20px 16px 20px; display: flex; flex-direction: column; gap: 0; overflow: hidden;">
+
+      <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; flex: none;">
+        <div style="width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: oklch(0.74 0.02 255);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: oklch(0.90 0.01 250);">Mon 14 Sep</div>
+        <div style="width: 44px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-right: -6px;">
+          <div style="width: 16px; height: 5px; border-radius: 3px; background: oklch(0.85 0.14 197);"></div>
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+        </div>
+      </div>
+
+      <div style="height: 18px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; flex: none;">
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: oklch(0.85 0.14 197);">Booking for Mia</div>
+        <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 34px; line-height: 1.06; color: oklch(0.97 0.008 250);">How long is<br>this lesson?</div>
+        <div style="font-size: 14px; line-height: 1.45; font-weight: 500; color: oklch(0.74 0.02 255);">Dana teaches both lengths on Mondays, at different prices.</div>
+      </div>
+
+      <div style="height: 22px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; flex: none;">
+
+        <div style="min-height: 118px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262); border-left: 4px solid oklch(0.85 0.14 197); border-radius: 20px; padding: 18px 18px 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 27px; line-height: 1; color: oklch(0.97 0.008 250);">30 minutes</div>
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 27px; line-height: 1; color: oklch(0.85 0.15 88);">$50</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="font-size: 13px; font-weight: 600; color: oklch(0.74 0.02 255);">10 times open &middot; mornings &amp; early afternoon</div>
+            <div style="color: oklch(0.85 0.14 197); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></div>
+          </div>
+        </div>
+
+        <div style="min-height: 118px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262); border-left: 4px solid oklch(0.85 0.15 88); border-radius: 20px; padding: 18px 18px 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 27px; line-height: 1; color: oklch(0.97 0.008 250);">60 minutes</div>
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 27px; line-height: 1; color: oklch(0.85 0.15 88);">$80</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="font-size: 13px; font-weight: 600; color: oklch(0.74 0.02 255);">2 times open &middot; 3:00pm and 4:00pm only</div>
+            <div style="color: oklch(0.85 0.15 88); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="height: 26px; flex: none;"></div>
+
+      <!-- day shape ribbon -->
+      <div style="display: flex; flex-direction: column; gap: 10px; flex: none; padding: 16px 16px 14px 16px; border: 1px dashed oklch(0.34 0.03 262); border-radius: 18px;">
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.62 0.02 258);">Monday&rsquo;s shape</div>
+        <div style="display: flex; align-items: center; gap: 4px; height: 12px;">
+          <div style="flex: 55; height: 10px; border-radius: 6px; background: oklch(0.85 0.14 197 / 0.42);"></div>
+          <div style="flex: 20; height: 10px; display: flex; align-items: center;"><div style="width: 100%; border-bottom: 2px dashed oklch(0.38 0.03 262);"></div></div>
+          <div style="flex: 15; height: 10px; border-radius: 6px; background: oklch(0.85 0.14 197 / 0.42);"></div>
+          <div style="flex: 20; height: 10px; border-radius: 6px; background: oklch(0.85 0.15 88 / 0.45);"></div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-size: 11px; font-weight: 700; color: oklch(0.58 0.02 258);">6am</div>
+          <div style="font-size: 11px; font-weight: 700; color: oklch(0.58 0.02 258);">11:30&ndash;1:30 closed</div>
+          <div style="font-size: 11px; font-weight: 700; color: oklch(0.58 0.02 258);">5pm</div>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 12px;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; flex: none;">
+        <div style="min-height: 52px; border-radius: 16px; border: 1px solid oklch(0.36 0.03 262); display: flex; align-items: center; justify-content: center; gap: 10px; color: oklch(0.88 0.02 250); font-size: 14px; font-weight: 700;">
+          See all 16 times on Monday
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </div>
+        <div style="font-size: 12px; font-weight: 500; line-height: 1.4; text-align: center; color: oklch(0.56 0.02 258);">You can book more than one lesson today.</div>
+      </div>
+
+    </div>
+
+    <!-- ---------- SCREEN 2 : ROUGHLY WHEN ---------- -->
+    <div style="width: 340px; height: 820px; background: oklch(0.185 0.025 262); border-radius: 30px; padding: 18px 20px 16px 20px; display: flex; flex-direction: column; gap: 0; overflow: hidden;">
+
+      <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; flex: none;">
+        <div style="width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: oklch(0.74 0.02 255);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: oklch(0.90 0.01 250);">Mon 14 Sep</div>
+        <div style="width: 44px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-right: -6px;">
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+          <div style="width: 16px; height: 5px; border-radius: 3px; background: oklch(0.85 0.14 197);"></div>
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+        </div>
+      </div>
+
+      <div style="height: 14px; flex: none;"></div>
+
+      <div style="display: flex; align-items: center; gap: 8px; flex: none;">
+        <div style="height: 44px; padding: 0 6px 0 16px; border-radius: 22px; background: oklch(0.85 0.14 197); display: flex; align-items: center; gap: 4px;">
+          <div style="font-size: 13px; font-weight: 800; color: oklch(0.24 0.05 210);">30 minutes &middot; $50</div>
+          <div style="width: 32px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: oklch(0.30 0.06 210);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>
+          </div>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: oklch(0.56 0.02 258);">tap to change</div>
+      </div>
+
+      <div style="height: 20px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; flex: none;">
+        <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 34px; line-height: 1.06; color: oklch(0.97 0.008 250);">Roughly when?</div>
+        <div style="font-size: 14px; line-height: 1.45; font-weight: 500; color: oklch(0.74 0.02 255);">Pick a stretch of the day. You&rsquo;ll choose the exact time next.</div>
+      </div>
+
+      <div style="height: 20px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; flex: none;">
+
+        <div style="min-height: 78px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262); border-radius: 18px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 21px; line-height: 1; color: oklch(0.97 0.008 250);">First thing</div>
+            <div style="font-size: 13px; font-weight: 600; color: oklch(0.70 0.02 255);">6:00 &ndash; 8:00am</div>
+          </div>
+          <div style="height: 30px; padding: 0 12px; border-radius: 15px; background: oklch(0.85 0.14 197 / 0.16); display: flex; align-items: center; font-size: 12px; font-weight: 800; color: oklch(0.85 0.14 197);">4 open</div>
+        </div>
+
+        <div style="min-height: 78px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262); border-radius: 18px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 21px; line-height: 1; color: oklch(0.97 0.008 250);">Mid-morning</div>
+            <div style="font-size: 13px; font-weight: 600; color: oklch(0.70 0.02 255);">8:30 &ndash; 11:00am</div>
+          </div>
+          <div style="height: 30px; padding: 0 12px; border-radius: 15px; background: oklch(0.85 0.14 197 / 0.16); display: flex; align-items: center; font-size: 12px; font-weight: 800; color: oklch(0.85 0.14 197);">4 open</div>
+        </div>
+
+        <div style="min-height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 2px;">
+          <div style="flex: 1; border-bottom: 1px dashed oklch(0.36 0.03 262);"></div>
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: oklch(0.56 0.02 258); white-space: nowrap;">11:30am &ndash; 1:30pm &middot; Dana is off the ice</div>
+          <div style="flex: 1; border-bottom: 1px dashed oklch(0.36 0.03 262);"></div>
+        </div>
+
+        <div style="min-height: 78px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262); border-radius: 18px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 21px; line-height: 1; color: oklch(0.97 0.008 250);">Early afternoon</div>
+            <div style="font-size: 13px; font-weight: 600; color: oklch(0.70 0.02 255);">1:30 &ndash; 2:30pm</div>
+          </div>
+          <div style="height: 30px; padding: 0 12px; border-radius: 15px; background: oklch(0.85 0.14 197 / 0.16); display: flex; align-items: center; font-size: 12px; font-weight: 800; color: oklch(0.85 0.14 197);">2 open</div>
+        </div>
+
+      </div>
+
+      <div style="height: 16px; flex: none;"></div>
+
+      <div style="display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px dashed oklch(0.34 0.03 262); border-radius: 18px; flex: none;">
+        <div style="width: 8px; height: 8px; border-radius: 4px; background: oklch(0.85 0.15 88); margin-top: 5px; flex: none;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 12.5px; line-height: 1.45; font-weight: 600; color: oklch(0.72 0.02 255);">3:00 &ndash; 5:00pm is 60-minute lessons at $80. Hidden while you&rsquo;re browsing 30-minute times.</div>
+          <div style="font-size: 12.5px; font-weight: 800; color: oklch(0.85 0.15 88);">Switch to 60 minutes &rarr;</div>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 12px;"></div>
+
+      <div style="min-height: 52px; border-radius: 16px; border: 1px solid oklch(0.36 0.03 262); display: flex; align-items: center; justify-content: center; gap: 10px; color: oklch(0.88 0.02 250); font-size: 14px; font-weight: 700; flex: none;">
+        Skip ahead &mdash; show every open time
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+      </div>
+
+    </div>
+
+    <!-- ---------- SCREEN 3 : WHICH TIMES ---------- -->
+    <div style="width: 340px; height: 820px; background: oklch(0.185 0.025 262); border-radius: 30px; padding: 18px 20px 16px 20px; display: flex; flex-direction: column; gap: 0; overflow: hidden;">
+
+      <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; flex: none;">
+        <div style="width: 44px; height: 44px; margin-left: -10px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: oklch(0.74 0.02 255);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: oklch(0.90 0.01 250);">Mon 14 Sep</div>
+        <div style="width: 44px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-right: -6px;">
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+          <div style="width: 5px; height: 5px; border-radius: 3px; background: oklch(0.40 0.03 262);"></div>
+          <div style="width: 16px; height: 5px; border-radius: 3px; background: oklch(0.85 0.14 197);"></div>
+        </div>
+      </div>
+
+      <div style="height: 12px; flex: none;"></div>
+
+      <div style="display: flex; align-items: center; gap: 8px; flex: none;">
+        <div style="height: 44px; padding: 0 4px 0 14px; border-radius: 22px; background: oklch(0.85 0.14 197); display: flex; align-items: center; gap: 2px;">
+          <div style="font-size: 12.5px; font-weight: 800; color: oklch(0.24 0.05 210);">30 min &middot; $50</div>
+          <div style="width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: oklch(0.30 0.06 210);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>
+          </div>
+        </div>
+        <div style="height: 44px; padding: 0 4px 0 14px; border-radius: 22px; border: 1px solid oklch(0.38 0.03 262); display: flex; align-items: center; gap: 2px;">
+          <div style="font-size: 12.5px; font-weight: 800; color: oklch(0.90 0.01 250);">Mid-morning</div>
+          <div style="width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: oklch(0.66 0.02 255);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 16px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: none;">
+        <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 28px; line-height: 1.06; color: oklch(0.97 0.008 250);">Four times are free.</div>
+        <div style="font-size: 13.5px; line-height: 1.4; font-weight: 500; color: oklch(0.74 0.02 255);">Tap any that suit. Add as many as you like.</div>
+      </div>
+
+      <div style="height: 14px; flex: none;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: none;">
+
+        <div style="min-height: 36px; border-radius: 12px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.215 0.02 262);">
+          <div style="font-size: 14px; font-weight: 700; color: oklch(0.50 0.015 258);">8:30am</div>
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.48 0.015 258);">Taken</div>
+        </div>
+
+        <div style="min-height: 56px; border-radius: 16px; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262);">
+          <div style="display: flex; align-items: baseline; gap: 10px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 22px; line-height: 1; color: oklch(0.97 0.008 250);">9:00am</div>
+            <div style="font-size: 12px; font-weight: 700; color: oklch(0.68 0.02 255);">30 min</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: oklch(0.85 0.15 88);">$50</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: oklch(0.70 0.02 255);">
+              <div style="width: 28px; height: 28px; border-radius: 15px; border: 1.5px solid oklch(0.44 0.03 262); display: flex; align-items: center; justify-content: center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-height: 56px; border-radius: 16px; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.85 0.14 197); border: 1px solid oklch(0.85 0.14 197);">
+          <div style="display: flex; align-items: baseline; gap: 10px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 22px; line-height: 1; color: oklch(0.20 0.045 210);">9:30am</div>
+            <div style="font-size: 12px; font-weight: 800; color: oklch(0.34 0.055 205);">30 min</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: oklch(0.24 0.05 205);">$50</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 28px; height: 28px; border-radius: 15px; background: oklch(0.22 0.045 210); color: oklch(0.90 0.12 197); display: flex; align-items: center; justify-content: center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-height: 36px; border-radius: 12px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.215 0.02 262);">
+          <div style="font-size: 14px; font-weight: 700; color: oklch(0.50 0.015 258);">10:00am</div>
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.48 0.015 258);">Taken</div>
+        </div>
+
+        <div style="min-height: 56px; border-radius: 16px; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262);">
+          <div style="display: flex; align-items: baseline; gap: 10px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 22px; line-height: 1; color: oklch(0.97 0.008 250);">10:30am</div>
+            <div style="font-size: 12px; font-weight: 700; color: oklch(0.68 0.02 255);">30 min</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: oklch(0.85 0.15 88);">$50</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: oklch(0.70 0.02 255);">
+              <div style="width: 28px; height: 28px; border-radius: 15px; border: 1.5px solid oklch(0.44 0.03 262); display: flex; align-items: center; justify-content: center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-height: 56px; border-radius: 16px; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: oklch(0.245 0.028 262); border: 1px solid oklch(0.32 0.03 262);">
+          <div style="display: flex; align-items: baseline; gap: 10px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 22px; line-height: 1; color: oklch(0.97 0.008 250);">11:00am</div>
+            <div style="font-size: 12px; font-weight: 700; color: oklch(0.68 0.02 255);">30 min</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: oklch(0.85 0.15 88);">$50</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: oklch(0.70 0.02 255);">
+              <div style="width: 28px; height: 28px; border-radius: 15px; border: 1.5px solid oklch(0.44 0.03 262); display: flex; align-items: center; justify-content: center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="flex: 1; min-height: 12px;"></div>
+
+      <!-- running total sheet -->
+      <div style="background: oklch(0.265 0.03 262); border-radius: 22px; padding: 14px 14px 14px 14px; display: flex; flex-direction: column; gap: 10px; flex: none;">
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px;">
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.72 0.02 255);">Mia&rsquo;s Monday</div>
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: oklch(0.60 0.02 258);">2 LESSONS</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+
+          <div style="min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 2px 0 10px; border-radius: 12px; background: oklch(0.225 0.025 262);">
+            <div style="width: 18px; height: 18px; border-radius: 9px; background: oklch(0.85 0.14 197); color: oklch(0.22 0.045 210); display: flex; align-items: center; justify-content: center; flex: none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"></path></svg>
+            </div>
+            <div style="flex: 1; font-size: 13.5px; font-weight: 700; color: oklch(0.95 0.008 250);">9:30am <span style="font-weight: 600; color: oklch(0.70 0.02 255);">&middot; 30 min</span></div>
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 16px; color: oklch(0.85 0.15 88);">$50</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: oklch(0.62 0.02 258);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>
+            </div>
+          </div>
+
+          <div style="min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 2px 0 10px; border-radius: 12px; background: oklch(0.225 0.025 262);">
+            <div style="width: 18px; height: 18px; border-radius: 9px; background: oklch(0.85 0.15 88); color: oklch(0.25 0.05 88); display: flex; align-items: center; justify-content: center; flex: none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"></path></svg>
+            </div>
+            <div style="flex: 1; font-size: 13.5px; font-weight: 700; color: oklch(0.95 0.008 250);">3:00pm <span style="font-weight: 600; color: oklch(0.70 0.02 255);">&middot; 60 min</span></div>
+            <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 16px; color: oklch(0.85 0.15 88);">$80</div>
+            <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: oklch(0.62 0.02 258);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 4px 2px 4px; border-top: 1px solid oklch(0.34 0.03 262);">
+          <div style="font-size: 13px; font-weight: 700; color: oklch(0.78 0.02 255);">Total</div>
+          <div style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 30px; line-height: 1; color: oklch(0.85 0.15 88);">$130</div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 52px; height: 52px; border-radius: 16px; border: 1px solid oklch(0.40 0.03 262); display: flex; align-items: center; justify-content: center; color: oklch(0.88 0.02 250); flex: none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </div>
+          <div style="flex: 1; height: 52px; border-radius: 16px; background: oklch(0.85 0.14 197); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800; color: oklch(0.20 0.045 210);">
+            Request these times
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
