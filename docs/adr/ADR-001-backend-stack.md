@@ -2,7 +2,73 @@
 
 ## Status
 
-**Accepted** — 2026-07-28. Supersedes the "decide at scaffold time" placeholders in §2 and §11 of `docs/architecture.md`. Contains one mandatory validation gate (§ Consequences → *Day-one spike*) that must run before feature work begins.
+**Accepted** — 2026-07-28. Supersedes the "decide at scaffold time" placeholders in §2 and §11 of `docs/architecture.md`.
+**Amended** — 2026-07-29. See Amendments below. **The mandatory day-one spike is withdrawn.**
+
+---
+
+## Amendments
+
+ADRs are append-only: the reasoning below is preserved as the record of what was
+decided and why. This section states what has changed since, and takes precedence
+where the two conflict.
+
+### A1 — Cold start is no longer a design constraint (2026-07-29)
+
+The owner has deprioritized cold-start latency. It is not a factor in any further
+design decision. This removes the constraint that drove roughly half of the
+original analysis.
+
+**What is withdrawn:**
+
+- **SnapStart is no longer required** on any function. With it go all of its costs:
+  SDK priming in `beforeCheckpoint`, the 14-day snapshot expiry and
+  `SnapStartNotReadyException`, the keep-warm Scheduler rule, the 10-second
+  `afterRestore` ceiling, the Secrets Manager extension incompatibility, and the
+  entropy-in-init trap. Enable it later if latency ever becomes interesting; none
+  of it is load-bearing now.
+- **The mandatory day-one spike is withdrawn.** It existed solely to measure
+  SnapStart restore latency after multi-hour idle. There is nothing left for it
+  to validate.
+- **The fallback ladder is withdrawn** (memory bump → Quarkus JVM → Quarkus native).
+  It was a latency-recovery plan.
+- **Assumptions 1, 2, 5 and 7 are moot** — all four concern unmeasured SnapStart
+  behaviour.
+
+**What survives, and why:**
+
+- **Spring Boot 4 is still the call.** The original Rationale already found that
+  under primed SnapStart the frameworks landed within ~80ms of each other, and
+  that the decision therefore turned on ecosystem depth, published support policy,
+  and who patches the JVM. Those axes are untouched by this amendment. Micronaut
+  is still eliminated on its absent EOL policy; Quarkus-native is still eliminated
+  on GraalVM CVE patching duty.
+- **The `java25` managed runtime and arm64 stand** — chosen for AWS-managed
+  patching and cost, not for latency.
+- **`core/` stays framework-free.** Its value was never cold starts; it is what
+  makes a framework swap cheap for any reason.
+- **The two-API-function split stands**, but now rests entirely on §7's
+  per-Lambda least privilege — one `DispatcherServlet` Lambda cannot have narrow
+  per-function IAM roles. The secondary argument (fewer snapshot builds per
+  deploy) no longer applies.
+- **Four framework-free async consumers stand** — simpler, not faster.
+- **Alias wiring is now optional but still recommended**, for versioning and
+  rollback rather than to make SnapStart apply. The `[$LATEST]` failure mode
+  disappears with SnapStart.
+- **Decisions 2, 3 and 4** (CDK TypeScript, monorepo, per-coach timezone in the
+  model) are unaffected — none rested on latency.
+
+**Net effect:** the same stack, materially less operational surface. Deploy is
+Maven → CDK → done, with no snapshot lifecycle to reason about.
+
+### A2 — Assumption 3 resolved (2026-07-29)
+
+The owner has confirmed **no prior Quarkus or Micronaut experience**. This closes
+assumption 3 in the direction the decision already anticipated: Spring wins on
+corpus depth and AI-assist quality precisely when a framework is new to you.
+Prior *Spring* experience remains unstated; if it is also new, the decision holds
+but the "budget real time for the first week of setup" note in Consequences
+should be read as a firm prediction rather than an aside.
 
 ---
 
