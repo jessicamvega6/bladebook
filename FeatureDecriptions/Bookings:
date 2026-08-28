@@ -1,0 +1,15 @@
+Bookings:
+
+
+The booking PAGE view will only show the next 3 months. This is a UI restriction only. nothing validates against it api/server level Example: its April 24th, so the months shown would be April, May, June. 
+The Booking Page will show a calendar view with the months available on the right hand side. Clicking each month will show the availability for that month. Availability is shown by having each square (whichrepresenting a day within that month) with the number of open lesson slots. A day that has no open lessons slots is dark grey/disabled and cannot be clicked. On the left hand side next to the calendar view is week 1-4. Clicking on a week link takes the client to that weekds Schedule view. Clicking on a day within the calendar takes you to that day's Schedule view. 
+
+A schedule view will have time blocks starting at the coaches first lesson of the day, and going until the last lesson of the day, The Interval btwn the start of day and end of day will be the length of lessons. Example, Coaches first lesson of the day is 6am and the lesson is 30 mins, then the schedule will display the times 6:00 -6:30 6:30-7:00 etc up to the end of the day. The schedule view will display the results from the coachs schedule query. 
+
+
+A client will book by clicking on one or more open time block slot and hitting submit. Clicking the block will select/deselect the lesson.
+Each selected slot will be highlighted light green while the unselected are white with grey border and the already taken time slots are a medium grey. After selecting the slot(s) they want want they will hit submit. A pop up will display the selected slot(s) and have a reoccuring checkbox next to it, a disabled frequency dropdown, and a disabled endDate date field. If the checkbox is selected then the dropdown is enabled and shows 1 week, 2 week, 3 week, or 4 week. defaulted to 1 week.  The endDate date field is enabled and defaults to 3 months from that date. 
+
+A confirmation page will display afterwares showing the successful and unsuccessful bookings. If any bookings are unsuccessful list the unsuccessful dates and ask the client to retry. 
+
+At least one lesson slot must be selected for the Submit button to enabled. If the reocurring checkbox is unselected then the reoccuring frequency dropdown value in the object being submitted is set to null/empty. 

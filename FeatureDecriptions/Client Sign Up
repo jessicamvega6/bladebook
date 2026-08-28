@@ -1,0 +1,34 @@
+Client Sign Up:
+
+CoachCode   : Code given to client by coach outside of website. 
+            : On focusOut of input field and while value.length = 5 check to see if this is a valid coach code. If yes, display coach name and photo (if uploaded)
+
+Is Minor: checkbox
+Guardian First name:
+Guardian Last Name:
+
+Student Section: 
+Student First Name:
+Student Last Name: 
+
+Button to add another Student // is only enabled when is minor is checked
+
+
+Contact Section:
+phone number:
+email:
+
+Terms and Agreements for SMS
+
+password field
+confirm password field: confirm password can =not allow pasting. 
+
+
+Profile Icon selection: A list of images uploaded by system phase 2
+
+
+
+
+
+
+

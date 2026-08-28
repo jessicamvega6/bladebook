@@ -1,0 +1,33 @@
+Coach Sign Up:
+
+Form that has fields:
+    first name
+    last name 
+    business id 
+    email
+    phone number
+    Display phone number to clients checkbox
+
+
+    Password:
+    Confirm Password: 
+
+    Profile photo upload
+
+    Display payment types to clients checkbox
+    Payment set up:
+    Cashapp:
+    Venmo:
+    Paypal:
+
+
+
+
+Forgot password:
+form that acepts 
+
+first name
+last name
+business id
+username
+

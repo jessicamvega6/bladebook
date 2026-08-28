@@ -1,0 +1,189 @@
+
+
+
+
+
+
+
+
+
+public class AllMatch {
+    public static void main(String[] args) {
+        boolean result = Stream.of("do", "re", "mi", "fa", "so", "la", "ti")
+            .filter(str - > str.length() > 5) // #1 0 elements in stream
+             .peek(System.out::println) // #2 nothing prints
+            .allMatch(str - > str.length() > 5); // #3 
+         System.out.println(result);
+    }
+}
+
+
+//1 10 1 104
+public class Question {
+    public static void main(String[] args) {
+        IntStream.range(1, 10)
+            .filter(i -> {
+                 System.out.print("1");
+                return i % 2 == 0;  //even numbers   //1!= even break | 2 == even cont | 3!=even break | 4 ==even
+            })
+            .filter(i -> {
+                 System.out.print("0"); 
+                return i > 3; //2 !> 3 brea | 3 !> 3 break | 4> 3 cont
+            })
+            .limit(1) //breaks after receiving X(1) of results 
+            .forEach(i -> {
+                 System.out.print(i);
+            });
+    }
+}
+
+1.Which two are valid constructors for Thread?  1: Thread(Runnable r, String name) 2 : Thread()  3:Thread(int priority) 4 : Thread(Runnable r, ThreadGroup g) 5: Thread(Runnable r, int priority) 
+a) 1 and 3 
+b) 1 and 2 correct answer
+c) 2 and 4 
+d) 2 and 5
+
+2. Which cannot directly cause a thread to stop executing? 
+a)Calling notify() method on an object  correct answer | I got wrong
+b)Calling the SetPriority() method on a Thread object.  
+c) Calling the wait() method on an object. 
+d) Calling read() method on an InputStream object.
+
+
+3. public class RTExcept 
+{
+    public static void throwit () 
+    {
+        System.out.print("throwit ");
+        throw new RuntimeException();
+    }
+    public static void main(String [] args) 
+    {
+        try 
+        {
+             System.out.print("hello ");
+            throwit();
+        }
+        catch (Exception re ) 
+        {
+             System.out.print("caught ");
+        }
+        finally 
+        {
+             System.out.print("finally ");
+        }
+         System.out.println("after ");
+    }
+}
+a) hello throwit caught 
+b) Compilation fails 
+c) hello throwit RuntimeException caught after 
+d) hello throwit caught finally after | correct answer
+
+
+4. Which collection class allows you to grow or shrink its size and provides indexed access to its elements, but whose methods are not synchronized? 
+a) java.util.ArrayList | correct answer | I got wrong
+b) java.util.HashSet 
+c) java.util.LinkedHashSet 
+d) None of the above
+
+
+5.What does the following code snippet do? 
+SELECT TOP 5 * FROM students; 
+a) Select all entries from table except   5 random row 
+b) None of any 
+c) select all element from student table 
+d) Select the top 5 entries for all columns in the students table | correct answer
+
+
+6. What is the main use case of Apache Kafka? 
+a) Data storage 
+b) Data processing 
+c) Data streaming | correct answer
+d) Data analysis
+
+
+7) What is a Kafka partition? 
+a) A single stream of data records within a topic | correct answer | I got wrong
+b) A collection of data streams within a topic 
+c) A message queue within a topic 
+d) A group of Kafka brokers within a cluster 
+
+
+9) public class AllMatch {
+    public static void main(String[] args) {
+        boolean result = Stream.of("do", "re", "mi", "fa", "so", "la", "ti")
+            .filter(str - > str.length() > 5) // #1
+             .peek(System.out::println) // #2
+            .allMatch(str - > str.length() > 5); // #3
+         System.out.println(result);
+    }
+}
+a) This program results in a compiler error in the line marked with comment #1 
+b) This program prints: true 
+c) This program prints the strings “do”, “re”, “mi”, “fa”, “so”, “la”, “ti”, and “false” in separate lines 
+d) This program prints: false
+
+
+10) public class Question {
+    public static void main(String[] args) {
+        IntStream.range(1, 10)
+            .filter(i -> {
+                 System.out.print("1");
+                return i % 2 == 0;
+            })
+            .filter(i -> {
+                 System.out.print("0");
+                return i > 3;
+            })
+            .limit(1)
+            .forEach(i -> {
+                 System.out.print(i);
+            });
+    }
+}
+a) 101010104 
+b) 1111111110000000004 
+c)11041106
+d) 1101104 | correct answer | I got wrong
+
+
+
+NDA?? TExas client 
+US F10 global impact privacy ^1B customers for IVR
+
+
+
+
+would it be mira tech w2 or direct client hire?
+- sounds like Everis
+
+
+Hiring - if 
+Tech round
+Management round 
+
+
+
+
+
+  1. Partial availability on a recurring booking. Client books Mondays for six months; four of those Mondays are already taken or fall under a temp with no matching slot. All-or-nothing, or book the 22 that work and show them the 4
+  that didnt? (Id say the latter.)
+    --book the 22 that work and show them the 4 that didnt? with an explaination of 'Lesson slot either does not exist or is already taken."
+    
+  2. Is there a cap on the recurrence end date? "Far into the future" plus weekly means an unbounded write. A 12-month ceiling is a cheap guardrail.
+    --A 12-month ceiling. 
+  3. Cancelled vs needs-rebooking. ADR-004 §6 deliberately chose "this lesson needs rebooking, here's a link" over "cancelled." You've said cancelled. Do you want the rebooking link dropped entirely, or kept inside the cancellation
+  email? 
+    -- The email needs to say that the lesson is canceled, and that here is a link if they want to book a lesson at a different time. 
+
+
+
+--------
+Explain why  Coach profile has a 'default lesson length/price for prefilling instructions' &' default lesson length/price for prefilling ' what is prefilling in this context
+
+explain with an example what you mean with ' Date override     │ Enter a date range, get a row per date, set that date's    │ ADR-006 d2                  │
+  │ editor            │ blocks. Empty = no lessons (blackout)' and how it interactions with default schedule
+
+
+
