@@ -5,7 +5,8 @@ carries a project-specific meaning, the third column says what it means *here*
 rather than in general.
 
 For domain terms that are **not** acronyms — student, client, `clientRelationship`,
-`isMinor` — see §0 of [architecture.md](architecture.md).
+`isMinor` — see §0 of [architecture.md](architecture.md). The **individual values** of the
+model's enumerations are defined here, in [Enumerated values](#enumerated-values).
 
 ---
 
@@ -157,6 +158,95 @@ For domain terms that are **not** acronyms — student, client, `clientRelations
 |---|---|---|
 | **SMS** | Short Message Service | Text messages, via SNS. **Per-student opt-in**, both for cost and for consent. |
 | **10DLC** | 10-Digit Long Code | The US registration regime for application-to-person SMS on a normal-looking number. ~$2/mo plus one-time registration — required before any text can send. |
+| **A2P** | Application-to-Person | Messages sent by software rather than a human — the category 10DLC registration governs. |
+| **GSM-7** | GSM 03.38 7-bit alphabet | The default SMS character set: **160 characters per segment**, which is the budget every BladeBook SMS is built against (ADR-007). Its *extension table* (`[ ] { } \ ~ ^ \|` and `€`) costs two characters each. |
+| **UCS-2** | Universal Coded Character Set, 2-byte | The fallback encoding the moment a message contains *any* non-GSM-7 character. Drops the segment to **70** characters — which is why ADR-007 restricts the character set and not just the length. The usual culprits are a typographic apostrophe `’`, an em dash, or an accented name. |
+| **Segment** | *(not an acronym)* | One billable SMS unit. Longer messages are split by the carrier, billed per segment, and reassembled with no ordering guarantee. ADR-007 permits exactly one. |
+
+---
+
+## Enumerated values
+
+The model's enums, value by value. Where two enums sit on the same item and are easily
+confused, the distinction is stated rather than left to be inferred.
+
+### `CLIENT.clientRelationship` — who the client is to the student
+
+A **client** books, is billed, and is notified. This records why they hold that role.
+
+| Value | Meaning |
+|---|---|
+| `SELF` | The student is an adult booking for themselves. The client and the student are the same person, and the `client*` contact fields hold that person's own details. |
+| `PARENT` | The client is the student's parent. The student is a minor. |
+| `GUARDIAN` | The client is the student's legal guardian but not their parent. Treated identically to `PARENT` everywhere in the system — the distinction is recorded because it is a real one to the families involved, not because any code branches on it. |
+
+> Only `isMinor` gates the child-data obligations in §7. `clientRelationship` never does —
+> booking and notification code reads the `client*` fields the same way regardless of value,
+> which is the point of having the field at all.
+
+### `STUDENT.status` — whether this student may book
+
+| Value | Meaning |
+|---|---|
+| `PENDING` | Created by a client who entered the coach's `coachCode`, and **not yet confirmed and **cannot book**  |
+| `ACTIVE` | The coach has confirmed them. They can book. |
+
+> Denormalized onto the `CLIENT#…/STUDENT#…` link item as well, so a client's own roster
+> renders without a second read.
+
+### `BOOKING.status` — what this slot actually is
+
+| Value | Meaning |
+|---|---|
+| `BOOKED` | A real lesson, claimed by a client, not yet happened. |
+| `CHECKED_IN` | The coach marked the student present. |
+| `NO_SHOW` | The lesson time passed and the student did not appear. Coach-marked. |
+| `COACH_HELD` |  A slot the coach kept unbookable after cancelling: |
+
+### `BOOKING.paymentStatus` — whether the money arrived
+
+| Value | Meaning |
+|---|---|
+| `UNPAID` | The state at creation. While unpaid, the item carries `GSI3PK`/`GSI3SK`, so it appears in the coach's outstanding-lessons view. |
+| `PAID` | The coach marked it paid. This is the **only** way it changes — nothing else in the system observes money changing hands. Marking it paid `REMOVE`s the GSI3 attributes, so the row drops out of the sparse index entirely and the index never grows with history. |
+
+> Distinct from `paymentReminderSent`, and deliberately so: one records that we **asked**,
+> the other records that they **paid**.
+
+### `CANCELLATION_BATCH.cancelledBy` — *who* cancelled
+
+| Value | Meaning |
+|---|---|
+| `CLIENT` | A client cancelled their own booking, or shortened / ended a recurrence. |
+| `COACH` | The coach cancelled from the week view. |
+| `SCHEDULE_CHANGE` | Nobody cancelled these directly — a schedule save made them impossible. |
+
+### `CANCELLATION_BATCH.source` — *what kind* of action cancelled them
+
+Sits alongside `cancelledBy` and answers a different question: `cancelledBy` says who acted,
+`source` says what they did. A coach cancelling one lesson is `COACH` + `LESSON`; a coach
+saving a temp that wipes out a week is `SCHEDULE_CHANGE` + `DATE_OVERRIDE`.
+
+| Value | Meaning |
+|---|---|
+| `DEFAULT` | A change to the coach's default weekly pattern. |
+| `DATE_OVERRIDE` | A change to one or more specific dates — a camp, a blackout, a temporary schedule. Bounded by the date range it covers. |
+| `LESSON` | The coach cancelled a single lesson. |
+| `DAY` | The coach cancelled everything remaining on one day |
+| `WEEK` | The coach cancelled a whole Sun–Sat week  |
+| `RECURRENCE` | A client moved a recurrence's end date earlier, or cancelled all future lessons in it. |
+
+### `CANCELLED_LESSON.notificationStatus` — whether the person was told
+
+Recorded per lesson even though the message is sent once per client per batch, because the
+question a coach actually asks is *"was this client told about this lesson?"*
+
+| Value | Meaning |
+|---|---|
+| `PENDING` | The cancellation is recorded; the notifier has not run yet, or is retrying. |
+| `SENT` | SES (and SNS, where the client opted in) **accepted** the message. It does **not** mean delivered, and it does not mean read. |
+| `FAILED` | We tried and could not reach them — a bounced address, an unregistered number.  |
+| `SUPPRESSED` | We were **not permitted** to try. The client has texted `STOP`, so the SMS was never attempted. Not a failure — it is the client's own choice. |
 
 ---
 
