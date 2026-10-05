@@ -63,6 +63,31 @@ That problem is inherited by the chosen design and is still open.
 
 ---
 
+## Forest — the first shipped theme, replaced by Harbor
+
+Moved here 2026-10-01, when the owner chose **Harbor** (`design/harbor/`) as the BladeBook
+theme. Everything in `forest-theme/` was drawn in Forest.
+
+| File | What it was |
+|---|---|
+| `theme-forest.md` | The Forest spec: one green family split by lightness, a 34-token contract, every pair measured. |
+| `canvas.json` + the 40 `*.dc.html` screens | The whole design set as it stood on 2026-09-30: client booking and sign-up, coach sign-up, schedule creator, dashboard and time off, week view, payments, lessons, profile, and the rinkside app. `canvas.json` opens them as a canvas; its paths are relative, so it still works from this folder. |
+| `schedule-creator-poc.html` | The interactive schedule-creator proof of concept (the Habit direction), with the live theme switcher. |
+| `bladebook-booking-page.html` | The early client booking page. |
+
+**Why it lost:** five whole-product directions were built from one shared component set
+(`design/redesign/`), and Harbor was chosen. It is the friendliest of the five for families,
+with teal and coral on sand and pill controls, while staying restrained: one primary, one accent.
+
+**What carried over:** every screen's content and flow. The redesign rebuilt all 41 screens
+rather than inventing new ones, and its notes record each improvement (for example the
+vertical booking timeline, larger rinkside targets, and review screens that lead with the impact).
+
+**Where the Harbor versions are:** coach website pages in `design/harbor/coach/`, as static
+pages and a clickable demo. Client and rinkside screens in `design/redesign/option-5-harbor.html`.
+
+---
+
 ## Themes
 
 | File | What it was | Why it is here |

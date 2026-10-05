@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Space Grotesk', 'Avenir Next', 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: oklch(0.4000 0.0900 151); text-decoration: none; }
+    a:hover { color: oklch(0.4000 0.0900 151); }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 880px; background: oklch(0.9600 0.0080 160); color: oklch(0.2907 0.0073 118.3); display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 32px; background: oklch(0.9892 0.0055 3.3); border-bottom: 1px solid oklch(0.5926 0.0153 196.7);">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <div style="font-family: 'Instrument Serif', Georgia, serif; font-weight: 700; font-size: 21px; letter-spacing: -0.02em;">BladeBook</div>
+      <div style="font-size: 14px; color: oklch(0.4900 0.0130 155);">Coach Dana Whitfield</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 13px; color: oklch(0.4900 0.0130 155);">Booking for</span>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); border-radius: 8px; font-size: 14px; font-weight: 500;">
+        <span>Mia Chen</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="oklch(0.5350 0.0140 168)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5 6 7.5 9 4.5"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding: 26px 32px 18px;">
+    <h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Book a lesson</h1>
+    <span style="font-size: 14px; color: oklch(0.4900 0.0130 155);">Pick a day to see open times</span>
+  </div>
+
+  <div style="display: flex; gap: 26px; padding: 0 32px 28px; flex-grow: 1;">
+
+    <div style="width: 132px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.5350 0.0140 168); padding: 0 4px 8px;">Jump to week</div>
+      <div style="padding: 11px 14px; border-radius: 8px; font-size: 14px; color: oklch(0.4200 0.0110 150);">Week 1</div>
+      <div style="padding: 11px 14px; border-radius: 8px; font-size: 14px; color: oklch(0.4200 0.0110 150);">Week 2</div>
+      <div style="padding: 11px 14px; border-radius: 8px; background: oklch(0.9450 0.0480 152); font-size: 14px; font-weight: 600; color: oklch(0.4000 0.0900 151);">Week 3</div>
+      <div style="padding: 11px 14px; border-radius: 8px; font-size: 14px; color: oklch(0.4200 0.0110 150);">Week 4</div>
+      <div style="padding: 11px 14px; border-radius: 8px; font-size: 14px; color: oklch(0.4200 0.0110 150);">Week 5</div>
+    </div>
+
+    <div style="flex-grow: 1; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.5926 0.0153 196.7); border-radius: 12px; padding: 22px;">
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px;">
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">SUN</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">MON</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">TUE</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">WED</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">THU</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">FRI</div>
+        <div style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: oklch(0.5350 0.0140 168);">SAT</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;">
+
+        <div style="height: 88px;"></div>
+        <div style="height: 88px;"></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">1</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">2</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">3 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">3</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">4</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">5 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">5</div></div>
+
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">6</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">7</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">9 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">8</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">9</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">4 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">10</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">11</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">7 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">12</div></div>
+
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">13</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9450 0.0480 152); border: 2px solid oklch(0.8000 0.1600 80); padding: 9px 11px;"><div style="font-size: 16px; font-weight: 700; color: oklch(0.4000 0.0900 151);">14</div><div style="margin-top: 6px; font-size: 12px; font-weight: 600; color: oklch(0.4000 0.0900 151);">12 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">15</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">16</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">6 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">17</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">18</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">10 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">19</div></div>
+
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">20</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">21</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">14 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">22</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">23</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">8 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">24</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">25</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">11 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">26</div></div>
+
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">27</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">28</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">16 open</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.845 0.000 90); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 500; color: oklch(0.4200 0.0110 150);">29</div></div>
+        <div style="height: 88px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197); padding: 10px 12px;"><div style="font-size: 16px; font-weight: 600;">30</div><div style="margin-top: 6px; font-size: 12px; font-weight: 500; color: oklch(0.4000 0.0900 151);">10 open</div></div>
+        <div style="height: 88px;"></div>
+        <div style="height: 88px;"></div>
+        <div style="height: 88px;"></div>
+
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 22px; margin-top: 20px; padding-top: 16px; border-top: 1px solid oklch(0.6500 0.0140 197);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 14px; height: 14px; border-radius: 4px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.6500 0.0140 197);"></div>
+          <span style="font-size: 12px; color: oklch(0.4900 0.0130 155);">Lessons available</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 14px; height: 14px; border-radius: 4px; background: oklch(0.845 0.000 90);"></div>
+          <span style="font-size: 12px; color: oklch(0.4900 0.0130 155);">No lessons this day</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="width: 176px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.5350 0.0140 168); padding: 0 4px 8px;">Months</div>
+      <div style="padding: 14px 16px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.5926 0.0153 196.7);">
+        <div style="font-size: 15px; font-weight: 500;">August</div>
+        <div style="margin-top: 3px; font-size: 12px; color: oklch(0.5350 0.0140 168);">4 days left</div>
+      </div>
+      <div style="padding: 14px 16px; border-radius: 9px; background: oklch(0.8000 0.1600 80);">
+        <div style="font-size: 15px; font-weight: 600; color: oklch(0.9892 0.0055 3.3);">September</div>
+        <div style="margin-top: 3px; font-size: 12px; color: oklch(0.2907 0.0073 118.3);">13 days available</div>
+      </div>
+      <div style="padding: 14px 16px; border-radius: 9px; background: oklch(0.9892 0.0055 3.3); border: 1px solid oklch(0.5926 0.0153 196.7);">
+        <div style="font-size: 15px; font-weight: 500;">October</div>
+        <div style="margin-top: 3px; font-size: 12px; color: oklch(0.5350 0.0140 168);">14 days available</div>
+      </div>
+      <div style="margin-top: 14px; padding: 13px 15px; border-radius: 9px; background: oklch(0.9420 0.0090 162); font-size: 12px; line-height: 1.5; color: oklch(0.4900 0.0130 155);">
+        This page shows three months. A repeating booking can run past them &mdash; set an end date when you book.
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

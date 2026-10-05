@@ -1,0 +1,605 @@
+{
+  "artboards": [
+    {
+      "file": "SchedHabit.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 1000,
+      "title": "Schedule creator",
+      "page": "page-3"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "1 \u00b7 Pick a day",
+      "page": "page-1"
+    },
+    {
+      "file": "Timeline.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1206,
+      "h": 1147,
+      "title": "2 \u00b7 Pick your times",
+      "page": "page-1"
+    },
+    {
+      "file": "Recurring.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 700,
+      "h": 820,
+      "title": "3 \u00b7 Confirm & repeat",
+      "page": "page-1"
+    },
+    {
+      "file": "Confirmation.dc.html",
+      "x": 3400,
+      "y": 0,
+      "w": 1200,
+      "h": 820,
+      "title": "4 \u00b7 Result",
+      "page": "page-1"
+    },
+    {
+      "file": "ClientCodeEmpty.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "1a \u00b7 Coach code \u2014 empty",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientCode.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "1b \u00b7 Coach code \u2014 found",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientDetails.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 1200,
+      "h": 1080,
+      "title": "2 \u00b7 Your details (creates account)",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientVerify.dc.html",
+      "x": 3900,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "3 \u00b7 Verify email (Cognito code)",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientSkaters.dc.html",
+      "x": 5200,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "4 \u00b7 Add skaters",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientDone.dc.html",
+      "x": 6500,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "5 \u00b7 Pending approval",
+      "page": "page-4"
+    },
+    {
+      "file": "ClientSkatersSelf.dc.html",
+      "x": 5200,
+      "y": 1160,
+      "w": 1200,
+      "h": 880,
+      "title": "4 \u00b7 Skater \u2014 signing up for myself",
+      "page": "page-4"
+    },
+    {
+      "file": "CoachAccount.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 960,
+      "title": "1 \u00b7 Account (creates account)",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachVerify.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "2 \u00b7 Verify login email (Cognito code)",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachBusiness.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 1200,
+      "h": 1000,
+      "title": "3 \u00b7 Business details \u2014 different email",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachConfirm.dc.html",
+      "x": 3900,
+      "y": 0,
+      "w": 1200,
+      "h": 880,
+      "title": "4 \u00b7 Confirm business email (different only)",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachBusinessSame.dc.html",
+      "x": 2600,
+      "y": 1300,
+      "w": 1200,
+      "h": 1000,
+      "title": "3 \u00b7 Business details \u2014 same as login email",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachProfileEmail.dc.html",
+      "x": 0,
+      "y": 2700,
+      "w": 1200,
+      "h": 760,
+      "title": "Profile \u00b7 business email",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachAllSet.dc.html",
+      "x": 3900,
+      "y": 1300,
+      "w": 1200,
+      "h": 880,
+      "title": "4 \u00b7 All set (same email \u2014 no link)",
+      "page": "page-5"
+    },
+    {
+      "file": "CoachDashboard.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 900,
+      "title": "1 \u00b7 Dashboard \u2014 two ways in",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachAwayChoose.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1200,
+      "h": 760,
+      "title": "2 \u00b7 Time off or a special schedule?",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachTimeOff.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 1200,
+      "h": 760,
+      "title": "3 \u00b7 Time off \u2014 a name and dates",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachTimeOffOverlap.dc.html",
+      "x": 2600,
+      "y": 920,
+      "w": 1200,
+      "h": 760,
+      "title": "3 \u00b7 Time off \u2014 overlap rejected",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachScheduleReview.dc.html",
+      "x": 3900,
+      "y": 0,
+      "w": 1200,
+      "h": 1340,
+      "title": "4 \u00b7 Review \u2014 big price change, cancellations, re-pricing",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachChangeStatus.dc.html",
+      "x": 5200,
+      "y": 0,
+      "w": 1200,
+      "h": 820,
+      "title": "5 \u00b7 After saving \u2014 needs attention",
+      "page": "page-6"
+    },
+    {
+      "file": "CoachWeekView.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 760,
+      "title": "1 \u00b7 Week view \u2014 cancel this day / week",
+      "page": "page-7"
+    },
+    {
+      "file": "CoachCancelPreview.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1200,
+      "h": 900,
+      "title": "2 \u00b7 Cancel preview \u2014 release or hold, per lesson",
+      "page": "page-7"
+    },
+    {
+      "file": "CoachPayments.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 1200,
+      "h": 860,
+      "title": "3 \u00b7 Payments \u2014 paid, waived, no-shows",
+      "page": "page-7"
+    },
+    {
+      "file": "CoachLessonList.dc.html",
+      "x": 3900,
+      "y": 0,
+      "w": 1200,
+      "h": 760,
+      "title": "4 \u00b7 Lesson list \u2014 correct attendance",
+      "page": "page-7"
+    },
+    {
+      "file": "CoachProfileVisibility.dc.html",
+      "x": 5200,
+      "y": 0,
+      "w": 1200,
+      "h": 900,
+      "title": "5 \u00b7 Profile \u2014 what families see, and cancellation texts",
+      "page": "page-7"
+    },
+    {
+      "file": "ClientMyBookings.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 860,
+      "title": "1 \u00b7 My bookings",
+      "page": "page-8"
+    },
+    {
+      "file": "ClientCancelConfirm.dc.html",
+      "x": 1300,
+      "y": 0,
+      "w": 1200,
+      "h": 760,
+      "title": "2 \u00b7 Cancel a lesson \u2014 confirmation",
+      "page": "page-8"
+    },
+    {
+      "file": "ClientRecurrence.dc.html",
+      "x": 2600,
+      "y": 0,
+      "w": 1200,
+      "h": 980,
+      "title": "3 \u00b7 Change a recurring arrangement",
+      "page": "page-8"
+    },
+    {
+      "file": "ClientBookingResubmit.dc.html",
+      "x": 3900,
+      "y": 0,
+      "w": 1200,
+      "h": 940,
+      "title": "4 \u00b7 Result after an error \u2014 your lessons, recognised",
+      "page": "page-8"
+    },
+    {
+      "file": "ClientNoTimesYet.dc.html",
+      "x": 5200,
+      "y": 0,
+      "w": 1200,
+      "h": 900,
+      "title": "5 \u00b7 Booking calendar \u2014 coach hasn\u2019t posted times",
+      "page": "page-8"
+    },
+    {
+      "file": "RinkToday.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "1 \u00b7 Today\u2019s lessons",
+      "page": "page-9"
+    },
+    {
+      "file": "RinkOffline.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "2 \u00b7 No signal \u2014 saved on the phone",
+      "page": "page-9"
+    },
+    {
+      "file": "RinkNotLoaded.dc.html",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "3 \u00b7 Today\u2019s lessons haven\u2019t loaded",
+      "page": "page-9"
+    },
+    {
+      "file": "RinkCancelConfirm.dc.html",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "4 \u00b7 Cancel one lesson \u2014 confirmation sheet",
+      "page": "page-9"
+    },
+    {
+      "file": "RinkCouldntSend.dc.html",
+      "x": 1920,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "5 \u00b7 Check-ins that couldn\u2019t be sent",
+      "page": "page-9"
+    },
+    {
+      "file": "RinkFamilyCancelled.dc.html",
+      "x": 2400,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "6 \u00b7 A late replay \u2014 the family had cancelled",
+      "page": "page-9"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "sched",
+      "x": 1300,
+      "y": 0,
+      "w": 520,
+      "text": "Habit won a six-way build. The finding that outlived the five alternatives: all of them independently chose a COMPOSITE preview over active-tab-only, and the literal spec build showed why \u2014 read literally each tab owns its own calendar, so a coach cannot see a Monday collision until validation rejects it.",
+      "page": "page-3"
+    },
+    {
+      "id": "flow",
+      "x": 0,
+      "y": -250,
+      "w": 560,
+      "text": "The client booking flow, end to end, in the Forest theme.\n\nThe three-month window on step 1 is a UI restriction only \u2014 nothing validates against it server-side, which is what lets a recurring booking run past it.",
+      "page": "page-1"
+    },
+    {
+      "id": "step2",
+      "x": 1300,
+      "y": -250,
+      "w": 540,
+      "text": "CHOSEN: Timeline, the measured strip. Width IS duration \u2014 a 60-minute lesson occupies twice the space of a 30-minute one, and the two-hour midday gap is real empty space rather than a label.\n\nOpen problem carried forward: that squeezes the 30-minute slots narrow enough that their labels rotate 90\u00b0. Needs a rethink at phone width, not a reflow.",
+      "page": "page-1"
+    },
+    {
+      "id": "student",
+      "x": 0,
+      "y": -460,
+      "w": 540,
+      "text": "The student picker in the header is not in the spec \u2014 added because price resolves from the student's override before the block price, so the page cannot render a price until it knows who the lesson is for.",
+      "page": "page-1"
+    },
+    {
+      "id": "partial",
+      "x": 3400,
+      "y": -250,
+      "w": 420,
+      "text": "Partial success is the normal case, not an error state. The reason is deliberately merged \u2014 saying \\\"already taken\\\" would leak that another family holds that slot.",
+      "page": "page-1"
+    },
+    {
+      "id": "csrc",
+      "x": 0,
+      "y": -560,
+      "w": 560,
+      "page": "page-4",
+      "text": "Client sign-up, built from the data model and ADR-002 as summarised there (no separate sign-up doc was found). Fields map to the Client record: clientName, clientEmail, clientPhone, clientRelationship (SELF | PARENT | GUARDIAN), smsOptIn. Each skater becomes a Student with isMinor and studentStatus = PENDING, plus a CLIENT# \u2192 STUDENT# link.\n\nAuth is Cognito, on custom pages (ASSUMED \u2014 not Managed Login)."
+    },
+    {
+      "id": "cempty",
+      "x": 0,
+      "y": -250,
+      "w": 520,
+      "page": "page-4",
+      "text": "Empty state: nothing typed yet. Continue stays disabled until a code resolves to a coach, and the placeholder card shows where the coach's name will appear so families can check it's the right person before creating an account."
+    },
+    {
+      "id": "ccode",
+      "x": 1300,
+      "y": -300,
+      "w": 520,
+      "page": "page-4",
+      "text": "ASSUMED: the coach-code format. 'DANA-7K2Q' is a placeholder \u2014 ADR-002 leaves length, character set and expiry open. The code resolves through CODE#<coachCode> (access pattern 9) before any account exists, so the page can show the coach's name on step 1. It is held client-side until step 4, when the skaters are linked to that coach."
+    },
+    {
+      "id": "cdet",
+      "x": 2600,
+      "y": -300,
+      "w": 540,
+      "page": "page-4",
+      "text": "COGNITO: 'Create account' calls SignUp. Email is the username; name and phone go as standard attributes. The password checklist mirrors Cognito's default policy (8+ chars, upper, lower, number, symbol) \u2014 if the pool's policy changes, this list must change with it."
+    },
+    {
+      "id": "cver",
+      "x": 3900,
+      "y": -300,
+      "w": 520,
+      "page": "page-4",
+      "text": "COGNITO: ConfirmSignUp with the emailed code (Cognito's default is a 6-digit code, valid 24 h). On success the app signs in, and only then is anything written to DynamoDB \u2014 the CLIENT# profile and, on the next step, the students. Resend = ResendConfirmationCode."
+    },
+    {
+      "id": "cself",
+      "x": 5200,
+      "y": 960,
+      "w": 620,
+      "page": "page-4",
+      "text": "Variant of step 4 when 'Who are the lessons for?' = Me (clientRelationship = SELF). The client IS the student: one Student row with studentName = clientName, isMinor = false, studentStatus = PENDING. No add-another-skater here. ASSUMED: a SELF client books only for themselves, and a minor can't sign up as SELF. Whether one person can be SELF and also a PARENT isn't decided \u2014 clientRelationship lives on the Client record, so today it's one or the other."
+    },
+    {
+      "id": "csk",
+      "x": 5200,
+      "y": -300,
+      "w": 520,
+      "page": "page-4",
+      "text": "No Back button from here on: the Cognito account already exists and is confirmed, so going 'back' would mean editing the profile, not undoing a step."
+    },
+    {
+      "id": "cpend",
+      "x": 6500,
+      "y": -300,
+      "w": 520,
+      "page": "page-4",
+      "text": "A PENDING student cannot book (ADR-002 d2), so the result screen is a waiting state, not a booking prompt. The email is already verified by step 3, so this screen no longer asks the family to check their inbox. ASSUMED: no cap on skaters per client \u2014 ADR-016 notes the session policy is comfortable at 1\u20134."
+    },
+    {
+      "id": "ksrc",
+      "x": 0,
+      "y": -560,
+      "w": 560,
+      "page": "page-5",
+      "text": "Coach sign-up, from ADR-017 and the Coach record in the data model. How a coach account comes to exist is still OPEN (ADR-002 / ADR-016) \u2014 this design assumes self-serve Cognito sign-up on custom pages, which ADR-016 flags as letting anyone start collecting children's data. Treat it as a proposal until that is decided. If coaches are admin-invited instead (AdminCreateUser), steps 1\u20132 become 'set your password' from an invite email."
+    },
+    {
+      "id": "kacc",
+      "x": 0,
+      "y": -250,
+      "w": 540,
+      "page": "page-5",
+      "text": "COGNITO: 'Create account' calls SignUp \u2014 the account exists from this click. Login email is the Cognito username (the Coach record's `email`). Password checklist mirrors Cognito's default policy."
+    },
+    {
+      "id": "kver",
+      "x": 1300,
+      "y": -300,
+      "w": 540,
+      "page": "page-5",
+      "text": "COGNITO: ConfirmSignUp with the 6-digit code. This verifies the LOGIN email only. It does not satisfy ADR-017 d5 \u2014 Cognito's verification of the login address does not establish that the coach wants that address in front of families \u2014 so the business email still gets its own link on step 4. The two are deliberately worded as code vs link."
+    },
+    {
+      "id": "kbiz",
+      "x": 2600,
+      "y": -300,
+      "w": 540,
+      "page": "page-5",
+      "text": "Signed in by now. 'Save and continue' writes COACH#<coachId> / PROFILE in DynamoDB (not Cognito attributes), generates the coach code, and sends the ADR-017 confirmation link. ADR-017 d4: businessEmail is required, pre-filled with the login email, editable, with the ADR's help text. Also: coachTz, currency, lateCancellationHours, paymentInstructions. ASSUMED: 24 h default notice."
+    },
+    {
+      "id": "kconf",
+      "x": 3900,
+      "y": -300,
+      "w": 540,
+      "page": "page-5",
+      "text": "DIFFERENT-EMAIL BRANCH. ADR-017 d5/d7: the business-email link is BladeBook's own flow (token, expiry, route) \u2014 Cognito doesn't provide it. No schedule can be written until businessEmailVerifiedAt exists, hence the locked 'Build your teaching week' card. 'Use my login email instead' switches to the same-email branch without waiting for the link."
+    },
+    {
+      "id": "kprof",
+      "x": 0,
+      "y": 2480,
+      "w": 1180,
+      "page": "page-5",
+      "text": "AFTER SIGN-UP (ADR-017 d5b\u2013d5d). Listed = verified: the list is exactly the login email plus unexpired verifiedEmails entries, built server-side. Picking a listed address saves instantly \u2014 no link, no hold. '+ Use a new address' is the only path to a link. Remove appears on every row except the current business email (switch first) and the login email (verified by Cognito on every request); removing deletes the entry, so the address stops being listed and would need a link again. Expiry (365 days after an address stops being used, d5c) just makes the row disappear \u2014 no dates shown. The header text is decision 4's required Reply-To explanation, not verification help."
+    },
+    {
+      "id": "ksame",
+      "x": 2600,
+      "y": 1100,
+      "w": 1180,
+      "page": "page-5",
+      "text": "SAME-EMAIL BRANCH (ADR-017 d5a, owner 2026-09-24). When businessEmail equals the coach's Cognito-verified login email, no link is sent: the profile write sets businessEmailVerifiedAt in the same PutItem, step 4 is skipped, and the teaching week is unlocked immediately. The comparison is server-side against the signed-in token's email claim with email_verified = true \u2014 never against a value the form sends \u2014 trimmed and case-insensitive."
+    },
+    {
+      "id": "n-page-6",
+      "x": 0,
+      "y": -300,
+      "w": 620,
+      "page": "page-6",
+      "text": "Added 2026-09-30 from the current ADRs: two dashboard buttons and the time-off form (ADR-008 d6a, d6b), the overlap rejection (ADR-008 d8), the review step with re-pricing and the must-tick large-price warning (ADR-020; the 50% shown is a demo value \u2014 the real threshold is undecided), and the status after saving (ADR-010 d5l). The clickable version is the BladeBook Schedule Builder prototype."
+    },
+    {
+      "id": "n-page-7",
+      "x": 0,
+      "y": -300,
+      "w": 620,
+      "page": "page-7",
+      "text": "Added 2026-09-30. Week view and cancel preview: ADR-009 d5, d5a, d7 \u2014 'this week' is the Sun\u2013Sat week on screen from now on, release-or-hold is asked per lesson. Payments: ADR-003, ADR-015 d4 (a no-show shows its full price for now). Lesson list: ADR-014 d8. Profile switches and the coach cancellation text: ADR-016 d7a, ADR-009 d9."
+    },
+    {
+      "id": "n-page-8",
+      "x": 0,
+      "y": -300,
+      "w": 620,
+      "page": "page-8",
+      "text": "Added 2026-09-30. Cancel confirmation wording: ADR-009 d2 (MVP 'may incur'). Recurrence management: ADR-009 d4, d4a, d4b, ADR-015 d1a. Result after a failed attempt: ADR-006 d4b (booked / already booked for this student / unavailable, and the keep-or-cancel prompt). Empty calendar: ADR-008."
+    },
+    {
+      "id": "n-page-9",
+      "x": 0,
+      "y": -300,
+      "w": 620,
+      "page": "page-9",
+      "text": "Added 2026-09-30, phone-sized. ADR-014: offline queue and banner (d1, d1a), cancelling disabled offline (ADR-009 d5a), today\u2019s lessons not loaded (d5a), contacts only with signal (d9b), cancel confirmation with the confirm button away from the first tap (ADR-009 d5a), rejected check-ins (d4a), family cancelled after a replay (d4)."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-3"
+  },
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Client \u2014 booking flow"
+    },
+    {
+      "id": "page-3",
+      "name": "Coach \u2014 schedule creator"
+    },
+    {
+      "id": "page-4",
+      "name": "Client \u2014 sign up"
+    },
+    {
+      "id": "page-5",
+      "name": "Coach \u2014 sign up"
+    },
+    {
+      "id": "page-6",
+      "name": "Coach \u2014 dashboard, time off & saving"
+    },
+    {
+      "id": "page-7",
+      "name": "Coach \u2014 week, payments & lessons"
+    },
+    {
+      "id": "page-8",
+      "name": "Client \u2014 my bookings"
+    },
+    {
+      "id": "page-9",
+      "name": "Rinkside app"
+    }
+  ]
+}
