@@ -1,7 +1,9 @@
 # Phase 2 — coach-selectable themes
 
-**Forest is the shipped theme.** Its spec is `design/theme-forest.md`, and every screen
-in the design set is drawn in it.
+**Harbor is the shipped theme** (`design/harbor/`, chosen 2026-10-01). Forest, which these
+four were written against, moved to `design/DecidedAgainst/forest-theme/`. **The four below
+still implement Forest's 34-token contract** and need mapping onto Harbor's tokens before
+they can be swapped in.
 
 These four are not rejected work — they are the **catalogue for a Phase 2 feature**: a
 coach picks the look of their own booking pages. They live here rather than in
@@ -20,7 +22,7 @@ holds Clay's palette but works for any of them.
 ## What a theme has to satisfy
 
 All four implement the **same 34-token contract** as Forest, which is what makes them
-swappable at runtime — see the live switcher in `design/schedule-creator-poc.html`.
+swappable at runtime — see the live switcher in `design/DecidedAgainst/forest-theme/schedule-creator-poc.html`.
 
 Two rules every theme has to hold, learned the hard way across six palettes:
 
