@@ -176,6 +176,11 @@ The horizon must be enforced in the API, not just the UI, or it is not a constra
 
 ## Open
 
+> **All items below are superseded.** ADR-006 removed the booking horizon entirely and
+> pulled recurring lessons into MVP, so the questions about horizon length, batch cadence
+> and booking outside the horizon no longer describe the system. They are kept as the
+> record of what was unresolved when the horizon existed.
+
 - **Rolling daily or weekly batch?** MVP is rolling (`today` … `today + 7`) because it
   is the simpler thing and nothing depends on the distinction yet. Recurring lessons
   likely force a weekly batch. Decide at the start of Phase 2 — it changes what "the

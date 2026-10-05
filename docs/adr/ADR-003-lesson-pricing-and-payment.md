@@ -31,6 +31,11 @@ still captured at signup and remains on the coach profile.
 question about what is owed: a **cancelled** lesson is never billed. Whether a **no-show**
 is owed remains unresolved.
 
+**Amended by [ADR-020](ADR-020-repricing-booked-lessons.md)** — 2026-09-30. Decision **2**'s
+stamp now protects **past** lessons, and anything already marked paid or waived. An upcoming
+lesson follows the coach's current price — increases only beyond the notice period, decreases
+at once — and the family is told.
+
 **Accepted** — 2026-07-29. Closes the gap where MVP feature #6 (payment-reminder
 email on check-in) had no amount to send: `BOOKING` carried only
 `paymentReminderSent: bool`, and no price, rate or balance existed anywhere in the
@@ -130,12 +135,42 @@ their calendar.
 Every booking is independently owed, and there is no running balance, no account
 credit, and no partial payment.
 
-The coach app gets a **mark as paid** action. This is the only way a booking becomes
+The coach website gets a **mark as paid** action. This is the only way a booking becomes
 `PAID` — nothing else in the system can set it, because nothing else observes money
 changing hands.
 
 `paymentReminderSent` stays as it is, and remains distinct from `paymentStatus`:
 one records that we asked, the other records that they paid.
+
+> **Amended 2026-08-30 — `WAIVED`, and the coach payment dashboard.**
+>
+> **`paymentStatus` becomes `UNPAID | PAID | WAIVED`.** A coach can forgive a charge —
+> illness, a family emergency, a rink closure — and the dashboard gets a **mark as waived**
+> action alongside mark as paid. `waivedAt` and `waivedBy` are recorded for the same reason
+> `paidAt` and `markedPaidBy` are: this is a decision about money and should say who made it.
+>
+> **This does not introduce a ledger and does not need one.** Waiving decides that money was
+> never owed — a terminal state on one booking. It is not a transaction, carries no amount,
+> and moves no balance. A *refund* would be a transaction and would break this model; a waive
+> does not. The distinction is what makes this amendment cheap.
+>
+> **Decision 5's sparse index needs no change.** `GSI3PK`/`GSI3SK` are written only while a
+> booking is `UNPAID`, so `WAIVED` drops the item out of the unpaid index exactly as `PAID`
+> does. The waived lesson stops being outstanding, which is the intent.
+>
+> **A manual *send a payment reminder* action is Phase 2, and it changes what the
+> reminder fields have to record.** `paymentReminderSent` is a boolean, which says only that
+> we asked once; a coach who can press send repeatedly needs a history.
+>
+> `paymentReminderSent` is **kept unchanged** — ADR-010 uses it as the idempotency guard on
+> the automatic payment-reminder consumer, and a redelivered event must still not double-send.
+> `paymentReminderCount` and `lastPaymentReminderAt` arrive **with the Phase-2 manual action**
+> and record the full history. Two fields for two jobs: one guards a consumer, the other is an
+> audit trail — and the only available brake on a coach sending the same family a reminder
+> every hour, and on the SMS cost of doing so (ADR-007). Nothing rate-limits it today, which
+> is a gap to close when the button ships rather than after.
+>
+> Source: `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
 
 ### 5. Unpaid lessons are visible via a sparse index
 
@@ -158,7 +193,7 @@ on `paymentStatus`. That serves the per-student view but not the coach's
 ### 6. Payment instructions are free text on the coach
 
 `COACH#<coachId>/PROFILE` gains `paymentInstructions` — a free-text field captured
-at signup and editable in the coach app, interpolated verbatim into the payment
+at signup and editable on the coach website, interpolated verbatim into the payment
 reminder email. Coaches take e-transfer, Venmo, cash at the rink, or something we
 have not thought of; the system does not need to model any of it.
 
@@ -199,7 +234,7 @@ reconciliation — the system is a notifier and a checklist. Price stamping mean
 payment reminder Lambda needs no pricing logic at all: it reads a number off the
 booking it was handed.
 
-**Harder.** The coach app grows a payments surface that §10 did not budget for: a
+**Harder.** The coach website grows a payments surface that §10 did not budget for: a
 mark-as-paid action and an outstanding-lessons view. That belongs to feature #6 and
 should be added to the MVP scope list.
 
@@ -212,21 +247,26 @@ answer and this ADR should be revisited wholesale when it lands.
 
 ## Open
 
-- **Currency.** `currency` exists as a field but no value is chosen, and nothing in
-  the docs establishes whether coaches are US or Canadian. Multi-currency is not
-  supported: the field is per-coach, so one coach cannot bill in two currencies.
-- **Does a coach have one lesson length at a time, or a menu of them?** Decision 3a
-  reads the clarification as *one current length*, changeable — so a coach offering
-  both 30- and 60-minute lessons in the same week would have to change the setting
-  between publishing the two sets of slots. If coaches need a genuine menu, 3a
-  becomes a list of named lesson types (each with its own duration and price), which
-  is a larger change and is much cheaper before feature #2 is built than after.
+- ~~Currency.~~ **Settled 2026-08-30: two values, `USD` and `CAD`, defaulting to `USD`.**
+  The coach picks at signup; it lives on the coach profile and is stamped onto every booking
+  at creation, per this ADR's 2026-08-20 amendment. **Changing it later is Phase 2.**
+  
+  One consequence of stamping, which only bites once Phase 2 allows the change: bookings made
+  before a switch keep their original currency, so a coach who moves from `USD` to `CAD` has
+  outstanding lessons in both. That is the intended behaviour — the whole point of stamping is
+  that a change cannot rewrite what a client already owes — but the payment dashboard must
+  render each lesson in its own currency and **must not sum a mixed list into a single total**.
+- ~~Does a coach have one lesson length at a time, or a menu of them?~~ **Settled by
+  [ADR-008](ADR-008-schedule-editor.md) decision 2a: a menu, carried by blocks.** A block is
+  `{ seq, blockName?, startTime, endTime, lessonMinutes, priceMinor, missedLessonFeeMinor }` and a day holds
+  several, so 30-minute lessons at 6am and 60-minute lessons at 8am coexist with their own
+  prices and require no setting change between them. The answer did not take the shape this
+  item predicted — not named lesson types on the coach profile, but duration and price moved
+  onto the block, which is why decision 3a reads as superseded rather than extended.
 - **Is unpaid history shown to the client, or only to the coach?** Read as
   coach-facing only. If clients should see their own arrears, that is a client-app
   view plus a decision about whether the reminder email mentions prior debts.
-- **Is a no-show owed?** `BOOKING.status` has `NO_SHOW`, and the payment reminder
-  fires on check-in — so as specified, a no-show is never billed. This overlaps
-  Gap 3 (cancellation) and should be settled there.
+- ~~Is a no-show owed? `BOOKING.bookingStatus` has `NO_SHOW`, and the payment reminder~~ **Settled 2026-08-30 by [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md): yes** — charged under the same rule as a late cancellation.
 
 ---
 

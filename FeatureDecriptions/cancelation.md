@@ -3,6 +3,8 @@ Within 'My bookings' section by each lesson item there is a cancel button. on cl
 There will be a note that says bookings canceled within 24 hours may incur a late cancelation fee. 
 
 
+
+
 Client recurrence management:
 Within the 'My bookings' sections there will also be a button to modify reoccuring lessons. 
 This will allow the client to change the end date of the reoccuring lessons to a date earlier than currently selected. Or cancel all future lessons. Future lessons do not include that day's lesson if one exists. 
@@ -40,3 +42,6 @@ All cancelations will be tracked showing who canceled, and if possible the time 
 Business decision: there is no rescheduling, the option is to rebook-then-cancel
 Mark this as a phase 2 feature: A coach books on a client's behalf.
 
+
+
+Cancelations cannot happen on bookings in the past or happening now. 

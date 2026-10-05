@@ -1,0 +1,479 @@
+<title>Teaching Week Builder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --ground: oklch(0.962 0.006 250); --panel: oklch(0.995 0.002 250); --ground-2: oklch(0.978 0.004 250);
+    --sunk: oklch(0.968 0.006 250); --line: oklch(0.90 0.012 250); --line-soft: oklch(0.88 0.012 250);
+    --field: oklch(0.995 0.002 250); --field-ln: oklch(0.88 0.012 250);
+    --ink: oklch(0.24 0.04 258); --ink-2: oklch(0.42 0.03 258); --ink-3: oklch(0.55 0.025 258); --ink-4: oklch(0.68 0.02 258);
+    --edit: oklch(0.58 0.125 62); --on-edit: oklch(0.995 0.002 250); --edit-wash: oklch(0.978 0.022 80);
+    --other: oklch(0.52 0.185 262); --other-wash: oklch(0.955 0.025 262); --other-line: oklch(0.80 0.075 262);
+    --other-ink: oklch(0.40 0.15 262); --other-band: oklch(0.90 0.045 262);
+    --temp: oklch(0.32 0.12 262); --temp-wash: oklch(0.955 0.025 262); --temp-line: oklch(0.80 0.075 262);
+    --on-temp: oklch(0.995 0.002 250);
+    --stage: oklch(0.845 0.000 90); --off-fill: oklch(0.898 0.008 250); --off-line: oklch(0.72 0.016 250); --off-ink: oklch(0.47 0.022 258);
+    --action-shadow: oklch(0.52 0.185 262 / 0.28); --action: oklch(0.52 0.185 262); --action-ink: oklch(0.995 0.002 250);
+    --warn-wash: oklch(0.965 0.022 25); --warn-ink: oklch(0.45 0.16 25);
+    --edit-wash-2: oklch(0.958 0.038 78); --edit-line: oklch(0.86 0.09 74); --edit-ink: oklch(0.34 0.08 62);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: 'Space Grotesk', 'Avenir Next', 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  select, input { font: inherit; color: inherit; }
+  .lbl { font-size: 10.5px; font-weight:700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .field { height: 48px; width: 100%; border-radius: 12px; background: var(--field); border: 1px solid var(--field-ln); padding: 0 12px; font-size: 14.5px; font-weight: 700; appearance: none; cursor: pointer; }
+  .field:focus-visible { outline: 2px solid var(--edit); outline-offset: 1px; }
+  select.field { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237b8496' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9.5l6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
+  input[type=date].field { cursor: text; }
+  input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.7); cursor: pointer; }
+  .panel { border-radius: 20px; background: var(--panel); border: 1px solid var(--line); }
+  .slot { transition: transform .06s ease; } .slot:active { transform: scale(.96); }
+  .scroll::-webkit-scrollbar { width: 6px; height: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+  .scroll { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+</style>
+
+<div id="app" style="min-height:100vh;padding:22px 26px;display:flex;flex-direction:column;gap:16px;"></div>
+
+<script>
+const THEMES = {"timeline": {"ground": "oklch(0.962 0.006 250)", "panel": "oklch(0.995 0.002 250)", "ground-2": "oklch(0.978 0.004 250)", "sunk": "oklch(0.968 0.006 250)", "line": "oklch(0.90 0.012 250)", "line-soft": "oklch(0.88 0.012 250)", "field": "oklch(0.995 0.002 250)", "field-ln": "oklch(0.88 0.012 250)", "ink": "oklch(0.24 0.04 258)", "ink-2": "oklch(0.42 0.03 258)", "ink-3": "oklch(0.55 0.025 258)", "ink-4": "oklch(0.68 0.02 258)", "edit": "oklch(0.58 0.125 62)", "on-edit": "oklch(0.995 0.002 250)", "edit-wash": "oklch(0.978 0.022 80)", "other": "oklch(0.52 0.185 262)", "other-wash": "oklch(0.955 0.025 262)", "other-line": "oklch(0.80 0.075 262)", "other-ink": "oklch(0.40 0.15 262)", "other-band": "oklch(0.90 0.045 262)", "temp": "oklch(0.32 0.12 262)", "temp-wash": "oklch(0.955 0.025 262)", "temp-line": "oklch(0.80 0.075 262)", "on-temp": "oklch(0.995 0.002 250)", "off-fill": "oklch(0.898 0.008 250)", "off-line": "oklch(0.72 0.016 250)", "off-ink": "oklch(0.47 0.022 258)", "action-shadow": "oklch(0.52 0.185 262 / 0.28)", "action": "oklch(0.52 0.185 262)", "action-ink": "oklch(0.995 0.002 250)", "warn-wash": "oklch(0.965 0.022 25)", "warn-ink": "oklch(0.45 0.16 25)", "edit-wash-2": "oklch(0.958 0.038 78)", "edit-line": "oklch(0.86 0.09 74)", "edit-ink": "oklch(0.34 0.08 62)", "stage": "oklch(0.845 0.010 250)"}, "monochrome": {"ground": "oklch(0.964 0.007 252)", "panel": "oklch(0.995 0.002 252)", "ground-2": "oklch(0.981 0.008 252)", "sunk": "oklch(0.928 0.014 252)", "line": "oklch(0.638 0.026 252)", "line-soft": "oklch(0.585 0.030 252)", "line-dash": "oklch(0.648 0.026 252)", "ink": "oklch(0.262 0.040 252)", "ink-2": "oklch(0.388 0.036 252)", "ink-3": "oklch(0.486 0.032 252)", "ink-4": "oklch(0.557 0.026 252)", "edit": "oklch(0.520 0.152 252)", "on-edit": "oklch(0.995 0.002 252)", "edit-wash": "oklch(0.950 0.023 252)", "edit-wash-2": "oklch(0.900 0.046 252)", "edit-line": "oklch(0.626 0.130 252)", "edit-ink": "oklch(0.330 0.098 252)", "other": "oklch(0.655 0.058 252)", "other-wash": "oklch(0.945 0.018 252)", "other-line": "oklch(0.612 0.052 252)", "other-ink": "oklch(0.515 0.055 252)", "other-band": "oklch(0.862 0.030 252)", "action": "oklch(0.265 0.078 252)", "action-ink": "oklch(0.995 0.002 252)", "off-fill": "oklch(0.855 0.005 252)", "off-line": "oklch(0.552 0.010 252)", "off-ink": "oklch(0.435 0.002 252)", "warn-wash": "oklch(0.945 0.026 27)", "warn-line": "oklch(0.618 0.155 27)", "warn-ink": "oklch(0.440 0.170 27)", "temp": "oklch(0.400 0.048 252)", "temp-wash": "oklch(0.945 0.006 252)", "temp-line": "oklch(0.620 0.016 252)", "on-temp": "oklch(0.995 0.002 252)", "stage": "oklch(0.845 0.012 252)"}, "cvd": {"ground": "oklch(0.945 0.007 248)", "panel": "oklch(0.985 0.003 248)", "ground-2": "oklch(0.966 0.005 248)", "sunk": "oklch(0.922 0.009 248)", "line": "oklch(0.652 0.020 248)", "line-soft": "oklch(0.640 0.024 248)", "line-dash": "oklch(0.650 0.022 248)", "ink": "oklch(0.235 0.033 256)", "ink-2": "oklch(0.410 0.030 256)", "ink-3": "oklch(0.515 0.027 256)", "ink-4": "oklch(0.615 0.023 256)", "edit": "oklch(0.270 0.140 300)", "on-edit": "oklch(0.990 0.002 248)", "edit-wash": "oklch(0.955 0.022 300)", "edit-wash-2": "oklch(0.918 0.044 300)", "edit-line": "oklch(0.600 0.245 300)", "edit-ink": "oklch(0.360 0.185 300)", "other": "oklch(0.896 0.081 215)", "other-wash": "oklch(0.948 0.038 215)", "other-line": "oklch(0.560 0.094 215)", "other-ink": "oklch(0.395 0.068 215)", "other-band": "oklch(0.800 0.135 215)", "action": "oklch(0.740 0.152 36)", "action-ink": "oklch(0.215 0.060 36)", "off-fill": "oklch(0.735 0.004 248)", "off-line": "oklch(0.455 0.008 248)", "off-ink": "oklch(0.350 0.014 256)", "warn-wash": "oklch(0.950 0.024 22)", "warn-line": "oklch(0.610 0.180 22)", "warn-ink": "oklch(0.440 0.170 22)", "temp": "oklch(0.555 0.232 262)", "temp-wash": "oklch(0.950 0.023 262)", "temp-line": "oklch(0.600 0.205 262)", "on-temp": "oklch(0.990 0.002 248)", "stage": "oklch(0.845 0.010 248)"}, "clay": {"ground": "oklch(0.973 0.008 58)", "panel": "oklch(0.992 0.003 58)", "ground-2": "oklch(0.945 0.010 58)", "sunk": "oklch(0.922 0.012 55)", "line": "oklch(0.620 0.024 40)", "line-soft": "oklch(0.655 0.020 40)", "line-dash": "oklch(0.598 0.026 40)", "ink": "oklch(0.264 0.032 15)", "ink-2": "oklch(0.355 0.034 15)", "ink-3": "oklch(0.430 0.039 4.7)", "ink-4": "oklch(0.550 0.028 15)", "edit": "oklch(0.660 0.108 49.9)", "on-edit": "oklch(0.230 0.030 15)", "edit-wash": "oklch(0.955 0.022 55)", "edit-wash-2": "oklch(0.806 0.115 40.5)", "edit-line": "oklch(0.628 0.108 49.9)", "edit-ink": "oklch(0.430 0.090 48)", "other": "oklch(0.397 0.085 11.5)", "other-wash": "oklch(0.958 0.018 11.5)", "other-line": "oklch(0.621 0.066 11.5)", "other-ink": "oklch(0.375 0.078 11.5)", "other-band": "oklch(0.885 0.045 11.5)", "action": "oklch(0.270 0.055 10)", "action-ink": "oklch(0.990 0.004 58)", "off-fill": "oklch(0.898 0.006 58)", "off-line": "oklch(0.592 0.010 58)", "off-ink": "oklch(0.392 0.010 58)", "warn-wash": "oklch(0.952 0.020 30)", "warn-line": "oklch(0.610 0.170 28)", "warn-ink": "oklch(0.448 0.162 28)", "temp": "oklch(0.330 0.095 345)", "temp-wash": "oklch(0.955 0.024 345)", "temp-line": "oklch(0.610 0.090 345)", "on-temp": "oklch(0.856 0.090 56.4)", "stage": "oklch(0.845 0.012 30)"}, "forest": {"ground": "oklch(0.9600 0.0080 160)", "panel": "oklch(0.9892 0.0055 3.3)", "ground-2": "oklch(0.9420 0.0090 162)", "sunk": "oklch(0.9080 0.0110 162)", "line": "oklch(0.5926 0.0153 196.7)", "line-soft": "oklch(0.6500 0.0140 197)", "line-dash": "oklch(0.5450 0.0170 197)", "ink": "oklch(0.2907 0.0073 118.3)", "ink-2": "oklch(0.4200 0.0110 150)", "ink-3": "oklch(0.4900 0.0130 155)", "ink-4": "oklch(0.5350 0.0140 168)", "edit": "oklch(0.4530 0.0825 151.2)", "on-edit": "oklch(0.9892 0.0055 3.3)", "edit-wash": "oklch(0.9450 0.0480 152)", "edit-wash-2": "oklch(0.8950 0.0780 152)", "edit-line": "oklch(0.5250 0.1250 150)", "edit-ink": "oklch(0.4000 0.0900 151)", "other": "oklch(0.8473 0.1294 150.9)", "other-wash": "oklch(0.9400 0.0620 151)", "other-line": "oklch(0.6071 0.1403 150.2)", "other-ink": "oklch(0.525 0.045 205.5)", "other-band": "oklch(0.8850 0.0850 151)", "action": "oklch(0.8000 0.1600 80)", "action-ink": "oklch(0.2907 0.0073 118.3)", "off-fill": "oklch(0.7400 0.0070 195)", "off-line": "oklch(0.4600 0.0090 195)", "off-ink": "oklch(0.2907 0.0073 118.3)", "warn-wash": "oklch(0.9500 0.0220 25)", "warn-line": "oklch(0.5750 0.1750 27)", "warn-ink": "oklch(0.4600 0.1800 27)", "temp": "oklch(0.7900 0.1280 305)", "temp-wash": "oklch(0.9500 0.0260 305)", "temp-line": "oklch(0.5900 0.1750 305)", "on-temp": "oklch(0.2907 0.0073 118.3)", "stage": "oklch(0.845 0.000 90)"}};
+const THEME_NAMES = {"timeline": "Timeline (amber)", "monochrome": "Monochrome Ice", "cvd": "Deep Ice / Coral", "clay": "Clay", "forest": "Forest"};
+const RAMPS = {"timeline": [{"name": "Amber", "fill": "oklch(0.480 0.102 62)", "wash": "oklch(0.935 0.039 62)", "line": "oklch(0.560 0.105 62)", "ink": "oklch(0.395 0.085 62)"}, {"name": "Rust", "fill": "oklch(0.480 0.115 32)", "wash": "oklch(0.935 0.031 32)", "line": "oklch(0.560 0.105 32)", "ink": "oklch(0.395 0.095 32)"}, {"name": "Violet", "fill": "oklch(0.480 0.115 300)", "wash": "oklch(0.935 0.034 300)", "line": "oklch(0.560 0.105 300)", "ink": "oklch(0.395 0.095 300)"}, {"name": "Teal", "fill": "oklch(0.480 0.076 195)", "wash": "oklch(0.935 0.045 195)", "line": "oklch(0.560 0.088 195)", "ink": "oklch(0.395 0.063 195)"}, {"name": "Green", "fill": "oklch(0.480 0.115 148)", "wash": "oklch(0.935 0.045 148)", "line": "oklch(0.560 0.105 148)", "ink": "oklch(0.395 0.095 148)"}, {"name": "Magenta", "fill": "oklch(0.480 0.115 345)", "wash": "oklch(0.935 0.038 345)", "line": "oklch(0.560 0.105 345)", "ink": "oklch(0.395 0.095 345)"}], "forest": [{"name": "Shamrock", "fill": "oklch(0.480 0.115 151)", "wash": "oklch(0.935 0.045 151)", "line": "oklch(0.560 0.105 151)", "ink": "oklch(0.395 0.095 151)"}, {"name": "Teal", "fill": "oklch(0.480 0.076 205)", "wash": "oklch(0.935 0.045 205)", "line": "oklch(0.560 0.088 205)", "ink": "oklch(0.395 0.063 205)"}, {"name": "Indigo", "fill": "oklch(0.480 0.115 268)", "wash": "oklch(0.935 0.028 268)", "line": "oklch(0.560 0.105 268)", "ink": "oklch(0.395 0.095 268)"}, {"name": "Plum", "fill": "oklch(0.480 0.115 330)", "wash": "oklch(0.935 0.045 330)", "line": "oklch(0.560 0.105 330)", "ink": "oklch(0.395 0.095 330)"}, {"name": "Clay", "fill": "oklch(0.480 0.115 35)", "wash": "oklch(0.935 0.031 35)", "line": "oklch(0.560 0.105 35)", "ink": "oklch(0.395 0.095 35)"}, {"name": "Moss", "fill": "oklch(0.480 0.097 110)", "wash": "oklch(0.935 0.045 110)", "line": "oklch(0.560 0.105 110)", "ink": "oklch(0.395 0.080 110)"}]};
+
+// A block's identity colour comes from its seq. Editing state stays carried by
+// solid-vs-pale fill — so hue says WHICH block, lightness says WHICH ONE YOU'RE ON.
+function bc(b){ const r = RAMPS[themeKey]; return r ? r[((b.seq||1)-1) % r.length] : null; }
+let themeKey = 'timeline';
+function applyTheme(k){ themeKey = k; const t = THEMES[k];
+  for (const [n,v] of Object.entries(t)) document.documentElement.style.setProperty('--'+n, v);
+  if (!t['action-shadow']) document.documentElement.style.setProperty('--action-shadow', t['action'].replace(')',' / 0.28)').replace('oklch(','oklch('));
+  render(); }
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const LENGTHS = [30,45,60,90,120];
+let uid = 10;
+
+const BOOKINGS = [
+  { iso:'2026-08-19', t:390,  len:30, who:'Mia C.'   },
+  { iso:'2026-08-19', t:540,  len:30, who:'Noah C.'  },
+  { iso:'2026-08-21', t:420,  len:30, who:'Ella A.'  },
+  { iso:'2026-08-24', t:360,  len:30, who:'Mia C.'   },
+  { iso:'2026-08-24', t:570,  len:30, who:'Sam R.'   },
+  { iso:'2026-08-24', t:900,  len:60, who:'Priya R.' },
+];
+
+let state = {
+  mode: 'default',
+  previewMode: 'all',
+  published: false,
+  def: {
+    active: 2,
+    blocks: [
+      { id:1, seq:1, name:'Morning ice',           sod:360, eod:690,  len:30, cost:50, days:[0,1,0,1,0,1,0], off:{} },
+      { id:2, seq:2, name:'Afternoon power hours', sod:900, eod:1020, len:60, cost:80, days:[0,1,0,0,0,0,0], off:{} },
+    ],
+  },
+  temp: {
+    name: 'Summer camp week', sd:'2026-08-19', ed:'2026-08-25', active: 5,
+    blocks: [ { id:5, seq:1, name:'Camp ice', sod:540, eod:960, len:60, cost:80, days:[1,1,1,1,1,1,1], off:{} } ],
+  },
+};
+
+const cur  = () => state.mode === 'default' ? state.def : state.temp;
+const blks = () => cur().blocks;
+const blk  = () => blks().find(b => b.id === cur().active);
+const isTemp = () => state.mode === 'temp';
+
+const fmt = m => { const h24=Math.floor(m/60), mm=m%60, h=h24%12===0?12:h24%12; return `${h}:${String(mm).padStart(2,'0')} ${h24<12?'AM':'PM'}`; };
+const short = m => fmt(m).replace(':00','').replace(' ','');
+const money = n => '$' + n.toLocaleString('en-US');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const slotsOf = b => { const o=[]; for (let t=b.sod; t+b.len<=b.eod; t+=b.len) o.push(t); return o; };
+const derived = b => `${short(b.sod)}–${short(b.eod)} · ${b.len} min · $${b.cost}`;
+const posName = b => `Block ${b.seq}`;
+const nextSeq = () => Math.max(0, ...blks().map(x => x.seq || 0)) + 1;
+const label = b => esc(b.name).trim() || posName(b);
+
+const parse = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
+const toIso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+function dateList() {
+  const a = parse(state.temp.sd), b = parse(state.temp.ed), out = [];
+  if (b < a) return out;
+  for (let d = new Date(a); d <= b && out.length < 60; d.setDate(d.getDate()+1))
+    out.push({ iso: toIso(d), dow: d.getDay(), dom: d.getDate(), mon: MONS[d.getMonth()] });
+  return out;
+}
+
+const offKey = (d,t) => `${d}|${t}`;
+const isOff = (b,d,t) => !!b.off[offKey(d,t)];
+const liveSlots = (b,d) => (isTemp() || b.days[d]) ? slotsOf(b).filter(t => !isOff(b,d,t)) : [];
+
+function defSlotsOn(dow) {
+  const out = [];
+  for (const b of state.def.blocks) if (b.days[dow]) for (const t of slotsOf(b)) if (!isOff(b,dow,t)) out.push({ t, len:b.len, cost:b.cost });
+  return out;
+}
+function tempSlotsOn(dateIdx) {
+  const out = [];
+  for (const b of state.temp.blocks) for (const t of slotsOf(b)) if (!isOff(b,dateIdx,t)) out.push({ t, len:b.len, cost:b.cost });
+  return out;
+}
+
+function impact() {
+  const dates = dateList(), covered = new Set(dates.map(d => d.iso));
+  let replaced = 0, created = 0;
+  dates.forEach((d,i) => { replaced += defSlotsOn(d.dow).length; created += tempSlotsOn(i).length; });
+  const killed = [];
+  for (const bk of BOOKINGS) {
+    if (!covered.has(bk.iso)) continue;
+    const i = dates.findIndex(d => d.iso === bk.iso);
+    const survives = tempSlotsOn(i).some(s => s.t === bk.t && s.len === bk.len);
+    if (!survives) killed.push(bk);
+  }
+  return { dates, replaced, created, killed };
+}
+
+function totals() {
+  let n = 0, cash = 0;
+  if (isTemp()) { const dates = dateList(); dates.forEach((d,i)=>{ for (const b of state.temp.blocks) { const c = liveSlots(b,i).length; n+=c; cash+=c*b.cost; } }); }
+  else for (const b of state.def.blocks) for (let d=0; d<7; d++) { const c = liveSlots(b,d).length; n+=c; cash+=c*b.cost; }
+  return { n, cash };
+}
+function colTotals(idx) {
+  let n = 0, cash = 0;
+  for (const b of blks()) { const c = liveSlots(b, idx).length; n+=c; cash+=c*b.cost; }
+  return { n, cash };
+}
+function clashes() {
+  const out = [], N = isTemp() ? 1 : 7;
+  for (let d=0; d<N; d++) {
+    const on = blks().filter(b => isTemp() || b.days[d]);
+    for (let i=0;i<on.length;i++) for (let j=i+1;j<on.length;j++) {
+      const a = on[i], c = on[j];
+      if (a.sod < c.eod && c.sod < a.eod) out.push({ day:d, a, b:c });
+    }
+  }
+  return out;
+}
+function invalid() {
+  const bad = [];
+  for (const b of blks()) {
+    const nm = label(b);
+    if (b.eod <= b.sod) bad.push(`“${nm}” ends before it starts.`);
+    else if (slotsOf(b).length === 0) bad.push(`“${nm}” is too short for one ${b.len}-minute lesson.`);
+    if (!isTemp() && !b.days.some(Boolean)) bad.push(`“${nm}” has no days selected.`);
+  }
+  if (isTemp()) {
+    if (!state.temp.sd || !state.temp.ed) bad.push('A temporary schedule needs a start and end date.');
+    else if (parse(state.temp.ed) < parse(state.temp.sd)) bad.push('The end date is before the start date.');
+  }
+  const withTime = b => `${label(b)} (${short(b.sod)}–${short(b.eod)})`;
+  for (const c of clashes()) bad.push(`${isTemp() ? 'These dates' : DAYS[c.day]}: ${withTime(c.a)} and ${withTime(c.b)} overlap in time.`);
+  return bad;
+}
+
+const set = fn => { fn(); render(); };
+const timeOpts = sel => { let s=''; for (let m=0;m<1440;m+=15) s += `<option value="${m}"${m===sel?' selected':''}>${fmt(m)}</option>`; return s; };
+
+function render() {
+  const b = blk(), errs = invalid(), t = totals(), temp = isTemp();
+  const idx = blks().findIndex(x => x.id === cur().active);
+  const cols = temp ? dateList() : DAYS.map((d,i)=>({ label:d, dow:i }));
+  const imp = temp ? impact() : null;
+  const A = temp ? 'var(--temp)' : 'var(--edit)';
+  const ADEEP = temp ? 'var(--on-temp)' : 'var(--on-edit)';
+  const ABG = temp ? 'var(--temp-wash)' : 'var(--edit-wash)';
+
+  document.getElementById('app').innerHTML = `
+  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:38px;height:38px;border-radius:11px;background:${A};display:flex;align-items:center;justify-content:center;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="${ADEEP}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg>
+      </div>
+      <div>
+        <div style="font-size:16px;font-weight:700;letter-spacing:-.02em;">BladeBook</div>
+        <div style="font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);">Coach · Dana Whitfield</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:4px;padding:4px;border-radius:14px;background:var(--sunk);border:1px solid var(--line);flex-wrap:wrap;">
+      ${Object.keys(THEMES).map(k=>`<button onclick="applyTheme('${k}')" style="height:36px;padding:0 12px;border-radius:10px;background:${themeKey===k?'var(--ink)':'none'};color:${themeKey===k?'var(--panel)':'var(--ink-3)'};font-size:12px;font-weight:700;">${THEME_NAMES[k]}</button>`).join('')}
+    </div>
+
+    <div style="display:flex;align-items:center;gap:4px;padding:4px;border-radius:14px;background:var(--sunk);border:1px solid var(--line);">
+      ${[['default','Default week','This is your normal week. It repeats forever.'],['temp','Temporary','Replaces your normal week for a set range of dates.']]
+        .map(([m,label]) => `<button onclick="set(()=>{state.mode='${m}';state.published=false;})" style="height:44px;padding:0 18px;border-radius:11px;background:${state.mode===m?(m==='temp'?'var(--temp)':'var(--edit)'):'none'};color:${state.mode===m?(m==='temp'?'var(--on-temp)':'var(--on-edit)'):'var(--ink-3)'};font-size:13.5px;font-weight:${state.mode===m?800:700};">${label}</button>`).join('')}
+    </div>
+
+    <div style="flex:1;min-width:200px;">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:23px;font-weight:400;letter-spacing:-.01em;">${temp ? esc(state.temp.name) || 'Temporary schedule' : 'Your teaching week'}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--ink-3);">${temp
+        ? `Replaces your default week from ${state.temp.sd || '—'} to ${state.temp.ed || '—'}. Your default is untouched.`
+        : 'This repeats every week — no dates, just the shape of your week.'}</div>
+    </div>
+
+    <div style="height:44px;display:flex;align-items:center;gap:9px;padding:0 14px;border-radius:12px;background:${temp?'var(--temp-wash)':'var(--temp-wash)'};border:1px solid ${temp?'var(--temp-line)':'var(--temp-line)'};">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${temp?'var(--temp)':'var(--other)'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${temp
+        ? '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'
+        : '<path d="M4 8.5A8 8 0 0119 6.5"/><path d="M19 3v4h-4"/><path d="M20 15.5A8 8 0 015 17.5"/><path d="M5 21v-4h4"/>'}</svg>
+      <div style="font-size:12.5px;font-weight:700;color:${temp?'var(--temp)':'var(--other-ink)'};">${temp ? `${imp.dates.length} dates · one-off` : 'Live since Sept 2024 · repeats weekly'}</div>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;gap:20px;align-items:stretch;min-height:0;flex-wrap:wrap;">
+    <div style="width:432px;min-width:396px;display:flex;flex-direction:column;gap:14px;">
+
+      ${temp ? `<div class="panel" style="padding:18px;display:flex;flex-direction:column;gap:12px;border-color:var(--temp-line);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--temp);">Which dates</div>
+          <div style="padding:2px 6px;border-radius:999px;background:var(--warn-wash);font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--warn-ink);">REQUIRED</div>
+          <div style="flex:1;"></div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);">Every date in the range</div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">Start date</div>
+            <input type="date" class="field" value="${state.temp.sd}" onchange="set(()=>state.temp.sd=this.value)"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">End date</div>
+            <input type="date" class="field" value="${state.temp.ed}" onchange="set(()=>state.temp.ed=this.value)"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;"><div class="lbl">Name · optional</div>
+          <input class="field" style="cursor:text;" value="${esc(state.temp.name)}" placeholder="e.g. Summer camp week" oninput="set(()=>state.temp.name=this.value)"></div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink-3);line-height:1.5;">No day checkboxes here — a temporary schedule applies to <strong style="color:var(--ink-2);">every date</strong> in the range. For a different pattern on other dates, make a second temporary schedule.</div>
+      </div>` : ''}
+
+      <div class="panel" style="padding:18px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);">Blocks</div>
+          <div style="flex:1;"></div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);">One length &amp; price each</div>
+        </div>
+        ${blks().map(x => blockCard(x, temp, A, ADEEP, ABG)).join('')}
+        <button onclick="addBlock()" style="height:46px;border-radius:12px;border:1px dashed var(--line-dash);display:flex;align-items:center;justify-content:center;gap:9px;width:100%;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span style="font-size:13px;font-weight:700;color:var(--ink-2);">Add a block with a different length or price</span>
+        </button>
+      </div>
+
+      <div class="panel" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div style="width:10px;height:10px;border-radius:3px;background:${A};"></div>
+          <div style="font-size:15px;font-weight:700;letter-spacing:-.01em;">${esc(b.name).trim() || `<span style="color:var(--ink-2)">${posName(b)}</span>`}</div>
+          <div style="flex:1;"></div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);">${blks().length} block${blks().length>1?'s':''}</div>
+        </div>
+
+        ${blks().length < 2 ? '' : `<div style="display:flex;flex-direction:column;gap:6px;"><div class="lbl">Block name · optional</div>
+          <input class="field" style="cursor:text;" maxlength="40" value="${esc(b.name)}" placeholder="${posName(b)}" oninput="set(()=>blk().name=this.value)">
+          <div style="font-size:10.5px;font-weight:600;color:var(--ink-3);">Leave blank and it stays “${posName(b)}”. A name makes overlap warnings easier to read.</div></div>`}
+
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">Start of day</div>
+            <select class="field" onchange="set(()=>blk().sod=+this.value)">${timeOpts(b.sod)}</select></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">End of day</div>
+            <select class="field" onchange="set(()=>blk().eod=+this.value)">${timeOpts(b.eod)}</select></div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">Lesson length</div>
+            <select class="field" onchange="set(()=>{blk().len=+this.value;blk().off={};})">${LENGTHS.map(l=>`<option value="${l}"${l===b.len?' selected':''}>${l} minutes</option>`).join('')}</select></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="lbl">Cost per lesson</div>
+            <div class="field" style="display:flex;align-items:center;gap:7px;cursor:text;">
+              <span style="color:var(--ink-3);">$</span>
+              <input type="number" min="0" step="1" value="${b.cost}" style="flex:1;min-width:0;background:none;border:none;outline:none;font-weight:700;" oninput="set(()=>blk().cost=Math.max(0,+this.value||0))">
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--ink-4);">USD</span>
+            </div></div>
+        </div>
+
+        ${temp ? '' : `<div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;"><div class="lbl">Days this block runs</div>
+            <div style="padding:2px 6px;border-radius:999px;background:var(--warn-wash);font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--warn-ink);">REQUIRED</div></div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">${DAYS.map((d,i)=>dayToggle(b,d,i)).join('')}</div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:5px;height:5px;border-radius:999px;background:var(--other);"></div>
+            <div style="font-size:11px;font-weight:600;color:var(--ink-3);">Amber dot = a day another block already covers.</div></div>
+        </div>`}
+
+        ${statusPanel(errs, temp, imp)}
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button onclick="reset()" style="width:110px;height:56px;border-radius:14px;border:1px solid var(--field-ln);font-size:14px;font-weight:700;color:var(--ink-2);">Reset</button>
+        <button onclick="${errs.length?'':'publish()'}" ${errs.length?'disabled':''}
+          style="flex:1;height:56px;border-radius:14px;background:${errs.length?'var(--sunk)':'var(--action)'};color:${errs.length?'var(--ink-4)':'var(--action-ink)'};display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:-.01em;cursor:${errs.length?'not-allowed':'pointer'};box-shadow:${errs.length?'none':'0 6px 18px var(--action-shadow)'};">
+          ${state.published ? 'Published ✓' : (temp ? 'Next · review impact' : 'Next · review &amp; publish')}
+        </button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1;min-width:540px;padding:22px;display:flex;flex-direction:column;gap:13px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:16px;font-weight:700;letter-spacing:-.01em;">${temp ? 'These specific dates' : (state.previewMode==='all' ? 'Every week, all blocks together' : 'Every week, this block only')}</div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);">${temp ? 'Columns are real dates — this is what replaces your default week.' : 'Columns are weekdays — this shape repeats forever.'} Click a slot to switch it off.</div>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="height:44px;display:flex;align-items:center;gap:3px;padding:3px;border-radius:12px;background:var(--sunk);border:1px solid var(--line);">
+          ${['all','this'].map(m=>`<button onclick="set(()=>state.previewMode='${m}')" style="height:36px;padding:0 13px;border-radius:9px;background:${state.previewMode===m?'var(--line)':'none'};font-size:12px;font-weight:${state.previewMode===m?800:700};color:${state.previewMode===m?'var(--ink)':'var(--ink-3)'};">${m==='all'?'All blocks':'This block only'}</button>`).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:16px;padding:9px 12px;border-radius:11px;background:var(--sunk);flex-wrap:wrap;">
+        ${RAMPS[themeKey]
+          ? blks().map(x=>{const c=bc(x);const on=x.id===cur().active;
+              return legend(on?c.fill:c.wash, on?('2px solid '+c.line):('1px solid '+c.line), (esc(x.name).trim()||posName(x))+(on?' — editing':''));}).join('')
+          : legend(A,'none',"Block you’re editing")+legend('var(--other-wash)','1px solid var(--temp-line)','Other blocks')}
+        ${legend('var(--off-fill)','1px dashed var(--off-line)','Switched off')}
+        <div style="flex:1;"></div>
+        <div style="font-size:11.5px;font-weight:700;color:var(--ink-2);">${t.n} lessons ${temp?'over these dates':'a week'} · ${money(t.cash)}</div>
+      </div>
+
+      ${temp ? impactBar(imp) : ''}
+
+      <div class="scroll" style="flex:1;min-height:400px;overflow-x:auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(122px,1fr);gap:7px;">
+        ${cols.map((c,i)=>column(c,i,temp,A,ADEEP)).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+const legend = (bg,bd,label) => `<div style="display:flex;align-items:center;gap:7px;">
+  <div style="width:22px;height:13px;border-radius:4px;background:${bg};border:${bd};"></div>
+  <div style="font-size:11px;font-weight:700;color:var(--ink-2);">${label}</div></div>`;
+
+function impactBar(imp) {
+  const net = imp.created - imp.replaced;
+  return `<div style="display:flex;gap:9px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px;border-radius:11px;background:var(--ground-2);border:1px solid var(--line);padding:10px 13px;">
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);">Replaces</div>
+      <div style="font-size:14px;font-weight:700;margin-top:3px;">${imp.replaced} default lessons → ${imp.created} camp lessons
+        <span style="color:${net>=0?'var(--edit-ink)':'var(--warn-ink)'};font-weight:700;">(${net>=0?'+':''}${net})</span></div>
+    </div>
+    <div style="flex:1;min-width:230px;border-radius:11px;background:${imp.killed.length?'var(--warn-wash)':'var(--edit-wash-2)'};border:1px solid ${imp.killed.length?'var(--warn-line)':'var(--edit-line)'};padding:10px 13px;">
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${imp.killed.length?'var(--warn-ink)':'var(--edit-ink)'};">${imp.killed.length?'Bookings that will be cancelled':'No bookings affected'}</div>
+      <div style="font-size:12px;font-weight:600;margin-top:3px;color:${imp.killed.length?'var(--warn-ink)':'var(--edit-ink)'};line-height:1.45;">
+        ${imp.killed.length ? imp.killed.map(k=>`${k.who} · ${k.iso.slice(8)} ${MONS[+k.iso.slice(5,7)-1]} ${fmt(k.t)}`).join(' &nbsp;·&nbsp; ') : 'Every existing lesson still has a matching slot.'}</div>
+    </div></div>`;
+}
+
+function blockCard(x, temp, A, ADEEP, ABG) {
+  const on = x.id === cur().active, can = blks().length > 1;
+  const k = bc(x);
+  const cardBg  = k ? (on ? k.wash : 'var(--panel)') : (on?ABG:'var(--other-wash)');
+  const cardEdge= k ? k.line : (on?A:'var(--temp-line)');
+  const cardBar = k ? k.fill : (on?A:'var(--other)');
+  const cardInk = k ? k.ink  : (on?'var(--edit-ink)':'var(--other-ink)');
+  const days = temp ? 'All dates in range' : (x.days.map((v,i)=>v?DAYS[i]:null).filter(Boolean).join(' · ') || 'No days');
+  return `<div onclick="set(()=>cur().active=${x.id})" style="min-height:60px;border-radius:13px;cursor:pointer;padding:9px 6px 9px 13px;display:flex;align-items:center;gap:8px;
+      background:${cardBg};border:1px solid ${cardEdge};border-left:${on?6:4}px solid ${cardBar};${on&&k?'box-shadow:inset 0 0 0 1px '+cardEdge+';':''}">
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:14px;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(x.name).trim()||posName(x)}</div>
+        <div style="padding:2px 6px;border-radius:999px;flex-shrink:0;background:${k?(on?k.fill:k.wash):(on?A:'var(--other-band)')};font-size:9px;font-weight:700;letter-spacing:.1em;color:${k?(on?'#FFFFFF':k.ink):(on?ADEEP:'var(--temp)')};">${on?'EDITING':'ALSO IN THIS SCHEDULE'}</div>
+      </div>
+      <div style="font-size:11.5px;font-weight:600;color:${cardInk};">${days} &nbsp;${short(x.sod)}–${short(x.eod)} &nbsp;${x.len} min &nbsp;$${x.cost}</div>
+    </div>
+    ${can?`<button onclick="event.stopPropagation();delBlock(${x.id})" title="Delete block" style="width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${cardInk}" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`:''}
+  </div>`;
+}
+
+function dayToggle(b, d, i) {
+  const on = !!b.days[i], other = state.def.blocks.some(x => x.id !== b.id && x.days[i]);
+  return `<button onclick="set(()=>blk().days[${i}]=blk().days[${i}]?0:1)" style="height:48px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;
+      background:${on?'var(--edit)':'var(--ground-2)'};border:1px solid ${on?'var(--edit)':'var(--line-soft)'};">
+    <span style="font-size:12px;font-weight:${on?800:700};color:${on?'var(--on-edit)':'var(--ink-3)'};">${d}</span>
+    ${on?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--on-edit)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>'
+        :(other?'<span style="width:5px;height:5px;border-radius:999px;background:var(--other);"></span>':'')}
+  </button>`;
+}
+
+function statusPanel(errs, temp, imp) {
+  if (errs.length) return `<div style="border-radius:13px;background:var(--warn-wash);border:1px solid var(--warn-line);padding:12px 14px;display:flex;gap:11px;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warn-ink)" stroke-width="2.2" stroke-linecap="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.1"/></svg>
+    <div style="flex:1;font-size:12px;font-weight:600;line-height:1.5;color:var(--warn-ink);">${errs.join('<br>')}</div></div>`;
+  const msg = temp
+    ? `No clashes. ${imp.dates.length} dates, ${totals().n} lessons — your default week resumes after ${state.temp.ed}.`
+    : `No clashes. ${totals().n} lessons a week across ${blks().length} block${blks().length>1?'s':''}.`;
+  return `<div style="border-radius:13px;background:var(--edit-wash-2);border:1px solid var(--edit-line);padding:12px 14px;display:flex;align-items:center;gap:11px;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--edit)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>
+    <div style="flex:1;font-size:12px;font-weight:600;line-height:1.4;color:var(--edit-ink);">${msg}</div></div>`;
+}
+
+function column(c, i, temp, A, ADEEP) {
+  const shown = state.previewMode === 'all' ? blks() : [blk()];
+  const runs = shown.filter(b => temp || b.days[c.dow]).sort((a,b)=>a.sod-b.sod);
+  const ct = colTotals(i);
+  const head = temp
+    ? `<div style="font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);">${DAYS[c.dow]} ${c.dom}</div>
+       <div style="font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);">${c.mon}</div>`
+    : `<div style="font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);">${c.label}</div>`;
+
+  if (!runs.length) return `<div style="border-radius:12px;border:1px dashed var(--line-soft);background:var(--ground-2);padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;">
+    ${head}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--off-line)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6.2 6.2l11.6 11.6"/></svg>
+      <div style="font-size:10.5px;font-weight:700;text-align:center;color:var(--off-ink);">No<br>lessons</div>
+    </div></div>`;
+
+  let body = '';
+  runs.forEach((b,k) => {
+    const act = b.id === cur().active;
+    if (k > 0 && b.sod > runs[k-1].eod) body += `<div style="height:22px;border-radius:6px;border:1px dashed var(--off-line);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <span style="font-size:9px;font-weight:700;color:var(--off-ink);">off ${short(runs[k-1].eod)}–${short(b.sod)}</span></div>`;
+        const kb = bc(b);
+body += `<div style="height:19px;border-radius:5px;flex-shrink:0;background:${kb?(act?kb.fill:kb.wash):(act?A:'var(--other-band)')};display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:${kb?(act?'#FFFFFF':kb.ink):(act?ADEEP:'var(--temp)')};">${b.len} MIN · $${b.cost}</span></div>`;
+    const tall = b.len >= 60;
+    body += `<div style="display:flex;flex-direction:column;gap:${tall?4:3}px;">` + slotsOf(b).map(t => {
+      const off = isOff(b,i,t);
+      const bg = off ? 'var(--off-fill)' : (kb ? (act ? kb.fill : kb.wash) : (act ? A : 'var(--other-wash)'));
+      const bd = off ? '1px dashed var(--off-line)'
+               : (kb ? (act ? '2px solid '+kb.line : '1px solid '+kb.line)
+                     : (act ? 'none' : '1px solid var(--other-line)'));
+      const tx = off ? 'var(--off-ink)' : (kb ? (act ? '#FFFFFF' : kb.ink) : (act ? ADEEP : 'var(--other-ink)'));
+      return `<button class="slot" onclick="toggleSlot(${b.id},${i},${t})" title="${off?'Switch on':'Switch off'}"
+        style="height:${tall?42:24}px;border-radius:${tall?7:6}px;background:${bg};border:${bd};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;${off?'text-decoration:line-through;':''}">
+        <span style="font-size:${tall?11:10.5}px;font-weight:${off?600:(act?800:700)};color:${tx};">${fmt(t)}</span>
+        ${tall?`<span style="font-size:8.5px;font-weight:700;letter-spacing:.05em;color:${off?'var(--ink-4)':(kb?(act?'#FFFFFF':kb.ink):(act?'var(--on-edit)':'var(--other)'))};">TO ${short(t+b.len)}</span>`:''}
+      </button>`;
+    }).join('') + `</div>`;
+  });
+
+  const hot = runs.some(b => b.id === cur().active);
+  return `<div style="border-radius:12px;border:1px solid ${hot?'var(--edit-line)':'var(--line)'};background:${hot?'var(--edit-wash)':'var(--ground-2)'};padding:10px 7px;display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">${head}
+      <div style="width:20px;height:3px;border-radius:999px;background:${hot?A:'var(--other)'};margin-top:2px;"></div></div>
+    <div class="scroll" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0;padding-right:2px;">${body}</div>
+    <div style="font-size:10px;font-weight:700;text-align:center;color:var(--ink-3);flex-shrink:0;">${ct.n} lesson${ct.n===1?'':'s'} · ${money(ct.cash)}</div>
+  </div>`;
+}
+
+function toggleSlot(id, i, t) {
+  const b = blks().find(x => x.id === id), k = offKey(i,t);
+  if (b.off[k]) delete b.off[k]; else b.off[k] = 1;
+  cur().active = id; render();
+}
+function addBlock() {
+  const id = ++uid;
+  blks().push({ id, seq: nextSeq(), name:'', sod:360, eod:1140, len:30, cost:50, days:isTemp()?[1,1,1,1,1,1,1]:[0,0,0,0,0,0,0], off:{} });
+  cur().active = id; state.published = false; render();
+}
+function delBlock(id) {
+  if (blks().length < 2) return;
+  cur().blocks = blks().filter(x => x.id !== id);
+  if (cur().active === id) cur().active = blks()[0].id;
+  state.published = false; render();
+}
+function publish() { state.published = true; render(); setTimeout(()=>{ state.published=false; render(); }, 2200); }
+function reset() {
+  uid = 10;
+  state = { mode: state.mode, previewMode:'all', published:false,
+    def: { active:2, blocks:[
+      { id:1, seq:1, name:'Morning ice',           sod:360, eod:690,  len:30, cost:50, days:[0,1,0,1,0,1,0], off:{} },
+      { id:2, seq:2, name:'Afternoon power hours', sod:900, eod:1020, len:60, cost:80, days:[0,1,0,0,0,0,0], off:{} }]},
+    temp: { name:'Summer camp week', sd:'2026-08-19', ed:'2026-08-25', active:5,
+      blocks:[{ id:5, seq:1, name:'Camp ice', sod:540, eod:960, len:60, cost:80, days:[1,1,1,1,1,1,1], off:{} }]},
+  };
+  render();
+}
+render();
+</script>

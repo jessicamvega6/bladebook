@@ -10,13 +10,31 @@ Closes the gap deferred, in turn, by **ADR-003** ("is a no-show owed?"), **ADR-0
 ("client-initiated cancellation, ending or skipping a recurrence"). Each named it as the
 largest hole in the design and left it for a document that did not exist.
 
-Extends **ADR-006 decision 5** — its `CANCELBATCH#` / `CANCELLED#` records were written
+Extends **ADR-006 decision 5** — its `CHANGEBATCH#` / `CANCELLED#` records were written
 for schedule-driven cancellation only. They now carry every cancellation in the system.
 
 Amends **ADR-006 decision 6** — one message per client per batch still holds, but a
 client-initiated cancellation notifies the **coach**, not the client who performed it.
 
 Adds a booking state that is not a booking: a coach-held slot (decision 5).
+
+**Amended — 2026-09-22.** Decision 5a adds the **rinkside app** (the check-in app of
+[ADR-014](ADR-014-check-in-app-and-offline-capture.md)) as a second surface for coach
+cancellation, alongside the week view on the website. Source:
+`FeatureDecriptions/Coach App`.
+
+**Amended — 2026-09-29.** Decision 11 is **superseded in part** by
+[ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 1a: from Phase 2, a
+client's own cancellation is charged when it is late — from the per-lesson cancel or from
+recurrence management alike. A cancellation by the coach or by a schedule change is still
+never owed. Decision 2's wording stands for MVP, and decision 4's confirmation gains the same
+*"may incur"* notice for any occurrence inside the threshold.
+
+**Amended — 2026-10-01.** Decision **4c**'s header moves from `COACH#<coachId>` to the
+client's own partition, `CLIENT#<clientId>` / `RECURRENCE#<coachId>#<recurrenceId>`, and
+pattern 21 loses its `clientId` filter ([ADR-022](ADR-022-client-isolation-at-the-database.md)
+decision 5). GSI1 is keyed by client, so the *"GSI1 (by student)"* row in decision 5's table
+reads *"by client"*; a held slot is still invisible there because it writes no GSI keys.
 
 ---
 
@@ -40,10 +58,10 @@ piece of modelling is the coach-held slot in decision 5.
 | Cancelled by | Trigger | Scope |
 |---|---|---|
 | `CLIENT` | Cancel button on their own booking, or recurrence management | One booking, or the tail of a recurrence |
-| `COACH` | Week view — one lesson, one day, or one week | One to a few dozen |
+| `COACH` | Week view on the coach website, or the rinkside app (decision 5a) — one lesson, one day, or one week | One to a few dozen |
 | `SCHEDULE_CHANGE` | The consumer in ADR-006 decision 5 | Unbounded |
 
-All three write the same items: one `CANCELBATCH#<isoTs>#<batchId>` header and one
+All three write the same items: one `CHANGEBATCH#<isoTs>#<batchId>` header and one
 `CANCELLED#<isoTs>#<batchId>#<bookingId>` line per lesson. **A single-lesson cancellation
 is a batch of one.** The batch is what makes "cancel this whole week" produce one email per
 affected client rather than six, and it is what satisfies *"all cancellations will be
@@ -63,7 +81,18 @@ time must stop existing rather than be restatused.
 Beside the confirmation: *"Bookings cancelled within 24 hours may incur a late
 cancellation fee."*
 
+*This wording stays for MVP (owner, 2026-09-29). From Phase 2, when the charge switches on,
+[ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 6 replaces it with the
+coach's own threshold and the booking's stated fee.*
+
 ### 3. The late-cancellation fee is a notice, not a charge
+
+> **Superseded for Phase 2 by [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md)
+> (2026-08-30):** a late cancellation *and* a no-show both carry a charge, under one rule.
+> The reasoning below stands as the record of why the fee started as a notice, and its
+> `noticeHours` requirement is what makes ADR-015 implementable at all. The Phase-2
+> checkbox it sketches is replaced by a per-block `missedLessonFeeMinor`, where `0` is the off
+> switch.
 
 Nothing computes, charges or tracks a fee. The system never moves money (ADR-003), and
 this does not change that.
@@ -87,6 +116,16 @@ operations:
   never the reverse. Occurrences that no longer fall on the new interval are cancelled as
   one batch.
 - **Cancel all future lessons.** Every remaining occurrence is cancelled.
+
+*Added 2026-09-29.* **Late occurrences carry the same fee notice as a per-lesson cancel.**
+All three operations can cancel an occurrence inside the coach's late-cancellation
+threshold — "future" excludes only today, so ending an arrangement on Monday evening cancels
+Tuesday's lesson too. From Phase 2 such an occurrence is charged exactly as a late per-lesson
+cancel would be ([ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 1a);
+occurrences beyond the threshold never are. So the confirmation names any occurrence inside
+the threshold and states that cancelling it *may incur a late cancellation fee*. MVP uses
+that *"may"* wording and collects nothing; whether Phase 2 makes it definite is decided
+then.
 
 **Recurrence management is subtractive only, and that is the organising principle.** Every
 one of the three operations selects a subset of bookings that already exist and cancels
@@ -174,12 +213,18 @@ decision 7's temporary-schedule header:
   "startedOn": "2026-09-07" }
 ```
 
+*Amended 2026-09-29 by [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md)
+decision 4b:* the header gains `recurrenceStatus` — `ACTIVE` or `ENDED` — and is **never deleted**;
+*cancel all future lessons* marks it `ENDED`. Each booking also carries
+`bookedIntervalWeeks`, the interval it was booked under, so a header that was never written
+can be rebuilt automatically. The header remains the only source of the **current** interval.
+
 **Bookings stay authoritative for what is actually scheduled; the header is read only by the
 recurrence-management screen.** Nothing on the booking path touches it, so a stale header is
 a display defect and never a double-booking. It also makes "modify recurring lessons" a
 single query rather than a scan of every booking the client holds, grouped by `recurrenceId`.
 
-This is **not** ADR-005 §4a's `RECURRENCE#` standing intent returning. That item existed to
+This is **not** ADR-005 §4a's `RECURRING#` standing intent returning. That item existed to
 *generate* bookings as a horizon rolled forward, and it is still discarded — ADR-006
 decision 4's materialization at booking time stands unchanged. This header only describes an
 arrangement whose bookings already exist.
@@ -212,7 +257,7 @@ Each asks one question: **release the time for rebooking, or keep it unbookable?
 - **Hold** — the slot is **assigned to the coach** and stays unbookable.
 
 **A held slot is a booking item with no student.** Same `BOOKING#<date>#<startTime>` key,
-`status = COACH_HELD`, no `studentId`, no `clientId`, no `priceMinor`.
+`bookingStatus = COACH_HELD`, no `studentId`, no `clientId`, no `priceMinor`.
 
 This is the only shape that works, and it works for one reason: ADR-004 decision 2 made
 the booking item *itself* the lock. A client's conditional `PutItem` fails against a held
@@ -248,6 +293,68 @@ in decision 5 deletes it like any other booking. A coach could therefore release
 editing their pattern to exclude that time and editing it back. Obscure, destructive to
 anything else in range, and not a feature.
 
+#### 5a. The rinkside app is a second cancellation surface
+
+*Added 2026-09-22.* The rinkside app is used at the rink on a phone. Per
+`FeatureDecriptions/Coach App` it offers cancellation in **two places**:
+
+1. **A cancel section** — the whole day, part of a day, the whole week, part of a week,
+   or specific lessons.
+2. **The check-in list** — each lesson has a cancel action next to check-in and no-show,
+   so a single lesson can be cancelled from either place.
+
+**It is the same operation, not a second one.** Whatever the surface, a coach cancellation
+writes the same `CHANGEBATCH#` header and `CANCELLED#` lines with `cancelledBy = COACH`
+(decision 1). It asks the same release-or-hold question (decision 5) and skips lessons that
+already happened (decision 7). Anything larger than one lesson gets the same
+preview-then-accept step (decision 8), and it notifies clients once per batch (decision 9).
+A cancel from the check-in list is a batch of one, like a single-lesson cancel from the
+week view.
+
+**"Part of a day" and "part of a week" are not new scopes.** *Settled by the owner,
+2026-09-22:* they are the **coach-held spots** — a coach selects several lessons within a day
+or a week, cancels them, and the slots they keep become `COACH_HELD`. That is a multi-select
+of *this lesson*, exactly as this ADR's Open item anticipated, and it needs no new machinery:
+the same batch header, the same lines, the same release-or-hold question, the same preview.
+
+What changes is the **selection affordance**, not the model. The cancel section lets a coach
+pick more than one lesson before confirming; everything downstream is decision 5 unchanged.
+The three defined scopes stand.
+
+**Release-or-hold is asked per lesson, not once for the selection.** *Decided by the owner,
+2026-09-22.* A multi-select of six lessons asks six times. That is real friction, and it is
+the right trade against **permanence**: a hold cannot be undone (decision 5), so a single
+answer applied to a whole selection would create several irreversible holds from one tap.
+It is also a genuinely per-slot judgement — a coach clearing an afternoon may want to
+release the early slots for rebooking and hold the late ones.
+
+**The rinkside app cannot cancel without a connection.** *Decided by the owner, 2026-09-30.*
+With no signal, every cancel action — in the check-in list and the cancel section — is
+disabled, with the note *"Cancelling needs a connection."* Check-ins are queued offline
+(ADR-014 decision 1) because they record something that already happened; a cancellation
+changes something that is about to happen, and a queued one would not reach the family until
+the phone reconnected — possibly after they had left for the rink. It also needs the server
+for decision 8's preview.
+
+**A cancel from the check-in list always asks for confirmation, even for one lesson.**
+*Decided by the owner, 2026-09-30.* The button stays beside check-in and no-show, where
+`Coach App` puts it, but a tap opens a confirmation rather than cancelling. This goes further
+than decision 8, which only requires confirmation above a single lesson. The reason is
+where the button sits: on a phone held rinkside, often with gloves on, next to the two
+buttons tapped most, and a cancel cannot be undone — release deletes the booking and a hold
+is permanent.
+
+For the confirmation to actually stop a mis-tap, it has to be something a second mis-tap
+cannot complete:
+
+- **It names the lesson** — student, date and time — so the coach sees what they are about
+  to cancel.
+- **Its confirming action is not where the original tap landed**, so a repeated tap in the
+  same spot cannot cancel.
+- **Dismissing it keeps the lesson.** The safe choice is the easy one.
+- **Release-or-hold is chosen inside the same dialog**, so a single-lesson cancel is still
+  one confirmation, not two prompts.
+
 ### 6. Cancelling never changes the schedule
 
 None of the operations above touch `SCHEDULE#DEFAULT` or any `SCHEDULE#DATE#` item. A
@@ -262,6 +369,17 @@ event, no conflict re-evaluation, no expansion. Only booking items move.
 Any booking already `CHECKED_IN` or `NO_SHOW` is skipped by every bulk operation. A coach
 cancelling "everything today" at 2pm does not cancel the 9am lesson that already took
 place. Day and week scopes operate from now forward, not retroactively.
+
+**"This week" is the Sunday–Saturday week the coach is looking at, from now on.** *Decided by
+the owner, 2026-09-30.* It follows ADR-006 decision 3's week view, so the button can never
+cancel a different set of days from the ones on screen.
+
+- **Mid-week:** on a Wednesday afternoon, it cancels Wednesday's lessons that have not started
+  yet, through Saturday. The following Sunday is untouched.
+- **A future week:** viewing a later week cancels all of that week.
+- **Already started, checked in or marked a no-show:** kept, as above.
+- **The button states the range and count** before the preview: *"Cancel remaining lessons
+  Wed 14 – Sat 17 (6 lessons)."*
 
 ### 8. The coach must accept before anything is cancelled
 
@@ -291,6 +409,23 @@ segment, pointing at the email.
 **Email templates required:** cancellation from coach (to client), and cancellation from
 client (to coach). *Phase 2: distinct templates by reason — sick, emergency, vacation.*
 
+**The coach also gets a text when a family cancels, in MVP.** *Decided by the owner,
+2026-09-30.* A coach at the rink reads texts, not email.
+
+- **Only if the coach has opted in.** A checkbox at signup and on the profile — *"Text me
+  when a family cancels"* — **unticked until the coach ticks it**, because carriers do not
+  accept pre-ticked consent. Ticking it sends ADR-007 decision 8's one-time opt-in
+  confirmation to the coach's phone. The flag is `smsCancellationAlerts` on the coach
+  profile ([ADR-016](ADR-016-coach-signup.md)).
+- **One text per cancellation batch**, like every other message here — a family ending a
+  recurrence produces one text, not twelve.
+- **Every client cancellation**, for now. If Kim's answer narrows the coach's notice to late
+  cancellations only, the email and the text narrow together.
+- **The text follows ADR-007:** one segment, no free text, a pointer to the email. Because it
+  goes *to* the coach rather than from them, it opens `BladeBook:` rather than the coach's
+  own name — *"BladeBook: Mia R. cancelled Tue 14 Oct 4:00pm. See email."* The student's
+  name is budgeted and truncated like any other variable field.
+
 ### 10. There is no rescheduling
 
 Moving a lesson is not an operation. The path is **rebook, then cancel** — in that order.
@@ -300,6 +435,14 @@ one means a client who finds their preferred alternative already taken still has
 original lesson. Cancel-first risks losing both, and the UI should not present it that way.
 
 ### 11. A cancelled lesson is never owed
+
+> **Superseded in part for Phase 2 by
+> [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 1a (2026-09-29):** a
+> client's own cancellation inside the coach's threshold is charged, on the `CANCELLED#`
+> line — whether it came from the per-lesson cancel or from recurrence management.
+> Everything else below still holds: a cancellation by the coach or by a schedule change,
+> or a client's cancellation made with enough notice, is never owed, in any phase. The
+> no-show question at the end is settled by ADR-015 decision 1: it is charged.
 
 Payment reminders fire on check-in (ADR-003 decision 7), so a cancelled booking is always
 `UNPAID` and simply ceases to exist. There is no charge, no credit and no balance —
@@ -311,12 +454,15 @@ question in the narrow case: a lesson that was cancelled is not billed. Whether 
 
 ## Model changes to `architecture.md`
 
-**Added:** `COACH_HELD` as a `Booking.status` value, for slots a coach has retained;
+**Added:** `COACH_HELD` as a `Booking.bookingStatus` value, for slots a coach has retained;
 `cancelledBy` and acting identity on the cancellation batch header; `cancelledAt` and
 `noticeHours` on cancellation lines; a coach week view; client-facing cancel and
-recurrence-management controls.
+recurrence-management controls. *Added 2026-09-29, omitted when decision 4 was written:*
+`intervalWeeks` (1–4) and the `RECURRENCE#<recurrenceId>` header item (decisions 4a, 4c) —
+written at booking time per [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md)
+decision 4a — and access pattern 21, a client's recurring arrangements.
 
-**Changed:** `LessonCancelled` consumers now route by actor — client-initiated
+**Changed:** `LessonsChanged` consumers now route by actor — client-initiated
 cancellations notify the coach rather than the client.
 
 **Access patterns added to §5:**
@@ -324,7 +470,7 @@ cancellations notify the coach rather than the client.
 | # | Query | Served by |
 |---|---|---|
 | 19 | A coach's week, slot by slot, with booked/open/held state | Pattern 5 over a Sun–Sat range, joined against computed availability |
-| 20 | A client's cancellable upcoming bookings | GSI1 by student, filtered on `status = BOOKED` |
+| 20 | A client's cancellable upcoming bookings | GSI1 by student, filtered on `bookingStatus = BOOKED` |
 
 ---
 
@@ -354,33 +500,46 @@ scoping rules. They must share the impact computation, or they will diverge.
 
 ## Open
 
-- **Is a no-show owed?** Carried forward unanswered from ADR-003. `NO_SHOW` exists as a
-  status, payment fires on check-in, so as specified a no-show is never billed. That is
-  probably not what a coach wants and it is now the last unresolved question in the
-  payment model.
+- ~~Is a no-show owed? Carried forward unanswered from ADR-003. `NO_SHOW` exists as a~~ **Settled 2026-08-30 by [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md): yes** — one rule covers a no-show and a late cancellation, because a no-show is a cancellation with zero notice.
 - **Is the coach notified of every client cancellation, or only same-day ones?**
   **Deferred by the owner, 2026-08-25.** The owner's note reads *"cancellation from
   student day of (check if needed)"*, which suggests a threshold. Until it is settled the
   notifier sends on **every** client cancellation — the safe default, since a missed
   same-day cancellation is the expensive failure and an extra email is not. If a threshold
-  does arrive it should be the same 24 hours the fee notice uses, or the product ends up
-  with two different definitions of "late."
+  does arrive it should be the coach's `requiredNoticeHours` (ADR-015 decision 3) — the
+  same threshold the fee uses — or the product ends up with two different definitions of
+  "late."
 - ~~How does a coach release a held slot?~~ **Settled 2026-08-25: holds are permanent
   for MVP.** See decision 5. Revisit when a coach reports holding a slot by mistake — which
   is the likeliest way this comes back.
-- **Does a held slot show anything to the client?** It disappears from availability, which
-  is indistinguishable from the coach never offering it. Probably correct; unstated.
+- ~~Does a held slot show anything to the client?~~ **Settled by the owner, 2026-09-30:** a
+  held slot shows as **taken**, exactly like a slot another family has booked. A client sees
+  their own lessons as theirs; every other taken slot looks the same, with no indication of
+  who holds it or why — another family or the coach.
 - **Two recurrences where there should be one.** Since extension is excluded (decision 4),
   a client wanting more lessons books a second recurrence with a different `recurrenceId`.
   Recurrence management would then show two arrangements, and "cancel all future" on one
   would not touch the other. This is a management-screen wart rather than a correctness
   problem, and it is the strongest argument for building extension later.
-- **Which week does "cancel this week" mean** when invoked mid-week — Sun–Sat per ADR-006
-  decision 3's view convention, from today forward per decision 7, but the interaction of
-  those two is worth stating in the UI rather than inferring.
+- ~~Which week does "cancel this week" mean mid-week?~~ **Settled 2026-09-30:** the Sun–Sat
+  week on screen, from now on, with the range stated on the button — see decision 7.
 - **Retention of cancellation records**, which name students and are therefore subject to
   §7's minors' obligations. Carried forward from ADR-006, still unresolved and now
   accumulating faster.
+- ~~What do "part of a day" and "part of a week" mean in the rinkside app?~~ **Settled
+  2026-09-22: a multi-select of lessons**, whose held outcomes are the coach-held spots. Not
+  a time range, not a new scope — see decision 5a. **Settled the same day: release-or-hold is asked
+  per lesson**, as decision 5 already had it — permanence makes a single bulk answer too
+  costly to get wrong.
+- **Cancellation in the rinkside app widens ADR-014's open question.** A check-in-only Lambda
+  could have a role limited to a `Query` on GSI2 plus a conditional `UpdateItem`.
+  Cancellation needs the batch writes and the notification path too. It also means a
+  token taken from a phone at a public rink can cancel lessons, which is exactly the risk
+  `architecture.md` §11 names. Settle it together with the check-in API/app-client decision.
+- ~~Can the rinkside app cancel with no signal?~~ **Settled 2026-09-30: no** — cancel actions
+  are disabled offline with *"Cancelling needs a connection."* See decision 5a.
+- ~~A mis-tap guard on the check-in list.~~ **Settled 2026-09-30: yes** — the button stays,
+  and every cancel from the check-in list confirms, even for one lesson. See decision 5a.
 
 ---
 

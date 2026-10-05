@@ -1,0 +1,901 @@
+<title>BladeBook Architecture Diagrams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&display=swap">
+
+<style>
+:root{
+  --ground:#EDF3F0; --ground-2:#E7EEEA; --panel:#FFFAFB; --sunk:#DBE3DE;
+  --line:#748181; --line-soft:#869292;
+  --ink:#2B2C28; --ink-2:#494F4A; --ink-3:#5B635D; --ink-4:#66706C;
+  --edit:#2F633E; --edit-ink:#19552D; --edit-line:#257E41;
+  --other-line:#339953; --other-ink:#345F40;
+  --shadow:0 1px 2px rgba(43,44,40,.06), 0 10px 30px -14px rgba(43,44,40,.22);
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --ground:#171B19; --ground-2:#1E2321; --panel:#232927; --sunk:#161A18;
+    --line:#5D6867; --line-soft:#4C5654;
+    --ink:#E8EEEA; --ink-2:#B9C3BD; --ink-3:#9AA6A0; --ink-4:#828E88;
+    --edit:#8AE5A1; --edit-ink:#A8EFBB; --edit-line:#3E9159;
+    --other-line:#4AA167; --other-ink:#9EE3B2;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#171B19; --ground-2:#1E2321; --panel:#232927; --sunk:#161A18;
+  --line:#5D6867; --line-soft:#4C5654;
+  --ink:#E8EEEA; --ink-2:#B9C3BD; --ink-3:#9AA6A0; --ink-4:#828E88;
+  --edit:#8AE5A1; --edit-ink:#A8EFBB; --edit-line:#3E9159;
+  --other-line:#4AA167; --other-ink:#9EE3B2;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:56px 28px 110px}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem; font-weight:500; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 16px;
+}
+h1{
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:700;
+  font-size:clamp(2.1rem,4.4vw,3rem); line-height:1.08; letter-spacing:-.02em;
+  margin:0 0 14px; text-wrap:balance;
+}
+.lede{font-size:1.08rem; color:var(--ink-2); max-width:66ch; margin:0 0 34px}
+.lede strong{color:var(--ink); font-weight:600}
+.lede code{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.86em;
+  background:var(--sunk); padding:1px 5px; border-radius:4px; color:var(--ink-2);
+}
+
+nav{
+  display:flex; flex-wrap:wrap; gap:8px; margin:0 0 52px;
+  padding:0 0 30px; border-bottom:1px solid var(--line-soft);
+}
+nav a{
+  display:inline-flex; align-items:baseline; gap:8px;
+  font-size:.82rem; color:var(--ink-2); text-decoration:none;
+  background:var(--panel); border:1px solid var(--line-soft);
+  border-radius:999px; padding:6px 15px 6px 11px;
+}
+nav a:hover{border-color:var(--edit); color:var(--edit-ink)}
+nav a:focus-visible{outline:2px solid var(--edit-line); outline-offset:2px}
+nav .i{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.68rem; color:var(--ink-4); font-weight:600;
+}
+
+figure{margin:0 0 66px; scroll-margin-top:24px}
+figcaption{
+  display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 8px;
+}
+figcaption .num{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.75rem; font-weight:600; color:var(--edit-ink);
+}
+figcaption .ttl{font-size:1.22rem; font-weight:600; letter-spacing:-.01em}
+figcaption .kind{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.62rem; font-weight:600; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); border:1px solid var(--line-soft);
+  border-radius:4px; padding:2px 7px;
+}
+.cap{
+  font-size:.9rem; color:var(--ink-3); max-width:74ch; margin:0 0 16px;
+}
+
+/* Diagrams sit on a fixed light plate in both themes — mermaid draws its own
+   palette and reads as a printed plate rather than inheriting the page ground. */
+.plate{
+  background:#FFFAFB; border:1px solid var(--line-soft); border-radius:12px;
+  box-shadow:var(--shadow); padding:26px 22px;
+  overflow-x:auto;
+}
+.plate .mermaid{
+  margin:0; min-width:min-content;
+  font-family:"IBM Plex Sans",sans-serif;
+}
+/* Mermaid writes an inline max-width onto the SVG that pins it at its natural
+   size — often far smaller than the plate. Override it and drive width from the
+   zoom control instead; the viewBox keeps every diagram proportional. */
+.plate svg{
+  max-width:none !important;
+  width:calc(100% * var(--dscale,1)) !important;
+  height:auto !important;
+  display:block; margin:0 auto;
+}
+
+.zoom{
+  display:flex; align-items:center; gap:6px; margin:0 0 26px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.72rem;
+}
+.zoom .lbl{
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3);
+  margin-right:4px;
+}
+.zoom button{
+  font:inherit; cursor:pointer; color:var(--ink-2);
+  background:var(--panel); border:1px solid var(--line-soft);
+  border-radius:6px; padding:5px 13px;
+}
+.zoom button:hover{border-color:var(--edit); color:var(--edit-ink)}
+.zoom button:focus-visible{outline:2px solid var(--edit-line); outline-offset:2px}
+.zoom button[aria-pressed="true"]{
+  background:var(--edit); border-color:var(--edit); color:#FFFAFB; font-weight:600;
+}
+.zoom .hint{color:var(--ink-4); margin-left:8px; text-transform:none; letter-spacing:0}
+
+details{margin:12px 0 0}
+summary{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-4); cursor:pointer; padding:5px 0; width:max-content;
+}
+summary:hover{color:var(--edit-ink)}
+summary:focus-visible{outline:2px solid var(--edit-line); outline-offset:3px}
+pre.src{
+  margin:8px 0 0; padding:15px 17px; overflow-x:auto;
+  background:var(--sunk); border:1px solid var(--line-soft); border-radius:8px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.74rem; line-height:1.65; color:var(--ink-2);
+}
+
+.foot{
+  margin-top:20px; padding-top:20px; border-top:1px solid var(--line-soft);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem; color:var(--ink-4);
+  display:flex; gap:20px; flex-wrap:wrap;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">BladeBook · generated from docs/architecture.md</p>
+  <h1>Architecture Diagrams</h1>
+  <p class="lede">All 7 mermaid diagrams from <code>architecture.md</code>, rendered.
+  <strong>Nothing here is hand-drawn</strong> — each one is lifted verbatim from the document,
+  so re-running <code>design/render-diagrams.py</code> after an edit regenerates this page
+  rather than letting it drift. Every diagram keeps its source one click away.</p>
+
+  <nav>
+        <a href="#d1"><span class="i">01</span>3. System Architecture</a>
+        <a href="#d2"><span class="i">02</span>4. Domain Model</a>
+        <a href="#d3"><span class="i">03</span>6.1 Booking a lesson</a>
+        <a href="#d4"><span class="i">04</span>6.2 Day-of reminders</a>
+        <a href="#d5"><span class="i">05</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
+        <a href="#d6"><span class="i">06</span>6.4 End-of-day report</a>
+        <a href="#d7"><span class="i">07</span>6.5 Schedule change → cancellation → notification</a>
+  </nav>
+
+  <div class="zoom" role="group" aria-label="Diagram size">
+    <span class="lbl">Size</span>
+    <button type="button" data-s="1" aria-pressed="false">Fit</button>
+    <button type="button" data-s="1.5" aria-pressed="true">150%</button>
+    <button type="button" data-s="2" aria-pressed="false">200%</button>
+    <button type="button" data-s="3" aria-pressed="false">300%</button>
+    <span class="hint">above Fit, plates scroll sideways</span>
+  </div>
+
+      <figure id="d1">
+        <figcaption>
+          <span class="num">01</span>
+          <span class="ttl">3. System Architecture</span>
+          <span class="kind">Flowchart</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+flowchart TB
+    subgraph Users
+        Coach[&quot;👤 Coach&lt;br/&gt;(web app)&quot;]
+        Client[&quot;👤 Client&lt;br/&gt;(adult student, or parent/guardian)&lt;br/&gt;(web app)&quot;]
+        CheckIn[&quot;📲 Check-in app&lt;br/&gt;(separate frontend, MVP)&quot;]
+    end
+
+    subgraph Edge[&quot;Edge / CDN&quot;]
+        CF[&quot;CloudFront + WAF&quot;]
+        S3[&quot;S3 (React static site)&quot;]
+    end
+
+    subgraph Auth
+        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&quot;]
+    end
+
+    subgraph API[&quot;API Layer&quot;]
+        APIGW[&quot;API Gateway (HTTP API)&lt;br/&gt;JWT authorizer&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings)&quot;]
+        L_CheckIn[&quot;λ api-checkin&lt;br/&gt;(own role + Cognito app client)&quot;]
+    end
+
+    subgraph Events[&quot;Event Backbone&quot;]
+        Stream[&quot;DynamoDB Streams&quot;]
+        Pipe[&quot;EventBridge Pipe&quot;]
+        Bus[&quot;EventBridge custom bus&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day cron)&quot;]
+        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+    end
+
+    subgraph Consumers[&quot;Event Consumers (λ)&quot;]
+        L_Confirm[&quot;λ Booking confirmation&quot;]
+        L_Remind[&quot;λ Day-of reminder&quot;]
+        L_Pay[&quot;λ Payment reminder&quot;]
+        L_Report[&quot;λ End-of-day report&quot;]
+        L_Cancel[&quot;λ Schedule-change cancellation&quot;]
+        L_Notify[&quot;λ Cancellation notifier&quot;]
+    end
+
+    subgraph Data
+        DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
+        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+    end
+
+    subgraph Notify[&quot;Delivery&quot;]
+        SES[&quot;SES (email)&quot;]
+        SNS[&quot;SNS (SMS, opt-in)&quot;]
+    end
+
+    Coach --&gt; CF
+    Client --&gt; CF
+    CheckIn --&gt; CF
+    CF --&gt; S3
+    Coach &amp; Client &amp; CheckIn --&gt; Cognito
+    CF --&gt; APIGW
+    APIGW --&gt; Cognito
+    APIGW --&gt; L_Api
+    APIGW --&gt; L_CheckIn
+    L_Api &lt;--&gt; DDB
+    L_CheckIn &lt;--&gt; DDB
+
+    DDB --&gt; Stream --&gt; Pipe --&gt; Bus
+    Sched --&gt; L_Remind
+    Sched --&gt; L_Report
+    Bus --&gt; L_Confirm
+    Bus --&gt; L_Pay
+    Bus --&gt; L_Cancel
+    Bus --&gt; L_Notify
+
+    L_Confirm --&gt; SES
+    L_Remind --&gt; SES &amp; SNS
+    L_Pay --&gt; SES &amp; SNS
+    L_Notify --&gt; SES &amp; SNS
+    L_Report --&gt; SES
+    L_Report --&gt; Reports
+    L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
+
+    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify -.-&gt;|on repeated failure| DLQ</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>flowchart TB
+    subgraph Users
+        Coach[&quot;👤 Coach&lt;br/&gt;(web app)&quot;]
+        Client[&quot;👤 Client&lt;br/&gt;(adult student, or parent/guardian)&lt;br/&gt;(web app)&quot;]
+        CheckIn[&quot;📲 Check-in app&lt;br/&gt;(separate frontend, MVP)&quot;]
+    end
+
+    subgraph Edge[&quot;Edge / CDN&quot;]
+        CF[&quot;CloudFront + WAF&quot;]
+        S3[&quot;S3 (React static site)&quot;]
+    end
+
+    subgraph Auth
+        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&quot;]
+    end
+
+    subgraph API[&quot;API Layer&quot;]
+        APIGW[&quot;API Gateway (HTTP API)&lt;br/&gt;JWT authorizer&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings)&quot;]
+        L_CheckIn[&quot;λ api-checkin&lt;br/&gt;(own role + Cognito app client)&quot;]
+    end
+
+    subgraph Events[&quot;Event Backbone&quot;]
+        Stream[&quot;DynamoDB Streams&quot;]
+        Pipe[&quot;EventBridge Pipe&quot;]
+        Bus[&quot;EventBridge custom bus&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day cron)&quot;]
+        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+    end
+
+    subgraph Consumers[&quot;Event Consumers (λ)&quot;]
+        L_Confirm[&quot;λ Booking confirmation&quot;]
+        L_Remind[&quot;λ Day-of reminder&quot;]
+        L_Pay[&quot;λ Payment reminder&quot;]
+        L_Report[&quot;λ End-of-day report&quot;]
+        L_Cancel[&quot;λ Schedule-change cancellation&quot;]
+        L_Notify[&quot;λ Cancellation notifier&quot;]
+    end
+
+    subgraph Data
+        DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
+        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+    end
+
+    subgraph Notify[&quot;Delivery&quot;]
+        SES[&quot;SES (email)&quot;]
+        SNS[&quot;SNS (SMS, opt-in)&quot;]
+    end
+
+    Coach --&gt; CF
+    Client --&gt; CF
+    CheckIn --&gt; CF
+    CF --&gt; S3
+    Coach &amp; Client &amp; CheckIn --&gt; Cognito
+    CF --&gt; APIGW
+    APIGW --&gt; Cognito
+    APIGW --&gt; L_Api
+    APIGW --&gt; L_CheckIn
+    L_Api &lt;--&gt; DDB
+    L_CheckIn &lt;--&gt; DDB
+
+    DDB --&gt; Stream --&gt; Pipe --&gt; Bus
+    Sched --&gt; L_Remind
+    Sched --&gt; L_Report
+    Bus --&gt; L_Confirm
+    Bus --&gt; L_Pay
+    Bus --&gt; L_Cancel
+    Bus --&gt; L_Notify
+
+    L_Confirm --&gt; SES
+    L_Remind --&gt; SES &amp; SNS
+    L_Pay --&gt; SES &amp; SNS
+    L_Notify --&gt; SES &amp; SNS
+    L_Report --&gt; SES
+    L_Report --&gt; Reports
+    L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
+
+    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify -.-&gt;|on repeated failure| DLQ</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d2">
+        <figcaption>
+          <span class="num">02</span>
+          <span class="ttl">4. Domain Model</span>
+          <span class="kind">Entity relationships</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+erDiagram
+    COACH ||--|| SCHEDULE_DEFAULT : &quot;publishes&quot;
+    COACH ||--o{ SCHEDULE_TEMP : &quot;may declare&quot;
+    SCHEDULE_TEMP ||--o{ DATE_OVERRIDE : &quot;expands into&quot;
+    COACH ||--o{ DATE_OVERRIDE : &quot;may override dates with&quot;
+    COACH ||--o{ STUDENT : manages
+    COACH ||--o{ CANCELLATION_BATCH : &quot;records&quot;
+    CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
+    STUDENT ||--o{ BOOKING : &quot;has&quot;
+    CANCELLATION_BATCH ||--o{ CANCELLED_LESSON : contains
+
+    COACH {
+        string coachId &quot;Cognito sub&quot;
+        string firstName
+        string lastName
+        string loginEmail &quot;Cognito username&quot;
+        string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
+        string phone
+        bool   displayPhoneToClients
+        string timezone &quot;IANA, required&quot;
+        string currency &quot;USD|CAD, default USD, set at signup&quot;
+        string coachCode &quot;system-generated, ADR-002 d2a&quot;
+        string profilePhotoKey &quot;optional, S3&quot;
+        string paymentInstructions &quot;always in the reminder email&quot;
+        bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
+        string cashappHandle &quot;optional&quot;
+        string venmoHandle &quot;optional&quot;
+        string paypalHandle &quot;optional&quot;
+        string themeId &quot;Phase 2; Forest for MVP&quot;
+    }
+    SCHEDULE_DEFAULT {
+        string name &quot;optional label&quot;
+        map days &quot;weekday -&gt; ordered blocks&quot;
+    }
+    SCHEDULE_TEMP {
+        string tempId
+        string name &quot;optional label&quot;
+        date   startDate
+        date   endDate
+    }
+    DATE_OVERRIDE {
+        date   date
+        string tempId &quot;which temp expanded into this date&quot;
+        list   blocks &quot;empty = no lessons that day&quot;
+    }
+    CLIENT {
+        string clientId &quot;Cognito sub&quot;
+        string clientName
+        string clientEmail
+        string clientPhone
+        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        bool   smsOptIn
+    }
+    STUDENT {
+        string studentId
+        string name
+        bool   isMinor
+        string clientId
+        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        string clientName &quot;denormalized from CLIENT&quot;
+        string clientEmail &quot;denormalized from CLIENT&quot;
+        string clientPhone &quot;denormalized from CLIENT&quot;
+        bool   smsOptIn &quot;denormalized from CLIENT&quot;
+        enum   status &quot;PENDING|ACTIVE&quot;
+        int    priceMinorOverride &quot;optional&quot;
+    }
+    BOOKING {
+        string bookingId
+        string studentId
+        date   date
+        time   startTime
+        int    durationMinutes
+        datetime startsAtUtc
+        string coachTz
+        int    priceMinor &quot;stamped at creation&quot;
+        string currency &quot;stamped at creation&quot;
+        int    lateFeeMinor &quot;stamped at creation; 0 = no charge&quot;
+        int    lateCancellationHours &quot;stamped at creation&quot;
+        string recurrenceId &quot;optional&quot;
+        enum   status &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        date   remindedOn &quot;day-of reminder idempotency guard&quot;
+        datetime outcomeAt
+        datetime recordedAt
+        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
+        datetime paidAt
+        string markedPaidBy
+        datetime waivedAt
+        string waivedBy
+        bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
+        int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
+        datetime lastPaymentReminderAt &quot;Phase 2&quot;
+    }
+    CANCELLATION_BATCH {
+        string batchId
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
+        string cancelledById &quot;the acting identity&quot;
+        enum   source &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        date   affectedFrom
+        date   affectedTo
+        int    lessonCount
+        int    clientCount
+    }
+    CANCELLED_LESSON {
+        string bookingId
+        string studentId
+        string studentName &quot;denormalized&quot;
+        string clientId
+        string recurrenceId &quot;optional&quot;
+        date   date
+        time   startTime
+        int    durationMinutes
+        int    priceMinor
+        datetime cancelledAt
+        int    noticeHours &quot;gap to the lesson start&quot;
+        enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
+        datetime notifiedAt
+        list   channels
+        string failureReason
+        enum   paymentStatus &quot;Phase 2, ADR-015&quot;
+        datetime paidAt &quot;Phase 2&quot;
+        string markedPaidBy &quot;Phase 2&quot;
+        datetime waivedAt &quot;Phase 2&quot;
+        string waivedBy &quot;Phase 2&quot;
+    }</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>erDiagram
+    COACH ||--|| SCHEDULE_DEFAULT : &quot;publishes&quot;
+    COACH ||--o{ SCHEDULE_TEMP : &quot;may declare&quot;
+    SCHEDULE_TEMP ||--o{ DATE_OVERRIDE : &quot;expands into&quot;
+    COACH ||--o{ DATE_OVERRIDE : &quot;may override dates with&quot;
+    COACH ||--o{ STUDENT : manages
+    COACH ||--o{ CANCELLATION_BATCH : &quot;records&quot;
+    CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
+    STUDENT ||--o{ BOOKING : &quot;has&quot;
+    CANCELLATION_BATCH ||--o{ CANCELLED_LESSON : contains
+
+    COACH {
+        string coachId &quot;Cognito sub&quot;
+        string firstName
+        string lastName
+        string loginEmail &quot;Cognito username&quot;
+        string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
+        string phone
+        bool   displayPhoneToClients
+        string timezone &quot;IANA, required&quot;
+        string currency &quot;USD|CAD, default USD, set at signup&quot;
+        string coachCode &quot;system-generated, ADR-002 d2a&quot;
+        string profilePhotoKey &quot;optional, S3&quot;
+        string paymentInstructions &quot;always in the reminder email&quot;
+        bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
+        string cashappHandle &quot;optional&quot;
+        string venmoHandle &quot;optional&quot;
+        string paypalHandle &quot;optional&quot;
+        string themeId &quot;Phase 2; Forest for MVP&quot;
+    }
+    SCHEDULE_DEFAULT {
+        string name &quot;optional label&quot;
+        map days &quot;weekday -&gt; ordered blocks&quot;
+    }
+    SCHEDULE_TEMP {
+        string tempId
+        string name &quot;optional label&quot;
+        date   startDate
+        date   endDate
+    }
+    DATE_OVERRIDE {
+        date   date
+        string tempId &quot;which temp expanded into this date&quot;
+        list   blocks &quot;empty = no lessons that day&quot;
+    }
+    CLIENT {
+        string clientId &quot;Cognito sub&quot;
+        string clientName
+        string clientEmail
+        string clientPhone
+        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        bool   smsOptIn
+    }
+    STUDENT {
+        string studentId
+        string name
+        bool   isMinor
+        string clientId
+        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        string clientName &quot;denormalized from CLIENT&quot;
+        string clientEmail &quot;denormalized from CLIENT&quot;
+        string clientPhone &quot;denormalized from CLIENT&quot;
+        bool   smsOptIn &quot;denormalized from CLIENT&quot;
+        enum   status &quot;PENDING|ACTIVE&quot;
+        int    priceMinorOverride &quot;optional&quot;
+    }
+    BOOKING {
+        string bookingId
+        string studentId
+        date   date
+        time   startTime
+        int    durationMinutes
+        datetime startsAtUtc
+        string coachTz
+        int    priceMinor &quot;stamped at creation&quot;
+        string currency &quot;stamped at creation&quot;
+        int    lateFeeMinor &quot;stamped at creation; 0 = no charge&quot;
+        int    lateCancellationHours &quot;stamped at creation&quot;
+        string recurrenceId &quot;optional&quot;
+        enum   status &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        date   remindedOn &quot;day-of reminder idempotency guard&quot;
+        datetime outcomeAt
+        datetime recordedAt
+        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
+        datetime paidAt
+        string markedPaidBy
+        datetime waivedAt
+        string waivedBy
+        bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
+        int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
+        datetime lastPaymentReminderAt &quot;Phase 2&quot;
+    }
+    CANCELLATION_BATCH {
+        string batchId
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
+        string cancelledById &quot;the acting identity&quot;
+        enum   source &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        date   affectedFrom
+        date   affectedTo
+        int    lessonCount
+        int    clientCount
+    }
+    CANCELLED_LESSON {
+        string bookingId
+        string studentId
+        string studentName &quot;denormalized&quot;
+        string clientId
+        string recurrenceId &quot;optional&quot;
+        date   date
+        time   startTime
+        int    durationMinutes
+        int    priceMinor
+        datetime cancelledAt
+        int    noticeHours &quot;gap to the lesson start&quot;
+        enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
+        datetime notifiedAt
+        list   channels
+        string failureReason
+        enum   paymentStatus &quot;Phase 2, ADR-015&quot;
+        datetime paidAt &quot;Phase 2&quot;
+        string markedPaidBy &quot;Phase 2&quot;
+        datetime waivedAt &quot;Phase 2&quot;
+        string waivedBy &quot;Phase 2&quot;
+    }</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d3">
+        <figcaption>
+          <span class="num">03</span>
+          <span class="ttl">6.1 Booking a lesson</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant P as Client (web)
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Cf as Confirmation λ
+    participant SES as SES
+    P-&gt;&gt;API: POST /bookings (studentId, date, startTime, recurring?, endDate?)
+    Note over API: a recurrence expands weekly from the first&lt;br/&gt;occurrence; end date capped at 12 months
+    loop each occurrence
+        API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
+        alt slot free
+            DB--&gt;&gt;API: claimed
+        else already taken
+            DB--&gt;&gt;API: ConditionalCheckFailed — skip this date
+        end
+    end
+    API--&gt;&gt;P: 201 Created — N booked, plus the dates that were skipped
+    DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
+    Bus-&gt;&gt;Cf: route
+    Cf-&gt;&gt;SES: confirmation email</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant P as Client (web)
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Cf as Confirmation λ
+    participant SES as SES
+    P-&gt;&gt;API: POST /bookings (studentId, date, startTime, recurring?, endDate?)
+    Note over API: a recurrence expands weekly from the first&lt;br/&gt;occurrence; end date capped at 12 months
+    loop each occurrence
+        API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
+        alt slot free
+            DB--&gt;&gt;API: claimed
+        else already taken
+            DB--&gt;&gt;API: ConditionalCheckFailed — skip this date
+        end
+    end
+    API--&gt;&gt;P: 201 Created — N booked, plus the dates that were skipped
+    DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
+    Bus-&gt;&gt;Cf: route
+    Cf-&gt;&gt;SES: confirmation email</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d4">
+        <figcaption>
+          <span class="num">04</span>
+          <span class="ttl">6.2 Day-of reminders</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant Sch as EventBridge Scheduler (7:00am)
+    participant R as Reminder λ
+    participant DB as DynamoDB (GSI2)
+    participant N as SES / SNS
+    Sch-&gt;&gt;R: cron trigger
+    R-&gt;&gt;DB: Query GSI2PK = DATE#today
+    loop each booking
+        R-&gt;&gt;R: skip if remindedOn == today
+        R-&gt;&gt;N: email (always) + SMS (if smsOptIn)
+        R-&gt;&gt;DB: set remindedOn = today
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant Sch as EventBridge Scheduler (7:00am)
+    participant R as Reminder λ
+    participant DB as DynamoDB (GSI2)
+    participant N as SES / SNS
+    Sch-&gt;&gt;R: cron trigger
+    R-&gt;&gt;DB: Query GSI2PK = DATE#today
+    loop each booking
+        R-&gt;&gt;R: skip if remindedOn == today
+        R-&gt;&gt;N: email (always) + SMS (if smsOptIn)
+        R-&gt;&gt;DB: set remindedOn = today
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d5">
+        <figcaption>
+          <span class="num">05</span>
+          <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <p class="cap">The email states the specific amount owed for that lesson, formatted from the booking&#x27;s stamped priceMinor, plus the coach&#x27;s paymentInstructions (HTML-escaped).</p>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach (check-in app)
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Pay as Payment-reminder λ
+    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
+    API-&gt;&gt;DB: conditional update (status=BOOKED) → outcome,&lt;br/&gt;outcomeAt (device), recordedAt (server)
+    alt CHECKED_IN
+        DB-&gt;&gt;Bus: (stream) CheckInRecorded
+    else NO_SHOW
+        DB-&gt;&gt;Bus: (stream) NoShowRecorded
+    end
+    Note over Bus,Pay: separate events — the reminder wording differs,&lt;br/&gt;and a no-show is charged from Phase 2 (ADR-015)
+    Bus-&gt;&gt;Pay: route event
+    Pay-&gt;&gt;DB: read client contact details + smsOptIn
+    Pay-&gt;&gt;C: (no) — sends to the student&#x27;s client via SES / SNS</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach (check-in app)
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Pay as Payment-reminder λ
+    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
+    API-&gt;&gt;DB: conditional update (status=BOOKED) → outcome,&lt;br/&gt;outcomeAt (device), recordedAt (server)
+    alt CHECKED_IN
+        DB-&gt;&gt;Bus: (stream) CheckInRecorded
+    else NO_SHOW
+        DB-&gt;&gt;Bus: (stream) NoShowRecorded
+    end
+    Note over Bus,Pay: separate events — the reminder wording differs,&lt;br/&gt;and a no-show is charged from Phase 2 (ADR-015)
+    Bus-&gt;&gt;Pay: route event
+    Pay-&gt;&gt;DB: read client contact details + smsOptIn
+    Pay-&gt;&gt;C: (no) — sends to the student&#x27;s client via SES / SNS</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d6">
+        <figcaption>
+          <span class="num">06</span>
+          <span class="ttl">6.4 End-of-day report</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant Sch as EventBridge Scheduler (9:00pm)
+    participant Rep as Report λ
+    participant DB as DynamoDB (GSI2)
+    participant S3 as S3 reports bucket
+    participant SES as SES
+    Sch-&gt;&gt;Rep: cron trigger
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#today
+    Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
+    Rep-&gt;&gt;S3: PutObject report.json (archive)
+    Rep-&gt;&gt;SES: email coach the daily summary</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant Sch as EventBridge Scheduler (9:00pm)
+    participant Rep as Report λ
+    participant DB as DynamoDB (GSI2)
+    participant S3 as S3 reports bucket
+    participant SES as SES
+    Sch-&gt;&gt;Rep: cron trigger
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#today
+    Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
+    Rep-&gt;&gt;S3: PutObject report.json (archive)
+    Rep-&gt;&gt;SES: email coach the daily summary</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d7">
+        <figcaption>
+          <span class="num">07</span>
+          <span class="ttl">6.5 Schedule change → cancellation → notification</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <p class="cap">A booking conflicts unless the pattern in effect on its date generates a slot with exactly its start time and duration. Conflicting bookings are deleted — because the booking item is the lock, a released time must stop existing — and recorded as cancellation…</p>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant X as Cancellation λ
+    participant N as Notifier λ
+    C-&gt;&gt;API: POST /schedule/preview
+    API--&gt;&gt;C: &quot;47 lessons, 12 clients&quot; — confirm?
+    C-&gt;&gt;API: PUT /schedule
+    API-&gt;&gt;DB: write default / date overrides
+    DB-&gt;&gt;Bus: (stream) ScheduleChanged
+    Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
+    X-&gt;&gt;DB: claim CANCELBATCH, attribute_not_exists(SK) (5b)
+    alt claim taken
+        Note over X: fresh run
+    else claim fails
+        Note over X: resume — the plan is already on disk
+    end
+    X-&gt;&gt;DB: Query bookings in affected range
+    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# line first,&lt;br/&gt;each marked pending (5c — the plan survives a crash)
+    loop each cancellation
+        X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line executed, both or neither (5d)
+    end
+    Note over X,Bus: the consumer does not emit (5e) — the CANCELLED#&lt;br/&gt;write drives the notifier down the same CDC path
+    DB-&gt;&gt;Bus: (stream) LessonCancelled, from the CANCELLED# line write
+    Bus-&gt;&gt;N: route (per client)
+    N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+    N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach
+    participant API as API λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant X as Cancellation λ
+    participant N as Notifier λ
+    C-&gt;&gt;API: POST /schedule/preview
+    API--&gt;&gt;C: &quot;47 lessons, 12 clients&quot; — confirm?
+    C-&gt;&gt;API: PUT /schedule
+    API-&gt;&gt;DB: write default / date overrides
+    DB-&gt;&gt;Bus: (stream) ScheduleChanged
+    Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
+    X-&gt;&gt;DB: claim CANCELBATCH, attribute_not_exists(SK) (5b)
+    alt claim taken
+        Note over X: fresh run
+    else claim fails
+        Note over X: resume — the plan is already on disk
+    end
+    X-&gt;&gt;DB: Query bookings in affected range
+    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# line first,&lt;br/&gt;each marked pending (5c — the plan survives a crash)
+    loop each cancellation
+        X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line executed, both or neither (5d)
+    end
+    Note over X,Bus: the consumer does not emit (5e) — the CANCELLED#&lt;br/&gt;write drives the notifier down the same CDC path
+    DB-&gt;&gt;Bus: (stream) LessonCancelled, from the CANCELLED# line write
+    Bus-&gt;&gt;N: route (per client)
+    N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+    N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines</code></pre>
+        </details>
+      </figure>
+
+  <p class="foot">
+    <span>regenerate: python3 design/render-diagrams.py</span>
+    <span>source of truth: docs/architecture.md</span>
+  </p>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btns = Array.prototype.slice.call(document.querySelectorAll('.zoom button'));
+
+  function apply(scale, pressed) {
+    root.style.setProperty('--dscale', scale);
+    btns.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === pressed));
+    });
+    try { localStorage.setItem('bb-dscale', scale); } catch (e) {}
+  }
+
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () { apply(b.dataset.s, b); });
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem('bb-dscale'); } catch (e) {}
+  var start = btns.filter(function (b) { return b.dataset.s === saved; })[0]
+           || btns.filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })[0]
+           || btns[0];
+  apply(start.dataset.s, start);
+})();
+</script>

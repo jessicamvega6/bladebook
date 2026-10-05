@@ -2,3 +2,7 @@ Email templates Needed:
 
 Cancelation from Coach
 Cancelation from student day of (check if needed from kim)
+
+
+Notes:
+On each email there will be a replyTo that is set to the coaches business email / login email. If a client responds to the email it will be sent to the coach's email

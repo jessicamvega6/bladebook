@@ -30,9 +30,18 @@ records and the mandatory preview).
 Cancellation behaviour triggered from this editor is specified in
 [ADR-009](ADR-009-cancellation.md).
 
-**Amended — 2026-08-24.** A **block** gains an optional `name`, which amends ADR-004
+**Amended — 2026-08-24.** A **block** gains an optional `blockName`, which amends ADR-004
 decision 3's four-field block shape and decision 2 below, where the Name field was placed
 on the schedule object only. See decision **2a**.
+
+**Amended — 2026-09-29.** The form gains an **MF — missed-lesson fee** field, which
+[ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 2 places in the
+schedule builder but which decision 2 below never listed. It is shown from Phase 2; until
+then every block stores `missedLessonFeeMinor = 0`.
+
+**Amended — 2026-09-30.** Two open items settled by the owner. The mode is chosen from **two
+dashboard buttons**, not a radio button on the form (decision 6a), and temporary mode gains a
+**"No lessons (time off)"** option (decision 6b).
 
 ---
 
@@ -88,11 +97,18 @@ retained defaults quietly undermined.
 | **EOD** — end of day | Dropdown, 12:00am–11:45pm in 15-minute steps | Both |
 | **LL** — lesson length | Dropdown: 30, 45, 60, 90, 120 minutes | Both |
 | **LC** — lesson cost | Amount, in the coach's signup currency | Both |
+| **MF** — missed-lesson fee | Amount, in the coach's signup currency; `0` means no charge. Hint: *"charged for a no-show or a cancellation inside your notice period."* *Added 2026-09-29 as LF — late fee; renamed 2026-09-30; shown from Phase 2* | Both |
 | **Days** | Seven checkboxes, Sun–Sat. **Mandatory** | Default only |
 | **SD / ED** — start and end date | Date pickers | Temp only |
 
 The meridiem is encoded in the SOD/EOD dropdown entries themselves; there is no separate
 am/pm control.
+
+**MF is per tab, like LC**, so each block carries its own fee beside its own price (ADR-015
+decision 2). It is hidden in MVP rather than shown and ignored: a fee field that collects
+nothing invites a coach to believe it does. Every block written in MVP stores
+`missedLessonFeeMinor = 0`, which ADR-015 already defines as "no charge", so turning the field on in
+Phase 2 needs no migration.
 
 **Name is stored, not applied.** It is written onto the schedule object it creates — the
 default item, or the temp header from decision 7. Saving a named schedule for *reuse* is
@@ -100,7 +116,7 @@ Phase 2; this ADR only stores the label.
 
 ### 2a. Blocks carry an optional name
 
-A block becomes `{ seq, name?, start, end, lessonMinutes, priceMinor }`. This is a genuine
+A block becomes `{ seq, blockName?, startTime, endTime, lessonMinutes, priceMinor, missedLessonFeeMinor }` (`missedLessonFeeMinor` added 2026-08-30 by ADR-015 decision 2; `0` means no charge). This is a genuine
 model change: ADR-004 decision 3 defined a block as four fields, and decision 2 above placed
 the only Name field on the schedule object.
 
@@ -198,7 +214,8 @@ Alternating selections simply produce more blocks, which costs nothing at a few 
 per schedule.
 
 **Deselecting every slot produces zero blocks**, which is how the form expresses "no
-lessons." See Open — this works but is not obvious.
+lessons." See Open — this works but is not obvious. *Superseded as the way to take time off
+by decision 6b (2026-09-30); deselecting slots still works for trimming a day.*
 
 ### 5. Lesson length is a fixed menu
 
@@ -221,12 +238,54 @@ inferred at save time from which fields happen to be populated.
 *Whether that selection is a pair of radio buttons at the top of the form or two separate
 entry points is a presentation question — see Open.*
 
+### 6a. Two dashboard buttons choose the mode
+
+*Decided by the owner, 2026-09-30.* The coach website's dashboard offers two separate
+entry points instead of a radio button at the top of one form:
+
+- **Edit weekly schedule** — the default. Days are mandatory; there are no dates.
+- **Add time off or a special schedule** — a temporary schedule. Start and end dates; no days.
+
+They lead to different forms — different fields, different validation, different preview
+wording — so choosing first, from a button that names the job, is clearer than switching a
+radio button on a form that then rearranges itself. The coach dashboard notes already list
+separate *Create Default Schedule* and *Temporary Schedule* buttons; this names them for what
+a coach is trying to do. `FeatureDecriptions/Schedule Creater.md`'s radio button is superseded.
+
+### 6b. Time off is one choice, not a form to empty
+
+*Decided by the owner, 2026-09-30.* Time off — vacation, illness known in advance, a
+tournament — is the most common temporary schedule a coach creates, far more common than a
+camp. So *Add time off or a special schedule* opens with a choice:
+
+- **No lessons (time off)** — the coach gives a name (optional, e.g. "Vacation"), a start
+  date and an end date, and nothing else. The time, lesson-length, cost and fee fields and the
+  slot calendar are hidden.
+- **Special schedule** — the full tabbed form, as decisions 2–4 describe, for a camp or
+  holiday hours.
+
+**Time off is stored exactly as the form would have stored it**: a temp header, plus one
+date item per day with an empty `blocks` list — ADR-006's "no lessons that day". It needs no
+new model concept. Everything downstream is unchanged:
+
+- **Overlap with an existing temp is rejected**, with decision 8's explanation — time off
+  inside a camp is done by editing the camp, or, for a single day, by ADR-009's *cancel this
+  day*.
+- **The preview lists every booking on those dates**, which will be cancelled, and the
+  families emailed. There is no release-or-hold question: the slots no longer exist, so
+  nothing can be rebooked into them.
+
+**Planned versus unplanned.** Time off changes the schedule, so the slots disappear from
+the booking page. That is right for time off known in advance. For a same-day absence —
+illness on the morning, a family emergency — the coach uses ADR-009's *cancel this day* or
+*this week* with **hold**, which cancels the lessons without editing the schedule.
+
 ### 7. Temporary schedules get a header
 
 ```jsonc
 // PK = COACH#<coachId>
 { "SK": "SCHEDULE#TEMP#<tempId>",
-  "name": "August Camp",
+  "scheduleName": "August Camp",
   "startDate": "2026-08-19",
   "endDate": "2026-08-25" }
 
@@ -304,6 +363,13 @@ and nothing is written:
 - A new temp's date range is checked against existing temp headers for date and time
   overlap.
 
+  *Settled 2026-09-30 by the owner:* **an overlap is rejected, never warned-and-allowed, and
+  the message says exactly what to do.** It names the existing temp, the dates they share and
+  the way out — for example: *"This overlaps **August Camp** (Aug 19–25) on Aug 21–22. Edit
+  August Camp to change those days, or choose dates outside it."* Editing a temp is decision
+  7a. A one-day absence during a temp — a sick day inside a camp — is not a schedule change
+  at all: it is ADR-009's *cancel this day*.
+
 **Preview** — with validation clean, the coach is shown the schedule for confirmation,
 plus:
 
@@ -315,6 +381,11 @@ plus:
 - **How long the schedule will run** — for a temp, until its end date; for the default,
   indefinitely.
 - **A statement that accepting will send cancellation emails to affected clients.**
+- *Added 2026-09-30 by [ADR-020](ADR-020-repricing-booked-lessons.md):* **every upcoming lesson
+  the change will re-price**, with the old and new amount; **which lessons an increase will not
+  reach** because they fall inside the coach's notice period; and, for a large price change, a
+  **warning at the top of the preview** that the coach must tick to acknowledge before Accept
+  enables.
 
 **Nothing is cancelled until the coach accepts.** The preview and the consumer that
 performs the cancellation must share one conflict implementation in `core/` — ADR-001's
@@ -331,8 +402,8 @@ authoritative record of what was destroyed is always the batch written by the co
 
 **Removed:** `Coach.defaultLessonMinutes`, `Coach.defaultPriceMinor`.
 
-**Added:** `SCHEDULE#TEMP#<tempId>` header items (`name`, `startDate`, `endDate`);
-`tempId` on `SCHEDULE#DATE#` items; a `name` attribute on `SCHEDULE#DEFAULT`.
+**Added:** `SCHEDULE#TEMP#<tempId>` header items (`scheduleName`, `startDate`, `endDate`);
+`tempId` on `SCHEDULE#DATE#` items; a `scheduleName` attribute on `SCHEDULE#DEFAULT`.
 
 **Changed:** `lessonMinutes` is constrained to {30, 45, 60, 90, 120} at the UI layer;
 the schedule preview covers default changes as well as temporary ones.
@@ -369,26 +440,33 @@ an archaeology exercise.
 
 ## Open
 
-- **How the mode is presented** — radio buttons on one form, or two entry points. Decision 6
-  requires only that the choice be explicit and made first.
-- **Expressing "no lessons" is possible but obscure.** Deselecting every slot yields zero
-  blocks, which is correct, but "set a start time, populate slots, then unselect them all"
-  is a strange way to say "I am not working." A dedicated *"no lessons in this range"*
-  control would carry it directly, and this is the most common temp a coach will ever
-  create — illness, travel, a tournament — far more common than a camp.
-- **Overlapping temp ranges: reject or warn?** Decision 8 validates and blocks. Under
-  ADR-006's storage a second override on a date is legitimately an edit of the first, so
-  warn-and-confirm is also defensible. Rejecting means a coach adjusting one day inside an
-  existing camp must go and edit that camp — which the header now makes possible, but the
-  edit flow is unspecified.
+- ~~How the mode is presented.~~ **Settled 2026-09-30: two dashboard buttons** — decision 6a.
+- ~~Expressing "no lessons" is possible but obscure.~~ **Settled 2026-09-30: a "No lessons
+  (time off)" option** — decision 6b.
+- ~~Overlapping temp ranges: reject or warn?~~ **Settled 2026-09-30: reject, with an
+  explanation** — see decision 8.
 - ~~Editing an existing temp.~~ **Settled 2026-08-25** — see decision 7a. Save is
   delete-then-rewrite scoped by `tempId`, so a shrinking range cleans itself up. Known cost:
   per-date slot deselections inside the temp do not survive a save.
 - **Applying a saved schedule** is Phase 2. Whether a saved template is a third item type
   or just a header that is not currently in effect is unresolved, and it determines whether
   "save" and "apply" are one action or two.
-- **A coach with no schedule at all.** What a client sees before the coach has ever
-  completed this form is unspecified.
+- ~~A coach with no schedule at all.~~ **Settled by the owner, 2026-08-30:** the client sees
+  the ordinary **monthly calendar with every day in `--stage` `#CCCCCC`**, and clicking
+  through to a day gives the ordinary day view with no time blocks to select.
+  
+  **No empty-state screen is built.** The empty state is the normal rendering repeated — the
+  grey already means "no lessons" for a single day, so a coach who has never set up is just
+  every day at once. That is the cheapest possible answer and it needs no new component.
+  
+  **But grey alone is ambiguous, and one line of copy is still required.** `--stage` is
+  defined in the Forest theme as *the day is not part of the working week* — a deliberate
+  choice by the coach. An all-grey month is therefore pixel-identical to a coach who teaches
+  nothing on purpose, and a client who just registered with a coach code will read it as the
+  app being broken or the coach being fully booked. The calendar needs a line distinguishing
+  *this coach has not posted any times yet* from *this coach does not teach these days*.
+  The coach's own view of the same emptiness needs the opposite thing: a prompt to build a
+  schedule, since for them it is a task and not a status.
 
 ---
 

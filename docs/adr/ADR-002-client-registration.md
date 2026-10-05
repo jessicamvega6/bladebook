@@ -9,6 +9,31 @@ while no such link existed in the model. Adds entities and access patterns to §
 (any age); a **client** is whoever books, is billed and is notified — the student
 themselves when adult, a parent or guardian when the student is a minor.
 
+**Amended — 2026-10-01.** Confirming or declining a student (decisions 2, 2b) no longer
+writes the client's link item directly. `api-coach` writes only the `STUDENT#` item, and
+`consumer-student-link` updates or deletes the link about a second later
+([ADR-021](ADR-021-tenant-isolation-at-the-database.md) decision 6). 2b's *"in one
+transaction"* becomes two steps.
+
+**Amended — 2026-10-01.** [ADR-022](ADR-022-client-isolation-at-the-database.md) gates
+`api-client` at the database. GSI1 is re-keyed `CLIENT#<clientId>`, so the link check below
+becomes structural for **reads**. It stays in code for **writes**: the database confines a
+client's writes to their coach, but not to their own students. The link item also carries
+`priceMinorOverride`, mirrored by `consumer-student-link`.
+
+**Amended — 2026-10-01.** *Decided by the owner:* `clientRelationship` is `SELF | GUARDIAN`.
+`PARENT` is removed; whoever signs up for a minor is their guardian, whether a parent or not.
+Decision 1's *"as a parent or guardian"* and *"`PARENT | GUARDIAN`"* below read as *guardian* and
+`GUARDIAN`. Nothing branched on the difference (glossary), so no behaviour changes.
+
+**Amended — 2026-10-01.** Decision 2 is tightened: *decided by the owner*, a family with no
+`ACTIVE` student **sees nothing of the coach's** — no schedule, no availability, no profile —
+only their own account, their skaters and the coach's name. The database enforces this: the
+client's read access to the coach's partition requires `linkStatus = ACTIVE` (ADR-022
+decision 6). The coach's name comes from the `CODE#` item and is copied onto the link item at
+registration (ADR-022 decision 7). *"Cannot book"* is still a code rule, because a pending
+family must still write their skaters into the coach's partition.
+
 ---
 
 ## Context
@@ -39,7 +64,7 @@ site URL and the coach's **`coachCode`**, and registers themselves:
      `clientRelationship = SELF`, contact copied from the account;
    - **their child**, as a parent or guardian → prompted for **one or more**
      children, `isMinor = true`, `clientRelationship = PARENT | GUARDIAN`.
-4. Students are created with `status = PENDING`.
+4. Students are created with `studentStatus = PENDING`.
 
 Multiple children in one sign-up is a first-class path, not an afterthought — the
 sibling case is common enough that requiring a second account per child would be
@@ -57,12 +82,32 @@ coach's roster for confirmation and **cannot book**; only `ACTIVE` students can.
 Codes are rotatable. Rotation invalidates the old code for future sign-ups and does
 not affect existing students.
 
+### 2b. A rejected student is deleted
+
+*Decided by the owner, 2026-09-30.* When a coach declines a `PENDING` student, the student is
+**deleted**, not kept as a rejected record: the `STUDENT#` item under the coach and the
+client's link item, in one transaction. The student never became the coach's, never booked,
+and §7's data minimisation says there is nothing worth keeping about a child whose family was
+turned away.
+
+- **It is an application delete, not Time to Live (TTL) expiry**, so it is immediate and
+  nothing is archived ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) archives only what
+  TTL removes).
+- **The decline email has to go out from data that is being deleted.** The coach dashboard
+  description sends the client a message on decline (*"the coach does not have availability
+  to take on new students"*). The natural route is the change stream: the delete produces a
+  removal carrying the deleted item's contents, and a consumer sends the email from it. No
+  function does that yet; see `Open-Pending.md`.
+- **The client's account is not deleted** by a rejection, even if it leaves them with no
+  students. What happens to an empty client account belongs to the deferred question of what
+  deleting a student or client means.
+
 ### 2a. The code is generated at coach signup
 
 A `coachCode` is created and assigned automatically when a coach account is created
 — it is not something a coach requests or an operator issues. Generation writes the
 `CODE#<coachCode>` lookup item with `attribute_not_exists(PK)`; on the (rare)
-collision, regenerate and retry. The code is displayed in the coach app for the
+collision, regenerate and retry. The code is displayed on the coach website for the
 coach to hand out.
 
 ### 3. The link is a record under the client, not an index
@@ -73,7 +118,7 @@ coach to hand out.
 | Client→student link | `CLIENT#<cognitoSub>` | `STUDENT#<coachId>#<studentId>` | studentName (denormalized for list rendering), status |
 | Coach code lookup | `CODE#<coachCode>` | `CODE` | coachId |
 
-The `STUDENT` item (still under `COACH#<coachId>`) gains `clientId` and `status`.
+The `STUDENT` item (still under `COACH#<coachId>`) gains `clientId` and `studentStatus`.
 
 Three consequences of this shape, which is why it was chosen over a third GSI:
 
@@ -159,7 +204,7 @@ booking.
 |---|---|---|
 | 8 | List a client's students | Main table, `PK = CLIENT#<sub>`, `begins_with(SK, "STUDENT#")` |
 | 9 | Resolve a coach code to a coach | Main table, `GetItem PK = CODE#<code>` |
-| 10 | List a coach's pending students | Existing pattern #2, filtered on `status = PENDING` |
+| 10 | List a coach's pending students | Existing pattern #2, filtered on `studentStatus = PENDING` |
 
 A client's upcoming bookings (existing pattern #6) becomes two steps: pattern #8 to
 get their student IDs, then GSI1 per student. At one to four students this is
@@ -179,6 +224,13 @@ cheaper than maintaining an index to avoid it.
   is the natural place for an authorization test.
 - Coach confirmation of a `PENDING` student is a coach-role action, scoped by
   `coachId` from the token.
+- *Added 2026-10-01:* coach-role actions are also scoped **at the database** — `api-coach`
+  can reach only its caller's `COACH#` partition (ADR-021). That is why the link item, which
+  sits under `CLIENT#`, is written by a consumer.
+- *Added 2026-10-01:* client actions are scoped at the database too (ADR-022). With GSI1
+  keyed by client, the check above is needed only before a **write** — booking, cancelling
+  or editing a student — and remains the one boundary inside a coach's partition that only
+  code enforces.
 
 ---
 
@@ -205,18 +257,13 @@ shape and will eventually be asked for.
 ## Open
 
 - **Coach code format and lifetime.** Length, character set (ambiguity-safe —
-  no `0`/`O`, `1`/`l`), whether it expires. Unresolved; not blocking.
-- **Whether a rejected `PENDING` student is deleted or retained** as a record.
-  Retention interacts with §7's minors' data obligations.
-- **How a coach account itself comes to exist.** Decision 2a assumes a coach signup
-  flow in the coach app, but `architecture.md` never specifies one — §10 feature #1
-  is "coach auth" with no account-creation story. Self-serve signup means anyone
-  can create a coach account and start collecting children's data, which §7 makes a
-  live question rather than a detail. **Deferred by the owner on 2026-07-29, and again on 2026-08-25.**
-  Still blocks MVP feature #1, which is the first thing anyone would build. The reason
-  it keeps returning: self-serve signup means anyone can create a coach account and
-  begin collecting children's data, so this is a §7 question wearing a UI costume, and
-  it cannot be settled by whoever happens to be building the signup form.
+  no `0`/`O`, `1`/`l`), whether it expires. Unresolved; not blocking. *Deferred by the
+  owner, 2026-09-30.*
+- ~~Whether a rejected `PENDING` student is deleted or retained as a record.~~ **Settled
+  2026-09-30: deleted** — see decision 2b.
+- ~~How a coach account itself comes to exist.~~ **Settled 2026-09-22 by
+  [ADR-016](ADR-016-coach-signup.md):** self-serve and ungated for now, with the `coachCode`
+  and the `PENDING` step recorded there as the controls that make it acceptable.
 
 ---
 

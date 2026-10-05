@@ -3,31 +3,37 @@ Coach Sign Up:
 Form that has fields:
     first name
     last name 
-    business id 
-    email
+    <!-- business EIN / tbd Canada's version -->
+    login email
+    business email (optional and will be login email if left blank) 
+                    (will be what a client responds to if they click reply within an automated email)
     phone number
-    Display phone number to clients checkbox
+    Display phone number to clients (y/n) checkbox
+    timezone
+    currency
 
+    Profile photo upload (optional, capped at 2MB and resize server-side to 512px)
+                         (will only be shown once the client enters the coachCode in the client sign up page.)
 
-    Password:
-    Confirm Password: 
-
-    Profile photo upload
-
-    Display payment types to clients checkbox
-    Payment set up:
+    paymentInstructions 
+    Display payment types to clients checkbox       : checking this box will show 
+                                                        the supplied payment handles in the payment reminder emails
+    PaymentTypes to be included in payment reminder email to client
     Cashapp:
     Venmo:
     Paypal:
 
 
 
+Cognito will take care of this. 
+Username: 
+Forgot password: 
 
-Forgot password:
-form that acepts 
 
-first name
-last name
-business id
-username
 
+Notes:
+Check to see if there is a way to validate the EIN, if there isnt then yes anybode can sign up.
+
+Commented out fields are ones that will probably be removed after research 
+
+Coach signup url will at some point be gated by a licence number, the coaches will need to buy access to the software, idk how that works atm so for now the signup is ungated.

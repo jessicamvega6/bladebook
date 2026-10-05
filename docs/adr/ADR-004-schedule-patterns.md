@@ -107,9 +107,9 @@ each block carries its own start, end, lesson length and price:
 {
   "days": {
     "MON": [
-      { "start": "06:00", "end": "11:30", "lessonMinutes": 30, "priceMinor": 5000 },
-      { "start": "13:30", "end": "15:00", "lessonMinutes": 30, "priceMinor": 5000 },
-      { "start": "15:00", "end": "17:00", "lessonMinutes": 60, "priceMinor": 8000 }
+      { "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 30, "priceMinor": 5000 },
+      { "startTime": "13:30", "endTime": "15:00", "lessonMinutes": 30, "priceMinor": 5000 },
+      { "startTime": "15:00", "endTime": "17:00", "lessonMinutes": 60, "priceMinor": 8000 }
     ],
     "TUE": [ /* ... */ ],
     "SUN": []          // no blocks = no lessons that day
@@ -137,7 +137,7 @@ blocks each is a few kilobytes — far inside DynamoDB's 400 KB item limit — s
 schedule is read in a single `GetItem` and updated atomically.
 
 **Validation at write time:** blocks within a day must not overlap; abutting is
-allowed (15:00 ending as 15:00 begins); `end` must be after `start`.
+allowed (15:00 ending as 15:00 begins); `endTime` must be after `startTime`.
 
 **Resolution for a date `D`:** if a temporary schedule covers `D`, it wins;
 otherwise the default applies. **Overlapping temporary schedules are rejected at
@@ -188,7 +188,7 @@ stable.
 ### 5. Slot generation, per block
 
 `lessonMinutes` is any positive integer. Within a block, slots are generated
-back-to-back from `start`:
+back-to-back from `startTime`:
 
 ```
 slots = floor((end − start) / lessonMinutes)
@@ -217,7 +217,7 @@ Flow:
    the coach and the affected date range.
 2. A new consumer Lambda queries that coach's bookings in the range, re-evaluates
    each against the new pattern, and sets conflicting bookings to
-   `status = NEEDS_REBOOKING`.
+   `bookingStatus = NEEDS_REBOOKING`.
 3. That releases the time — the conditional-write lock in decision 2 is keyed on
    the booking's existence, so a released booking must be **deleted or re-keyed**,
    not merely restatused, for the time to become bookable again. The consumer
@@ -270,17 +270,16 @@ be re-estimated accordingly.
 
 ## Open
 
-- **Blackouts during an active temporary schedule.** Decision 3a covers a one-day
-  blackout with a one-day override, but the overlap rule in decision 3 rejects it if
-  another override already spans that date. Either relax the rule to "shortest
-  window wins" or add a distinct blackout item type. Not blocking; will be hit in
-  practice.
-- **Does a rebooking email offer specific alternatives**, or just a link to
-  availability? The latter is assumed.
-- **What happens to a `NEEDS_REBOOKING` lesson nobody rebooks?** No expiry, no
-  reminder, no coach-side view is specified.
-- **Can a coach edit or cancel a single lesson** without touching the pattern? Very
-  likely needed, and it overlaps Gap 3 (cancellation).
+- ~~Blackouts during an active temporary schedule.~~ **Settled by the owner, 2026-09-30:**
+  neither. An unplanned day off — illness, an emergency — is a **cancellation**, not a
+  schedule change: [ADR-009](ADR-009-cancellation.md)'s *cancel this day*, holding the freed
+  slots so families cannot rebook them, with the temporary schedule left untouched. A
+  **planned** change inside a temporary schedule, such as shortening a camp, is an edit of
+  that schedule ([ADR-008](ADR-008-schedule-editor.md) decision 7a). Overlapping temporary
+  schedules stay rejected (ADR-008 decision 8).
+- ~~Does a rebooking email offer specific alternatives, or just a link to~~ **Settled by the owner, 2026-08-15:** the email states the lesson was cancelled and carries a link to availability, not specific alternatives.
+- ~~What happens to a `NEEDS_REBOOKING` lesson nobody rebooks? No expiry, no~~ **Moot.** `NEEDS_REBOOKING` no longer exists; ADR-006 replaced it with cancellation records.
+- ~~Can a coach edit or cancel a single lesson without touching the pattern? Very~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 5** — a coach cancels one lesson, one day or one week, each choosing release-or-hold.
 
 ---
 

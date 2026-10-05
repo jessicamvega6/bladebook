@@ -1,0 +1,8 @@
+Coach lesson list on Dashboard (delayed checkIn / no show)
+
+shows a list of students who had lessons by date range. Makes the coach select a date range before the list appears. 
+
+The page will display the student information, if the lesson was attended (ie checked in) or no showed
+
+The coach will need the following abilities:
+to Change the status of a student's lesson to either attended or no showed.

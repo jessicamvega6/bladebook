@@ -4,6 +4,12 @@
 
 **Accepted** — 2026-08-15.
 
+**Extended by [ADR-020](ADR-020-repricing-booked-lessons.md)** — 2026-09-30. Decisions **5–7**'s
+schedule-change path now re-prices upcoming bookings whose block price changed, as well as
+cancelling conflicts; the preview shows both and one message per family covers both. The
+batch header, event and consumer are renamed (`CHANGEBATCH#`, `LessonsChanged`,
+`consumer-schedule-change`) throughout this ADR.
+
 **Amended by [ADR-008](ADR-008-schedule-editor.md)** — 2026-08-23. Decision **2** keeps
 per-date storage, but temporary schedules are *entered* as a date range plus a pattern and
 regain a **header item** (`SCHEDULE#TEMP#<tempId>`) carrying a name, start date and end
@@ -12,12 +18,35 @@ delete-as-a-unit — and never on the booking path, so decision 2's single-looku
 rule is untouched. Decision **7**'s preview is confirmed as covering **both** default and
 temporary schedule changes.
 
+**Amended by [ADR-010](ADR-010-availability-and-reliability.md)** — 2026-08-28. Decision
+**5**'s consumer no longer emits `LessonsChanged` itself; the `CANCELLED#` line write drives
+the notifier through the same CDC path everything else uses, so "who has been told" derives
+from `notificationStatus` rather than from whether an emit succeeded. ADR-010 decision 5 also
+adds the write-ahead plan, the derived `batchId` and the per-cancellation transaction that
+make that consumer safe to retry.
+
 **Extended by [ADR-009](ADR-009-cancellation.md)** — 2026-08-23. Decision **5**'s
 cancellation records now carry every cancellation in the system, not only schedule-driven
 ones, gaining `cancelledBy`, `cancelledAt` and `noticeHours`. Decision **6** is amended:
 one message per client per batch still holds, but a *client*-initiated cancellation
 notifies the **coach**. ADR-009 also answers the open questions here about client-initiated
 cancellation and ending a recurrence.
+
+**Amended — 2026-09-29.** Decision **4** recurs every **1 to 4 weeks**, not only weekly, and
+each recurrence gains a `RECURRENCE#` header. Both come from
+[ADR-009](ADR-009-cancellation.md) decisions 4a and 4c, which introduced them for
+recurrence management without amending the booking flow that creates a recurrence in the
+first place. See decision **4a** below. Decision **4b**, added the same day, covers what
+happens when a booking request fails partway: retries, headers that were never written, and
+a client who resubmits a different request.
+
+**Amended — 2026-10-01** by [ADR-022](ADR-022-client-isolation-at-the-database.md).
+Decisions **3** and **4**'s `ReturnValuesOnConditionCheckFailure = ALL_OLD` is dropped on the
+client path: it returns another family's booking, and no IAM condition can stop that. A
+failed date is attributed by looking for the client's own booking at that date and time on
+GSI1 (now keyed by client), with one re-check after a short pause because the index is
+eventually consistent. The `RECURRENCE#` header moves to the client's partition
+(`CLIENT#<clientId>` / `RECURRENCE#<coachId>#<recurrenceId>`).
 
 Supersedes:
 
@@ -101,8 +130,8 @@ In their place, one item per overridden date:
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks` |
 
 `blocks` is the same shape ADR-004 decision 3 defined — an ordered list, each block
-carrying `start`, `end`, `lessonMinutes` and `priceMinor` — and the same write-time
-validation applies (no overlap within the day, abutting allowed, `end` after `start`).
+carrying `startTime`, `endTime`, `lessonMinutes` and `priceMinor` — and the same write-time
+validation applies (no overlap within the day, abutting allowed, `endTime` after `startTime`).
 
 **Resolution for a date `D`, in full:**
 
@@ -224,6 +253,115 @@ sibling link was never written, and it cannot be reconstructed after the fact. O
 attribute at write time, no migration ever. This is the same argument ADR-001 decision
 4 made for storing `Booking.startsAtUtc` before a second timezone existed.
 
+#### 4a. Frequency is chosen at booking, every 1 to 4 weeks
+
+*Decided by the owner, 2026-09-29.* The booking pop-up's recurring option carries a
+frequency — every 1, 2, 3 or 4 weeks, defaulting to 1 — alongside the end date. This is
+[ADR-009](ADR-009-cancellation.md) decision 4a's `intervalWeeks`, applied where a recurrence
+is created rather than only where it is reduced.
+
+- **Expansion steps by `intervalWeeks`** from the first occurrence — same weekday, same start
+  time. Every other rule in this decision is unchanged: one conditional put per occurrence,
+  partial success, retry attribution, price resolved per occurrence.
+- **The 12-month cap is unchanged** and still bounds the date, not the count, so a recurrence
+  holds at most 52 occurrences at interval 1 and 13 at interval 4. The largest single booking
+  action is still 52 puts.
+- **A `RECURRENCE#<recurrenceId>` header is written with the occurrences** — `studentId`,
+  `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn` — in the shape
+  ADR-009 decision 4c defines. It is needed because the interval cannot be recovered from
+  the bookings once one has been cancelled by hand.
+- **The header is written last**, after the occurrence puts, and only if at least one
+  occurrence was booked — the same order ADR-008 decision 7 uses for a temporary schedule's
+  header. A crash between them leaves bookings with no header: they are real, bookable and
+  correctly priced, and only the management screen is missing them. A retry writes the same
+  header at the same key, so it is idempotent. Header-first would leave a header describing
+  an arrangement that has no lessons.
+- **The header records what was asked for**, not what succeeded: `endDate` is the requested
+  end date even when some occurrences were skipped. Bookings stay authoritative for what is
+  actually scheduled (ADR-009 decision 4c).
+
+This stays inside decision 4's "a recurrence is N bookings, written once." The header does
+not generate anything; it describes an arrangement whose bookings already exist, and nothing
+on the booking path reads it.
+
+**One recurrence per selected slot.** The header holds one weekday and one start time
+(ADR-009 decision 4c), so a client who selects Monday 4pm and Wednesday 4pm and marks them
+recurring creates **two** recurrences, each with its own `recurrenceId` and header.
+
+#### 4b. A failed booking request repairs itself; the client decides only what the system cannot
+
+*Decided by the owner, 2026-09-29.* The rule behind this decision: **automate what is
+certain or undoable; ask the client only when an action destroys something and their intent
+is a guess.** Decision 4's partial-failure handling was written for the retry that repeats
+the same request. Three further cases are covered here.
+
+**1. The request carries its identity, so a retry recognises its own work.** Every booking
+request carries a client-generated **idempotency key** (ADR-001 already requires one), and
+each recurrence's `recurrenceId` is **derived from that key and the slot** — the same key,
+weekday and start time always produce the same `recurrenceId`. Decision 4's attribution
+only works if the retry's `recurrenceId` equals the first attempt's; a server-generated ID
+would make a retry report the client's own lessons as taken by someone else.
+
+- The web app **retries once automatically** on a server error, with the same key
+  (ADR-001). Most failures end there: the retry recognises its own lessons, writes the
+  header, and the client sees an ordinary result.
+- **A key already seen with a different request body is rejected.** The app generates a
+  fresh key whenever the request changes, so a changed request can never be mistaken for a
+  retry.
+
+**2. Each booking records the interval it was booked under, so a missing header can be
+rebuilt.** Every occurrence is stamped with **`bookedIntervalWeeks`** at creation. It is a
+fixed fact about the moment of booking — like `priceMinor`, it is never updated — and it is
+**not** the current frequency. The header is the only source of that.
+
+- A frequency change (ADR-009 decision 4) updates the header only. The remaining lessons
+  keep the value they were booked with, and nothing reads it while a header exists.
+- **Headers are never deleted by the application.** Cancelling all future lessons marks the
+  header `ENDED` rather than removing it. (Time to Live removes a header long after its
+  arrangement has ended — [ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 3 —
+  which the repair guard below makes safe.) So a missing header always means one thing: the booking request
+  failed before writing it — and such an arrangement cannot have had its frequency changed,
+  because changing it needs the header.
+- **Repair is automatic.** Whenever a client's bookings are loaded, any `recurrenceId` among
+  them with no header gets one rebuilt from its bookings: student, client, weekday and start
+  time from any occurrence; `intervalWeeks` from `bookedIntervalWeeks`; `startedOn` from the
+  first; `endDate` from the last. The write is conditional on the header not existing, so it
+  can never overwrite a real one. **Repair only runs for an arrangement with at least one
+  upcoming lesson** (ADR-017 decision 3, 2026-09-30): an arrangement whose header has expired
+  ended long ago, and its settled lessons must not trigger a rebuild. The requested end date is lost — the rebuilt one is the
+  last lesson actually booked — which is the only difference from a header written normally.
+
+**3. A resubmission reports the client's own lessons as theirs.** When a date is blocked,
+the failed write already returns the booking that blocked it (decision 4's
+`ReturnValuesOnConditionCheckFailure`). If that booking belongs to **the same student**, the
+date is reported as *already booked for this student* rather than as unavailable. Results
+have three outcomes: **booked**, **already booked for this student**, and **unavailable**.
+
+This keeps decision 4's privacy rule, which merges the two reasons a slot is unavailable so
+that a client learns nothing about **another** family. Telling a client about their own
+child's lessons reveals nothing. It also improves the ordinary case of a client booking a
+slot they already hold.
+
+**4. When the resubmission drops a slot, the client decides.** If a request fails and the
+client then submits a new one that leaves out a slot the failed one included, they may now
+hold lessons they no longer want — or they may have assumed that slot failed. The system
+cannot tell which, and cancelling on a guess is the one thing it must not do: a released
+slot can be taken by another family within minutes, while an unwanted lesson is visible and
+easy to cancel. So the app does everything except the decision:
+
+> *You also have Wednesdays at 4:00pm booked from your earlier attempt.* **[Keep them]
+> [Cancel them]**
+
+The app knows which slots the failed request included, because it sent it; it checks the
+client's bookings for those slots and asks. *Cancel them* runs recurrence management's
+existing *cancel all future lessons* (ADR-009 decision 4) on the header, which repair has
+already rebuilt if it was missing.
+
+**What this covers, end to end.** A crash before the header: the automatic retry finishes
+it. No retry: the header is rebuilt the next time the client's bookings load. The client
+resubmits with a slot added: their existing lessons show as theirs and the new slot books as
+its own recurrence. The client resubmits with a slot removed: one prompt, one tap.
+
 **Price is resolved per occurrence, not once.** ADR-003 decision 2's resolution runs
 for each date against the pattern in effect *on that date*, so a recurrence spanning a
 price change or a temporary block correctly carries different amounts on different
@@ -271,8 +409,8 @@ sequenceDiagram
     Bus->>X: route
     X->>DB: Query bookings in affected range
     X->>DB: delete conflicting bookings
-    X->>DB: write CANCELBATCH + CANCELLED lines
-    X->>Bus: one LessonCancelled per affected client
+    X->>DB: write CHANGEBATCH + CANCELLED lines
+    X->>Bus: one LessonsChanged per affected client
     Bus->>N: route (per client)
     N->>N: SES email (+ SNS if smsOptIn)
     N->>DB: stamp notification state on that client's lines
@@ -288,11 +426,11 @@ replaces both.
 
 | Item | PK | SK | Attributes |
 |---|---|---|---|
-| Cancellation batch | `COACH#<coachId>` | `CANCELBATCH#<isoTs>#<batchId>` | `source` (`DEFAULT` \| `DATE_OVERRIDE`), `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount` |
-| Cancelled lesson | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<bookingId>` | `date`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
+| Cancellation batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource` (`DEFAULT` \| `DATE_OVERRIDE`), `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount` |
+| Cancelled lesson | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<bookingId>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
 
 ISO-8601 timestamps sort lexicographically, so "what did my last schedule change do"
-is a `begins_with(SK, "CANCELBATCH#")` query read backwards, and one batch's lines are
+is a `begins_with(SK, "CHANGEBATCH#")` query read backwards, and one batch's lines are
 `begins_with(SK, "CANCELLED#<isoTs>#<batchId>")`.
 
 **This lives in DynamoDB, not S3.** The owner offered either. S3 is right for the §6.4
@@ -355,7 +493,7 @@ ADR-002 decision 7 is otherwise unchanged and still governs reminders.
 
 `POST /schedule/preview` accepts the proposed schedule, runs the identical conflict
 evaluation the consumer will run, writes nothing, and returns the conflict set. The
-coach app must show the counts and the affected lessons and require confirmation
+coach website must show the counts and the affected lessons and require confirmation
 before the write.
 
 **This is not a nicety, it is the replacement for the horizon.** ADR-005 decision 3
@@ -384,13 +522,13 @@ writes, never the number the coach was shown.
 the `NEEDS_REBOOKING` booking status and `REBOOK#` records; ADR-005's Phase-2
 `RECURRING#` item and its materialization job.
 
-**Added:** `SCHEDULE#DATE#<yyyy-mm-dd>` override items; `CANCELBATCH#` and `CANCELLED#`
+**Added:** `SCHEDULE#DATE#<yyyy-mm-dd>` override items; `CHANGEBATCH#` and `CANCELLED#`
 items; `Booking.recurrenceId`; a cancellation-notifier Lambda; a schedule-preview
 endpoint.
 
 **Changed:** access pattern 4 no longer clamps to a horizon — it is a date-override
 query plus the default plus a bookings query, per week or per month.
-`LessonCancelled` in the §6 event catalog now also carries schedule-driven
+`LessonsChanged` in the §6 event catalog now also carries schedule-driven
 cancellations and is consumed per client rather than per booking.
 
 **Access patterns added to §5:**
@@ -398,7 +536,7 @@ cancellations and is consumed per client rather than per booking.
 | # | Query | Served by |
 |---|---|---|
 | 13 | List date overrides in a range (month grid, week view) | Main table, `SK between SCHEDULE#DATE#<from> and SCHEDULE#DATE#<to>` |
-| 14 | List a coach's cancellation batches, newest first | Main table, `begins_with(SK, "CANCELBATCH#")`, descending |
+| 14 | List a coach's cancellation batches, newest first | Main table, `begins_with(SK, "CHANGEBATCH#")`, descending |
 | 15 | List the cancelled lessons in one batch | Main table, `begins_with(SK, "CANCELLED#<isoTs>#<batchId>")` |
 | 16 | List the surviving lessons of one recurrence | GSI1 by student, filtered on `recurrenceId` |
 
@@ -461,11 +599,8 @@ price of the single-lookup resolution rule and it is charged to the UI.
   12 months; an individual booking currently has no limit at all, so a client can book
   a lesson in 2031 against a default pattern that will certainly have changed. Probably
   wants the same 12-month cap for symmetry, but nothing breaks without it.
-- **Can a client end a recurrence, or skip one week of it?** `recurrenceId` makes both
-  answerable, but neither flow is specified. This overlaps the cancellation gap that
-  ADR-003, ADR-004 and ADR-005 have each deferred and which still has no document.
-- **Can a client cancel a single booking at all, and with what notice?** Removing the
-  horizon deletes the one thing that implicitly bounded lead time.
+- ~~Can a client end a recurrence, or skip one week of it? `recurrenceId` makes both~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 4** — a client may move the end date earlier or cancel all future occurrences; a single week is an ordinary per-lesson cancel under decision 2.
+- ~~Can a client cancel a single booking at all, and with what notice? Removing the~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 2** — per-lesson cancel with confirmation, with a late-cancellation notice rather than a notice bound.
 - **Retention of cancellation records.** They name students and carry contact-adjacent
   data, so §7's minors' obligations apply. No TTL, no archival cutoff, and no coach
   ability to clear history is specified.
@@ -474,9 +609,7 @@ price of the single-lookup resolution rule and it is charged to the UI.
 - **Real delivery confirmation.** `SENT` currently means "accepted by SES." Bounce and
   complaint handling via SES event destinations would make the coach's "was this client
   reached" answer honest, and is not in MVP.
-- **Does a coach need to cancel one lesson without touching the pattern?** Carried
-  forward unanswered from ADR-004. It is more obviously needed now that a coach may be
-  looking at a year of bookings in a calendar.
+- ~~Does a coach need to cancel one lesson without touching the pattern? Carried~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 5.**
 - **Timezone of the week grid.** Sunday–Saturday in the coach's timezone, per ADR-001
   decision 4. A client in a different timezone sees the coach's week, which is correct
   but unstated in the UI.

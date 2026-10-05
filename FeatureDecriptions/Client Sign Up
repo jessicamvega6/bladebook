@@ -1,7 +1,9 @@
 Client Sign Up:
 
-CoachCode   : Code given to client by coach outside of website. 
-            : On focusOut of input field and while value.length = 5 check to see if this is a valid coach code. If yes, display coach name and photo (if uploaded)
+CoachCode/Coach Name   : Code given to client by coach outside of website. 
+            : On focusOut of input field and while value.length = 8 check to see if this is a valid coach code. If yes, display coach name and photo (if uploaded)
+            : Code has to match coach name or nothing is displayed/error is displayed saying please check code/coach name
+            : look up what Rate limiting would look like for the pic display
 
 Is Minor: checkbox
 Guardian First name:

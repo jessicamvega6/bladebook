@@ -13,11 +13,16 @@ Governs every SMS path in the system: the day-of reminder (§6.2), the payment r
 frequency — ADR-002 decision 7 (one reminder per lesson) and ADR-006 decision 6 (one
 cancellation message per client per batch) are unchanged.
 
+**Amended — 2026-09-30.** Two open questions settled by the owner. **Opt-in belongs to the
+phone number** (decision 8a), which resolves the per-student/per-client inconsistency. **Every
+message is prefixed `<Coach name> via BladeBook:`** rather than `BladeBook:` (decision 5a),
+which changes decision 6's worst-case lengths and decision 8's template.
+
 ---
 
 ## Context
 
-SMS is per-student opt-in over SNS at ~$0.01–0.02 per message, gated on 10DLC
+SMS is opt-in (per phone number, since 2026-09-30 — decision 8a) over SNS at ~$0.01–0.02 per message, gated on 10DLC
 registration. Nothing until now has said what an SMS may *contain*, and three separate
 paths send them. Two of those interpolate content with no length ceiling at all:
 
@@ -91,7 +96,29 @@ Each template is a fixed skeleton plus per-field character budgets, set so the w
 case fits. A field over its budget truncates at a defined point with a single `.`
 marker. A long student name never pushes a message into a second segment.
 
+### 5a. The prefix names the coach: `<Coach name> via BladeBook:`
+
+*Decided by the owner, 2026-09-30.* A client knows their coach, not the software, so the
+message leads with the coach. "via BladeBook" keeps the program identifiable, which carrier
+vetting for the 10-digit long code (10DLC) campaign expects.
+
+The coach's name is user-authored and variable-length — exactly the field decision 5 exists
+to control:
+
+- **The name is the coach's `firstName` and `lastName`**, budgeted at **20 characters** and
+  truncated by decision 5's rule when longer.
+- **It is transliterated to GSM-7** before counting (decision 2), so an accented name cannot
+  flip the whole message to the 70-character encoding.
+- The prefix therefore costs up to 36 characters where `BladeBook: ` cost 11 — **25 more** in
+  the worst case, applied to every template below.
+
 ### 6. Per-path message specs
+
+*Amended 2026-09-30:* every template now opens with `<coach> via BladeBook:` (decision 5a).
+The table below is the original record; the current worst cases, with a 20-character coach
+name, are **88** (day-of reminder), **115** (payment reminder) and **105** (cancellation
+digest). The tightest now spends 72% of the budget — less headroom than before, still inside
+one segment.
 
 | Path | Template | Worst case |
 |---|---|---|
@@ -110,13 +137,44 @@ values. This is cheap and it is the only way the constraint holds, because both 
 modes are silent: an over-length message still sends, and a UCS-2 message still sends.
 The bill and the client's screen are the only other places you would find out.
 
+### 5b. A coach-directed template
+
+*Added 2026-09-30.* The coach can opt in to a text when a family cancels ([ADR-009](ADR-009-cancellation.md)
+decision 9). That text goes **to** the coach, so it opens `BladeBook:`, not decision 5a's
+`<Coach name> via BladeBook:`:
+
+`BladeBook: <student> cancelled <day> <date> <time>. See email.`
+
+A batch cancelling several lessons reads *"<student> cancelled <n> lessons from <date>. See
+email."* Both need decision 7's length test; with a 21-character student name the first is
+about 65 characters. Decision 8a's rule — consent belongs to the phone number — applies to
+the coach's number too.
+
+### 8a. Opt-in belongs to the phone number
+
+*Decided by the owner, 2026-09-30.* Consent is given by whoever holds the phone, so the phone
+number is what opts in — not a student, and not an account as such.
+
+In the model that means **`smsOptIn` lives on the client profile**, beside `clientPhone`,
+because a client has exactly one phone number. ADR-002 decision 4 already makes
+`CLIENT#…/PROFILE` the source of truth and copies the flag onto each student for the
+notification path. So a parent with two children opts in once and both children's messages
+reach that phone; nothing is chosen per child. `architecture.md`'s earlier "per-student
+opt-in" wording described the copy, not the choice, and is corrected.
+
+Decision 8's one-confirmation-per-number rule already followed this reading.
+
 ### 8. The opt-in confirmation message is the one exception to the length limit
 
 Sent **once**, when a client's `smsOptIn` transitions false → true. It carries the
 compliance payload — program identity, message frequency, rate disclosure, HELP and
 STOP — so that the three recurring templates do not have to.
 
-**It is exempt from decision 1** and is expected to run to two segments:
+**It is exempt from decision 1** and is expected to run to two segments. *Amended
+2026-09-30:* it now opens with the decision 5a prefix instead of naming the coach mid-sentence
+— `<coach> via BladeBook: You are subscribed to lesson alerts. Msg frequency varies…` — which
+comes out slightly shorter than the original below, at most about 230 characters. Still two
+segments. The original:
 
 ```
 BladeBook: You are subscribed to lesson alerts from Coach <coachName>. Msg frequency
@@ -201,6 +259,9 @@ fit, and that is the intended pressure.
 
 ## Open
 
+- **Templates for price changes** ([ADR-020](ADR-020-repricing-booked-lessons.md), 2026-09-30):
+  an increase, a decrease ("good news") and a batch mixing price changes with cancellations.
+  Each is a pointer to the email under decisions 1–5, and needs its decision-7 length test.
 - **Does the confirmation message alone satisfy the carrier**, or does a recurring
   program also need periodic re-disclosure? Decision 8 assumes once is enough for
   transactional traffic. This is the specific question to put to the 10DLC campaign
@@ -209,13 +270,10 @@ fit, and that is the intended pressure.
   suppression is discovered, but a client who later texts `START` is re-enabled at the
   carrier while our record still says false — they would have to re-enable in the app.
   Acceptable, and currently unexplained anywhere in the UI.
-- **Per-student or per-client opt-in?** `architecture.md` §2 and §9 say "per-student
-  opt-in"; ADR-002 decision 4 makes the client profile the source of truth. Decision 8
-  sends one confirmation per phone number, which is right under either reading, but the
-  underlying inconsistency is still there and should be settled.
-- **Should the prefix be `BladeBook:` or the coach's name?** A coach's name is
-  user-authored and variable-length, which is exactly what decision 5 exists to control;
-  the fixed brand prefix is the cheap default, but it is the coach the client knows.
+- ~~Per-student or per-client opt-in?~~ **Settled 2026-09-30: per phone number** — stored on
+  the client profile, which has one phone. See decision 8a.
+- ~~Should the prefix be `BladeBook:` or the coach's name?~~ **Settled 2026-09-30:
+  `<Coach name> via BladeBook:`** — see decision 5a.
 - **A client who opts into SMS but whose email bounces** currently gets nothing usable,
   since the SMS only points at the email. Interacts with ADR-006's `FAILED` notification
   state, which records the bounce but triggers nothing.

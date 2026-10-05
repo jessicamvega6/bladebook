@@ -1,11 +1,18 @@
 Coach App
-Seperate App from bladebook website. The app needs to be able for the coac to mark the student as checked in, no show, or can Cancel lesson.
+Seperate App from bladebook website. The app needs to be able for the coach to mark the student as checked in, no show, or can Cancel lesson.
 
 Also needs to show the coach who has signed up for lessons that day and what time the lesson is at.
 
-Also needs to be able to cancel the whole day, part of a day, the whole week, part of the week, and specific lessons all within a cancel section. Note: the check in section also has a cancel functionality so a single lesson can be canceled in two places in the Coach app.
+<!-- Also needs to be able to cancel the whole day, part of a day, the whole week, part of the week, and specific lessons all within a cancel section. 
+    Note: the check in section also has a cancel functionality so a single lesson can be canceled in two places in the Coach app. -->
+
+
+The checkin app will allow a coach to cancelan individual lesson, or any lessons that day. When canceling the coach will be asked if they want to release or hold the slots. 
+    Hold: means they are coach held
+    Release: means they are rebookable by othr students
 
 The app needs to also have a sign in screen where the coach is validated that they are who they say they are. 
 
 
 The app also needs to display the clients contact info at checkin
+
