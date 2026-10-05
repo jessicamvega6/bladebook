@@ -1,0 +1,16 @@
+{
+  "product": "BladeBook rinkside app",
+  "demoTitle": "Dana Whitfield · BladeBook rinkside demo",
+  "demoBar": "<b>Interactive demo</b> · sample data · Wed, Oct 14 at Pelham Ice Rink",
+  "demoBarControls": "<span>Signal: <a href=\"#today\" data-act=\"rkSignal\" data-arg='[true]'>on</a> · <a href=\"#today\" data-act=\"rkSignal\" data-arg='[false]'>off</a> (no signal since 6:15 AM; meanwhile one family cancels)</span><span>Clock: <a href=\"#today\" data-act=\"rkClock\" data-arg='[false]'>6:35 AM</a> · <a href=\"#today\" data-act=\"rkClock\" data-arg='[true]'>8:40 AM</a></span><span><a href=\"#today\" data-act=\"rkNotLoaded\">Open with nothing loaded</a> · <a href=\"#signin\">Log in page</a></span>",
+  "galleryTitle": "BladeBook Rinkside Pages",
+  "galleryIntro": "Coach Dana Whitfield's phone at Pelham Ice Rink. Today in the samples is Wednesday, October 14, 2026, 6:35 AM.",
+  "groups": [
+    "Sign in",
+    "Today",
+    "No signal",
+    "Cancel",
+    "Account"
+  ],
+  "demoUrl": "https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH"
+}

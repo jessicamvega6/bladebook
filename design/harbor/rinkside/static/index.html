@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BladeBook rinkside app · Harbor static designs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+:root { --g-bg: #F7F3EC; --g-surface: #FFFDF9; --g-text: #1E292D; --g-text-2: #46524F; --g-line: #E7DFD2; --g-link: #0E6C68; }
+html, body { margin: 0; background: var(--g-bg); color: var(--g-text); font: 15px/1.5 'Figtree', system-ui, sans-serif; }
+.g-head, .g-main { max-width: 1040px; margin: 0 auto; padding-inline: 24px; }
+.g-head { padding-block: 40px 8px; }
+.g-head h1 { margin: 0 0 8px; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.g-head p { margin: 0; max-width: 68ch; color: var(--g-text-2); }
+.g-head a, .g-group a { color: var(--g-link); font-weight: 700; text-decoration: none; }
+.g-main { display: flex; flex-direction: column; gap: 28px; padding-block: 24px 64px; }
+.g-group h2 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--g-text-2); }
+.g-group ol { margin: 0; padding: 0; list-style: none; background: var(--g-surface); border: 1px solid var(--g-line); border-radius: 20px; overflow: hidden; }
+.g-group li { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr) auto; gap: 4px 20px; padding: 12px 20px; border-top: 1px solid var(--g-line); align-items: baseline; }
+.g-group li:first-child { border-top: 0; }
+.g-group span { color: var(--g-text-2); font-size: 14px; min-width: 0; }
+.g-group code { font-size: 12px; color: var(--g-text-2); }
+@media (max-width: 760px) { .g-head, .g-main { padding-inline: 16px; } .g-group li { grid-template-columns: minmax(0, 1fr); } }</style>
+</head>
+<body>
+<header class="g-head"><h1>BladeBook rinkside app — Harbor</h1><p>13 static page designs, generated from the same source as the <a href="../demo/index.html">interactive demo</a>. Coach Dana Whitfield's phone at Pelham Ice Rink. Today in the samples is Wednesday, October 14, 2026, 6:35 AM.</p></header>
+<main class="g-main"><section class="g-group"><h2>Sign in</h2><ol><li><a href="signin.html">Log in</a><span>New. Same email and password as the website, through the app’s own sign-in (ADR-014 d10); says what this app can and can’t do.</span><code>signin.html</code></li></ol></section><section class="g-group"><h2>Today</h2><ol><li><a href="today.html">Today’s lessons</a><span>Redesigned from Forest RinkToday. 6:35 AM: Sam recorded, Mia under way, later lessons show their start time instead of buttons, the held slot in place.</span><code>today.html</code></li><li><a href="today-more.html">More for one lesson</a><span>New. The “…” sheet: contact details and cancel, kept away from the Present and No-show buttons.</span><code>today-more.html</code></li><li><a href="today-contact.html">Contact details</a><span>New. Fetched with signal for this tap only and never stored on the phone (ADR-014 d9b).</span><code>today-contact.html</code></li><li><a href="today-contact-offline.html">Contact details — no signal</a><span>New. Offline, the tap says “Contact details need a connection.” (ADR-014 d9b).</span><code>today-contact-offline.html</code></li><li><a href="today-cancel.html">Cancel one lesson</a><span>Redesigned from Forest RinkCancelConfirm. Always confirms, and asks release or hold (ADR-009 d5a).</span><code>today-cancel.html</code></li></ol></section><section class="g-group"><h2>No signal</h2><ol><li><a href="offline.html">No signal — saved on the phone</a><span>Redesigned from Forest RinkOffline. 8:40 AM with no signal: two check-ins saved on the phone with their device times, waiting to send.</span><code>offline.html</code></li><li><a href="not-loaded.html">Today’s lessons haven’t loaded</a><span>Redesigned from Forest RinkNotLoaded. Opened with no signal before today was ever loaded.</span><code>not-loaded.html</code></li><li><a href="unsent.html">Couldn’t be sent</a><span>Redesigned from Forest RinkCouldntSend. The family cancelled while the phone had no signal, so the no-show was turned down on replay and kept here (ADR-014 d4a).</span><code>unsent.html</code></li><li><a href="family-cancelled.html">Back online — the family had cancelled</a><span>Redesigned from Forest RinkFamilyCancelled. After the replay the cancelled lesson stays in place, struck through, and the banner points to what wasn’t sent.</span><code>family-cancelled.html</code></li></ol></section><section class="g-group"><h2>Cancel</h2><ol><li><a href="week.html">Cancel several lessons</a><span>New. Part of a day or week is a multi-select of single lessons, release or hold per lesson; started lessons can’t be picked (ADR-009 d5a).</span><code>week.html</code></li><li><a href="week-confirm.html">Cancel several — confirm</a><span>New. One confirmation listing every lesson, which are held, and which families are emailed.</span><code>week-confirm.html</code></li></ol></section><section class="g-group"><h2>Account</h2><ol><li><a href="account.html">Account</a><span>New. Who is signed in, when the phone last synced, log out, and where everything else lives.</span><code>account.html</code></li></ol></section></main>
+</body>
+</html>

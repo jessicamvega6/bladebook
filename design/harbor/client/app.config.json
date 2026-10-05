@@ -1,0 +1,17 @@
+{
+  "product": "BladeBook client website",
+  "demoTitle": "Grace Chen · BladeBook family demo",
+  "demoBar": "<b>Interactive demo</b> · sample data · today is Wed, Oct 14, 8:15 AM · signed in as <a href=\"#home\" data-act=\"asFamily\" data-arg='[\"grace\"]'>Grace Chen (approved)</a> or <a href=\"#home\" data-act=\"asFamily\" data-arg='[\"sarah\"]'>Sarah Park (waiting for approval)</a> · signed-out pages: <a href=\"#login\">Log in</a> · <a href=\"#signup\">Sign up</a>",
+  "galleryTitle": "BladeBook Family Pages",
+  "galleryIntro": "Sample family: Grace Chen, guardian of Mia and Noah, booking with Coach Dana Whitfield. Today in the samples is Wednesday, October 14, 2026, 8:15 AM.",
+  "groups": [
+    "Sign in",
+    "Sign up",
+    "Home",
+    "Book a lesson",
+    "My bookings",
+    "Profile",
+    "Phase 2"
+  ],
+  "demoUrl": "https://claude.ai/artifact/2ttV1zZw51KiYbj5x8Cw4u"
+}

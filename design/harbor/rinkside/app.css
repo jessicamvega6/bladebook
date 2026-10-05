@@ -1,0 +1,73 @@
+/* Rinkside app — the phone stage and additions to harbor.css. Harbor tokens only. */
+.bb .rk-stage { display: flex; justify-content: center; padding: 28px 16px 40px; }
+.bb .rk-phone { border: 10px solid var(--text); border-radius: 46px; box-shadow: var(--shadow-lg); flex: none; }
+.bb .rk-body { overflow-y: auto; }
+.bb .phone__head { gap: 12px; }
+.bb .rk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: var(--w-bold); white-space: nowrap; }
+.bb .rk-pill--ok { background: var(--success-soft); color: var(--success-text); }
+.bb .rk-pill--warn { background: var(--warning-soft); color: var(--warning-text); }
+.bb .rk-pill--danger { background: var(--danger-soft); color: var(--danger-text); }
+.bb .tabbar__item { text-decoration: none; }
+.bb .rk-tabicon { position: relative; display: inline-flex; }
+.bb .rk-badge { position: absolute; top: -6px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+.bb .rk-toast { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--text); color: var(--surface); font-size: 13.5px; font-weight: var(--w-med); }
+.bb .rk-namebtn { text-align: left; font: inherit; font-size: 17px; font-weight: var(--w-bold); color: var(--text); cursor: pointer; }
+.bb .rk-namebtn:hover { color: var(--primary-text); }
+.bb .rbtn { cursor: pointer; border: 0; font-family: inherit; }
+.bb .rbtn--noshow { border: 1.5px solid var(--border-strong); color: var(--text); }
+.bb .rbtn--present:active, .bb .rbtn--noshow:active { transform: scale(.98); }
+.bb .rk-later { flex: 1; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: var(--r-md); background: var(--surface-2); color: var(--text-2); font-weight: var(--w-med); font-size: 14px; }
+.bb .rk-undo { margin-left: auto; padding: 4px 12px; border-radius: 999px; border: 1px solid currentColor; font: inherit; font-size: 13px; font-weight: var(--w-bold); color: inherit; background: none; cursor: pointer; }
+.bb .rl__saved + .rk-undo { margin-left: 8px; }
+.bb .rl--held { background: var(--surface-2); box-shadow: none; }
+.bb .rl--held .rl__meta { display: flex; align-items: center; gap: 6px; }
+.bb .rk-bannerlink { color: inherit; text-decoration: none; }
+.bb .rk-bannerlink span { display: inline-flex; align-items: center; gap: 4px; color: var(--danger-text); font-weight: var(--w-bold); }
+.bb .rk-reason { margin: 0; font-size: 13.5px; color: var(--text); }
+.bb .sheet { max-height: calc(100% - 60px); overflow-y: auto; }
+.bb .sheet .btn--lg { flex: none; }
+.bb .rk-menu { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.bb .rk-menu__item { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px; text-align: left; font: inherit; font-weight: var(--w-bold); color: var(--text); background: var(--surface); border: 0; border-top: 1px solid var(--border); cursor: pointer; }
+.bb .rk-menu__item:first-child { border-top: 0; }
+.bb .rk-menu__item span { flex: 1; display: flex; flex-direction: column; }
+.bb .rk-menu__item small { font-weight: var(--w-reg); color: var(--text-3); font-size: 12.5px; }
+.bb .rk-menu__item--danger { color: var(--danger-text); }
+.bb .rk-menu__item[disabled] { color: var(--disabled-text); cursor: not-allowed; }
+.bb .rk-sheeticon { width: 52px; height: 52px; border-radius: 50%; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; }
+.bb .rk-sheeticon--warn { background: var(--warning-soft); color: var(--warning); }
+.bb .rk-contact { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); }
+.bb .rk-contact__row { display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 14px; border-top: 1px solid var(--border); }
+.bb .rk-contact__row:first-child { border-top: 0; }
+.bb .rk-contact__row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bb .rk-contact__row small { font-size: 12px; color: var(--text-3); }
+.bb .rk-select { user-select: all; overflow-wrap: anywhere; }
+.bb .rk-day { display: flex; flex-direction: column; gap: 8px; }
+.bb .rk-day__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 2px 0; }
+.bb .rk-day__head .link { font-size: 13px; }
+.bb .rk-pick { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--card-border, var(--border)); border-radius: var(--r-md); }
+.bb .rk-pick.is-on { border-color: var(--danger-border); background: var(--danger-soft); }
+.bb .rk-pick__row { display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; }
+.bb .rk-pick__t { width: 40px; font-weight: var(--w-bold); color: var(--text-2); }
+.bb .rk-pick__n { flex: 1; font-weight: var(--w-bold); }
+.bb .rk-sticky { position: sticky; bottom: 0; padding-top: 6px; background: linear-gradient(to bottom, transparent, var(--bg) 30%); }
+.bb .rk-confirm { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); }
+.bb .rk-confirm li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--border); font-size: 14px; }
+.bb .rk-confirm li:first-child { border-top: 0; }
+.bb .rk-confirm li b { flex: 1; }
+.bb .rk-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--surface); border: 1px solid var(--card-border, var(--border)); border-radius: var(--r-lg); box-shadow: var(--shadow); }
+.bb .rk-card .fine { margin: 0; }
+.bb .rk-who { display: flex; align-items: center; gap: 12px; }
+.bb .rk-who > div { display: flex; flex-direction: column; }
+.bb .rk-kv { margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.bb .rk-kv div { display: flex; justify-content: space-between; gap: 12px; }
+.bb .rk-kv dt { color: var(--text-3); }
+.bb .rk-kv dd { margin: 0; font-weight: var(--w-bold); text-align: right; }
+.bb .rk-signin { display: flex; flex-direction: column; gap: 14px; padding: 40px 10px 20px; }
+.bb .rk-mark { width: 52px; height: 52px; }
+/* A real phone: the app fills the screen, no frame. */
+@media (max-width: 430px) {
+  .bb .rk-stage { padding: 0; }
+  .bb .rk-phone { width: 100%; height: auto; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .bb .rk-body { overflow: visible; }
+  .bb .tabbar { position: sticky; margin-top: auto; }
+}

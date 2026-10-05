@@ -1,0 +1,23 @@
+/* Students — roster and pending sign-ups. Harbor tokens only. */
+.bb .stu-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
+.bb .seg__opt.is-on .stu-count { background: var(--primary-soft); color: var(--primary-soft-text); }
+.bb .stu-count--attn { background: var(--alt-soft); color: var(--alt-text); }
+.bb .stu-search { max-width: 420px; }
+.bb .stu-tablewrap { overflow-x: auto; position: relative; }
+.bb .stu-table { min-width: 760px; }
+.bb .stu-table td { vertical-align: top; }
+.bb .stu-sub { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); font-weight: var(--w-reg); }
+.bb .stu-contact { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13px; color: var(--text-2); }
+.bb .stu-contact span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.bb .stu-contact .ic { color: var(--text-3); }
+.bb .stu-family { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.bb .stu-family .stu-contact { margin-top: 0; }
+.bb .stu-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-2); }
+.bb .dialog .field { text-align: left; }
+@media (max-width: 760px) {
+  .bb .stu-family { padding: 12px 16px; }
+  .bb .stu-search { max-width: none; }
+}
+
+.bb .stu-blocks { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.bb .stu-table .stu-sub .btn { margin-top: 4px; margin-left: -12px; }

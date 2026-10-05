@@ -1,0 +1,51 @@
+/* Lessons, Payments, Profile, Email templates — additions to harbor.css. Harbor tokens only. */
+.bb .mp-filters { flex-wrap: wrap; }
+.bb .mp-filters .field { width: 200px; max-width: 100%; }
+.bb .mp-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 16px; }
+.bb .mp-empty__icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); color: var(--text-3); display: grid; place-items: center; }
+.bb .mp-phase { display: inline-flex; align-items: center; gap: 8px; }
+.bb .mp-tablewrap { overflow-x: auto; position: relative; }
+.bb .mp-tablewrap .table { min-width: 760px; }
+.bb .mp-tablewrap td { vertical-align: middle; }
+.bb .mp-sub { display: block; font-weight: var(--w-reg); font-size: 12.5px; color: var(--text-3); }
+.bb .table tr.mp-attn td { background: var(--warning-soft); }
+.bb .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* profile */
+.bb .mp-tabs { overflow-x: auto; }
+.bb a.tabs__t { text-decoration: none; white-space: nowrap; }
+.bb a.tabs__t:hover { color: var(--text); }
+.bb .mp-photo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bb .mp-photo__text { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.bb .mp-radios { display: flex; flex-direction: column; gap: 10px; }
+.bb .mp-rrow { display: flex; align-items: center; gap: 12px; }
+.bb .mp-rrow > .rcard { flex: 1; min-width: 0; }
+.bb button.rcard { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.bb button.rcard .rcard__title, .bb button.rcard .rcard__sub { display: block; overflow-wrap: anywhere; }
+.bb .mp-rcard--pending { border-style: dashed; flex-wrap: wrap; }
+.bb .mp-rcard--pending .rcard__text { flex: 1; min-width: 180px; }
+.bb .mp-add { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+.bb .mp-add .cellbtns { justify-content: flex-end; }
+.bb .mp-remove { flex: none; }
+.bb .mp-grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* email templates */
+.bb .mp-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+.bb .mp-tpl { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--border); }
+.bb .mp-tpl:last-child { border-bottom: 0; }
+.bb .mp-tpl.is-on { background: var(--primary-tint); box-shadow: inset 3px 0 0 var(--primary); }
+.bb .mp-tpl__pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; }
+.bb .mp-tpl__name { font-weight: var(--w-bold); }
+.bb .mp-tpl__when { font-size: 13px; color: var(--text-3); }
+.bb .mp-mail { padding: 18px 22px; }
+.bb .mp-mail.is-off { opacity: .55; }
+.bb .mp-mail__head { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.bb .mp-mail__head .kv__v { text-align: right; overflow-wrap: anywhere; }
+.bb .mp-mail__body { display: flex; flex-direction: column; gap: 10px; line-height: 1.55; }
+.bb .mp-mail__sig { color: var(--text-3); }
+@media (max-width: 760px) {
+  .bb .mp-split, .bb .mp-grid3 { grid-template-columns: minmax(0, 1fr); }
+  .bb .mp-filters .field { width: 100%; }
+  .bb .mp-filters .seg { margin-left: 0; }
+  .bb .mp-tpl { padding: 12px 16px; }
+  .bb .mp-mail { padding: 16px; }
+  .bb .mp-rrow { flex-wrap: wrap; }
+}
