@@ -14,9 +14,27 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 
 | Term | Stands for | In BladeBook |
 |---|---|---|
+| **Coach website** | *(not an acronym)* | The coach's side of the BladeBook website, used at a desk: schedule editor, week and month views, student roster and `PENDING` approvals, payment dashboard, lesson list, profile. Calls `api-coach`. **Use this term, not "coach app"**, which the older documents used for both surfaces. |
+| **Rinkside app** | *(not an acronym)* | The page a coach uses at the rink, at `/coach/rinkside` in the coach website (ADR-023) — also called the **check-in app**. A web page, not a native app; it can be added to the phone's home screen, and the subject of `FeatureDecriptions/Coach App`. Today's lessons, check-in and no-show, guardian contacts fetched on a tap when there is signal (never cached — ADR-014 decision 9b), and lesson cancellation; works offline (ADR-014). Uses the coach website's sign-in and calls `api-coach` (ADR-023, superseding ADR-014 decisions 10–11). |
+| **Client website** | *(not an acronym)* | The client's side of the website: sign-up with a coach code, booking, My Bookings, cancellation and recurrence management, profile. Calls `api-client`. |
 | **ADR** | Architecture Decision Record | A numbered document capturing one significant decision, why it was made, and what it costs. Append-only: a changed decision gets a new ADR marking the old one "Superseded," rather than an edit. Lives in `docs/adr/`. |
-| **MVP** | Minimum Viable Product | Phase 1 in §10 — the eight features that must ship before anything else. |
-| **IaC** | Infrastructure as Code | Defining AWS resources in a programming language rather than clicking the console, so infrastructure is reviewable and reproducible. We use CDK. |
+| **MVP** | Minimum Viable Product | Phase 1 in §10 — the fifteen features that must ship before anything else, which has grown from the original eight. |
+| **`missedLessonFeeMinor`** | *(not an acronym)* | *Formerly `lateFeeMinor`, renamed 2026-09-30.* The fee for a **missed lesson** — a no-show, or a client's cancellation inside the coach's notice period — one amount for both, in minor units, set **per block in the schedule builder** and stamped on the booking at creation beside `priceMinor` (ADR-015). `0` means no charge — the amount is its own off switch. Stamped so a later policy change cannot rewrite what a client agreed to when they booked. |
+| **`settleReminderSentOn`** | *(not an acronym)* | The date the coach was emailed that this lesson is still unpaid (ADR-018). Stamped on the booking so the weekly reminder lists each lesson once, when it first crosses the threshold, rather than every week. |
+| **`expiresAt`** | *(not an acronym)* | The table's Time to Live (TTL) attribute: when this item may be deleted, in seconds since 1970. Set per item from a per-item-type window in configuration; absent means never. Set on **settlement**, not creation, for bookings and chargeable cancellation lines, so an unpaid lesson never expires (ADR-017 decision 2). |
+| **`bookedIntervalWeeks`** | *(not an acronym)* | The recurrence interval, in weeks, that a lesson was **booked under** — stamped on each occurrence at creation and never updated (ADR-006 decision 4b). **Not the current frequency:** after a client reduces weekly to fortnightly, the remaining lessons still say 1 and the `RECURRENCE#` header says 2. Read only to rebuild a header that was never written. Stamped for the same reason as `priceMinor` — a fact about the moment of booking. |
+| **`requiredNoticeHours`** | *(not an acronym)* | *Formerly `lateCancellationHours`, renamed 2026-09-30.* The notice threshold below which a client's own cancellation is charged — from any screen — a coach-level policy, stamped on the booking alongside `missedLessonFeeMinor` (ADR-015 decisions 1a and 3). Stored with it because `noticeHours` alone is meaningless without the threshold it was judged against. Not to be confused with **`noticeHours`**, which nobody sets: it is measured on each cancellation as the gap between `cancelledAt` and the lesson's start. A cancellation is late when `noticeHours < requiredNoticeHours`. |
+| **Redrive** | *(not an acronym)* | Sending a message from a dead-letter queue back to the function that failed on it. `redrive-dlq --function <name> [--dry-run]` does it per ADR-010 decision 2a's table — replay, discard, or re-run for the message's date. Never used for the schedule-change consumer, whose recovery is **Reconcile**. |
+| **Reconcile** | *(not an acronym)* | `reconcile-schedule --coach <id> [--dry-run]`: the operator's recovery for a failed or lost schedule change (ADR-010 decision 5j). First finishes the coach's unfinished change batches, then checks the current schedule against every upcoming booking and fixes what doesn't match. Safe to run at any time; a second run does nothing. |
+| **`WAIVED`** | *(not an acronym)* | A third `paymentStatus` beside `UNPAID` and `PAID` — the coach forgave the charge, so no money is expected (ADR-003, amended 2026-08-30). **Not a refund:** waiving decides money was never owed and is a state change on one booking; a refund returns money already received and would need the ledger this model deliberately does not have. Drops the booking out of the sparse unpaid index exactly as `PAID` does. |
+| **PENDING** | *(not an acronym)* | A bucket in the 9pm end-of-day report, **not** a booking status — a lesson whose outcome the coach never recorded, or recorded on a phone that has not regained signal. Reported as unknown rather than as a no-show, so a phone that stops syncing is visible instead of silently accusing students of missing lessons (ADR-014 decision 7). |
+| **Service worker** | *(not an acronym)* | A script the browser runs alongside a page, able to serve it from cache when the network is unavailable. ADR-014 decision 5 uses one so the check-in app **opens** inside a rink with no signal; without it, offline capture is pointless because the coach never reaches the page. Scoped to the rinkside page (`/coach/rinkside/`) only. |
+| **Offline queue** | *(not an acronym)* | Attendance outcomes recorded on the device while it has no connectivity, held in device storage and replayed when signal returns (ADR-014 decision 1). The only data in BladeBook that exists in exactly one place, on a phone. |
+| **Idempotent** | *(not an acronym)* | Safe to apply more than once with the same result. Attendance replay is made idempotent by a conditional write requiring the booking to still be `BOOKED` (ADR-014 decision 3), so a duplicated replay cannot send a family a second payment reminder. |
+| **IaC** | Infrastructure as Code | Defining AWS resources in a programming language rather than clicking the console, so infrastructure is reviewable and reproducible. CDK or Terraform — **undecided** (ADR-001 A4). |
+| **EIN** | Employer Identification Number | A United States tax identifier. Considered as a gate on coach signup and **rejected** (ADR-016 decision 1): there is no public way to verify one, and a Canadian business has a Canada Revenue Agency Business Number instead. Not collected. |
+| **Reply-To** | *(not an acronym)* | The email header naming where a reply goes, as distinct from who sent it. Set to the coach's `businessEmail` on every client-facing message (ADR-016 decision 8) so a family replying to an automated email reaches their coach. The envelope sender stays the application's verified domain. |
+| **HCL** | HashiCorp Configuration Language | Terraform's language. Not a general-purpose one — repetition is `for_each` rather than a loop, which is the main ergonomic difference from CDK when standing up eight similar Lambda functions. Under evaluation, not adopted (ADR-001 A4). |
 | **CI** | Continuous Integration | Automated build/test on push. Where `cdk-nag` runs as a build gate. |
 | **UI / UX** | User Interface / User Experience | UX appears in the ADR to distinguish "cold start is a latency problem the user feels" from "cold start is a cost problem," which it isn't. |
 | **AI** | Artificial Intelligence | Used specifically to mean "how well an AI coding assistant can help with this framework," which the ADR treats as a real selection criterion for a solo developer. |
@@ -28,17 +46,21 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **AWS** | Amazon Web Services | The only cloud provider in the design. |
+| **TTL** | Time to Live | DynamoDB's built-in expiry. The table names one attribute — here `expiresAt`, in seconds since 1970 — and DynamoDB deletes each item some time after the timestamp it carries, typically **within a few days**, at no write cost. Items without the attribute never expire. Unlike an S3 lifecycle rule, it is per item: changing a policy does not re-date items already written (ADR-017). |
+| **Deep Archive** | *(S3 Glacier Deep Archive — a storage class, not an acronym)* | S3's cheapest, slowest storage. Reading an object needs a **restore taking up to 12 hours**, objects are billed for at least 180 days, and each is billed as at least about 40 KB. Used for the archive of expired items, for the friction rather than the price: archived children's data cannot be read casually (ADR-017 decision 6). |
 | **IAM** | Identity and Access Management | AWS's permission system. §7 mandates one IAM **role** per Lambda, each granted only the actions that function needs — no wildcards. |
 | **ARN** | Amazon Resource Name | The unique identifier for any AWS resource. Relevant because invoking a Lambda's *unqualified* ARN silently bypasses SnapStart — always point at the alias. |
 | **VPC** | Virtual Private Cloud | A private network inside AWS. BladeBook deliberately uses **no** VPC: it's what would force a NAT Gateway and blow the budget. |
 | **NAT** | Network Address Translation | NAT Gateway lets resources inside a VPC reach the internet — ~$32/month, always on. Avoiding it is the single biggest cost decision in §2. |
 | **S3** | Simple Storage Service | Object storage. Hosts the React build and the daily report archive. |
 | **SES** | Simple Email Service | Email delivery. The primary notification channel. |
-| **SNS** | Simple Notification Service | Used here only for SMS, on a per-student opt-in. |
+| **SNS** | Simple Notification Service | Used here only for SMS, opted into per phone number (ADR-007 decision 8a). |
 | **KMS** | Key Management Service | Encryption key management for DynamoDB, SES, and the reports bucket. |
 | **CMK** | Customer Managed Key | A KMS key you create and control, versus an AWS-managed default. §7 allows either. |
 | **SSE-KMS** | Server-Side Encryption with KMS | Encryption-at-rest mode for the S3 reports bucket. |
-| **WAF** | Web Application Firewall | Optional managed rule sets (SQLi/XSS, rate limiting) on CloudFront/API Gateway. ~$8–15/mo, the largest optional line item. |
+| **WAF** | Web Application Firewall | **In MVP** (ADR-019): one web ACL on the REST API's stage and the Cognito user pool, with AWS managed rules (SQLi/XSS, known bad inputs, IP reputation) and per-address rate limits. The reason the API is a REST API: WAF cannot attach to an HTTP API. ~$10/mo per environment. |
+| **CORS** | Cross-Origin Resource Sharing | The browser rule that a page on one domain may call an API on another only if the API says so. Needed because the site (CloudFront) and the API (API Gateway) are on different addresses (ADR-019). |
+| **ACL** | Access Control List | Here, a WAF **web ACL**: the set of rules attached to the API's stage and the Cognito user pool (ADR-019). |
 | **CDN** | Content Delivery Network | CloudFront — caches the static React site at edge locations. |
 | **CDK** | Cloud Development Kit | AWS's IaC framework. ADR-001 chose the **TypeScript** binding. |
 | **L2** | CDK "Level 2" construct | An opinionated, high-level CDK class with sensible defaults. For some runtimes it also builds your code: `NodejsFunction` takes a `.ts` entry point and runs esbuild for you. **No `JavaFunction` L2 exists in any CDK language** (`aws-lambda-java-alpha` is not published), so for Java you run Maven yourself and hand `Code.fromAsset()` a path to the built JAR. That cost is identical in CDK-Java and CDK-TypeScript, so it can't favour either — but it's why `cdk.json` has to invoke Maven, or CDK will happily deploy a stale JAR. |
@@ -46,6 +68,10 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **cdk-nag** | *(not an acronym — a tool name)* | Rule packs that fail a CDK build on wildcard IAM actions, unencrypted buckets, missing Block Public Access. Automates most of §7's checklist. |
 | **SAM** | Serverless Application Model | An AWS IaC alternative to CDK, considered and not chosen. |
 | **SSM** | AWS Systems Manager | Parameter Store — holds the default coach timezone used to pre-fill onboarding. |
+| **PITR** | Point-in-Time Recovery | A DynamoDB feature that continuously captures changes and lets a table be restored to any second in the last **35 days**. Currently **off** — an omission, not a decision (ADR-010 Open). It is the only thing that would recover from a bug in the schedule-change cancellation consumer, whose job is to delete bookings in bulk. Restores to a **new** table, never in place, so using it is a runbook rather than a button. |
+| **DLQ** | Dead-Letter Queue | Where a message goes after its retries are exhausted. ADR-010 gives one to every asynchronous consumer. The unit is *queue + depth alarm*, never the queue alone — a dead-letter queue nobody drains is a silent failure with extra steps. |
+| **Dead man's switch** | *(not an acronym)* | Named for the train control that brakes when the driver lets go: **inaction produces the safe outcome**. In ADR-010 it is how a cron that fails to fire is detected — a job that does not run emits no error and no metric datapoint, so there is nothing to alarm on. Instead the alarm watches for *evidence of life* (an `Invocations` datapoint) and fires when the heartbeat stops. |
+| **`treatMissingData`** | *(CloudWatch alarm setting)* | How an alarm reads an absence of data. Must be **`breaching`** for a dead man's switch. The default, `missing`, ignores gaps — producing an alarm that is visible, configured, and structurally incapable of firing, which is worse than no alarm because it looks like coverage. |
 | **RDS** | Relational Database Service | Managed Postgres/MySQL. Not used — it's the ~$20–45/mo option DynamoDB replaced. Appears in the ADR because AWS's headline SnapStart benchmarks were measured against it, on a data path BladeBook doesn't have. |
 | **EC2** | Elastic Compute Cloud | Ordinary virtual machines. Relevant only as the billing model behind Lambda Managed Instances, which is disqualified on budget. |
 | **EFS** | Elastic File System | Network filesystem for Lambda. Foreclosed by SnapStart. |
@@ -64,7 +90,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **PK** | Partition Key | First half of a DynamoDB primary key; determines which physical partition an item lives on. Ours is `COACH#<coachId>`, which is what structurally isolates one coach's data from another's. |
 | **SK** | Sort Key | Second half. Enables range queries like `begins_with(SK, "STUDENT#")`. |
 | **GSI** | Global Secondary Index | An alternate key layout over the same table, enabling queries the main keys can't serve. |
-| **GSI1** | — | "By student" — client-facing views. `GSI1PK = STUDENT#<studentId>`. |
+| **GSI1** | — | "By client" — client-facing views. `GSI1PK = CLIENT#<clientId>`. Keyed by student until ADR-022 re-keyed it so the database can hold a client to their own bookings. |
 | **GSI2** | — | "By date, global" — the one that makes cross-coach "everyone with a lesson today" a single query instead of a table scan. `GSI2PK = DATE#<yyyy-mm-dd>`. This index is the reason DynamoDB is viable here. |
 | **CDC** | Change Data Capture | Deriving events from committed database writes rather than publishing them separately. DynamoDB Streams → EventBridge Pipe → bus. Avoids the dual-write problem where the DB write succeeds and the event publish fails. |
 | **`COACH#` / `STUDENT#` / `SLOT#` / `BOOKING#` / `DATE#`** | *(key prefixes)* | Type tags on composite keys — the convention that lets one table hold several entity types. |
@@ -76,10 +102,11 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **API** | Application Programming Interface | The backend contract the React app calls. |
-| **API GW / APIGW** | API Gateway | The AWS service fronting our Lambdas. We use the **HTTP API** flavour (~$1/M requests), not the older REST API. |
+| **API GW / APIGW** | API Gateway | The AWS service fronting our Lambdas. We use the **REST API** flavour (~$3.50/M requests) rather than the cheaper HTTP API, because only a REST API can take a Web Application Firewall (ADR-019, ADR-001 A7). |
 | **HTTP** | Hypertext Transfer Protocol | — |
 | **JSON** | JavaScript Object Notation | Wire format for the API and for `report.json`. |
 | **JWT** | JSON Web Token | Cognito's signed token. Critically: `coachId`/`clientId` is read from the **verified JWT claim**, never from the request body — that's what makes tenant isolation structural rather than a code convention. |
+| **Tenant role** | — | An IAM role an API function assumes **per request**, tagged with the caller's identity (`coachId`, or `clientId` + `coachId` + `linkStatus`), whose policy uses `dynamodb:LeadingKeys` so DynamoDB itself refuses any other coach's or client's partition. The database half of the two-gate isolation in ADR-021 (`coach-tenant`; `checkin-tenant` withdrawn by ADR-023) and ADR-022 (`client-tenant`). |
 | **TLS** | Transport Layer Security | Encryption in transit; `aws:SecureTransport` is enforced on the reports bucket. |
 | **MFA** | Multi-Factor Authentication | Offered to coaches, who hold the most sensitive data. |
 | **RW** | Read/Write | Permission shorthand in the ADR's IAM table. |
@@ -156,7 +183,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 
 | Term | Stands for | In BladeBook |
 |---|---|---|
-| **SMS** | Short Message Service | Text messages, via SNS. **Per-student opt-in**, both for cost and for consent. |
+| **SMS** | Short Message Service | Text messages, via SNS. **Opt-in per phone number** (ADR-007 decision 8a), both for cost and for consent. Every message opens `<Coach name> via BladeBook:`. |
 | **10DLC** | 10-Digit Long Code | The US registration regime for application-to-person SMS on a normal-looking number. ~$2/mo plus one-time registration — required before any text can send. |
 | **A2P** | Application-to-Person | Messages sent by software rather than a human — the category 10DLC registration governs. |
 | **GSM-7** | GSM 03.38 7-bit alphabet | The default SMS character set: **160 characters per segment**, which is the budget every BladeBook SMS is built against (ADR-007). Its *extension table* (`[ ] { } \ ~ ^ \|` and `€`) costs two characters each. |
@@ -177,14 +204,13 @@ A **client** books, is billed, and is notified. This records why they hold that 
 | Value | Meaning |
 |---|---|
 | `SELF` | The student is an adult booking for themselves. The client and the student are the same person, and the `client*` contact fields hold that person's own details. |
-| `PARENT` | The client is the student's parent. The student is a minor. |
-| `GUARDIAN` | The client is the student's legal guardian but not their parent. Treated identically to `PARENT` everywhere in the system — the distinction is recorded because it is a real one to the families involved, not because any code branches on it. |
+| `GUARDIAN` | The client books for a student who is a minor: a parent or anyone else responsible for them. *Until 2026-10-01 there was also `PARENT`; it was removed because nothing in the system treated the two differently.* |
 
 > Only `isMinor` gates the child-data obligations in §7. `clientRelationship` never does —
 > booking and notification code reads the `client*` fields the same way regardless of value,
 > which is the point of having the field at all.
 
-### `STUDENT.status` — whether this student may book
+### `STUDENT.studentStatus` — whether this student may book
 
 | Value | Meaning |
 |---|---|
@@ -194,13 +220,13 @@ A **client** books, is billed, and is notified. This records why they hold that 
 > Denormalized onto the `CLIENT#…/STUDENT#…` link item as well, so a client's own roster
 > renders without a second read.
 
-### `BOOKING.status` — what this slot actually is
+### `BOOKING.bookingStatus` — what this slot actually is
 
 | Value | Meaning |
 |---|---|
 | `BOOKED` | A real lesson, claimed by a client, not yet happened. |
 | `CHECKED_IN` | The coach marked the student present. |
-| `NO_SHOW` | The lesson time passed and the student did not appear. Coach-marked. |
+| `NO_SHOW` | The lesson time passed and the student did not appear. **Charged the lesson's `missedLessonFeeMinor`** under the same rule as a late cancellation, since a no-show is a cancellation with zero notice (ADR-015). That fee is `0` in MVP, but the no-show still stays `UNPAID` until the coach marks it paid or waived (ADR-015 decision 4, amended 2026-09-30). **Coach-marked, explicitly** — the check-in app offers present/absent as two buttons (ADR-014 decision 6); it is never inferred from a booking simply sitting unrecorded. What it costs the family is set per block by the coach: it emits its own event, which drives the payment reminder (ADR-015 decision 5). |
 | `COACH_HELD` |  A slot the coach kept unbookable after cancelling: |
 
 ### `BOOKING.paymentStatus` — whether the money arrived
@@ -210,10 +236,10 @@ A **client** books, is billed, and is notified. This records why they hold that 
 | `UNPAID` | The state at creation. While unpaid, the item carries `GSI3PK`/`GSI3SK`, so it appears in the coach's outstanding-lessons view. |
 | `PAID` | The coach marked it paid. This is the **only** way it changes — nothing else in the system observes money changing hands. Marking it paid `REMOVE`s the GSI3 attributes, so the row drops out of the sparse index entirely and the index never grows with history. |
 
-> Distinct from `paymentReminderSent`, and deliberately so: one records that we **asked**,
+> Distinct from `paymentReminderSent` / `paymentReminderCount`, and deliberately so: those record that we **asked**,
 > the other records that they **paid**.
 
-### `CANCELLATION_BATCH.cancelledBy` — *who* cancelled
+### `CHANGE_BATCH.cancelledBy` — *who* cancelled
 
 | Value | Meaning |
 |---|---|
@@ -221,29 +247,71 @@ A **client** books, is billed, and is notified. This records why they hold that 
 | `COACH` | The coach cancelled from the week view. |
 | `SCHEDULE_CHANGE` | Nobody cancelled these directly — a schedule save made them impossible. |
 
-### `CANCELLATION_BATCH.source` — *what kind* of action cancelled them
+### `CHANGE_BATCH.batchSource` — *what kind* of action produced the batch
+
+*`CHANGE_BATCH` was `CANCELLATION_BATCH` (header `CANCELBATCH#`) until 2026-09-30, when a
+batch began to hold re-priced lessons as well as cancelled ones (ADR-020). A direct
+cancellation still produces a change batch — one holding only cancellation lines.*
 
 Sits alongside `cancelledBy` and answers a different question: `cancelledBy` says who acted,
-`source` says what they did. A coach cancelling one lesson is `COACH` + `LESSON`; a coach
+`batchSource` says what they did. A coach cancelling one lesson is `COACH` + `LESSON`; a coach
 saving a temp that wipes out a week is `SCHEDULE_CHANGE` + `DATE_OVERRIDE`.
 
 | Value | Meaning |
 |---|---|
 | `DEFAULT` | A change to the coach's default weekly pattern. |
 | `DATE_OVERRIDE` | A change to one or more specific dates — a camp, a blackout, a temporary schedule. Bounded by the date range it covers. |
-| `LESSON` | The coach cancelled a single lesson. |
+| `LESSON` | A single lesson was cancelled on its own — by the coach, or by a client from My Bookings. |
 | `DAY` | The coach cancelled everything remaining on one day |
 | `WEEK` | The coach cancelled a whole Sun–Sat week  |
-| `RECURRENCE` | A client moved a recurrence's end date earlier, or cancelled all future lessons in it. |
+| `RECURRENCE` | A client moved a recurrence's end date earlier, reduced its frequency, or cancelled all future lessons in it. An occurrence inside the late-cancellation threshold is charged like any late client cancellation (ADR-015 decision 1a); `source` itself plays no part in whether a line is charged. |
+
+### `executionStatus` — whether the cancellation has been carried out
+
+Carried by the `CHANGEBATCH#` header and by each `CANCELLED#` and `REPRICED#` line (ADR-010 decision 5f, ADR-020).
+It is a different question from `notificationStatus` below: this one asks whether the
+booking has been deleted, that one asks whether anyone has been told.
+
+| Value | Meaning |
+|---|---|
+| `PLANNED` | Written as part of the plan (ADR-010 decision 5c); the booking has not been deleted yet. |
+| `EXECUTED` | On a line: the booking is deleted. On the header: every line is `EXECUTED` or `SKIPPED` — this transition is what triggers the notifier. |
+| `SKIPPED` | Lines only. When re-checked just before being carried out, the record no longer applied — see `skippedReason` below (ADR-010 decision 5i). Not notified, except `LESSON_PASSED`, which is reported to the coach. |
+
+### `CHANGE_BATCH.planStatus` — whether the plan is fully written (ADR-010 decision 5h)
+
+| Value | Meaning |
+|---|---|
+| `WRITING` | The header exists and plan records are being written. **No booking is changed while the plan is in this state.** A resume fills in only the missing records. |
+| `COMPLETE` | Every record of the plan is written; carrying it out may begin. |
+
+### `skippedReason` — why a planned record was not carried out (ADR-010 decision 5i)
+
+On `CANCELLED#` and `REPRICED#` lines marked `SKIPPED`.
+
+| Value | Meaning |
+|---|---|
+| `BOOKING_GONE` | The booking no longer exists — usually the family cancelled it, which produced its own record and message. |
+| `NO_LONGER_NEEDED` | The coach's current schedule no longer calls for the change — they restored the slot, or a later batch set a different price. The coach's latest intent wins. |
+| `LESSON_PASSED` | The lesson's time passed before the change could be applied. For a cancellation this is the one unrecoverable case — the family was never told — so the coach is told instead. |
+
+### `REPRICED_LESSON.direction` — which way the price moved (ADR-020)
+
+| Value | Meaning |
+|---|---|
+| `INCREASE` | The block's price or fee went up. Applied only to lessons beyond the booking's `requiredNoticeHours` when the change was carried out. |
+| `DECREASE` | The price or fee went down. Applied to every upcoming lesson, including tomorrow's; the family's message is framed as good news. |
 
 ### `CANCELLED_LESSON.notificationStatus` — whether the person was told
+
+*The same values are used on `REPRICED_LESSON` lines (ADR-020).*
 
 Recorded per lesson even though the message is sent once per client per batch, because the
 question a coach actually asks is *"was this client told about this lesson?"*
 
 | Value | Meaning |
 |---|---|
-| `PENDING` | The cancellation is recorded; the notifier has not run yet, or is retrying. |
+| `PENDING` | The cancellation is recorded; the notifier has not run yet, or is retrying. Not the same as `executionStatus = PLANNED` above. |
 | `SENT` | SES (and SNS, where the client opted in) **accepted** the message. It does **not** mean delivered, and it does not mean read. |
 | `FAILED` | We tried and could not reach them — a bounced address, an unregistered number.  |
 | `SUPPRESSED` | We were **not permitted** to try. The client has texted `STOP`, so the SMS was never attempted. Not a failure — it is the client's own choice. |
