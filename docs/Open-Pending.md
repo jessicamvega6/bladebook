@@ -58,6 +58,12 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   with ADR-008's "no times posted yet" copy. (ADR-016, ADR-008)
 - *Parked:* Whether any business identifier returns, and Canada's equivalent. (ADR-016)
 
+- **To-do: Design the multi-coach screens** (ADR-025 d7): adding a coach, the coach switcher,
+  lessons and payments across coaches (grouped by coach, never totalled), each skater's coaches
+  and status, and *"Also coached by"* on the coach's skater record. None is in the Harbor
+  designs.
+- **Open question: Is there a limit on coaches per skater?** None set. (ADR-025)
+
 ## 3. Money and payments
 
 - **Open question (Phase 2): What the missed-lesson fee is charged against when

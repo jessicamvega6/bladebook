@@ -1,0 +1,60 @@
+BladeBook database-gate tests · account 307202557124 · us-east-1 · Mon Oct  5 17:53:59 CDT 2026
+
+== ADR-021 decision 7 · as coach A's tenant session (blocker #4) ==
+PASS  021-1a   expected ALLOW    got ALLOW     GetItem own profile
+PASS  021-1b   expected ALLOW    got ALLOW     Query own partition
+PASS  021-2a   expected DENY     got DENY      GetItem coach B's profile
+PASS  021-2b   expected DENY     got DENY      Query coach B's partition
+PASS  021-2c   expected DENY     got DENY      PutItem into coach B
+PASS  021-2d   expected DENY     got DENY      UpdateItem coach B's profile
+PASS  021-2e   expected DENY     got DENY      DeleteItem coach B's profile
+PASS  021-3a   expected ALLOW    got ALLOW     OPEN · Query GSI3 for own coach
+PASS  021-3b   expected DENY     got DENY      OPEN · Query GSI3 for coach B
+PASS  021-4    expected DENY     got DENY      Transaction: one item in A, one in B
+PASS  021-4v   nothing from the denied transaction was written
+PASS  021-5    expected ALLOW    got ALLOW     Transaction: own item plus a CODE# claim
+PASS  021-6a   expected DENY     got DENY      PutItem under CLIENT#
+PASS  021-6b   expected DENY     got DENY      Query GSI1
+PASS  021-6c   expected DENY     got DENY      Query GSI2
+PASS  021-6d   expected DENY     got DENY      Scan the table
+PASS  021-7a   expected DENY     got DENY      AssumeRole with no coachId tag
+PASS  021-7b   expected DENY     got DENY      AssumeRole with an extra tag key
+PASS  021-8    expected DENY     got DENY      DynamoDB with the execution role's own credentials
+
+== ADR-022 decision 9 · as client A, a family of coach A (blocker #5) ==
+PASS  022-1a   expected ALLOW    got ALLOW     Query own CLIENT# partition
+PASS  022-1b   expected ALLOW    got ALLOW     OPEN · Query GSI1 for own bookings
+PASS  022-2a   expected DENY     got DENY      Query client B's partition
+PASS  022-2b   expected DENY     got DENY      OPEN · Query GSI1 for client B
+PASS  022-3a   expected ALLOW    got ALLOW     Coach's slots, allowlisted fields
+PASS  022-3b   expected ALLOW    got ALLOW     Coach's schedule, allowlisted fields
+PASS  022-4a   expected DENY     got DENY      Slots with studentId
+PASS  022-4b   expected DENY     got DENY      Slots with clientEmail
+PASS  022-4c   expected DENY     got DENY      Slots with priceMinor
+PASS  022-4d   expected DENY     got DENY      Slots with no projection
+PASS  022-5a   expected DENY     got DENY      PENDING: coach's slots
+PASS  022-5b   expected DENY     got DENY      PENDING: coach's profile
+PASS  022-5c   expected ALLOW    got ALLOW     ACTIVE: coach's profile
+PASS  022-6a   expected DENY     got DENY      Coach B's profile
+PASS  022-6b   expected DENY     got DENY      Coach B's slots
+PASS  022-7a   expected ALLOW    got ALLOW     Conditional booking into coach A
+PASS  022-7b   expected DENY     got DENY      Conditional booking into coach B
+PASS  022-8    expected DENY     got DENY      Write to coach A with ReturnValues ALL_OLD
+PASS  022-9a   expected CONDFAIL got CONDFAIL  Control: book client B's taken slot, no return values
+INFO  022-9b   Same attempt with ALL_OLD on failure: error code AccessDeniedException
+INFO  022-9    DENIED: with ALL_OLD the request is refused by IAM, so nothing can leak (the policy blocks it)
+PASS  022-10a  expected DENY     got DENY      First session (clientId only): coach's slots
+PASS  022-10b  expected ALLOW    got ALLOW     First session: own profile
+PASS  022-11a  expected ALLOW    got ALLOW     code-lookup: code with allowed fields
+PASS  022-11b  expected DENY     got DENY      code-lookup: code with createdAt
+PASS  022-11c  expected DENY     got DENY      code-lookup: code, no projection
+PASS  022-11d  expected DENY     got DENY      code-lookup: Query a code
+PASS  022-11e  expected DENY     got DENY      code-lookup: coach's profile
+PASS  022-11f  expected DENY     got DENY      code-lookup: a family's profile
+
+== Summary ==
+46 passed, 0 failed.
+Blocker #4 (GSI3): the index IS locked to the coach. ADR-021 stands as written.
+Blocker #5 (GSI1): the index IS locked to the family. ADR-022 stands as written.
+Row 9: INFO  022-9    DENIED: with ALL_OLD the request is refused by IAM, so nothing can leak (the policy blocks it)
+Results saved to gate-results-20261005-175359.txt
