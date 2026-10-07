@@ -32,6 +32,11 @@ cancellation records and fires the notifier once, when the whole batch has been 
 **Amended — 2026-10-05.** [ADR-024](ADR-024-client-write-link-check.md) adds two pages to decision 4's list: one family failing the
 client link check 3 or more times in 15 minutes, and 10 or more failures across everyone in a
 day. Both thresholds are configuration.
+
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): there is no long-running staging. Decision 4's alarms are proved
+in an on-demand **dev** stack, and the cancellation-path canary (*Explicitly not doing*) runs
+**against production** as a dedicated test coach and family.
+
 ---
 
 ## Context
@@ -188,6 +193,8 @@ Everything else is a dashboard read in the morning.
 to alert, and then deleted. Production keeps them permanently. Like the WAF (ADR-019 decision
 4a), staging's alarms sit behind a configuration switch, so they can be brought back to
 re-test after a change to the alerting.
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md): read "staging" as the on-demand dev stack.*
 
 ### 5. The schedule-change cancellation consumer
 
@@ -486,13 +493,16 @@ Recorded so nobody relitigates them at 11pm:
 - ~~No staging environment.~~ **Superseded by
   [ADR-011](ADR-011-staging-environment.md)** — 2026-08-28. There is one, loaded from
   production with all personally identifiable information (PII) masked before it arrives.
+  *Restated 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md):* no long-running staging after all; a dev stack is built on
+  demand, with the same masking when production data is loaded.
 - **No uptime SLA.** There is no customer contract and nobody to page but the owner.
 - **No synthetic canary for the *booking* path.** Its tolerance is hours; a real client will
   report it sooner than a canary would justify its cost.
 
   *Qualified 2026-08-30:* there **is** now one for the **cancellation** path.
   [ADR-013](ADR-013-testing-requirement.md) decision 3c's second Playwright flow — save a
-  schedule change that cancels bookings — runs on a schedule against staging. That path is
+  schedule change that cancels bookings — runs on a schedule against production, as a
+  dedicated test coach and family (*amended 2026-10-07 by ADR-027 decision 7*). That path is
   page-worthy where booking is not, and it is the only check that catches the
   change-data-capture path stalling, since every write still succeeds while it does.
 

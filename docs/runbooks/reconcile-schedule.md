@@ -51,9 +51,11 @@ Read it. It should match what you would expect from the coach's recent schedule 
 it proposes cancelling a lot of lessons you cannot explain, **stop** — the evaluator or the
 schedule may be wrong, and applying it would cancel lessons for real.
 
-*Optional, for anything unclear:* reproduce it in staging first with
-`refresh-staging --coaches <coachId> --as-of "<time just before the failure>"`
-(ADR-011 decision 8a), then dry-run there.
+*Optional, for anything unclear:* reproduce it in dev first. Build a dev stack, then load a
+masked copy of the coach's data with
+`load-dev --coaches <coachId> --as-of "<time just before the failure>"`
+(ADR-027 decision 2, ADR-011 decision 8a), and dry-run there. Tear dev down when done —
+unless the scanner has reported a finding, which is triaged first (ADR-027 decision 4).
 
 ### 4. Check for lessons whose time has passed
 Records marked **`LESSON_PASSED`** are lessons that were due to be cancelled but whose time

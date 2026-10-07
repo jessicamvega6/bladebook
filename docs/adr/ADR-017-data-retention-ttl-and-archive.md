@@ -11,6 +11,10 @@ Adds `expiresAt` to the single table, a tenth Lambda function (`consumer-ttl-arc
 an archive bucket. Constrains ADR-006 decision 4b's header repair, and extends ADR-010
 decision 5f's Pipe filter.
 
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decision 7's mirror is the on-demand **dev** stack. Time to
+Live (TTL) deletes items typically within a few days, so exercising the archiver end to end
+means keeping dev up that long.
+
 ---
 
 ## Context
@@ -194,6 +198,8 @@ a record. For children's data that nobody should need, that is the right default
   the 180-day minimum), or objects are billed for time they were not kept.
 
 ### 7. Staging mirrors this
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md): read "staging" as dev, while it exists.*
 
 Staging runs the same TTL, archiver and lifecycle, so the pipeline is exercised before it
 runs against production. `expiresAt` is structure and is copied unchanged by the refresh

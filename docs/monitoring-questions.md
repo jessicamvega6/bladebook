@@ -144,7 +144,8 @@ Modest, and mostly the defaults. Named so nothing is forgotten:
 - ~~Is there a synthetic check that books and cancels a lesson end-to-end?~~ **Settled
   2026-08-30** — [ADR-013](adr/ADR-013-testing-requirement.md) decision 3c. Its second
   Playwright flow *is* that check: run in continuous integration (CI) it is a test, run on a
-  schedule against staging it is the canary. It remains the only thing that catches the
+  schedule against production — as a dedicated test coach and test family, since there is no
+  long-running staging environment any more (ADR-027 decision 7) — it is the canary. It remains the only thing that catches the
   change-data-capture (CDC) path stalling, because every write still succeeds while it does.
 
 ---

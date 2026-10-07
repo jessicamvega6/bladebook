@@ -21,6 +21,10 @@ app's tokens*, is **closed** by [ADR-023](ADR-023-rinkside-check-in-joins-the-co
 the check-in app no longer has its own app client, so there is nothing to refuse and no
 Lambda authorizer. The built-in Cognito authorizer is enough.
 
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decisions 4 and 4a apply to the on-demand **dev** stack, which
+replaces staging. Its firewall is still off by default and switched on to rehearse block mode,
+and it is now paid for only while dev exists — production's ~$10 a month is the steady cost.
+
 ---
 
 ## Context
@@ -130,6 +134,8 @@ cannot. Something must replace that check. See Open — it is the one pending de
 ADR creates, and it must be settled before `api-coach` and `api-checkin` are built.
 
 ### 4. Staging gets one too
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md): read "staging" as the on-demand dev stack throughout decisions 4–4b.*
 
 ADR-011 makes staging a full second stack, and it holds data loaded from production. It gets
 the same ACL, so the rules are tried in staging before production — and because staging's

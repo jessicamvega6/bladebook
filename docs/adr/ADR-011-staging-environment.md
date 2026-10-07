@@ -28,6 +28,16 @@ the coach website's app client (and the family website's, if it has its own). Th
 
 **Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md): a client can have several coaches, so naming a client in
 decision **8a** brings in **all** their coaches.
+
+**Partly superseded — 2026-10-07** by [ADR-027](ADR-027-on-demand-dev-environment.md). There is **no long-running staging
+environment**: production is the only one, and a **dev** stack is built when needed and
+destroyed afterwards. Superseded: decision **1** (a permanent second stack), **7a** (refresh
+cadence; staging subdomains, now `dev.<domain>`), **8a**'s default coach list (coaches are
+named on every load) and **8c**'s accounts kept across refreshes (they are created with each
+stack). Every masking rule — decisions 2–6c, 7, 8b, 8d–8f and 9 — **carries over to dev
+unchanged**; read "staging" as "dev" and "refresh" as "load". Tearing dev down is a purge, so
+it waits for triage (ADR-027 decision 4).
+
 ---
 
 ## Context
@@ -48,6 +58,8 @@ children's data**, and §7 commits to handling that carefully.
 ## Decision
 
 ### 1. There is a staging environment
+
+*Superseded 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decision 1: dev is built on demand and destroyed afterwards.*
 
 A full second stack: its own DynamoDB table, Lambda functions, API Gateway, Cognito user
 pool, EventBridge bus and Scheduler, S3 buckets and CloudFront distribution.
@@ -105,6 +117,11 @@ for a real person's money. Masked emails and phones follow decision 4 whichever 
 sit in. *Added 2026-09-29.*
 
 ### 4. Replacements are non-deliverable by construction
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decision 8:* the two
+layers below assumed, without saying so, that staging was in its own AWS account. SES sandbox
+mode applies to a whole account in a region, so it only holds because dev is now a separate
+account from production.
 
 Not scrambled — **incapable of reaching a real person.** Scrambling produces plausible
 addresses, and a plausible address in a system that sends email means sending mail to
@@ -320,6 +337,8 @@ staging login is a fair price for not having to decide, at speed, whether a give
 
 ### 7a. When staging is refreshed, and where it lives
 
+*Superseded 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decisions 2 and 6: dev starts on test data, production data is loaded only on request, and the domains are `dev.<domain>` and `api.dev.<domain>`.*
+
 *Decided by the owner, 2026-09-30.*
 
 **Cadence.** Before launch there is no production data, so staging runs on seeded test data,
@@ -373,6 +392,8 @@ and neither could ADR-013 decision 3c's Playwright canary.
 
 #### 8a. The subset is an input to each run, not deployed configuration
 
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decision 2: the command is `load-dev`, and the default list in Parameter Store is dropped — coaches are named on every load.*
+
 ```
 refresh-staging [--coaches <id>,…] [--clients <id>,…] [--as-of <timestamp>]
 ```
@@ -406,6 +427,8 @@ A refresh replaces staging's data, so anything created by hand in staging since 
 refresh is gone. To keep the default coaches while adding an incident coach, pass both.
 
 #### 8c. Fixed pools of test accounts, assigned by order
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decision 3: the pools are created each time dev is built, so their `sub`s change per build; the load reads them by email. Assignment by order is unchanged.*
 
 Created once in the staging Cognito pool and kept across refreshes, so their `sub`s never
 change:
@@ -536,9 +559,9 @@ thought about.
   destruction; purge is a human action after triage. Still open beneath it: **is the
   staging access log detailed enough to answer "did anyone read it"** — triage step 4
   assumes it is, and nothing has confirmed that.
-- **Ephemeral per-branch stacks** were considered as an alternative to a persistent staging
-  environment: near-zero cost when not running, and no drift because each is built fresh.
-  Not chosen, but the cheaper option if persistent staging becomes a maintenance burden.
+- ~~**Ephemeral per-branch stacks** were considered as an alternative to a persistent staging
+  environment.~~ **Chosen 2026-10-07, as one on-demand dev stack rather than one per branch** —
+  [ADR-027](ADR-027-on-demand-dev-environment.md).
 
 ---
 

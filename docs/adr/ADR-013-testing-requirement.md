@@ -20,6 +20,11 @@ test: a schedule save with a token whose `auth_time` is older than the window is
 **Amended — 2026-10-05.** [ADR-024](ADR-024-client-write-link-check.md) adds four tests to decision 4: `requireActive`'s outcomes,
 the ownership condition refusing another family's booking, the ArchUnit rule on `LinkedSkater`,
 and the security event's content.
+
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decision 3c's Playwright flows run in an on-demand **dev**
+stack before a release, and the second flow's scheduled canary runs **against production**, as a
+dedicated test coach and family.
+
 ---
 
 ## Decision
@@ -186,13 +191,15 @@ frontend sends a field the backend does not read* — invisible to component tes
 backend tests alike, because each half passes in isolation.
 
 It has somewhere to run now: ADR-011's staging environment, which did not exist when this
-would have been awkward.
+would have been awkward. *Amended 2026-10-07 by ADR-027:* the dev stack, built on demand.
 
 **The same tests double as the synthetic canary.** ADR-010 asked whether there should be a
 scheduled end-to-end check that books and cancels a lesson, to catch the change-data-capture
 path stalling — a failure no per-service metric shows, because every write still succeeds.
 Flow 2 *is* that check. Run in continuous integration (CI) it is a test; run on a schedule
-against staging it is a canary. One artefact, two jobs.
+against staging it is a canary. One artefact, two jobs. *Amended 2026-10-07 by ADR-027
+decision 7:* the canary runs against production, signed in as a dedicated test coach and test
+family whose emails reach a mailbox the owner controls.
 
 ### 4. The list of things this system has already identified as needing tests
 

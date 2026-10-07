@@ -34,6 +34,11 @@ functions. Its role: `GetItem` and `Query` on the family's partition, `UpdateIte
 **Amended** — 2026-10-06. [ADR-026](ADR-026-shared-lessons-by-invitation.md) adds `consumer-invite` to `consumers.jar`: fourteen functions.
 It reads and writes invitations in both families' partitions and holds `ses:SendEmail` and
 `sns:Publish`.
+
+**Amended** — 2026-10-07. [ADR-027](ADR-027-on-demand-dev-environment.md) replaces ADR-011's long-running staging with a **dev** stack built
+on demand and destroyed afterwards. A4 criterion 5 now asks how each tool builds and tears down
+a second environment from nothing, not how it maintains one.
+
 ---
 
 ## Amendments
@@ -170,6 +175,8 @@ exactly how decision 2 acquired an unexamined assumption in the first place.
 | 3 | **Preview quality** | `terraform plan` is expected to read more clearly than `cdk diff`, above all on IAM policy changes. |
 | 4 | **Toolchain cost** | CDK keeps `infra/` in TypeScript alongside `web/`. Terraform adds HCL as a fourth language on a one-person project. |
 | 5 | **Two environments** | ADR-011 needs staging as a full second stack. Compare CDK context flags against Terraform workspaces or a second `tfvars`. |
+
+*Criterion 5 amended 2026-10-07 by ADR-027: the second environment is dev, built and destroyed on demand. Compare how cleanly each tool creates it from nothing and removes it completely, while production's retained resources stay protected. Since ADR-027 decision 8, dev is also a **separate AWS account**: compare how each tool deploys to two accounts (CDK bootstraps each; Terraform uses a provider or credentials per account).*
 | 6 | **Failure recovery** | CloudFormation can wedge a stack in `UPDATE_ROLLBACK_FAILED`; Terraform can drift or lose state. How hard is each to recover from? |
 
 **Decision rule:** criterion 1 is a gate, not a weight — an option that cannot enforce §7 in

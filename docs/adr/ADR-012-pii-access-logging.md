@@ -27,6 +27,12 @@ References to `api-checkin` below now read as `api-coach`.
 **Amended — 2026-10-05.** [ADR-024](ADR-024-client-write-link-check.md) adds a **security event** to the access-log group: a client
 write that fails the link check because the skater or booking was never theirs. Same rules as
 decision 2: identifiers only, never values, emitted by `core.data`.
+
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): staging is replaced by an on-demand **dev** stack. Decision 5's
+data events apply to dev while it exists, and are written somewhere the teardown can't delete,
+kept as long as production's, so "did anyone read it?" can still be answered after dev is
+destroyed.
+
 ---
 
 ## Context
@@ -116,6 +122,8 @@ matters most.
 
 The staging reports bucket and the production reports bucket both get object-level data
 events for the same reason: they hold per-student attendance.
+
+*Amended 2026-10-07 by [ADR-027](ADR-027-on-demand-dev-environment.md) decision 4: read "staging" as dev, whose logs outlive the stack.*
 
 ### 5a. Logging is enforced by the compiler and one build-gate rule
 

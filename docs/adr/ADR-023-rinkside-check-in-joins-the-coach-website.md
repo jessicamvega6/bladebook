@@ -25,6 +25,9 @@ disable, not two), [ADR-012](ADR-012-pii-access-logging.md) decision 1 and
 default (7), correction on the website only (8), and contact details fetched only with
 signal and never cached (9b).
 
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): the rinkside page's lower-environment address is
+`dev.<domain>/coach/rinkside`, on a dev stack built on demand.
+
 ---
 
 ## Context
@@ -70,7 +73,7 @@ one that happens to be at the rink.
 ### 1. Rinkside check-in is a section of the coach website
 
 It lives at **`<domain>/coach/rinkside`**, under the coach website. Production and staging
-follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`). The coach signs in
+follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`; *`dev.<domain>/coach/rinkside` since ADR-027*). The coach signs in
 once with the coach website's sign-in. There is no subdomain and no separate origin path.
 
 It is still built as **its own entry point** within `web/`'s coach site: a lightweight page
