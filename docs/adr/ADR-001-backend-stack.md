@@ -28,6 +28,12 @@ withdraws `api-checkin`: **A3**'s separate check-in bundle on its own origin pat
 entry point inside the coach website, and **A5**/**A6**/**A8**'s `api-checkin` rows and
 `checkin-tenant` role no longer apply. Twelve functions.
 
+**Amended** — 2026-10-06. [ADR-025](ADR-025-many-coaches-per-skater.md) adds `consumer-family-sync` to `consumers.jar`: thirteen
+functions. Its role: `GetItem` and `Query` on the family's partition, `UpdateItem` on the table.
+
+**Amended** — 2026-10-06. [ADR-026](ADR-026-shared-lessons-by-invitation.md) adds `consumer-invite` to `consumers.jar`: fourteen functions.
+It reads and writes invitations in both families' partitions and holds `ses:SendEmail` and
+`sns:Publish`.
 ---
 
 ## Amendments

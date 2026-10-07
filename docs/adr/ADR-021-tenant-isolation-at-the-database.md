@@ -29,6 +29,10 @@ There is no `checkin-tenant` role; check-in routes run under `coach-tenant`.
 the open one, came back as hoped: `LeadingKeys` on a GSI3 query is checked against the
 index's own partition key, so GSI3 stays on `coach-tenant`. **Building on this ADR no longer
 waits.** Results: [`runbooks/gate-results-20261005-174949.txt`](../runbooks/gate-results-20261005-174949.txt).
+
+**Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md) extends decision 6: `consumer-student-link` also maintains
+`otherCoaches` (the names of a skater's other `ACTIVE` coaches) on each coach's `STUDENT#`
+record. A copy, not a permission: no policy changes.
 ---
 
 ## Context

@@ -34,6 +34,10 @@ decision 6). The coach's name comes from the `CODE#` item and is copied onto the
 registration (ADR-022 decision 7). *"Cannot book"* is still a code rule, because a pending
 family must still write their skaters into the coach's partition.
 
+**Superseded in part — 2026-10-06** by [ADR-025](ADR-025-many-coaches-per-skater.md). Decision **5** is withdrawn: skaters and coaches
+are many-to-many, and a signed-in family can add a coach. Decision **4**'s contact fan-out is
+no longer one transaction: the family writes its own partition and `consumer-family-sync`
+copies the change to every coach. Decision 3's key shape is unchanged, as it anticipated.
 ---
 
 ## Context

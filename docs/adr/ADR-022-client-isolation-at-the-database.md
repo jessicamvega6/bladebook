@@ -32,6 +32,13 @@ the leak; the ArchUnit rule stays as a second guard. Results: [`runbooks/gate-re
 new writes take a `LinkedSkater` that only `core.data` can create after checking the family's
 links, and writes to an existing item carry a `clientId = :caller` condition, so DynamoDB
 refuses a write to another family's booking. An ArchUnit rule holds both in place.
+
+**Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md) relaxes the one-coach rule, so decision 2's `coachId` is the
+coach the request is about, chosen from the family's links, and `linkStatus` is per coach
+(`ACTIVE` if any of the family's skaters is `ACTIVE` with that coach). No policy changes.
+
+**Amended — 2026-10-06.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) adds one read statement to `client-tenant`: `GetItem` on
+`SKATERCODE#*`, limited to a skater's display name. Decision 9's gate tests gain rows for it.
 ---
 
 ## Context

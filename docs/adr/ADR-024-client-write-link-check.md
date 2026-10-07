@@ -14,6 +14,9 @@ of the write boundary is enforced), [ADR-010](ADR-010-availability-and-reliabili
 4 (one more page), [ADR-012](ADR-012-pii-access-logging.md) (a security event alongside the
 access log) and [ADR-013](ADR-013-testing-requirement.md) decision 4 (tests for both).
 
+**Note — 2026-10-06.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) relies on this ADR: an invited skater joins a shared lesson only
+through their own family's session and a `LinkedSkater`. `requireActive` currently means an
+unapproved skater can't be invited; that may change with Kim's answer (ADR-026 P3).
 ---
 
 ## Context
@@ -148,5 +151,6 @@ only temporarily, to prove they fire.
 - The alarms fire on real traffic that turns out to be benign. Tune the thresholds in
   configuration first; if a new benign cause appears, give it its own reason, like the
   "was linked" case.
-- A family can be linked to more than one coach (ADR-002 decision 5). `LinkedSkater` already
+- ~~A family can be linked to more than one coach (ADR-002 decision 5).~~ *Happened 2026-10-06
+  (ADR-025); `LinkedSkater` carries the coach, so the check holds unchanged.* `LinkedSkater` already
   carries the coach ID, so the check holds, but the tags in ADR-022 decision 2 need a look.

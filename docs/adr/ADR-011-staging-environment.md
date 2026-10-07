@@ -26,6 +26,8 @@ removes the check-in app's own Cognito app client, so decision **6c**'s containm
 the coach website's app client (and the family website's, if it has its own). There is no
 `api-checkin`.
 
+**Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md): a client can have several coaches, so naming a client in
+decision **8a** brings in **all** their coaches.
 ---
 
 ## Context

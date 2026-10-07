@@ -43,6 +43,8 @@ then every block stores `missedLessonFeeMinor = 0`.
 dashboard buttons**, not a radio button on the form (decision 6a), and temporary mode gains a
 **"No lessons (time off)"** option (decision 6b).
 
+**Extended — 2026-10-06** by [ADR-026](ADR-026-shared-lessons-by-invitation.md): each block gains **`maxSkaters`** (*skaters per lesson*),
+default 1. The editor allows only 1 until Kim sets the maximum.
 ---
 
 ## Context

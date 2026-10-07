@@ -68,6 +68,9 @@ and **5** (slot generation per block) are unaffected and are load-bearing here.
 **ADR-003 decision 2** (price stamped at booking creation) becomes more load-bearing
 still — see decision 4.
 
+**Extended — 2026-10-06** by [ADR-026](ADR-026-shared-lessons-by-invitation.md): a booking can be shared by invitation. The slot lock is
+unchanged; each invited skater who joins gets their own `PARTICIPANT#` item, and the booking gains
+`maxSkaters` and `skaterCount`. Pricing and several rules wait on Kim.
 ---
 
 ## Context
