@@ -4,3 +4,37 @@ Coaches can split one session time(slot) aounsts multiple students
 Q: how many students max are allowed to split a lesson. 
 Let the coach decide this? or hard code?
 
+
+Decided 2026-10-07:
+
+Coach: when the coach makes the schedule they set how many skaters can split each lesson (per block).
+  Default value is 1 (private). Default max is 2. The max might be raised later.
+
+Client booking:
+  The client does not see how many skaters can share a lesson.
+  A "share this lesson" box only shows on times whose block allows 2 or more.
+  Only 1 skater code can be entered in the box.
+  Note in the box: skater 2's family must accept before skater 2 can join the lesson.
+  On entering a skater code, the system checks the skater exists and shows first name and last initial (e.g. Mia R.).
+  The booking only continues once skater 2 is validated as existing.
+
+Coach acceptance:
+  A student must always be accepted by the coach before any lessons are booked for that student.
+  A client can invite a skater the coach hasn't accepted, but nothing is booked for skater 2 until the coach accepts them.
+  If the coach does not accept skater 2 (or doesn't act before the lesson), the lesson proceeds as a private lesson.
+
+Invitation (changed 2026-10-07):
+  When a family splits a lesson, an email is sent to family B straight away.
+  If skater B is already the coach's student, the email is a normal invite to accept or decline.
+  If skater B is not part of that coach, the email says something like:
+    "Coach XXX needs to accept you first. By clicking the link below you agree to be added to Coach XXX's roster of students."
+  The link opens a confirmation page. Family B must sign in and confirm on the page.
+  The confirmation page shows skater B any conflicting bookings they would have. They can go ahead or cancel.
+  If they go ahead, the request follows the same flow as if they had entered the coach code at sign up.
+  When the coach accepts skater B, skater B joins the lesson automatically.
+  Before writing anything, the job checks that the lesson slot still exists and hasn't happened yet.
+  If those aren't true it does nothing, and family B is notified that the booking didn't happen.
+  Recurring booking: the code shares every lesson in the series.
+  Sibling (same family): just booked, no confirmation needed (still needs coach acceptance first).
+
+See docs/adr/ADR-026-shared-lessons-by-invitation.md.

@@ -19,6 +19,22 @@ skater's share code, as a `SKATERCODE#` item.
 
 **Amended — 2026-10-06.** Decision **2** extends to sign-up: a new family can enter **several
 coach codes** when they register, not only add coaches later (`FeatureDecriptions/Client Sign Up`).
+
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): read "staging" as the on-demand **dev** stack; naming a client in
+a load still brings in all their coaches.
+
+**Amended — 2026-10-07.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 5: an
+invitation to a shared lesson is a second way to add a coach. A family whose skater isn't yet the
+coach's student follows the invitation's consent link and goes through decision 2's route, as if
+they had entered the coach code. Decision 5's clash warning is shown on the invitation's confirm
+page, where the family chooses to go ahead or cancel; it isn't re-checked when the skater joins
+later.
+
+**Amended — 2026-10-07.** *Decided by the owner.* **No limit on coaches per skater.** A skater
+signs up with **1 to 10 coaches** and adds more later as needed; the multi-coach screens are
+designed for about 10. **Decision 4 (*"Also coached by"*) moves to Phase 2**, which takes MVP's
+only exception to keeping coaches' data apart out of MVP.
+
 ---
 
 ## Context
@@ -75,7 +91,7 @@ the skater's other coaches.
 The code is resolved exactly as at sign-up, under the family's first session (ADR-022
 decision 7), with the same WAF rate limit on lookups (ADR-019). The screen tells the family:
 *"Coach Sam will see that Mia also skates with Coach Dana, and Coach Dana will see Coach Sam."*
-(decision 4).
+(decision 4). ***Phase 2*** *(owner, 2026-10-07):* this message ships with decision 4, not in MVP.
 
 *Amended 2026-10-06:* **several coaches at sign-up too.** A new family can enter more than one
 coach code while registering. Each code is looked up as now (before sign-in, under the
@@ -103,6 +119,11 @@ ADR-024's `LinkedSkater` already carries the coach ID, so the write link check i
 with no change.
 
 ### 4. Coaches see the names of a skater's other coaches
+
+***Phase 2*** *— moved by the owner, 2026-10-07.* Not built in MVP: `consumer-student-link`
+doesn't maintain `otherCoaches`, and the family isn't told about it when adding a coach. When it
+ships, existing skaters need a **one-off backfill**, because the list is otherwise only
+recomputed when a link changes. The design below stands for then.
 
 *Decided by the owner, 2026-10-06.* On a skater's record, a coach sees *"Also coached by: Sam
 Ortiz."*
@@ -194,10 +215,10 @@ None of these screens is in the Harbor designs yet.
 - **A family's contact changes are eventually consistent** across coaches, about a second
   behind, where they were transactional.
 - **Coach A learns that a skater trains with coach B**, by name. The family is told this
-  when they add the coach.
+  when they add the coach. *Phase 2 since 2026-10-07* (decision 4).
 - **Double-booking a skater across coaches is possible**, and warned about.
 - **New screens on both sites**: adding a coach, the coach switcher, cross-coach lessons and
-  payments, and *"Also coached by"* on the coach's skater record.
+  payments, and *"Also coached by"* on the coach's skater record (*Phase 2*).
 - **Knock-ons recorded elsewhere:** "remove a student" (blocker #17) is now per coach; erasure
   on request must reach every coach a skater had; staging's subset brings in all of a family's
   coaches (ADR-011 decision 8a).
@@ -206,8 +227,8 @@ None of these screens is in the Harbor designs yet.
 
 - A family `ACTIVE` with one coach and `PENDING` with another reads the first coach's
   schedule and nothing of the second's.
-- `otherCoaches` appears on both coaches' records only when the skater is `ACTIVE` with both,
-  and disappears when one link is removed.
+- *(Phase 2)* `otherCoaches` appears on both coaches' records only when the skater is `ACTIVE`
+  with both, and disappears when one link is removed.
 - A booking that overlaps the skater's lesson with another coach returns the clash for a
   warning and still books when confirmed.
 - A contact change reaches every coach's `STUDENT#` copy; a duplicate `FamilyChanged`
@@ -217,9 +238,10 @@ None of these screens is in the Harbor designs yet.
 
 ## Open
 
-- **Is there a limit on coaches per skater?** None is set. The fan-out and `otherCoaches` list
-  grow with it; a handful is fine.
-- **Designs for the new screens** (decision 7, and *"Also coached by"* on the coach side).
+- ~~**Is there a limit on coaches per skater?**~~ **Settled by the owner, 2026-10-07: no
+  limit.** A skater signs up with 1 to 10 coaches and adds more as needed.
+- **Designs for the new screens** (decision 7), for about 10 coaches. *"Also coached by"* on the
+  coach side is Phase 2.
 - **What the family sees when one coach removes their skater** while another coach keeps them.
   Part of blocker #17.
 

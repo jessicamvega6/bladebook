@@ -16,6 +16,24 @@ decision 6 (`consumer-family-sync` also issues share codes) and
 
 Source: `FeatureDecriptions/Schedule lesson split`.
 
+**Amended — 2026-10-07.** *Decided by the owner.* Answers P1 (default 1, most 2, raisable later)
+and P3 (the coach always accepts a skater before any lesson is booked for them; being invited
+doesn't need it). Decision 4's lookup checks only that the skater exists. Decision 5 is
+rewritten: the share box shows only on shareable times and takes one code; booking waits for
+the code to check out; the invited family is emailed straight away; a skater who isn't the
+coach's student joins the coach's roster through a consent link and the coach-code pending
+route; the invited family confirms on a signed-in page that shows any clashes; once the coach
+accepts, the coach's own Accept joins the skater automatically if the lesson still exists,
+hasn't happened, has room and names that skater as invited, and otherwise writes nothing and
+the invited family is told. One
+invitation covers a whole recurring series, and a sibling is added directly.
+
+*Revised the same day.* An earlier version of this amendment had the coach see only a display
+name and the invited family hear nothing until the coach accepted; the owner replaced it with
+the consent link above. **Who writes the automatic join is settled by the owner, the same
+day:** `api-coach`, in the coach's own session, as part of the coach's Accept. No function gains
+a database permission (decision 5, Consequences).
+
 ---
 
 ## Context
@@ -46,11 +64,13 @@ The owner's answers after talking with the end user:
 ### 1. A block has a "skaters per lesson" setting
 
 Every schedule block (ADR-008) gains **`maxSkaters`**, default **1** (private). The coach sets it
-per block: 6–8 AM private, 4–6 PM up to 3, and so on. It works the same in the weekly schedule,
+per block: 6–8 AM private, 4–6 PM up to 2, and so on. It works the same in the weekly schedule,
 temporary schedules and per-date changes, because they share the block shape.
 
-The upper limit a coach may choose is **pending Kim** (P1). Until then the editor allows 1 only,
-which keeps every lesson private.
+**The most a coach may choose is 2.** *Decided by the owner, 2026-10-07, answering P1.* It is a
+configuration value, not built into the code, because it may be raised later.
+
+Families never see `maxSkaters`.
 
 `maxSkaters` is stamped onto the booking when it is made, like the price (ADR-003), so a later
 schedule edit doesn't change a lesson already booked.
@@ -108,8 +128,9 @@ gives out their coach code.
   created, written as a `SKATERCODE#<code>` item with `attribute_not_exists(PK)` so codes are
   unique, and copied back onto the `SKATER#` item. Families never write code items, so no new
   write permission is needed.
-- **Looking a code up returns only a display name**, *"Mia R."* (first name, last initial), so
-  the booking family can check it's the right skater. It never returns the family, contact
+- **Looking a code up checks only that the skater exists** in BladeBook, whether or not they're
+  this coach's student, and returns only a display name, *"Mia R."* (first name, last initial), so
+  the booking family can check it's the right skater. *Amended 2026-10-07.* It never returns the family, contact
   details or anything else. This needs **one new read statement on `client-tenant`**: `GetItem`
   on `SKATERCODE#*`, limited to the display-name attributes, like ADR-022 decision 7's coach-code
   read. The gate tests gain rows for it (see Consequences).
@@ -121,27 +142,102 @@ Code length and alphabet follow the coach-code decision (blocker #7), so they're
 
 ### 5. The invitation flow
 
-1. **While booking**, Family 1 can optionally add up to `maxSkaters − 1` skaters by share code.
-   Each shows as *"Mia R. — invited"*. The booking itself is made immediately and is private.
-2. Family 1's session writes an **invitation** into **its own partition**:
-   `CLIENT#<family1>/INVITE#<inviteId>` with the coach, the booking's key, the invited skater
-   and `inviteStatus = PENDING`.
-3. A new consumer, **`consumer-invite`**, triggered by a new `InviteChanged` event, copies the
-   invitation into **Family 2's partition** and emails Family 2: *"Dana's family invited Mia to
-   share a lesson with Coach Dana on Tue 14 Oct at 4:00. Confirm or decline."* With SMS opt-in,
-   a text points to the email (ADR-007).
-4. **Family 2 confirms** from their account. Their own session, for that coach, gets a
-   `LinkedSkater` for Mia (ADR-024) and runs decision 3's join transaction. ADR-025's clash
-   warning applies here too.
-5. `consumer-invite` copies the new status back to Family 1's invitation, and **Family 1's
-   booking shows both skaters**. Family 1 sees the invited skater's display name and status,
-   never Family 2's participant item.
+*Rewritten 2026-10-07, decided by the owner.* **The rule underneath:** the coach always accepts a
+skater before any lesson is booked for them. A family can invite a skater the coach hasn't
+accepted, but nothing is booked for that skater until the coach does.
 
-Family 2 can **decline**, which closes the invitation and tells Family 1. Family 1 can **withdraw**
-an invitation that hasn't been confirmed.
+**On the booking screen**
 
-This keeps ADR-024's rule whole: **Family 1 never writes anything for a skater who isn't theirs.**
-The participant is written by the family who owns the skater, under their own session.
+- **A *share this lesson* box appears only on times whose block has `maxSkaters` of 2 or more.**
+  Families can tell a time is shareable, never how many skaters it takes.
+- **It takes one skater code.** A note says the other skater's family must accept before their
+  skater joins the lesson.
+- **The code is checked before the booking can continue.** A code that doesn't check out stops
+  the booking at that step; one that does shows *"Mia R."*.
+- **Family A's lesson is then booked as normal,** private, exactly as today.
+
+**Then, for another family's skater**
+
+1. Family A's session writes the **invitation** into its own partition:
+   `CLIENT#<familyA>/INVITE#<inviteId>`, with the coach, the booking's key, the invited skater
+   and `inviteStatus`. In the same request it stamps **`invitedStudentId`** (skater B) on its own
+   booking, or on each booking in a recurring series. The join later requires it (step 5).
+2. **`consumer-invite`**, triggered by `InviteChanged`, copies the invitation into Family B's
+   partition and **emails Family B straight away** (plus a text pointing to the email if they've
+   opted in to texts; ADR-007).
+   - **Skater B is already the coach's accepted student:** the email is an ordinary invitation
+     to accept or decline.
+   - **Skater B isn't:** the email says, in substance, *"Coach Dana needs to accept you first. By
+     following the link below you agree to be added to Coach Dana's roster of students, and Mia
+     will join the lesson on Tue 14 Oct at 4:00 once Coach Dana accepts."*
+3. **The link opens a confirm page that needs Family B to sign in.** Opening the link does
+   nothing on its own: email security scanners and link previews open links automatically, and
+   signing in proves it's Family B rather than whoever the email was forwarded to.
+   - **The page shows any of skater B's lessons that clash** with the shared lesson (ADR-025
+     decision 5), and Family B chooses **Go ahead** or **Cancel**.
+4. **For a skater who is already the coach's student,** Go ahead runs the join now: Family B's own
+   session, for that coach, gets a `LinkedSkater` for Mia (ADR-024) and runs decision 3's join
+   transaction.
+5. **For a skater who isn't,** Go ahead sends skater B down **exactly the route a coach code at
+   sign-up takes** (ADR-002 decisions 1–2, ADR-025 decision 2): skater B becomes a `PENDING`
+   student with the coach, with Family B's contact details, because Family B has now agreed to
+   that. The pending `STUDENT#` item also carries **`pendingJoins`**: one entry per lesson to
+   join, holding the booking key and the invitation ID. The family API writes it only after
+   checking that Family B holds that invitation. `inviteStatus` becomes `AWAITING_COACH`.
+   - **The coach accepts:** in the same request, **`api-coach` joins skater B automatically**, in
+     the coach's own session, so the database confines it to that coach's partition (ADR-021).
+     Family B's confirmation stands as their agreement. For each `pendingJoins` entry it runs
+     decision 3's join transaction, with every check written as a condition on that one write,
+     so nothing can change between checking and writing:
+     - the booking still exists;
+     - **the lesson hasn't started** (`startsAtUtc` is after now);
+     - there's still room (`skaterCount < maxSkaters`);
+     - **the booking's `invitedStudentId` is skater B**;
+     - skater B's participant item doesn't exist yet.
+
+     A lesson that fails any condition gets **nothing written**. The Accept then clears
+     `pendingJoins` and records each lesson's outcome on the `STUDENT#` item. `consumer-invite`
+     picks up that change, updates both invitations, and **tells Family B** of any lesson that
+     was no longer available, so their skater wasn't added to it. Skater B stays the coach's
+     student either way.
+
+     **Why `invitedStudentId`.** The database confines a family's writes to the right coach, not
+     to the right items (ADR-022 decision 8), so the family API's invitation check is the only
+     thing deciding what goes into `pendingJoins`. If that check ever had a bug, a family could
+     list a shareable lesson they were never invited to. The stamp is a second check, made at
+     the join itself: Family A writes it on their own booking when they invite, so a made-up
+     entry fails and writes nothing.
+   - **The coach declines, or doesn't act before the lesson:** nothing is booked for skater B,
+     the lesson goes ahead private, and Family A is told. Family B gets the ordinary decline
+     email.
+   - **Clashes aren't re-checked at join time.** One booked between Family B confirming and the
+     coach accepting goes unwarned, which matches ADR-025: clashes are warned about, never
+     refused.
+6. `consumer-invite` copies each status change back to Family A's invitation, and **Family A's
+   booking shows both skaters** once skater B joins. Family A sees the invited skater's display
+   name and status, never Family B's participant item.
+
+Family B can **decline**, which closes the invitation and tells Family A. Family A can
+**withdraw** an invitation Family B hasn't confirmed.
+
+`inviteStatus` is `PENDING | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN`.
+`AWAITING_COACH` means Family B has confirmed and the skater is waiting for the coach's
+acceptance. *Added 2026-10-07.*
+
+**A recurring booking shares every lesson in the series.** One invitation covers them all, and one
+confirmation joins skater B to each lesson in it.
+
+**A sibling is added directly.** If the code belongs to a skater in Family A's own family, there is
+no invitation and no confirmation: Family A's session joins the sibling itself, since it holds both
+skaters (ADR-024). The coach-acceptance rule still applies: a sibling who isn't the coach's student
+yet goes to the coach first with `pendingJoins` on their pending item, Family A's booking carries
+the sibling as `invitedStudentId`, and the coach's Accept joins them exactly as above.
+
+**Who writes the participant item.** Whenever Family B is signed in, it's Family B's own session,
+so Family A never writes anything for a skater who isn't theirs (ADR-024). **The automatic join
+is the one exception:** no one from Family B is signed in when the coach accepts, so the coach's
+own session writes it, inside the coach's own partition, only for lessons Family B confirmed
+while signed in and that name skater B as invited.
 
 ### 6. Coaches see every skater in the slot
 
@@ -154,19 +250,18 @@ cancels every skater in it, and each family is told (ADR-009).
 ## Pending Kim
 
 Each is a question in `Items to ask Kim About.md` §8. **None of them blocks private booking**,
-which is unchanged. Until they're answered, `maxSkaters` stays at 1 and sharing is off.
+which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.*
 
 | # | Question | The owner's leaning |
 |---|---|---|
-| **P1** | The **most skaters** a coach may allow in one lesson | — |
+| **P1** | ~~The **most skaters** a coach may allow in one lesson~~ | **Answered by the owner, 2026-10-07: 2**, as a setting that may be raised (decision 1) |
 | **P2** | **How a shared lesson is priced**: each skater's own price, the lesson price split, or a shared-lesson price per skater; and whether anyone's price changes when a skater joins or leaves | Kim decides; affects P4 and P5 |
-| **P3** | Must an invited skater **already be approved** by this coach? | Tied to Kim §6, which may remove coach approval altogether |
+| **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval |
 | **P4** | If the **booking family cancels**, what happens to the invited skaters? | **Ask the invited family** whether to continue, once pricing is known |
-| **P5** | If an invitation **isn't confirmed in time** | **It lapses at the coach's notice period** (24 hours by default), the lesson goes ahead private, and the booking family is told, once pricing is known |
+| **P5** | If an invitation **isn't confirmed in time** | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. Still open: when an invitation the family hasn't accepted lapses; leaning towards the coach's notice period (24 hours by default), once pricing is known |
 
-**Today, P3 is effectively "yes".** ADR-024's `requireActive` only issues a `LinkedSkater` for a
-skater `ACTIVE` with that coach, so an unapproved skater can't join. If Kim's answer removes
-approval, ADR-024 changes with it.
+**P3's answer is what ADR-024 already does.** `requireActive` only issues a `LinkedSkater` for a
+skater `ACTIVE` with that coach, so a skater can't join until the coach has accepted them.
 
 ---
 
@@ -193,7 +288,14 @@ approval, ADR-024 changes with it.
   as they are. Sharing adds to them.
 - **Fourteen functions.** `consumer-invite` joins `consumers.jar`: it reads and writes invitations
   in both families' partitions and sends email and text, so it holds `ses:SendEmail` and
-  `sns:Publish`.
+  `sns:Publish`. *Settled 2026-10-07:* its permissions are unchanged by decision 5's rewrite. It
+  also reacts to the `STUDENT#` item changing when the coach accepts or declines, to update
+  invitations and tell families, which needs no database write outside the families'
+  partitions.
+- **No new database permission for the automatic join.** It runs in `api-coach` under
+  `coach-tenant` (ADR-001 A8), which already writes and updates items in the coach's own
+  partition. The booking gains **`invitedStudentId`**; the pending `STUDENT#` item gains
+  **`pendingJoins`**.
 - **Four new item types:** `PARTICIPANT#` (coach's partition), `INVITE#` (each family's
   partition), `SKATERCODE#` (its own partition), and the `shareCode` on `SKATER#`. One new event,
   `InviteChanged`.
@@ -216,13 +318,17 @@ approval, ADR-024 changes with it.
 - Family 1's session can't write a participant item for Family 2's skater.
 - A share-code lookup returns the display name and nothing else.
 - A coach cancelling a shared lesson cancels every skater and notifies each family once.
+- A `pendingJoins` entry for a lesson whose `invitedStudentId` isn't that skater writes nothing.
+- A coach accepting after the lesson has started writes nothing, and Family B is told.
 
 ---
 
 ## Open (not for Kim)
 
-- **Recurring shared lessons.** Whether one invitation covers a whole recurring series, and what
-  happens when the invited family confirms some dates and not others.
+- **Recurring shared lessons.** ~~Whether one invitation covers a whole recurring series~~ —
+  **yes**, decided by the owner 2026-10-07 (decision 5). Still open: what happens when skater B
+  can't join some dates in the series (for example, a clash with another lesson). Can Family B
+  accept the dates that work, or is it all or none?
 - **A skater in two places at once.** Joining a shared lesson that clashes with the skater's other
   lesson gets ADR-025's warning; confirm that's enough here too.
 - **What lowering `maxSkaters` does** to lessons already booked with more skaters. The stamp

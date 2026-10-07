@@ -32,7 +32,8 @@ waits.** Results: [`runbooks/gate-results-20261005-174949.txt`](../runbooks/gate
 
 **Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md) extends decision 6: `consumer-student-link` also maintains
 `otherCoaches` (the names of a skater's other `ACTIVE` coaches) on each coach's `STUDENT#`
-record. A copy, not a permission: no policy changes.
+record. A copy, not a permission: no policy changes. *Phase 2 since 2026-10-07* (ADR-025
+decision 4).
 ---
 
 ## Context

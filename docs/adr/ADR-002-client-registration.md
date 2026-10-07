@@ -38,6 +38,11 @@ family must still write their skaters into the coach's partition.
 are many-to-many, and a signed-in family can add a coach. Decision **4**'s contact fan-out is
 no longer one transaction: the family writes its own partition and `consumer-family-sync`
 copies the change to every coach. Decision 3's key shape is unchanged, as it anticipated.
+
+**Amended — 2026-10-07.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 5: besides
+the coach code (decision 1), an **invitation to a shared lesson** can bring a family onto a
+coach's roster. The family follows a consent link, signs in, confirms, and the skater becomes
+`PENDING` exactly as in decision 2. The coach still accepts or declines.
 ---
 
 ## Context

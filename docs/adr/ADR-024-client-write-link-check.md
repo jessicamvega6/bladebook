@@ -17,6 +17,23 @@ access log) and [ADR-013](ADR-013-testing-requirement.md) decision 4 (tests for 
 **Note — 2026-10-06.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) relies on this ADR: an invited skater joins a shared lesson only
 through their own family's session and a `LinkedSkater`. `requireActive` currently means an
 unapproved skater can't be invited; that may change with Kim's answer (ADR-026 P3).
+
+**Note — 2026-10-07.** ADR-026 P3 is answered by the owner, and `requireActive` stands: a skater
+**can be invited** before the coach accepts them, but **can't join** until they're `ACTIVE`. A
+**sibling** in the booking family's own family is joined directly by that family's session, with
+no invitation, because it holds both skaters; `requireActive` applies to the sibling the same way.
+
+**Note — 2026-10-07, later.** ADR-026 decision 5 adds **one exception** to "a skater is added only
+by their own family's session": when the coach accepts an invited skater who wasn't yet their
+student, the **coach's own session** joins that skater **automatically** as part of the coach's
+Accept, on behalf of a family who confirmed the invitation while signed in. The database confines
+that session to the coach's own partition (ADR-021), and the join writes nothing unless the
+booking still exists, the lesson hasn't started, there's room, and the booking names that skater
+in `invitedStudentId`. *Settled by the owner the same day; no function gains a permission.*
+
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): the alarms are proved in the on-demand **dev** stack; read
+"staging" as dev.
+
 ---
 
 ## Context

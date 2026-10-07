@@ -28,9 +28,11 @@ changes, and how far ahead families book.
 
 1. How often do you change your prices? Once a season, once a year, whenever?
 2. When you change them, is it for everyone at once, or student by student?
-3. How often does your weekly schedule (days and times) change?
+3. How often does your weekly schedule (days and times) change? 
+  Not often
 4. When you raise your price, should lessons **already booked** for the future stay at the old
    price, or move to the new one? Does it matter whether they are recurring?
+   Move if they are outside the notice period
 5. How far ahead do your families usually book? Would anyone want to book a single lesson more
    than three months out?
 6. When you raise or lower your prices, **by how much** do you usually change them? Roughly a
@@ -112,9 +114,9 @@ keeping. The question is whether it gets in a coach's way.
 
 1. Would you want to approve each new family or skater before they can book, or would you
    rather anyone with your code could book straight away?
+   You approve a family
 2. How quickly would you usually get to an approval? Same day, or could a family wait a few
    days?
-3. Have you ever had someone you didn't know try to book lessons with you?
 4. Would you want to approve **siblings** added later by a family you already know, or should
    they be let in automatically?
 
@@ -170,6 +172,9 @@ message.
 2. Would you want BladeBook to ask you each time (A), or just handle it one way (B or C)?
 3. If a family's lesson is cancelled minutes after they booked it, how do you think they'd
    take it? Would a message explaining why be enough?
+      **B. It's cancelled, with a friendlier message.** Saving goes ahead. Because the booking is
+        only minutes old, the family gets a different email: *"Coach Kim updated their schedule
+        just as you booked. Here are other open times."*
 4. Would it bother you if times disappeared from your booking page while you were in the
    middle of editing (D)?
 5. When you change your schedule, do you usually do it in a quiet moment, or while families
@@ -199,14 +204,19 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
 
 **Questions:**
 
-1. What's the most skaters you'd ever put in one lesson? 2? 3? More?
+1. ~~What's the most skaters you'd ever put in one lesson? 2? 3? More?~~ **Answered by the owner,
+   2026-10-07: 2**, as a setting that may be raised later.
+    2
 2. How do you charge for a shared lesson?
    - Each skater pays their normal private price?
    - The lesson price is split between them (e.g. $60 lesson, two skaters, $30 each)?
    - A set "shared lesson" price per skater (e.g. $40 each)?
 3. If a second skater drops out, should the first skater's price change?
-4. Should you have to know and approve a skater before another family can invite them into a
-   lesson with you? (This connects to question 6 above about approving families at all.)
+4. ~~Should you have to know and approve a skater before another family can invite them into a
+   lesson with you?~~ **Answered by the owner, 2026-10-07:** a skater can be invited before you've
+   accepted them, but no lesson is booked for them until you do. If you don't, the lesson goes
+   ahead private.
+   Yese
 5. If the family who booked the lesson cancels, what should happen to the skater they invited?
    Keep the lesson for them, cancel it for everyone, or ask the invited family?
 6. If the invited family hasn't said yes by the day before, should the invitation lapse and the
@@ -263,55 +273,47 @@ code families type to find them. Both numbers can change each season.
 
 ## 10. How many coaches one skater has
 
+*Answered by the owner, 2026-10-07:* **no limit.** A skater signs up with **1 to 10 coaches** and
+adds more later as needed. The questions below are **Phase 2**: keep them to check the owner's
+number and to inform *"Also coached by"*, which moved to Phase 2 (ADR-025 decision 4).
+
 **The scenario.** Since ADR-025 a skater can have any number of coaches, and a family can
-enter several coach codes when they sign up. No ceiling was set — the ADR assumes "a handful is
-fine." Before the multi-coach screens are designed, it is worth knowing what the real number
-is, because a design that reads well for two coaches may not for five.
+enter several coach codes when they sign up. The owner expects 1 to 10 at sign-up, with more
+added as needed, so the multi-coach screens are designed for about 10.
 
 **How it works today, for context:**
 
 - One skater has **one ID** across every coach, and each coach approves the skater separately.
   A family can be approved by one coach and still waiting on another.
-- Each coach sees **"Also coached by: Sam Ortiz"** on the skater's record — first and last name
-  only, and only between approved links. Nothing else crosses between coaches.
+- *(Phase 2)* Each coach sees **"Also coached by: Sam Ortiz"** on the skater's record — first
+  and last name only, and only between approved links. Nothing else crosses between coaches.
 - A family's contact or skater edit is copied out to **every** coach by a background job, so the
   work grows with the number of coaches.
 - When a family books, BladeBook **warns** about a lesson that overlaps one with another coach
   but still lets them book — back-to-back lessons at the same rink are expected.
 
-**Questions:**
+**Questions (all Phase 2):**
 
 1. How many coaches do your skaters usually work with at once? One, two, more?
-3. What is the most you have seen one skater have at the same time?
-4. Does it change through the season — more coaches in competition season than in the summer?
-5. Do siblings in one family usually share a coach, or end up with different ones?
-6. How often does a skater add or drop a coach?
-7. Is seeing the other coaches' **names** useful to you, or would you rather not see them at
+2. What is the most you have seen one skater have at the same time?
+3. Does it change through the season — more coaches in competition season than in the summer?
+4. How often does a skater add or drop a coach?
+5. Is seeing the other coaches' **names** useful to you, or would you rather not see them at
    all? Is there anything else about a skater's other coaching/coach you would actually want?
-2. What are the different coaches for — figure skating and power skating, choreography,
-   off-ice or strength, dance, a specialist for jumps or spins?
-
-**What ADR-025 assumes, to test rather than assume:** no limit, because "a handful is fine."
-If two is the normal case and four is rare, that is worth knowing before the screens are drawn.
 
 **What the answers decide:**
 
-- **Whether a cap on coaches per skater is set at all, and what it is.** None today. The
-  per-coach fan-out and the "Also coached by" list both grow with the number. (ADR-025 Open;
-  `Open-Pending.md` §2)
-- **How the multi-coach screens are laid out** (questions 1, 3 and 5): the coach switcher,
-  lessons and payments grouped by coach, and each skater's list of coaches. None of these are
-  designed yet, and the right layout for two coaches differs from the right one for five.
-  (ADR-025 decision 7; `Open-Pending.md` §2 to-do)
-- **Whether "Also coached by" stays a plain list** or needs grouping or truncating, and
-  whether it stays at all (question 7). It is a deliberate narrow exception to keeping coaches'
-  data apart, and ADR-025 already says it can be dropped or made opt-in if a coach objects.
-  (ADR-025 decision 4, "Revisit if")
-- **How the clash warning should read when a skater has several coaches** (question 2) — whether
-  naming the other coach per clash is enough, and whether frequent back-to-back lessons make the
-  warning noise. (ADR-025 decision 5)
+- ~~**Whether a cap on coaches per skater is set at all.**~~ **Settled by the owner: no limit**
+  (ADR-025 Open; `Open-Pending.md` §2).
+- **Whether the multi-coach screens' layout holds up** (questions 1–3): the coach switcher,
+  lessons and payments grouped by coach, and each skater's list of coaches, designed for about
+  10. (ADR-025 decision 7; `Open-Pending.md` §2 to-do)
+- **Whether "Also coached by" ships in Phase 2 at all**, and whether it stays a plain list or
+  needs grouping or truncating (question 5). It is a deliberate narrow exception to keeping
+  coaches' data apart, and ADR-025 already says it can be dropped or made opt-in if a coach
+  objects. (ADR-025 decision 4, "Revisit if")
 - **Whether adding and dropping coaches mid-season needs more than today's remove flow**
-  (question 6), including what the family sees when one coach removes their skater while another
+  (question 4), including what the family sees when one coach removes their skater while another
   keeps them. (ADR-025 Open; blocker #17)
 
 ---
@@ -324,6 +326,8 @@ These came up earlier and are recorded in `Open-Pending.md` as needing coach inp
 
 1. When a family cancels a lesson, do you want a text and email **every** time, or only when
    it is late — inside your notice period? (Coaches can opt in to a text for this in MVP.)
+
+   -Inside the notice period
 
 **Decides:** whether the cancellation notice to the coach has a threshold. Today it sends on
 every cancellation. (ADR-009 Open; the note in `FeatureDecriptions/Email templates Needed:`
