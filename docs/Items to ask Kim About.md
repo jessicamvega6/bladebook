@@ -9,7 +9,7 @@ recording afterwards.
 
 ## 1. How often do prices and schedules change, and how far ahead do families book?
 
-**The scenario.** A coach's weekly schedule (days and times) may stay the same for months
+**The scenario.** A coach's weekly schedule (days and times) may stay the same(assumption) for months
 while their price goes up. How BladeBook handles that depends on how often each actually
 changes, and how far ahead families book.
 
@@ -191,6 +191,131 @@ machinery than such a rare case needs.
 
 ---
 
+## 8. Sharing a lesson between skaters
+
+**The scenario.** Two friends request a a semi-private lesson. Family1 add's the others skater using a short 
+code from that family2. The family2 gets a message, confirms, and then both skaters are in the lesson. 
+You decide, for each block of your schedule, how many skaters a lesson can have.
+
+**Questions:**
+
+1. What's the most skaters you'd ever put in one lesson? 2? 3? More?
+2. How do you charge for a shared lesson?
+   - Each skater pays their normal private price?
+   - The lesson price is split between them (e.g. $60 lesson, two skaters, $30 each)?
+   - A set "shared lesson" price per skater (e.g. $40 each)?
+3. If a second skater drops out, should the first skater's price change?
+4. Should you have to know and approve a skater before another family can invite them into a
+   lesson with you? (This connects to question 6 above about approving families at all.)
+5. If the family who booked the lesson cancels, what should happen to the skater they invited?
+   Keep the lesson for them, cancel it for everyone, or ask the invited family?
+6. If the invited family hasn't said yes by the day before, should the invitation lapse and the
+   lesson go ahead private?
+
+**The owner's leaning, to test rather than assume:** for question 5, ask the invited family
+whether to continue; for question 6, the invitation lapses at your notice period (24 hours by
+default) and the booking family is told. Both depend on the pricing answer.
+
+**What the answers decide:**
+
+- **The highest "skaters per lesson" a coach can set** (question 1). Until it's answered every
+  lesson stays private. (ADR-026 P1)
+- **How each skater's price is stamped**, and whether anyone is re-priced when a skater joins or
+  leaves (questions 2 and 3). (ADR-026 P2, ADR-003, ADR-020)
+- **Whether an invited skater must be approved first** (question 4). (ADR-026 P3, ADR-024)
+- **What the booking family cancelling does** (question 5), and **when invitations lapse**
+  (question 6). (ADR-026 P4, P5)
+
+---
+
+## 9. Skating membership numbers
+
+**The scenario.** The sign-up notes say families must enter a USFSA or USA Hockey registration
+number to sign up, and that a coach's own registration number would be their coach code, the
+code families type to find them. Both numbers can change each season.
+
+**Questions:**
+
+1. Do all your skaters have a USFSA or USA Hockey number? What about adults skating for fun, or
+   beginners in learn-to-skate?
+2. Why do you need a skater's number? Insurance, competition and test eligibility, something
+   else?
+3. Do you check that a family's number is current each season? What happens if it has lapsed:
+   would you still teach them?
+4. Does each skater have their own number, or is it one per family?
+5. Would you be comfortable with your own registration number being the code families use to
+   find you? Is your number written anywhere public, like a certificate, rink website or coach
+   directory?
+6. Do you, or coaches you know, teach any skaters registered in Canada (Skate Canada, Hockey
+   Canada)?
+
+**What the answers decide:**
+
+- **Whether a membership number is required at all, optional, or per skater**, and what happens
+  when it expires (questions 1–4).
+- **Whether a coach's registration number can safely be their coach code**, or the code stays a
+  random BladeBook code with the registration number kept separately (question 5, together with
+  the validation research in `Open-Pending.md` §2b).
+- **Whether Canadian skaters and coaches are supported**, which a USFSA/USA Hockey requirement
+  would rule out (question 6).
+
+---
+
+## 10. How many coaches one skater has
+
+**The scenario.** Since ADR-025 a skater can have any number of coaches, and a family can
+enter several coach codes when they sign up. No ceiling was set — the ADR assumes "a handful is
+fine." Before the multi-coach screens are designed, it is worth knowing what the real number
+is, because a design that reads well for two coaches may not for five.
+
+**How it works today, for context:**
+
+- One skater has **one ID** across every coach, and each coach approves the skater separately.
+  A family can be approved by one coach and still waiting on another.
+- Each coach sees **"Also coached by: Sam Ortiz"** on the skater's record — first and last name
+  only, and only between approved links. Nothing else crosses between coaches.
+- A family's contact or skater edit is copied out to **every** coach by a background job, so the
+  work grows with the number of coaches.
+- When a family books, BladeBook **warns** about a lesson that overlaps one with another coach
+  but still lets them book — back-to-back lessons at the same rink are expected.
+
+**Questions:**
+
+1. How many coaches do your skaters usually work with at once? One, two, more?
+3. What is the most you have seen one skater have at the same time?
+4. Does it change through the season — more coaches in competition season than in the summer?
+5. Do siblings in one family usually share a coach, or end up with different ones?
+6. How often does a skater add or drop a coach?
+7. Is seeing the other coaches' **names** useful to you, or would you rather not see them at
+   all? Is there anything else about a skater's other coaching/coach you would actually want?
+2. What are the different coaches for — figure skating and power skating, choreography,
+   off-ice or strength, dance, a specialist for jumps or spins?
+
+**What ADR-025 assumes, to test rather than assume:** no limit, because "a handful is fine."
+If two is the normal case and four is rare, that is worth knowing before the screens are drawn.
+
+**What the answers decide:**
+
+- **Whether a cap on coaches per skater is set at all, and what it is.** None today. The
+  per-coach fan-out and the "Also coached by" list both grow with the number. (ADR-025 Open;
+  `Open-Pending.md` §2)
+- **How the multi-coach screens are laid out** (questions 1, 3 and 5): the coach switcher,
+  lessons and payments grouped by coach, and each skater's list of coaches. None of these are
+  designed yet, and the right layout for two coaches differs from the right one for five.
+  (ADR-025 decision 7; `Open-Pending.md` §2 to-do)
+- **Whether "Also coached by" stays a plain list** or needs grouping or truncating, and
+  whether it stays at all (question 7). It is a deliberate narrow exception to keeping coaches'
+  data apart, and ADR-025 already says it can be dropped or made opt-in if a coach objects.
+  (ADR-025 decision 4, "Revisit if")
+- **How the clash warning should read when a skater has several coaches** (question 2) — whether
+  naming the other coach per clash is enough, and whether frequent back-to-back lessons make the
+  warning noise. (ADR-025 decision 5)
+- **Whether adding and dropping coaches mid-season needs more than today's remove flow**
+  (question 6), including what the family sees when one coach removes their skater while another
+  keeps them. (ADR-025 Open; blocker #17)
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.
@@ -208,6 +333,7 @@ reads *"check if needed from kim"*.)
 
 1. Do you need records of cancelled lessons for taxes or your own bookkeeping?
 2. If so, for how long?
+3. If so, which records? (ie that they booked, that they attended lesson(s), something else)
 
 **Decides:** the floor for how long cancellation records are kept before they expire from the
 live system and move to the archive. (ADR-006, ADR-009, ADR-017)
