@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-09-30
+**As of:** 2026-10-06
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -51,7 +51,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   lapses**. Nothing in the model expresses a suspended tenant. (ADR-016)
 - **Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
   expiry. The sign-up notes assume 5 characters. *Deferred by the owner, 2026-09-30.*
-  (ADR-002, ADR-016)
+  (ADR-002, ADR-016) *Since 2026-10-06 this may be replaced by the coach's registration
+  number: see §2b.*
 - **Open question: Photo moderation.** Nothing inspects or lets anyone report a coach's photo.
   (ADR-016)
 - **Open question: What a coach sees on first login** — an empty grey month, designed together
@@ -62,7 +63,60 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   lessons and payments across coaches (grouped by coach, never totalled), each skater's coaches
   and status, and *"Also coached by"* on the coach's skater record. None is in the Harbor
   designs.
-- **Open question: Is there a limit on coaches per skater?** None set. (ADR-025)
+- **Pending decision — needs Kim (§10): Is there a limit on coaches per skater?** None set.
+  How many coaches a skater really has also shapes the undesigned multi-coach screens. (ADR-025)
+
+## 2a. Shared lessons (ADR-026)
+
+- **Pending decision — needs Kim (§8):** maximum skaters per lesson, pricing, approval of
+  invited skaters, what the booking family cancelling does, when invitations lapse. Sharing is
+  off (`maxSkaters` = 1) until answered. (ADR-026 P1–P5)
+- **Open question: Recurring shared lessons** — does one invitation cover a series? (ADR-026)
+- **Open question: Lowering `maxSkaters`** on lessons already booked with more skaters. (ADR-026)
+- **To-do: Add the share-code rows to the gate tests** and re-run them, since `client-tenant`
+  gains a read statement. (ADR-026, `runbooks/database-gate-tests.md`)
+- **To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
+  confirm or decline, shared bookings on both sides. (ADR-026)
+- **Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
+  at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
+- **Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
+  that overlaps their lesson with another coach? (ADR-026)
+- **To-do: Include participants everywhere a lesson is walked** — the schedule-change consumer's
+  cancel and re-price, the change notifier (one message per family), the drift check, the
+  end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
+- **Note:** share-code length and alphabet follow the coach-code decision (blocker #7), and
+  `consumer-invite` brings the total to fourteen Lambda functions. (ADR-026)
+
+## 2b. Skating membership numbers (`FeatureDecriptions/Client Sign Up`, `Coach Sign Up`)
+
+Added to the sign-up notes on 2026-10-05: families must enter a USFSA or USA Hockey
+registration number, and a coach's registration number becomes their coach code. Both can
+change each season. No ADR yet; it waits on the research and Kim's answers below.
+
+- **Research: Can USFSA and USA Hockey numbers be validated?** Is there an API, a lookup service
+  or a data agreement? Not known. Validation decides whether a coach's number can safely be
+  their code.
+- **Research: How each organisation's numbers behave year to year.** USA Hockey may issue a new
+  number each season; US Figure Skating member numbers may be permanent with yearly renewal.
+  Unverified.
+- **Pending decision: Is the coach code the coach's registration number, or a random BladeBook
+  code with the registration number stored separately?** Using the number is only safe if it
+  can be validated: otherwise anyone can claim a real coach's number, lock that coach out, and
+  receive their families' sign-ups. Registration numbers also aren't secret and may be
+  guessable, which weakens the step that keeps strangers out (more so if Kim §6 removes coach
+  approval). The two organisations' numbers could collide, so codes would need a prefix. Ties to
+  blocker #7.
+- **Open question — needs Kim (§9): Is a skater's number required, and for whom?** It belongs
+  to each skater, not the family account; adults and learn-to-skate beginners may not have one.
+  Decide what happens when a number expires: blocked from booking, a reminder, or nothing.
+- **Open question: Does this exclude Canada?** Canadian skaters and coaches register with Skate
+  Canada or Hockey Canada. ADR-016 dropped the EIN gate partly because it excluded Canada, and
+  the design supports CAD. (Kim §9, question 6)
+- **Open question: Why is a skater's number needed?** It adds personal data about minors, so
+  §7's data minimisation needs a stated purpose. (Kim §9, question 2)
+- **Settled, no action:** a coach's code changing each year doesn't affect existing families or
+  recurring bookings. Links, bookings and recurrences point at the coach's internal ID, never the
+  code; only the sign-up lookup changes. Open: whether old codes keep working for new sign-ups.
 
 ## 3. Money and payments
 
@@ -77,6 +131,35 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   coach-only. (ADR-003)
 - **To-do (Phase 2): Rate-limit the manual payment reminder** before the button ships.
   (ADR-003)
+- **Pending decision: Does BladeBook calculate rink fees, or does the coach enter what they
+  paid?** *Added 2026-10-07 from talking with Kim.* The financial page shows year-to-date (YTD)
+  gross and fees paid to the rink. Calculating means modelling each rink's terms: a percentage of
+  gross or a flat monthly fee (Pelham Civic Center (PCC) figure skating: 15% or $500 a month), an hourly rate (PCC
+  hockey: $10 an hour), and rates that vary by ice type. Entering is simpler and always matches
+  what was actually paid. Kim's own question applies: can a coach switch between percentage and
+  flat fee from month to month? Coaches at more than one rink need fees per rink.
+  (`FeatureDecriptions/Coach Financial Page.md`, `Talking with Kim:.md.md`)
+- **Open question: What counts as gross?** Lessons marked paid, or every lesson given whether
+  paid or not? Are waived lessons left out, and do missed-lesson fees count? Is the year the
+  calendar year (the tax year for individuals in both the US and Canada)? Are past years and an
+  export for a tax preparer needed? (`FeatureDecriptions/Coach Financial Page.md`)
+- **To-do: Check data retention against the financial page.** YTD totals need a full year of
+  lesson and payment history, and tax records are normally kept for several years. Confirm that
+  ADR-017's time-to-live (TTL) and archive rules don't remove records the page or a tax return
+  needs. (ADR-017)
+- **Open question: Which handles count as "on the profile" for how the client paid?** *Added
+  2026-10-07.* The options are the coach's payment types plus *Other*, with no free text. Assumed:
+  every handle the coach filled in, whether or not *Show my payment handles*
+  (`displayPaymentTypesToClients`) is on. (`FeatureDecriptions/Coach Payment Section on
+  Dashboard.md`, ADR-016 decision 7)
+- **Open question — needs Kim: Should cash be a fixed option?** Under the rule above, cash at
+  the rink, cheques and Interac e-transfer all become *Other*. A Canadian-dollar (CAD) coach,
+  who usually has no Cashapp, Venmo or PayPal handle, would only ever see *Other*. (ADR-016
+  decision 7)
+- **Open question: How-paid details.** Is it required when marking a lesson paid? Can it be
+  changed afterwards? Does the family ever see it? A waived lesson has no method. Proposed:
+  store it on the booking as a fixed value (`CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
+  handle from the profile later doesn't change past records. (ADR-003)
 
 ## 4. Scheduling and booking
 
@@ -120,6 +203,20 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   unstated in the UI. (ADR-006)
 - **To-do: Write the "no times posted yet" copy** for an all-grey calendar, and the coach's
   "build your schedule" prompt. (ADR-008)
+- **To-do: Amend ADR-008 to add rink and ice type to the block.** *Decided by the owner, 2026-10-07:*
+  ice type is required on every tab and never shown to families. The values are each rink's own
+  names for its sessions, kept in a per-rink list that the owner adds to as BladeBook reaches new
+  rinks; coaches pick from it and don't create their own. The rink is also per tab, fixed to
+  PCC in Phase 1 (below). If BladeBook calculates rink fees
+  (§3), also stamp the ice type onto each booking, the way price and currency are, so a later
+  schedule change doesn't change last month's fees. (ADR-008, ADR-003,
+  `FeatureDecriptions/Schedule Creater.md`)
+- **Open question (Phase 2): What a coach at a rink with no ice type list does.** *Decided by
+  the owner, 2026-10-07:* the rink is chosen per tab in the schedule builder; in Phase 1 it is
+  fixed to Pelham Civic Center (PCC) and not selectable. Once rinks are selectable, ice type is
+  still required, so a coach whose rink isn't listed can't save a schedule. Is there a fallback
+  (e.g. a generic list), or does the owner add the rink before that coach can start?
+  (`FeatureDecriptions/Schedule Creater.md`)
 
 ## 5. Cancellation
 
