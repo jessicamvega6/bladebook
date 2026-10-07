@@ -5,6 +5,13 @@ As of now schedule creation will have
   (EOD)End of Day: A dropdown filled from 12am - 11:45pm in 15 minute intervals
   (LL)length of lesson (in mins): a dropdown with 30,45,60,90,120 in the list. 
   (LC)Lesson Cost: the cost of the lesson. represented in the currency selected on sign up. MVP the currency is USD or canadian. 
+  (R)Rink: the rink the lessons are at. Per tab, because a coach can work at more than one rink. Decides which ice types are listed. Added 2026-10-07.
+                Phase 1: fixed to Pelham Civic Center (PCC) and not selectable. Phase 2: a dropdown of the rinks BladeBook has ice types for.
+  (IT)Ice Type: the type of ice the lessons are on, named the way the rink names its sessions, e.g. at PCC: Birmingham Figure Skating Club (BFSC) freestyle ice, Stick and Puck (S&P) ice, public ice. Added 2026-10-07 from talking with Kim. 
+                Per tab, like LC, because one day can mix ice types. The rink fee depends on it (see Coach Financial Page.md). 
+                Required. Not shown to families. A dropdown of the ice types for the tab's rink. Each rink's list is
+                maintained by the BladeBook owner and added to as BladeBook reaches new rinks; coaches don't create their own.
+                What happens at a rink with no list yet is open (Phase 2), see docs/Open-Pending.md §4.
   (Days)Days this Schedule needs to repeat: wih 7 checkboxes representing sun - sat. For default view Days are manditory, for temp view they are not shown.
   (SD) Start Date: For temporary schedules the date the schedule needs to start. Only shown for temp Schedules
   (ED) End Date: For temporary schedules the date the schedule needs to stop. Only shown for temp Schedules   

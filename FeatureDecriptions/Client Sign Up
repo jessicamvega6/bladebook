@@ -28,9 +28,9 @@ confirm password field: confirm password can =not allow pasting.
 
 Profile Icon selection: A list of images uploaded by system phase 2
 
+Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization and changes each season. Check to see if there is an API to check if the number is valid for the year/season.
 
 
-
-
+Clients can have more than one coach. And at signup they put in all of their coaches codes.
 
 

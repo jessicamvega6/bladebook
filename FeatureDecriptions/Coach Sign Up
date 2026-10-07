@@ -37,3 +37,11 @@ Check to see if there is a way to validate the EIN, if there isnt then yes anybo
 Commented out fields are ones that will probably be removed after research 
 
 Coach signup url will at some point be gated by a licence number, the coaches will need to buy access to the software, idk how that works atm so for now the signup is ungated.
+
+
+coaches have USFSA/USA Hockey registration number which they will enter at sign up. 
+This number will be their coach code and will show up on their students profile page along with the coah name. 
+
+This registration number is provided by the USFSA/USA Hockey organization and changes each year. See if there is an API to hook into to validate a number. 
+
+Coaches will need to add their new number each year. The old numbers will either need to be kept or the reoccuring bookings will need to be updated with the new number.
