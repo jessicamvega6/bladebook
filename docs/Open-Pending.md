@@ -1,10 +1,10 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-06
+**As of:** 2026-10-09
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
-its source (a new or amended Architecture Decision Record (ADR)) and delete it here.
+its source (a new or amended Architecture Decision Record (ADR)) and strike it through here and add *Settled <date>*.
 
 Legend: **Open question** = needs an answer · **Pending decision** = options exist, one must be
 chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen to park it.
@@ -19,7 +19,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **Pending decision: Which continuous integration (CI) system?** No ADR names one. The repo
   is on GitHub, so GitHub Actions is the obvious candidate; AWS CodePipeline/CodeBuild is the
   AWS-native alternative. It must build the JARs before every deploy (no stale-JAR deploys),
-  run ADR-013's ArchUnit and mutation-testing gates, deploy to staging before production, and
+  run ADR-013's ArchUnit and mutation-testing gates, build a dev stack to test in before deploying to production (ADR-027), and
   reach AWS without long-lived access keys. Blocks the to-do in §11. (ADR-013, ADR-001 A4,
   Blockers-Before-Coding #3)
 - **Pending decision: How student data is deleted on request.** §7 promises it; nothing
@@ -50,7 +50,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   where the gate sits, and above all **what happens to a coach's families when a licence
   lapses**. Nothing in the model expresses a suspended tenant. (ADR-016)
 - **Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
-  expiry. The sign-up notes assume 5 characters. *Deferred by the owner, 2026-09-30.*
+  expiry. The client sign-up note checks at 8 characters, ADR-016 says 5, the designs show 8. *Deferred by the owner, 2026-09-30.*
   (ADR-002, ADR-016) *Since 2026-10-06 this may be replaced by the coach's registration
   number: see §2b.*
 - **Open question: Photo moderation.** Nothing inspects or lets anyone report a coach's photo.
@@ -60,27 +60,42 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - *Parked:* Whether any business identifier returns, and Canada's equivalent. (ADR-016)
 
 - **To-do: Design the multi-coach screens** (ADR-025 d7): adding a coach, the coach switcher,
-  lessons and payments across coaches (grouped by coach, never totalled), each skater's coaches
-  and status, and *"Also coached by"* on the coach's skater record. None is in the Harbor
-  designs.
-- **Pending decision — needs Kim (§10): Is there a limit on coaches per skater?** None set.
-  How many coaches a skater really has also shapes the undesigned multi-coach screens. (ADR-025)
+  lessons and payments across coaches (grouped by coach, never totalled), and each skater's
+  coaches and status, designed for about 10 coaches. None is in the Harbor designs.
+  *"Also coached by"* on the coach's skater record is Phase 2 (ADR-025 d4).
+- ~~**Pending decision — needs Kim (§10): Is there a limit on coaches per skater?**~~
+  **Settled by the owner, 2026-10-07: no limit.** A skater signs up with 1 to 10 coaches and adds
+  more later as needed. (ADR-025)
+- ~~**Open question — Kim §6: Does a sibling of an approved family skip approval, and does a
+  slow approval need a reminder to the coach?**~~ **Settled 2026-10-09 by the owner:** the coach
+  approves everyone, siblings included; no reminder email; the Students tab title shows the
+  number of pending students. (ADR-002, amended)
 
 ## 2a. Shared lessons (ADR-026)
 
-- **Pending decision — needs Kim (§8):** maximum skaters per lesson, pricing, approval of
-  invited skaters, what the booking family cancelling does, when invitations lapse. Sharing is
-  off (`maxSkaters` = 1) until answered. (ADR-026 P1–P5)
-- **Open question: Recurring shared lessons** — does one invitation cover a series? (ADR-026)
+- **Pending decision — needs Kim (§8):** pricing (P2), what the booking family cancelling does
+  (P4), and when an invitation the family hasn't accepted lapses (P5, in part). Max 2 and
+  approval decided by the owner 2026-10-07; sharing is on. (ADR-026)
+- ~~**Open question: Recurring shared lessons** — does one invitation cover a series?~~ **Settled:
+  yes** (ADR-026 d5).
+- **Open question: A series where skater B can't make some dates** — accept the dates that work,
+  or all or none? (ADR-026 Open)
 - **Open question: Lowering `maxSkaters`** on lessons already booked with more skaters. (ADR-026)
 - **To-do: Add the share-code rows to the gate tests** and re-run them, since `client-tenant`
   gains a read statement. (ADR-026, `runbooks/database-gate-tests.md`)
 - **To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)
+- **To-do: Build the nightly invitation sweep** — warnings sent early, `warnedAt`, expiry of `SENT`
+  and `AWAITING_COACH` invitations. (ADR-026 d5a)
+- **To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)
 - **Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
   at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
-- **Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
-  that overlaps their lesson with another coach? (ADR-026)
+  *Partly settled 2026-10-09 (ADR-026 d5a): a nightly sweep sends the warning and expires
+  invitations whose lesson has started. Still open: a precise timer if Kim's P5 sets a lapse
+  before the lesson.*
+- ~~**Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
+  that overlaps their lesson with another coach? (ADR-026)~~ **Settled 2026-10-07** (ADR-026
+  decision 5): the confirm page shows clashes and the family chooses.
 - **To-do: Include participants everywhere a lesson is walked** — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
   end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
@@ -103,8 +118,7 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   code with the registration number stored separately?** Using the number is only safe if it
   can be validated: otherwise anyone can claim a real coach's number, lock that coach out, and
   receive their families' sign-ups. Registration numbers also aren't secret and may be
-  guessable, which weakens the step that keeps strangers out (more so if Kim §6 removes coach
-  approval). The two organisations' numbers could collide, so codes would need a prefix. Ties to
+  guessable, which weakens the step that keeps strangers out. The two organisations' numbers could collide, so codes would need a prefix. Ties to
   blocker #7.
 - **Open question — needs Kim (§9): Is a skater's number required, and for whom?** It belongs
   to each skater, not the family account; adults and learn-to-skate beginners may not have one.
@@ -147,11 +161,10 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   lesson and payment history, and tax records are normally kept for several years. Confirm that
   ADR-017's time-to-live (TTL) and archive rules don't remove records the page or a tax return
   needs. (ADR-017)
-- **Open question: Which handles count as "on the profile" for how the client paid?** *Added
-  2026-10-07.* The options are the coach's payment types plus *Other*, with no free text. Assumed:
-  every handle the coach filled in, whether or not *Show my payment handles*
-  (`displayPaymentTypesToClients`) is on. (`FeatureDecriptions/Coach Payment Section on
-  Dashboard.md`, ADR-016 decision 7)
+- ~~**Open question: Which handles count as "on the profile" for how the client paid?**~~
+  **Settled 2026-10-07:** the handles the coach filled in, plus *Other*, no free text. Open only:
+  whether *Show my payment handles* (`displayPaymentTypesToClients`) matters. (`FeatureDecriptions/Coach Payment Section on
+  Dashboard.md`, ADR-003 decision 4, amended 2026-10-09)
 - **Open question — needs Kim: Should cash be a fixed option?** Under the rule above, cash at
   the rink, cheques and Interac e-transfer all become *Other*. A Canadian-dollar (CAD) coach,
   who usually has no Cashapp, Venmo or PayPal handle, would only ever see *Other*. (ADR-016
@@ -166,7 +179,9 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 - **Open question: Should a one-off booking have a date ceiling?** Recurrences cap at 12
   months; single bookings have none (the UI shows 3 months, the API doesn't enforce it).
   *Held open by the owner, 2026-09-30,* pending how often coaches change their schedules and
-  prices — see `Items to ask Kim About.md` §1. (ADR-006, `FeatureDecriptions/Bookings:`)
+  prices — see `Items to ask Kim About.md` §1. *Kim, recorded 2026-10-08: the weekly schedule
+  changes "not often"; how often prices change and how far ahead families book are still
+  unanswered.* (ADR-006, `FeatureDecriptions/Bookings:`)
 - **Open question (Phase 2): Is a saved schedule a third item type or a header not in
   effect?** Decides whether "save" and "apply" are one action or two. (ADR-008)
 - **Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
@@ -179,14 +194,15 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 - **Pending decision — needs Kim: The large-price-change warning threshold** — how big a change
   triggers the preview's must-acknowledge warning. Depends on how much coaches normally change
   prices. (ADR-020 decision 4, `Items to ask Kim About.md` §1)
-- **Pending decision — needs Kim, and blocks the schedule-save amendment: A booking lands
+- ~~**Pending decision — needs Kim, and blocks the schedule-save amendment: A booking lands
   between the coach's preview and save.** Proposed underneath every option: the preview reads
   a per-coach booking counter that every booking increments, and the save commits only if it
   hasn't changed. If it has, recalculate; an unchanged plan saves silently, a changed one goes
   back to the coach. What happens to the new booking then depends on Kim: (A) show the coach
   and let them choose, (B) cancel with a "just booked" email, (C) keep it as a one-off, or
   (D) hide the affected times while the coach previews. Owner leans A + B. Record in an
-  amendment to ADR-006/008/020 once answered. (`Items to ask Kim About.md` §7)
+  amendment to ADR-006/008/020 once answered. (`Items to ask Kim About.md` §7)~~ **Settled 2026-10-08 from Kim's answer: B** — the save goes ahead; bookings made since the preview are cancelled with the "just booked" email. Recorded in ADR-006, ADR-008 and ADR-020.
+- ~~**To-do: Write the "just booked, then cancelled" email** (`FeatureDecriptions/Email templates Needed:`).~~ **Moved to Phase 2 by the owner, 2026-10-09**, with the booking counter it needed (ADR-006, ADR-008, ADR-020). To be reconsidered if feedback supports that this is an issue.
 - **Pending decision: Bookings don't check the schedule atomically.** *Confirmed 2026-10-04.*
   Each occurrence is checked against the schedule in code, then written with a conditional
   `PutItem` whose only condition is `attribute_not_exists(SK)`. That prevents double-booking,
@@ -220,9 +236,9 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 
 ## 5. Cancellation
 
-- **Open question: Is the coach notified of every client cancellation, or only late ones?**
-  The notifier sends on every one until settled; ask the coach. If a threshold arrives it
-  should be the coach's `requiredNoticeHours`. *Deferred 2026-08-25.* (ADR-009,
+- ~~**Open question: Is the coach notified of every client cancellation, or only late ones?**~~
+  **Settled 2026-10-08 from Kim's answer:** only cancellations inside the coach's notice period
+  (`requiredNoticeHours`), by email and, if opted in, text. (ADR-009,
   `FeatureDecriptions/Email templates Needed:`)
 - **Open question: Two overlapping recurrences where there should be one** — extension is
   excluded, so clients book a second. (ADR-009)
@@ -254,8 +270,8 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 ## 8. Data protection, privacy and retention
 
 - **To-do: Schedule the pre-launch legal review.** Agenda: Children's Online Privacy
-  Protection Act (COPPA) and state privacy laws, reportability of a staging exposure
-  (ADR-011 decision 6c), and every retention window below. Each window, once set, is a
+  Protection Act (COPPA) and state privacy laws, reportability of an exposure in the dev
+  environment (ADR-011 decision 6c, ADR-027), and every retention window below. Each window, once set, is a
   configuration value applied through Time to Live (TTL), plus a one-off backfill.
   (architecture §7, ADR-017)
 - **Open question: The retention windows ADR-017 is waiting on** — each needs the legal
@@ -287,7 +303,7 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   receives that removal (ADR-021 d6) and is the natural home; adding the email gives it
   `ses:SendEmail`.* (ADR-002, ADR-001 A6, ADR-021)
 - ~~**To-do: Write ADR-021's database-gate tests before coach-path code.**~~ **Done 2026-10-05, all pass** (`runbooks/database-gate-tests.md`). Eight checks
-  against a real table in staging (DynamoDB Local ignores IAM), part of ADR-013's required tests. The open one: does `LeadingKeys` on a
+  against a real table in a sandbox account (`bb-gate-test`) (DynamoDB Local ignores IAM), part of ADR-013's required tests. The open one: does `LeadingKeys` on a
   GSI3 query check the index's partition key? If not, the unpaid list moves to the main
   table. (ADR-021 d7)
 - ~~**To-do: Write ADR-022's client-gate tests alongside them.**~~ **Done 2026-10-05, all pass;** row 9 confirmed: the database refuses `ALL_OLD` on a failed write. Ten checks. Two are open: the
@@ -320,7 +336,9 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   security event, and pages on 3+ in 15 minutes for one family or 10+ a day overall, both
   configurable. (monitoring-questions §1)
 - **To-do: Cross-tenant isolation test in continuous integration (CI)**; decide whether a
-  production canary is also needed. (monitoring-questions §1, ADR-013)
+  production canary that attempts a cross-tenant read is also needed. Separate from the
+  cancellation-flow canary, which ADR-027 decision 7 settled: it runs against production as a
+  test coach and test family. (monitoring-questions §1, ADR-013)
 - **Open question: Can accepting a `PENDING` student ever leak data across coaches**, for
   example when someone guessed a coach code? (monitoring-questions §1)
 - **To-do: Configure SES event destinations** for bounce, complaint and delivery. The pages
@@ -350,10 +368,10 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   one verification, no campaign fee. *Held open by the owner, 2026-09-30, pending research:*
   which number types AWS can use to text both US and Canadian mobiles, and what each
   registration needs from an individual without a registered business. (ADR-007)
-- **To-do before the initial launch: Turn on staging's WAF in block mode and re-test.** Staging
+- **To-do before the initial launch: Turn on dev's WAF in block mode and re-test.** Dev
   is built and tested without it; enabling it, running the Playwright flows and the main coach
   and client journeys, and fixing any misfiring rule is one of the last pre-launch checks.
-  (ADR-019 decision 4a)
+  (ADR-019 decision 4a, ADR-027)
 - **To-do at launch + 2 weeks: Switch the production WAF from count to block** — review the
   counted metrics and sampled requests, adjust any rule that caught real traffic, then block.
   Rate limits are unenforced until then. (ADR-019 decision 2)
@@ -378,15 +396,48 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   logs hold IP addresses and request paths, so the final window goes on the legal review's
   agenda. (ADR-019)
 
-## 11. Staging and testing
+## 11. Dev environment and testing
 
-- **To-do: Create the staging test-account pools** — three to five coaches, about ten
-  clients — and record their `sub`s as configuration. (ADR-011 decision 8c)
-- **To-do: Put the default refresh coach list in Parameter Store.** (ADR-011 decision 8a)
-- **Open question: Is the staging access log detailed enough to answer "did anyone read it"?**
-  (ADR-011 decision 6c)
-- *Parked:* Ephemeral per-branch stacks as a fallback if persistent staging gets costly to
-  maintain. (ADR-011)
+*Since 2026-10-07 there is no staging environment: production is the only long-running
+environment, and dev is built on demand and destroyed when done (ADR-027).*
+
+- **To-do: Create the dev test-account pools as part of building the stack** — three to five
+  coaches, about ten clients. Their `sub`s change with each build; `build-dev` reads them by
+  email. (ADR-027 decision 3, ADR-011 decision 8c)
+- ~~**Pending decision: Where the masking job lives, where dev's logs are kept, and whether dev
+  is a separate AWS account**~~ **Settled 2026-10-07 (ADR-027 decisions 8–9):** production and
+  dev are separate accounts under one AWS Organization; the masking job, the load log and dev's
+  access-log bucket live in their own small stack in the production account.
+- ~~**Open question: What runs the dev masking job?**~~ **Settled 2026-10-09:** an AWS Step
+  Functions workflow in the data-loading stack (ADR-027 decision 9, amended).
+- **To-do: Set up the AWS Organization** — production and dev accounts, IAM Identity Center
+  sign-in with multi-factor authentication, and `dev.<domain>` delegated to a hosted zone in the
+  dev account. Before any infrastructure is built: tables and Cognito users can't move between
+  accounts later. (ADR-027 decision 8)
+- **To-do: Write the data-loading stack's cross-account permissions** — dev's table import reading
+  the masked bucket, and dev's CloudTrail writing to the log bucket in production. (ADR-027
+  decision 9, ADR-028)
+- **To-do: Build the masked-build workflow** — the Step Functions workflow, the transform Lambda
+  (with its item count and duplicate-key check), the export bucket and the masked bucket (each
+  deletes its contents after 24 hours). (ADR-027 decision 9, ADR-028)
+- **To-do: Rewrite the seed script to write an import file**, taking each test account's `sub`
+  by email. (ADR-028 decision 4; `terraform/bladebook_seed.py`)
+- **To-do: Split dev into an account stack and an application stack.** (ADR-028 decision 4)
+- **Open question: Does an import produce stream records?** Check on the first masked build.
+  (ADR-028 Open)
+- **Open question: Does dev's account stack stay up between builds?** (ADR-028 Open)
+- **Open question: Is dev's access log detailed enough to answer "did anyone read it"?**
+  (ADR-011 decision 6c, ADR-027 decision 4)
+- **Open question: How long may dev hold loaded production data?** Should a dev stack with
+  loaded data page, or remind the owner, after some number of days? (ADR-027 Open)
+- **Pending decision: The production canary's cadence and runner** (a scheduled CI job or
+  CloudWatch Synthetics), and which mailbox the test coach and family use. (ADR-027 decision 7
+  and Open)
+- **To-do: Mark the canary's test accounts and keep them out of anything summed across
+  coaches.** (ADR-027 decision 7)
+- **To-do: Check that teardown left nothing behind** — a script or a check at the end of the
+  destroy — and an infrastructure test that production's table and buckets stay retained and
+  deletion-protected. (ADR-027 decision 5 and Open)
 - **Pending decision: Should the ArchUnit test rule reach beyond `core/`?** Recommendation:
   move the cancellation consumer's orchestration into `core/` instead. (ADR-013)
 - **To-do: Build the first CI pipeline** — test enforcement switches on with it. Waits on the
@@ -413,10 +464,12 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   - ADR-001 A3 says 35 theme tokens (the theme defines 34) and lists two questions ADR-014 has
     since settled; decision 4 uses the old `SLOT#` key.
   - ADR-013 Open says "two API functions" (there are three).
-- **To-do: Regenerate `design/architecture-diagrams.html`** (via `design/render-diagrams.py`)
-  — `architecture.md`'s diagrams changed on 2026-09-28, 2026-09-29 and 2026-09-30.
+- ~~**To-do: Regenerate `design/architecture-diagrams.html`** (via `design/render-diagrams.py`)
+  — `architecture.md`'s diagrams changed on 2026-09-28, 2026-09-29 and 2026-09-30.~~ **Done
+  2026-10-07**, after the diagrams were brought up to ADR-027.
 - ~~**To-do: Retire or merge `Follow Up.md`** into this document so there is one list.~~
   **Done 2026-10-05:** every item was already here or settled in an ADR, so the file was
   deleted by the owner.
-- **To-do: Commit the untracked work** — ADR-010 to ADR-020, this file, monitoring questions,
-  feature descriptions, `design/`, `terraform/`.
+- **To-do: Commit the untracked work** — `terraform/`, `docs/Blockers-Before-Coding.md`,
+  `docs/design-rationale.md`, `docs/Talking with Kim:.md.md`, `docs/deletion/`, `.claude/skills/`,
+  plus uncommitted edits to 26 tracked files.
