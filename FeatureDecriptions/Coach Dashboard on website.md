@@ -13,7 +13,7 @@ By clicking on the day the caoch is taken to a Day view, by clicking on the week
 The student List page shows a list of students names and their guardians contact info. On this page there needs to be a way for the coach to update the contact information and delete the client/student. On delete there is a confirmation pop that must be accepted before delete happens. NEED TO DECIDE WHAT DELETE MEANS, ARE THEY REMOVED FROM INFO GOING FORWARD OR REFROACTIVATLY? DOES THIS MEAN THE CLIENT CAN NO LONGER BOOK WITH THE COACH, IF SO HOW DOES THAT SHOW ON THE UI FOR THE CLIENT
 
 
-On the coach profile page is a form that allows the coach to update their email, phone number, profile picture, payment currency, where they want to display their contact info to the client. 
+On the coach profile page is a form that allows the coach to update their email, phone number, profile picture (Phase 2), payment currency, where they want to display their contact info to the client. 
 
 
 The Pending student list is a page that displays the potential students of the coach. The coach needs to either accecpt or decline the student. 

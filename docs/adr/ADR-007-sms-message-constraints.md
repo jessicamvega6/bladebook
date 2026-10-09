@@ -140,7 +140,7 @@ The bill and the client's screen are the only other places you would find out.
 ### 5b. A coach-directed template
 
 *Added 2026-09-30.* The coach can opt in to a text when a family cancels ([ADR-009](ADR-009-cancellation.md)
-decision 9). That text goes **to** the coach, so it opens `BladeBook:`, not decision 5a's
+decision 9). *Amended 2026-10-09: late cancellations only — inside `requiredNoticeHours` (ADR-009).* That text goes **to** the coach, so it opens `BladeBook:`, not decision 5a's
 `<Coach name> via BladeBook:`:
 
 `BladeBook: <student> cancelled <day> <date> <time>. See email.`

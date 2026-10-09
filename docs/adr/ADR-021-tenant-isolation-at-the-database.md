@@ -34,6 +34,12 @@ waits.** Results: [`runbooks/gate-results-20261005-174949.txt`](../runbooks/gate
 `otherCoaches` (the names of a skater's other `ACTIVE` coaches) on each coach's `STUDENT#`
 record. A copy, not a permission: no policy changes. *Phase 2 since 2026-10-07* (ADR-025
 decision 4).
+
+**Amended — 2026-10-08.** [ADR-027](ADR-027-on-demand-dev-environment.md): decision 7's tests
+against a real table run in the on-demand dev stack (read "staging" as dev).
+[ADR-026](ADR-026-shared-lessons-by-invitation.md): `StudentChanged` also triggers
+`consumer-invite`.
+
 ---
 
 ## Context
@@ -313,7 +319,7 @@ by BladeBook's own code.
 
 ## Open
 
-- **Decision 7's tests**, row 3 above all.
+- ~~**Decision 7's tests**, row 3 above all.~~ **Passed 2026-10-05.**
 - **Whether `consumer-student-link` also sends the decline email** (ADR-002 decision 2b,
   `Open-Pending.md`). If it does, it gains `ses:SendEmail` and reads the coach profile for
   the Reply-To.

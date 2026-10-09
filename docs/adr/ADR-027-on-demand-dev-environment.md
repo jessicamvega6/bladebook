@@ -5,6 +5,14 @@
 **Accepted** — 2026-10-07. *Decided by the owner.* Decisions 8 and 9 (separate AWS accounts;
 where the masking job and the surviving logs live) added the same day.
 
+**Amended — 2026-10-09.** *Decided by the owner.* An AWS Step Functions workflow runs each load
+(decision 9, amended). Its steps carry out ADR-011 decision 6a's checks, 6b's after-load scan and
+most of decision 7's load log.
+
+**Amended — 2026-10-09, later.** [ADR-028](ADR-028-dev-table-built-from-one-import.md): dev's table is created from one import file when the
+stack is built — seed data or masked production, never both. Decisions 2, 3, 4 and 9 are
+amended; `load-dev` becomes `build-dev`.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across
@@ -16,10 +24,12 @@ doing* (alarms are proved in dev; the canary runs against production),
 [ADR-012](ADR-012-pii-access-logging.md) decision 5 (dev's access logs outlive the stack),
 [ADR-013](ADR-013-testing-requirement.md) decision 3c (the canary moves to production),
 [ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 7,
-[ADR-019](ADR-019-waf-in-mvp.md) decisions 4 and 4a, [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
+[ADR-019](ADR-019-waf-in-mvp.md) decisions 4–4b, [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
 (the rinkside page's dev address), [ADR-024](ADR-024-client-write-link-check.md) and
-[ADR-025](ADR-025-many-coaches-per-skater.md) (wording only: "staging" becomes "dev"), and
-[ADR-001](ADR-001-backend-stack.md) A4 criterion 5.
+[ADR-025](ADR-025-many-coaches-per-skater.md) (wording only: "staging" becomes "dev"),
+[ADR-001](ADR-001-backend-stack.md) A4 criterion 5, and *(added 2026-10-08)*
+[ADR-021](ADR-021-tenant-isolation-at-the-database.md) decision 7 and
+[ADR-013](ADR-013-testing-requirement.md) decision 4 (database-gate tests run in dev).
 
 ---
 
@@ -74,6 +84,9 @@ After launch, a **masked subset of production** can be loaded into a dev stack t
 load-dev --coaches <id>,… [--clients <id>,…] [--as-of <timestamp>]
 ```
 
+*Amended 2026-10-09 by ADR-028: production data is not loaded into a running stack; dev is built
+from it, with `build-dev --masked`.*
+
 Everything ADR-011 requires of a refresh applies to a load: masking in the pipeline, never
 after loading (decision 2); undeliverable replacements (decision 4); a per-load salt that is
 never stored (decision 5); the transform's self-checks, which abort the load (decision 6a);
@@ -89,7 +102,8 @@ deliberate act anyway. Naming a client still brings in all their coaches (ADR-02
 ADR-011 decision 8c's pools (`coach-a@example.com`…, `client-1@example.com`…) are created each
 time dev is built. Their Cognito `sub`s change with every build, which costs nothing: the load
 reads the current pool's `sub`s by email, and assignment by order is unchanged. Nothing
-linking a real identity to a test login is stored, as before.
+linking a real identity to a test login is stored, as before. *Amended 2026-10-09 by ADR-028
+decision 4: the test accounts are a separate stack, built first.*
 
 ### 4. Tearing down is a purge, so it follows ADR-011 decision 6c's rules
 
@@ -100,7 +114,8 @@ because deleting the data also deletes the evidence of how it got there. So:
   and only then is the stack destroyed, which is the purge.
 - **The scanner keeps running while dev exists.** ADR-011 decision 6b's three triggers stay:
   after every load, on demand, and daily. The daily schedule is part of the dev stack, so it
-  starts and stops with it.
+  starts and stops with it. *Amended 2026-10-09 by ADR-028: "after every load" reads as "after
+  every build from production data".*
 - **Evidence lives outside the stack.** Dev's access logs (ADR-012 decision 5's data events on
   the table and buckets) and the load log are written somewhere the teardown doesn't delete,
   and kept as long as production's access logs. Otherwise triage step 4, "did anyone read
@@ -192,7 +207,8 @@ production account, separate from the application stack, holds:
 
 - **the masking job and its role**, ADR-011 decision 7's "own role, used by nothing else". It
   starts the production export, masks it, and writes to the current dev table through a role in
-  the dev account that trusts it;
+  the dev account that trusts it; *amended 2026-10-09 by ADR-028: the workflow ends at the masked
+  file; the table is created from it when the dev stack is built;*
 - **the load log** (ADR-011 decision 7);
 - **the bucket for dev's access logs** (decision 4), which dev's CloudTrail writes to across the
   account boundary and which teardown can't reach.
@@ -207,6 +223,28 @@ idle and costs nothing between loads.
 **Turned down:** *running the job from the owner's machine.* Unmasked records would pass
 through a laptop's memory and disk, breaking ADR-011's rule that they exist only inside the
 transform.
+
+**Amended — 2026-10-09.** *Decided by the owner.* **An AWS Step Functions workflow runs each
+load**, in the data-loading stack. Its steps: start the production export (as of now or
+`--as-of`), check on it until done, run a **transform Lambda** (filter, mask, remap, ADR-011
+6a's checks), start the import in the dev account, check on it until done, then run ADR-011
+6b's scan, **whether the load succeeded or failed**. A failed check sends the workflow to a
+fail step, so the import never starts. It is started by hand with the coaches, clients,
+as-of time and reason; its run history and CloudTrail's record of who started it cover most of
+ADR-011 decision 7's load log. *Amended 2026-10-09 by ADR-028: the workflow ends at the masked
+file; the table is created from it when the dev stack is built.*
+
+- **Two buckets.** The raw export is unmasked production data, so it lands in an **export
+  bucket** readable only by the transform, with a rule that **deletes it automatically after a
+  day**. The masked output goes to a separate **masked bucket** that only the dev account's
+  import may read. Dev never touches the raw export. *Amended 2026-10-09 by the owner
+  ([ADR-028](ADR-028-dev-table-built-from-one-import.md) decision 6): the masked bucket also
+  deletes its contents automatically after 24 hours.*
+- **A restart is a new run** with a fresh export and a fresh salt (ADR-011 6a); nothing is
+  resumed.
+- **Why not one Lambda for the whole load:** it would wait through the export and the import,
+  and could be cut off by its 15-minute limit with no scan afterwards. Cost doesn't decide it:
+  both come to a cent or two a load, mostly the export and import.
 
 ---
 
@@ -260,8 +298,8 @@ transform.
   decision 9.
 - ~~Where dev's access logs and load log are kept, and whether dev is a separate AWS
   account.~~ **Settled 2026-10-07** — decisions 8 and 9.
-- **What runs the masking job.** A Lambda function has a 15-minute limit, which is plenty for a
-  subset at this scale; a longer-running option is only needed if loads grow.
+- ~~**What runs the masking job.**~~ **Settled 2026-10-09:** a Step Functions workflow
+  (decision 9).
 - **How long dev may hold loaded production data.** Should a dev stack with loaded data page,
   or remind the owner, after some number of days?
 - **The canary's cadence and where it runs** (a scheduled CI job or CloudWatch Synthetics), and
@@ -273,6 +311,12 @@ transform.
 
 ## Revisit if
 
+- The production table nears ~5 GB (roughly a few hundred coaches). The export always covers the
+  whole table, so one transform Lambda can no longer finish in 15 minutes: add a parallel
+  step that transforms each export file separately.
+- Exports cost tens of dollars or take hours (tables of hundreds of GB). Switch routine loads
+  to reading the named coaches and families directly, and keep the full export for incidents
+  that need `--as-of`.
 - Several people need access to production, or an audit asks for logs no one with production
   access can alter. That is when a separate log account earns its setup.
 - A second developer joins. Two people sharing one on-demand dev environment will collide, and

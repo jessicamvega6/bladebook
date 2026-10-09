@@ -25,6 +25,9 @@ and the security event's content.
 stack before a release, and the second flow's scheduled canary runs **against production**, as a
 dedicated test coach and family.
 
+**Amended — 2026-10-08.** [ADR-027](ADR-027-on-demand-dev-environment.md): decision 4's
+database-level tenant gate tests run in the on-demand dev stack.
+
 ---
 
 ## Decision
@@ -210,7 +213,7 @@ than merely untidy.
 | What | Why it matters | Source |
 |---|---|---|
 | **Cross-tenant isolation** — two coaches, assert every cross-tenant read fails | The one boundary in the system that is *not* structural: GSI1 is keyed by student, so the check is enforced in code | `monitoring-questions.md` §1 |
-| **Database-level tenant gate** — as coach A's tenant session, every operation against coach B's partition returns `AccessDeniedException`; the execution roles of `api-coach` and `api-checkin` hold no `dynamodb:` action | Proves the gate under the code gate, not the code gate again. **Runs against real AWS (staging), never DynamoDB Local, which ignores IAM.** Decision 7's table is this suite's first set of checks | ADR-021 d7 |
+| **Database-level tenant gate** — as coach A's tenant session, every operation against coach B's partition returns `AccessDeniedException`; the execution roles of `api-coach` and `api-checkin` hold no `dynamodb:` action | Proves the gate under the code gate, not the code gate again. **Runs against real AWS (staging), never DynamoDB Local, which ignores IAM.** *Since ADR-027: the on-demand dev stack.* Decision 7's table is this suite's first set of checks | ADR-021 d7 |
 | **`consumer-student-link`** — confirm and decline each reach the link item, twice-delivered events have one effect | The link is now written after the fact; a silent failure leaves a family seeing `PENDING` forever | ADR-021 d6 |
 | **Client database gate** — ADR-022 decision 9's table, as client A against client B and coach Y | The same proof for the client side, including that a `PENDING` session cannot read the coach's contact fields | ADR-022 d9 |
 | **The client read allowlist matches §5** — every attribute a client screen needs is on it, and no student, client, price or payment attribute is | The allowlist fails closed; this catches both a screen broken by a new attribute and an attribute added to the list by mistake | ADR-022 d6 |

@@ -36,6 +36,11 @@ pattern 21 loses its `clientId` filter ([ADR-022](ADR-022-client-isolation-at-th
 decision 5). GSI1 is keyed by client, so the *"GSI1 (by student)"* row in decision 5's table
 reads *"by client"*; a held slot is still invisible there because it writes no GSI keys.
 
+**Amended — 2026-10-08.** Kim's answer to `Items to ask Kim About.md` §2: the coach is notified
+of a client cancellation **only when it is inside the coach's notice period**
+(`requiredNoticeHours`, the threshold the fee uses), by email and, if opted in, by text. This
+settles the Open item below and narrows decision 9's `CLIENT` row.
+
 ---
 
 ## Context
@@ -400,7 +405,7 @@ the triggering event is one decision that happened to touch several lessons.
 |---|---|
 | `COACH` | Each affected client, once per batch |
 | `SCHEDULE_CHANGE` | Each affected client, once per batch |
-| `CLIENT` | The **coach** — the client already knows |
+| `CLIENT` | The **coach** — the client already knows. *Amended 2026-10-08: only inside `requiredNoticeHours`.* |
 
 Messages state that the lesson is cancelled and offer a link to book a different time
 (ADR-006 decision 5). SMS form is constrained by ADR-007 — one 160-character GSM-7
@@ -413,14 +418,16 @@ client (to coach). *Phase 2: distinct templates by reason — sick, emergency, v
 2026-09-30.* A coach at the rink reads texts, not email.
 
 - **Only if the coach has opted in.** A checkbox at signup and on the profile — *"Text me
-  when a family cancels"* — **unticked until the coach ticks it**, because carriers do not
+  when a family cancels late"* *(label amended 2026-10-09 to match the 2026-10-08 notice-period rule)* — **unticked until the coach ticks it**, because carriers do not
   accept pre-ticked consent. Ticking it sends ADR-007 decision 8's one-time opt-in
   confirmation to the coach's phone. The flag is `smsCancellationAlerts` on the coach
   profile ([ADR-016](ADR-016-coach-signup.md)).
 - **One text per cancellation batch**, like every other message here — a family ending a
   recurrence produces one text, not twelve.
 - **Every client cancellation**, for now. If Kim's answer narrows the coach's notice to late
-  cancellations only, the email and the text narrow together.
+  cancellations only, the email and the text narrow together. *Amended 2026-10-08: Kim
+  answered — only cancellations inside the coach's notice period (`requiredNoticeHours`),
+  email and text alike.*
 - **The text follows ADR-007:** one segment, no free text, a pointer to the email. Because it
   goes *to* the coach rather than from them, it opens `BladeBook:` rather than the coach's
   own name — *"BladeBook: Mia R. cancelled Tue 14 Oct 4:00pm. See email."* The student's
@@ -501,7 +508,8 @@ scoping rules. They must share the impact computation, or they will diverge.
 ## Open
 
 - ~~Is a no-show owed? Carried forward unanswered from ADR-003. `NO_SHOW` exists as a~~ **Settled 2026-08-30 by [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md): yes** — one rule covers a no-show and a late cancellation, because a no-show is a cancellation with zero notice.
-- **Is the coach notified of every client cancellation, or only same-day ones?**
+- ~~**Is the coach notified of every client cancellation, or only same-day ones?**~~ **Settled
+  2026-10-08 from Kim: only inside the notice period** (see Status). Original text:
   **Deferred by the owner, 2026-08-25.** The owner's note reads *"cancellation from
   student day of (check if needed)"*, which suggests a threshold. Until it is settled the
   notifier sends on **every** client cancellation — the safe default, since a missed

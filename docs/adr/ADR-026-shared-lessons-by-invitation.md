@@ -3,7 +3,8 @@
 ## Status
 
 **Accepted** — 2026-10-06. *Decided by the owner, after talking with an end user.*
-**Five points wait on Kim** (see Pending Kim); none of them blocks private booking.
+**P2 and P4 wait on Kim, and P5 in part** (see Pending Kim; P1 and P3 answered by the owner
+2026-10-07); none of them blocks private booking.
 
 **Extends** [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md) (a booking
 can carry more than one skater) and [ADR-008](ADR-008-schedule-editor.md) (a block gains
@@ -12,7 +13,13 @@ can carry more than one skater) and [ADR-008](ADR-008-schedule-editor.md) (a blo
 **Amends** [ADR-022](ADR-022-client-isolation-at-the-database.md) (one more read statement, for
 skater share codes, so its gate tests gain rows), [ADR-025](ADR-025-many-coaches-per-skater.md)
 decision 6 (`consumer-family-sync` also issues share codes) and
-[ADR-001](ADR-001-backend-stack.md) A5 (one more consumer, fourteen functions).
+[ADR-001](ADR-001-backend-stack.md) A5 (one more consumer, fourteen functions). *Since
+2026-10-07 also* [ADR-002](ADR-002-client-registration.md) (an invitation is a second way onto a
+roster), [ADR-024](ADR-024-client-write-link-check.md) (one exception: the coach's Accept joins an
+invited skater), [ADR-025](ADR-025-many-coaches-per-skater.md) decisions 2 and 5 (the invitation as
+a way to add a coach; the clash warning on the confirm page) and, *since 2026-10-08,*
+[ADR-021](ADR-021-tenant-isolation-at-the-database.md) decision 6 (`consumer-invite` also consumes
+`StudentChanged`).
 
 Source: `FeatureDecriptions/Schedule lesson split`.
 
@@ -33,6 +40,15 @@ name and the invited family hear nothing until the coach accepted; the owner rep
 the consent link above. **Who writes the automatic join is settled by the owner, the same
 day:** `api-coach`, in the coach's own session, as part of the coach's Accept. No function gains
 a database permission (decision 5, Consequences).
+
+**Amended — 2026-10-08.** *Decided by the owner.* `inviteStatus`'s first state renamed `PENDING` →
+`SENT`; `EXPIRED` added; how an `AWAITING_COACH` invitation closes (decision 5). `consumer-invite`
+is also triggered by `StudentChanged` (ADR-021 decision 6, ADR-001).
+
+**Amended — 2026-10-09.** *Decided by the owner.* An invitation still waiting on the coach gets a
+warning email and a home-screen banner before the lesson, and a nightly sweep closes any
+invitation whose lesson has started (decision 5a, new). The coach's email is moved from Phase 2
+to MVP. Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.
 
 ---
 
@@ -109,7 +125,9 @@ Because a participant carries the same index keys as a booking:
 reads `BOOKING#` items for a date range. Participants sort under `PARTICIPANT#`, so they're never
 returned to a family looking at open times, and a determined family can't count them.
 
-**Joining is one transaction**, written by the invited family's own session (decision 5):
+**Joining is one transaction**, written by the invited family's own session, or by the coach's
+own session when the coach's Accept joins an invited skater (decision 5, which adds two more
+conditions):
 
 1. update the booking: `skaterCount = skaterCount + 1`, on condition `skaterCount < maxSkaters`
    and that the booking still exists;
@@ -164,7 +182,8 @@ accepted, but nothing is booked for that skater until the coach does.
    booking, or on each booking in a recurring series. The join later requires it (step 5).
 2. **`consumer-invite`**, triggered by `InviteChanged`, copies the invitation into Family B's
    partition and **emails Family B straight away** (plus a text pointing to the email if they've
-   opted in to texts; ADR-007).
+   opted in to texts; ADR-007). *Amended 2026-10-08: and by `StudentChanged`, when the coach
+   accepts or declines an invited skater.*
    - **Skater B is already the coach's accepted student:** the email is an ordinary invitation
      to accept or decline.
    - **Skater B isn't:** the email says, in substance, *"Coach Dana needs to accept you first. By
@@ -209,7 +228,8 @@ accepted, but nothing is booked for that skater until the coach does.
      entry fails and writes nothing.
    - **The coach declines, or doesn't act before the lesson:** nothing is booked for skater B,
      the lesson goes ahead private, and Family A is told. Family B gets the ordinary decline
-     email.
+     email. *Amended 2026-10-08:* a lesson that passes before the coach acts ends the
+     invitation as **`EXPIRED`**, and Family B is told the lesson was no longer available.
    - **Clashes aren't re-checked at join time.** One booked between Family B confirming and the
      coach accepting goes unwarned, which matches ADR-025: clashes are warned about, never
      refused.
@@ -220,9 +240,25 @@ accepted, but nothing is booked for that skater until the coach does.
 Family B can **decline**, which closes the invitation and tells Family A. Family A can
 **withdraw** an invitation Family B hasn't confirmed.
 
-`inviteStatus` is `PENDING | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN`.
+`inviteStatus` is `SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED`. *Renamed by the
+owner 2026-10-08: the first state was `PENDING`, which read too much like a student's `PENDING`.*
+`SENT` means Family B hasn't answered yet.
 `AWAITING_COACH` means Family B has confirmed and the skater is waiting for the coach's
 acceptance. *Added 2026-10-07.*
+
+**How an `AWAITING_COACH` invitation closes** (*decided by the owner, 2026-10-08*), so it never
+waits forever:
+
+- **The coach accepts and skater B joins:** `CONFIRMED`.
+- **The coach declines skater B:** `DECLINED`. It now covers either family's "no" or the
+  coach's; the email to Family A says which.
+- **The lesson passes before the coach acts, or the coach accepts but the join fails** (the
+  booking was cancelled, the lesson has started, or it's full): **`EXPIRED`**. Family B is told
+  the lesson was no longer available.
+
+For a recurring series, these apply lesson by lesson; what the invitation's single status shows
+when some lessons join and others don't is part of the open partial-series question (Open).
+When an unanswered `SENT` invitation lapses is still Kim's P5.
 
 **A recurring booking shares every lesson in the series.** One invitation covers them all, and one
 confirmation joins skater B to each lesson in it.
@@ -238,6 +274,61 @@ so Family A never writes anything for a skater who isn't theirs (ADR-024). **The
 is the one exception:** no one from Family B is signed in when the coach accepts, so the coach's
 own session writes it, inside the coach's own partition, only for lessons Family B confirmed
 while signed in and that name skater B as invited.
+
+### 5a. Before and after the lesson: the warning, the banner and the nightly sweep
+
+*Decided by the owner, 2026-10-09.*
+
+**The warning.** For each lesson whose invitation is still `AWAITING_COACH`, an email goes to
+**Family A, Family B and the coach** no later than **24 hours plus the coach's
+`requiredNoticeHours`** (as stamped on the booking) before the lesson. Families who have opted in
+to texts also get a text pointing to the email (ADR-007). The coach's email is MVP, *moved from
+Phase 2 by the owner*.
+
+- *To both families:* Coach Dana hasn't accepted Mia for the shared lesson on Tue 14 Oct at
+  4:00. If she doesn't, the lesson goes ahead as a private lesson.
+- *To the coach:* a shared lesson on Tue 14 Oct at 4:00 is waiting for you to accept Mia, with a
+  link to the pending list.
+
+The timing gives Family A at least a day before the notice period begins, so they can cancel
+without a late fee if they don't want a private lesson.
+
+**The banner.** From the warning time until the coach accepts or declines skater B, or the
+lesson starts, **both families' home screens show a red banner**. The page works it out when it
+loads, from the invitation's status and the lesson time, so nothing is stored for it.
+
+- *Family A:* "Coach Dana hasn't confirmed Mia for your shared lesson on Tue 14 Oct at 4:00.
+  Unless she does, it will go ahead as a private lesson, charged at the booking's own price."
+- *Family B:* "Coach Dana hasn't accepted Mia yet. If she doesn't before the lesson, Mia won't
+  join the Tue 14 Oct 4:00 lesson."
+
+"The booking's own price" is what Family A booked at, so the banner stays true whatever P2
+decides about shared pricing.
+
+**The nightly sweep.** `consumer-invite` also runs **once a night**, right after the 9 PM
+end-of-day report. It reads upcoming bookings that carry an `invitedStudentId`, by date (GSI2),
+and does two things.
+
+- **It sends early, never late.** Every warning that falls due **before the next run** is sent
+  now, so a warning is never up to a day late. With the default 24-hour notice period, warnings
+  arrive 48 to 72 hours before the lesson. The invitation records **`warnedAt`**, so each warning
+  is sent once. A missed run catches up the next night, and ADR-010's alarm for a scheduled job
+  that stops running covers a job that doesn't run at all. *Amended 2026-10-09: the alarm
+  watches the sweep's own `InviteSweepCompleted` metric, because `consumer-invite`'s event-driven
+  runs would hide a missed sweep (ADR-010).*
+- **It closes invitations whose lesson has started.** Any invitation still `SENT` or
+  `AWAITING_COACH` becomes **`EXPIRED`**, and both families are told. Screens already show it as
+  expired from the moment the lesson starts, so the sweep only adds the emails.
+
+**Late confirmations.** If Family B confirms after the warning would have gone, or so close that
+it falls due before the next run, `consumer-invite` sends the warning straight away.
+
+**Family B's email when the lesson expires and the coach never accepted skater B:**
+*"This lesson has expired. Please reach out to Coach Dana to be accepted onto her roster for any
+future shared lessons. Reply to this email to reach Coach Dana."* The coach's phone and email
+are not printed, because skater B is still `PENDING` (ADR-016 decision 7a). The reply goes to
+the coach's `businessEmail` (ADR-016 decision 8). If skater B was already the coach's student and
+the join failed for another reason, Family B gets the existing "no longer available" email.
 
 ### 6. Coaches see every skater in the slot
 
@@ -307,6 +398,8 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   the end-of-day report, the coach's cancellation, and erasure on request.
 - **Lapsing invitations need a timer** if Kim agrees to P5. Nothing today fires at a per-booking
   time; EventBridge Scheduler's one-off schedules are the likely fit, to be decided with P5.
+  *Amended 2026-10-09: the nightly sweep (decision 5a) covers the warning and the expiry. P5's
+  lapse before the lesson may still need a precise timer.*
 - **New screens:** the share code on a skater's profile; "add a skater to share" on booking;
   invitations to confirm or decline; both skaters on a shared booking; every skater in a slot on
   the coach's views. None is in the Harbor designs.
@@ -329,8 +422,10 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   **yes**, decided by the owner 2026-10-07 (decision 5). Still open: what happens when skater B
   can't join some dates in the series (for example, a clash with another lesson). Can Family B
   accept the dates that work, or is it all or none?
-- **A skater in two places at once.** Joining a shared lesson that clashes with the skater's other
-  lesson gets ADR-025's warning; confirm that's enough here too.
+- ~~**A skater in two places at once.** Joining a shared lesson that clashes with the skater's other
+  lesson gets ADR-025's warning; confirm that's enough here too.~~ **Settled 2026-10-07**
+  (decision 5): the confirm page shows clashes and the family chooses; they aren't re-checked at
+  join time.
 - **What lowering `maxSkaters` does** to lessons already booked with more skaters. The stamp
   (decision 1) protects booked lessons; confirm that's the intended behaviour.
 
@@ -338,6 +433,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
 
 ## Revisit if
 
-- Kim's answer removes coach approval (P3). ADR-024's `requireActive` changes with it.
+- ~~Kim's answer removes coach approval (P3). ADR-024's `requireActive` changes with it.~~ **No
+  longer applies** — the owner made coach acceptance a standing rule (P3, 2026-10-07).
 - Families want to find each other to share, rather than arranging it outside the app. That's the
   "open spots" alternative, and it reopens the visibility question.

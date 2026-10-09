@@ -13,6 +13,7 @@ Form that has fields:
     currency
 
     Profile photo upload (optional, capped at 2MB and resize server-side to 512px)
+                         *Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.*
                          (will only be shown once the client enters the coachCode in the client sign up page.)
 
     paymentInstructions 
@@ -32,7 +33,7 @@ Forgot password:
 
 
 Notes:
-Check to see if there is a way to validate the EIN, if there isnt then yes anybode can sign up.
+~~Check to see if there is a way to validate the EIN, if there isnt then yes anybode can sign up.~~ *Settled: EIN gate abandoned (ADR-016).*
 
 Commented out fields are ones that will probably be removed after research 
 
@@ -44,4 +45,4 @@ This number will be their coach code and will show up on their students profile 
 
 This registration number is provided by the USFSA/USA Hockey organization and changes each year. See if there is an API to hook into to validate a number. 
 
-Coaches will need to add their new number each year. The old numbers will either need to be kept or the reoccuring bookings will need to be updated with the new number.
+Coaches will need to add their new number each year. The old numbers will either need to be kept or the reoccuring bookings will need to be updated with the new number. *Settled: bookings and recurrences use the coach's internal ID, never the code, so a code change doesn't touch them (Open-Pending §2).*

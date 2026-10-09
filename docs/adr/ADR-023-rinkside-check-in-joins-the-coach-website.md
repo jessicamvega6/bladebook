@@ -227,7 +227,7 @@ it, and a refreshed token keeps its original `auth_time`.
   ADR-014 asks of it (queue survives reload, duplicate replay dropped, and so on) is
   unchanged.
 - **Staging containment disables one coach app client** (ADR-011 d6c), plus the family
-  website's if it has its own.
+  website's if it has its own. *Read "staging" as dev since ADR-027.*
 
 ---
 

@@ -172,7 +172,7 @@ pre.src{
         <a href="#d4"><span class="i">04</span>6.2 Day-of reminders</a>
         <a href="#d5"><span class="i">05</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
         <a href="#d6"><span class="i">06</span>6.4 End-of-day report</a>
-        <a href="#d7"><span class="i">07</span>6.5 Schedule change → cancellation → notification</a>
+        <a href="#d7"><span class="i">07</span>6.5 Schedule change → cancellation and re-pricing → notification</a>
   </nav>
 
   <div class="zoom" role="group" aria-label="Diagram size">
@@ -195,12 +195,12 @@ pre.src{
 flowchart TB
     subgraph Users
         Coach[&quot;👤 Coach&lt;br/&gt;(web app)&quot;]
-        Client[&quot;👤 Client&lt;br/&gt;(adult student, or parent/guardian)&lt;br/&gt;(web app)&quot;]
-        CheckIn[&quot;📲 Check-in app&lt;br/&gt;(separate frontend, MVP)&quot;]
+        Client[&quot;👤 Client&lt;br/&gt;(adult student, or guardian)&lt;br/&gt;(web app)&quot;]
+        CheckIn[&quot;📲 Rinkside check-in&lt;br/&gt;(page in the coach website, ADR-023)&quot;]
     end
 
     subgraph Edge[&quot;Edge / CDN&quot;]
-        CF[&quot;CloudFront + WAF&quot;]
+        CF[&quot;CloudFront&quot;]
         S3[&quot;S3 (React static site)&quot;]
     end
 
@@ -209,16 +209,16 @@ flowchart TB
     end
 
     subgraph API[&quot;API Layer&quot;]
-        APIGW[&quot;API Gateway (HTTP API)&lt;br/&gt;JWT authorizer&quot;]
-        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings)&quot;]
-        L_CheckIn[&quot;λ api-checkin&lt;br/&gt;(own role + Cognito app client)&quot;]
+        WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
+        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
     end
 
     subgraph Events[&quot;Event Backbone&quot;]
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day cron)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day + weekly unpaid)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
     end
 
@@ -227,14 +227,30 @@ flowchart TB
         L_Remind[&quot;λ Day-of reminder&quot;]
         L_Pay[&quot;λ Payment reminder&quot;]
         L_Report[&quot;λ End-of-day report&quot;]
-        L_Cancel[&quot;λ Schedule-change cancellation&quot;]
-        L_Notify[&quot;λ Cancellation notifier&quot;]
+        L_Unpaid[&quot;λ Unpaid-lesson reminder&lt;br/&gt;(weekly, to the coach)&quot;]
+        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;(read-only, alerts)&quot;]
+        L_Cancel[&quot;λ Schedule change&lt;br/&gt;(cancel + re-price)&quot;]
+        L_Notify[&quot;λ Change notifier&quot;]
+        L_Archive[&quot;λ TTL archiver&lt;br/&gt;(ADR-017)&quot;]
+        L_Link[&quot;λ Student link sync&lt;br/&gt;(ADR-021)&quot;]
+        L_Family[&quot;λ Family sync&lt;br/&gt;(ADR-025)&quot;]
+        L_Invite[&quot;λ Invite&lt;br/&gt;(shared lessons, ADR-026)&quot;]
     end
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
         Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+        Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
+
+    subgraph DataLoad[&quot;Data-loading stack (production account, ADR-027 d9)&quot;]
+        SFN[&quot;Step Functions workflow&lt;br/&gt;(masked dev builds, on request)&quot;]
+        L_Transform[&quot;λ Transform&lt;br/&gt;(filter, mask, remap — operational)&quot;]
+        ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, deleted after a day)&quot;]
+        MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(deleted after 24 hours)&quot;]
+    end
+
+    DevTable[(&quot;Dev table&lt;br/&gt;(dev account — built from one import, ADR-028)&quot;)]
 
     subgraph Notify[&quot;Delivery&quot;]
         SES[&quot;SES (email)&quot;]
@@ -245,21 +261,34 @@ flowchart TB
     Client --&gt; CF
     CheckIn --&gt; CF
     CF --&gt; S3
-    Coach &amp; Client &amp; CheckIn --&gt; Cognito
-    CF --&gt; APIGW
+    Coach &amp; Client &amp; CheckIn --&gt; WAF
+    WAF --&gt; Cognito
+    WAF --&gt; APIGW
     APIGW --&gt; Cognito
     APIGW --&gt; L_Api
-    APIGW --&gt; L_CheckIn
     L_Api &lt;--&gt; DDB
-    L_CheckIn &lt;--&gt; DDB
 
     DDB --&gt; Stream --&gt; Pipe --&gt; Bus
+    Stream --&gt;|TTL removals only| L_Archive --&gt; Archive
     Sched --&gt; L_Remind
     Sched --&gt; L_Report
+    Sched --&gt; L_Unpaid
+    Sched --&gt; L_Drift
+    Sched --&gt; L_Invite
+    L_Drift --&gt; DDB
+    L_Unpaid --&gt; SES
+    L_Unpaid &lt;--&gt; DDB
     Bus --&gt; L_Confirm
     Bus --&gt; L_Pay
     Bus --&gt; L_Cancel
     Bus --&gt; L_Notify
+    Bus --&gt; L_Link
+    L_Link --&gt; DDB
+    Bus --&gt; L_Family
+    L_Family &lt;--&gt; DDB
+    Bus --&gt; L_Invite
+    L_Invite &lt;--&gt; DDB
+    L_Invite --&gt; SES &amp; SNS
 
     L_Confirm --&gt; SES
     L_Remind --&gt; SES &amp; SNS
@@ -269,19 +298,24 @@ flowchart TB
     L_Report --&gt; Reports
     L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
 
-    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify -.-&gt;|on repeated failure| DLQ</pre>
+    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite -.-&gt;|on repeated failure| DLQ
+
+    SFN --&gt;|starts export| DDB
+    DDB --&gt;|export| ExportB --&gt; L_Transform --&gt; MaskedB
+    SFN --&gt; L_Transform
+    MaskedB -.-&gt;|imported when dev is built| DevTable</pre>
         </div>
         <details>
           <summary>Source</summary>
           <pre class="src"><code>flowchart TB
     subgraph Users
         Coach[&quot;👤 Coach&lt;br/&gt;(web app)&quot;]
-        Client[&quot;👤 Client&lt;br/&gt;(adult student, or parent/guardian)&lt;br/&gt;(web app)&quot;]
-        CheckIn[&quot;📲 Check-in app&lt;br/&gt;(separate frontend, MVP)&quot;]
+        Client[&quot;👤 Client&lt;br/&gt;(adult student, or guardian)&lt;br/&gt;(web app)&quot;]
+        CheckIn[&quot;📲 Rinkside check-in&lt;br/&gt;(page in the coach website, ADR-023)&quot;]
     end
 
     subgraph Edge[&quot;Edge / CDN&quot;]
-        CF[&quot;CloudFront + WAF&quot;]
+        CF[&quot;CloudFront&quot;]
         S3[&quot;S3 (React static site)&quot;]
     end
 
@@ -290,16 +324,16 @@ flowchart TB
     end
 
     subgraph API[&quot;API Layer&quot;]
-        APIGW[&quot;API Gateway (HTTP API)&lt;br/&gt;JWT authorizer&quot;]
-        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings)&quot;]
-        L_CheckIn[&quot;λ api-checkin&lt;br/&gt;(own role + Cognito app client)&quot;]
+        WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
+        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
     end
 
     subgraph Events[&quot;Event Backbone&quot;]
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day cron)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day + weekly unpaid)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
     end
 
@@ -308,14 +342,30 @@ flowchart TB
         L_Remind[&quot;λ Day-of reminder&quot;]
         L_Pay[&quot;λ Payment reminder&quot;]
         L_Report[&quot;λ End-of-day report&quot;]
-        L_Cancel[&quot;λ Schedule-change cancellation&quot;]
-        L_Notify[&quot;λ Cancellation notifier&quot;]
+        L_Unpaid[&quot;λ Unpaid-lesson reminder&lt;br/&gt;(weekly, to the coach)&quot;]
+        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;(read-only, alerts)&quot;]
+        L_Cancel[&quot;λ Schedule change&lt;br/&gt;(cancel + re-price)&quot;]
+        L_Notify[&quot;λ Change notifier&quot;]
+        L_Archive[&quot;λ TTL archiver&lt;br/&gt;(ADR-017)&quot;]
+        L_Link[&quot;λ Student link sync&lt;br/&gt;(ADR-021)&quot;]
+        L_Family[&quot;λ Family sync&lt;br/&gt;(ADR-025)&quot;]
+        L_Invite[&quot;λ Invite&lt;br/&gt;(shared lessons, ADR-026)&quot;]
     end
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
         Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+        Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
+
+    subgraph DataLoad[&quot;Data-loading stack (production account, ADR-027 d9)&quot;]
+        SFN[&quot;Step Functions workflow&lt;br/&gt;(masked dev builds, on request)&quot;]
+        L_Transform[&quot;λ Transform&lt;br/&gt;(filter, mask, remap — operational)&quot;]
+        ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, deleted after a day)&quot;]
+        MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(deleted after 24 hours)&quot;]
+    end
+
+    DevTable[(&quot;Dev table&lt;br/&gt;(dev account — built from one import, ADR-028)&quot;)]
 
     subgraph Notify[&quot;Delivery&quot;]
         SES[&quot;SES (email)&quot;]
@@ -326,21 +376,34 @@ flowchart TB
     Client --&gt; CF
     CheckIn --&gt; CF
     CF --&gt; S3
-    Coach &amp; Client &amp; CheckIn --&gt; Cognito
-    CF --&gt; APIGW
+    Coach &amp; Client &amp; CheckIn --&gt; WAF
+    WAF --&gt; Cognito
+    WAF --&gt; APIGW
     APIGW --&gt; Cognito
     APIGW --&gt; L_Api
-    APIGW --&gt; L_CheckIn
     L_Api &lt;--&gt; DDB
-    L_CheckIn &lt;--&gt; DDB
 
     DDB --&gt; Stream --&gt; Pipe --&gt; Bus
+    Stream --&gt;|TTL removals only| L_Archive --&gt; Archive
     Sched --&gt; L_Remind
     Sched --&gt; L_Report
+    Sched --&gt; L_Unpaid
+    Sched --&gt; L_Drift
+    Sched --&gt; L_Invite
+    L_Drift --&gt; DDB
+    L_Unpaid --&gt; SES
+    L_Unpaid &lt;--&gt; DDB
     Bus --&gt; L_Confirm
     Bus --&gt; L_Pay
     Bus --&gt; L_Cancel
     Bus --&gt; L_Notify
+    Bus --&gt; L_Link
+    L_Link --&gt; DDB
+    Bus --&gt; L_Family
+    L_Family &lt;--&gt; DDB
+    Bus --&gt; L_Invite
+    L_Invite &lt;--&gt; DDB
+    L_Invite --&gt; SES &amp; SNS
 
     L_Confirm --&gt; SES
     L_Remind --&gt; SES &amp; SNS
@@ -350,7 +413,12 @@ flowchart TB
     L_Report --&gt; Reports
     L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
 
-    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify -.-&gt;|on repeated failure| DLQ</code></pre>
+    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite -.-&gt;|on repeated failure| DLQ
+
+    SFN --&gt;|starts export| DDB
+    DDB --&gt;|export| ExportB --&gt; L_Transform --&gt; MaskedB
+    SFN --&gt; L_Transform
+    MaskedB -.-&gt;|imported when dev is built| DevTable</code></pre>
         </details>
       </figure>
 
@@ -368,10 +436,19 @@ erDiagram
     SCHEDULE_TEMP ||--o{ DATE_OVERRIDE : &quot;expands into&quot;
     COACH ||--o{ DATE_OVERRIDE : &quot;may override dates with&quot;
     COACH ||--o{ STUDENT : manages
-    COACH ||--o{ CANCELLATION_BATCH : &quot;records&quot;
+    CLIENT ||--o{ SKATER : &quot;registers&quot;
+    SKATER ||--o{ STUDENT : &quot;one per coach (ADR-025)&quot;
+    SKATER ||--|| SKATER_CODE : &quot;shared by&quot;
+    BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
+    STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
+    CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
+    COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
     STUDENT ||--o{ BOOKING : &quot;has&quot;
-    CANCELLATION_BATCH ||--o{ CANCELLED_LESSON : contains
+    STUDENT ||--o{ RECURRENCE : &quot;may hold&quot;
+    RECURRENCE ||--o{ BOOKING : &quot;describes (via recurrenceId)&quot;
+    CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
+    CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
 
     COACH {
         string coachId &quot;Cognito sub&quot;
@@ -381,29 +458,32 @@ erDiagram
         string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
         string phone
         bool   displayPhoneToClients
-        string timezone &quot;IANA, required&quot;
+        bool   displayEmailToClients &quot;off by default; ADR-016 d7a&quot;
+        bool   smsCancellationAlerts &quot;coach opts in; ADR-009 d9&quot;
+        string coachTimezone &quot;IANA, required&quot;
         string currency &quot;USD|CAD, default USD, set at signup&quot;
+        int    requiredNoticeHours &quot;notice threshold for the missed-lesson fee, default 24; editable Phase 2&quot;
         string coachCode &quot;system-generated, ADR-002 d2a&quot;
-        string profilePhotoKey &quot;optional, S3&quot;
+        string profilePhotoKey &quot;optional, S3, Phase 2&quot;
         string paymentInstructions &quot;always in the reminder email&quot;
         bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
         string cashappHandle &quot;optional&quot;
         string venmoHandle &quot;optional&quot;
         string paypalHandle &quot;optional&quot;
-        string themeId &quot;Phase 2; Forest for MVP&quot;
+        string themeId &quot;Phase 2; Harbor for MVP&quot;
     }
     SCHEDULE_DEFAULT {
-        string name &quot;optional label&quot;
+        string scheduleName &quot;optional label&quot;
         map days &quot;weekday -&gt; ordered blocks&quot;
     }
     SCHEDULE_TEMP {
         string tempId
-        string name &quot;optional label&quot;
+        string scheduleName &quot;optional label&quot;
         date   startDate
         date   endDate
     }
     DATE_OVERRIDE {
-        date   date
+        date   overrideDate
         string tempId &quot;which temp expanded into this date&quot;
         list   blocks &quot;empty = no lessons that day&quot;
     }
@@ -412,57 +492,108 @@ erDiagram
         string clientName
         string clientEmail
         string clientPhone
-        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         bool   smsOptIn
     }
     STUDENT {
         string studentId
-        string name
+        string studentName
         bool   isMinor
         string clientId
-        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         string clientName &quot;denormalized from CLIENT&quot;
         string clientEmail &quot;denormalized from CLIENT&quot;
         string clientPhone &quot;denormalized from CLIENT&quot;
         bool   smsOptIn &quot;denormalized from CLIENT&quot;
-        enum   status &quot;PENDING|ACTIVE&quot;
+        enum   studentStatus &quot;PENDING|ACTIVE&quot;
         int    priceMinorOverride &quot;optional&quot;
+        list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
+        list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
+    }
+    SKATER {
+        string studentId &quot;one ID across every coach&quot;
+        string studentName
+        bool   isMinor
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
+        string shareCode &quot;ADR-026 d4&quot;
+    }
+    SKATER_CODE {
+        string code
+        string studentId
+        string displayName &quot;first name, last initial&quot;
+    }
+    PARTICIPANT {
+        string studentId
+        string clientId
+        int    durationMinutes
+        string priceStamps &quot;pricing pending Kim, ADR-026 P2&quot;
+        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
+        enum   outcome &quot;CHECKED_IN|NO_SHOW&quot;
+    }
+    INVITATION {
+        string inviteId
+        string coachId
+        string bookingKey
+        string invitedStudentId
+        string displayName
+        enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
     }
     BOOKING {
         string bookingId
         string studentId
-        date   date
+        string clientId &quot;GSI1 key, ADR-022&quot;
+        date   lessonDate
         time   startTime
         int    durationMinutes
         datetime startsAtUtc
         string coachTz
         int    priceMinor &quot;stamped at creation&quot;
         string currency &quot;stamped at creation&quot;
-        int    lateFeeMinor &quot;stamped at creation; 0 = no charge&quot;
-        int    lateCancellationHours &quot;stamped at creation&quot;
+        int    missedLessonFeeMinor &quot;stamped at creation; 0 = no charge&quot;
+        int    requiredNoticeHours &quot;stamped at creation&quot;
+        int    maxSkaters &quot;stamped from the block; ADR-026&quot;
+        int    skaterCount &quot;raised as invited skaters join&quot;
+        string invitedStudentId &quot;a join must match it; ADR-026 d5&quot;
         string recurrenceId &quot;optional&quot;
-        enum   status &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        int    bookedIntervalWeeks &quot;interval when booked; never updated, ADR-006 d4b&quot;
+        enum   bookingStatus &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
+        date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
         datetime outcomeAt
         datetime recordedAt
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
         datetime paidAt
         string markedPaidBy
+        enum   paidVia &quot;CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
         int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
     }
-    CANCELLATION_BATCH {
+    RECURRENCE {
+        string recurrenceId
+        string studentId
+        string clientId
+        string weekday
+        time   startTime
+        int    intervalWeeks &quot;1-4; may only increase, ADR-009 d4a&quot;
+        date   endDate &quot;may only move earlier&quot;
+        date   startedOn
+        enum   recurrenceStatus &quot;ACTIVE|ENDED; never deleted, ADR-006 d4b&quot;
+    }
+    CHANGE_BATCH {
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   source &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
         int    clientCount
+        enum   executionStatus &quot;PLANNED|EXECUTED; EXECUTED fires the notifier, ADR-010 d5f&quot;
+        enum   planStatus &quot;WRITING|COMPLETE; nothing carried out until COMPLETE, ADR-010 d5h&quot;
     }
     CANCELLED_LESSON {
         string bookingId
@@ -470,12 +601,14 @@ erDiagram
         string studentName &quot;denormalized&quot;
         string clientId
         string recurrenceId &quot;optional&quot;
-        date   date
+        date   lessonDate
         time   startTime
         int    durationMinutes
         int    priceMinor
         datetime cancelledAt
         int    noticeHours &quot;gap to the lesson start&quot;
+        enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED, ADR-010 d5f&quot;
+        enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED, ADR-010 d5i&quot;
         enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
         datetime notifiedAt
         list   channels
@@ -483,8 +616,25 @@ erDiagram
         enum   paymentStatus &quot;Phase 2, ADR-015&quot;
         datetime paidAt &quot;Phase 2&quot;
         string markedPaidBy &quot;Phase 2&quot;
+        enum   paidVia &quot;Phase 2&quot;
         datetime waivedAt &quot;Phase 2&quot;
         string waivedBy &quot;Phase 2&quot;
+    }
+    REPRICED_LESSON {
+        string bookingId
+        string studentId
+        string clientId
+        date   lessonDate
+        time   startTime
+        int    oldPriceMinor
+        int    newPriceMinor
+        int    oldMissedLessonFeeMinor
+        int    newMissedLessonFeeMinor
+        enum   direction &quot;INCREASE|DECREASE&quot;
+        enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED&quot;
+        enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED&quot;
+        enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
+        datetime notifiedAt
     }</pre>
         </div>
         <details>
@@ -495,10 +645,19 @@ erDiagram
     SCHEDULE_TEMP ||--o{ DATE_OVERRIDE : &quot;expands into&quot;
     COACH ||--o{ DATE_OVERRIDE : &quot;may override dates with&quot;
     COACH ||--o{ STUDENT : manages
-    COACH ||--o{ CANCELLATION_BATCH : &quot;records&quot;
+    CLIENT ||--o{ SKATER : &quot;registers&quot;
+    SKATER ||--o{ STUDENT : &quot;one per coach (ADR-025)&quot;
+    SKATER ||--|| SKATER_CODE : &quot;shared by&quot;
+    BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
+    STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
+    CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
+    COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
     STUDENT ||--o{ BOOKING : &quot;has&quot;
-    CANCELLATION_BATCH ||--o{ CANCELLED_LESSON : contains
+    STUDENT ||--o{ RECURRENCE : &quot;may hold&quot;
+    RECURRENCE ||--o{ BOOKING : &quot;describes (via recurrenceId)&quot;
+    CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
+    CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
 
     COACH {
         string coachId &quot;Cognito sub&quot;
@@ -508,29 +667,32 @@ erDiagram
         string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
         string phone
         bool   displayPhoneToClients
-        string timezone &quot;IANA, required&quot;
+        bool   displayEmailToClients &quot;off by default; ADR-016 d7a&quot;
+        bool   smsCancellationAlerts &quot;coach opts in; ADR-009 d9&quot;
+        string coachTimezone &quot;IANA, required&quot;
         string currency &quot;USD|CAD, default USD, set at signup&quot;
+        int    requiredNoticeHours &quot;notice threshold for the missed-lesson fee, default 24; editable Phase 2&quot;
         string coachCode &quot;system-generated, ADR-002 d2a&quot;
-        string profilePhotoKey &quot;optional, S3&quot;
+        string profilePhotoKey &quot;optional, S3, Phase 2&quot;
         string paymentInstructions &quot;always in the reminder email&quot;
         bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
         string cashappHandle &quot;optional&quot;
         string venmoHandle &quot;optional&quot;
         string paypalHandle &quot;optional&quot;
-        string themeId &quot;Phase 2; Forest for MVP&quot;
+        string themeId &quot;Phase 2; Harbor for MVP&quot;
     }
     SCHEDULE_DEFAULT {
-        string name &quot;optional label&quot;
+        string scheduleName &quot;optional label&quot;
         map days &quot;weekday -&gt; ordered blocks&quot;
     }
     SCHEDULE_TEMP {
         string tempId
-        string name &quot;optional label&quot;
+        string scheduleName &quot;optional label&quot;
         date   startDate
         date   endDate
     }
     DATE_OVERRIDE {
-        date   date
+        date   overrideDate
         string tempId &quot;which temp expanded into this date&quot;
         list   blocks &quot;empty = no lessons that day&quot;
     }
@@ -539,57 +701,108 @@ erDiagram
         string clientName
         string clientEmail
         string clientPhone
-        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         bool   smsOptIn
     }
     STUDENT {
         string studentId
-        string name
+        string studentName
         bool   isMinor
         string clientId
-        enum   clientRelationship &quot;SELF|PARENT|GUARDIAN&quot;
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         string clientName &quot;denormalized from CLIENT&quot;
         string clientEmail &quot;denormalized from CLIENT&quot;
         string clientPhone &quot;denormalized from CLIENT&quot;
         bool   smsOptIn &quot;denormalized from CLIENT&quot;
-        enum   status &quot;PENDING|ACTIVE&quot;
+        enum   studentStatus &quot;PENDING|ACTIVE&quot;
         int    priceMinorOverride &quot;optional&quot;
+        list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
+        list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
+    }
+    SKATER {
+        string studentId &quot;one ID across every coach&quot;
+        string studentName
+        bool   isMinor
+        enum   clientRelationship &quot;SELF|GUARDIAN&quot;
+        string shareCode &quot;ADR-026 d4&quot;
+    }
+    SKATER_CODE {
+        string code
+        string studentId
+        string displayName &quot;first name, last initial&quot;
+    }
+    PARTICIPANT {
+        string studentId
+        string clientId
+        int    durationMinutes
+        string priceStamps &quot;pricing pending Kim, ADR-026 P2&quot;
+        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
+        enum   outcome &quot;CHECKED_IN|NO_SHOW&quot;
+    }
+    INVITATION {
+        string inviteId
+        string coachId
+        string bookingKey
+        string invitedStudentId
+        string displayName
+        enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
     }
     BOOKING {
         string bookingId
         string studentId
-        date   date
+        string clientId &quot;GSI1 key, ADR-022&quot;
+        date   lessonDate
         time   startTime
         int    durationMinutes
         datetime startsAtUtc
         string coachTz
         int    priceMinor &quot;stamped at creation&quot;
         string currency &quot;stamped at creation&quot;
-        int    lateFeeMinor &quot;stamped at creation; 0 = no charge&quot;
-        int    lateCancellationHours &quot;stamped at creation&quot;
+        int    missedLessonFeeMinor &quot;stamped at creation; 0 = no charge&quot;
+        int    requiredNoticeHours &quot;stamped at creation&quot;
+        int    maxSkaters &quot;stamped from the block; ADR-026&quot;
+        int    skaterCount &quot;raised as invited skaters join&quot;
+        string invitedStudentId &quot;a join must match it; ADR-026 d5&quot;
         string recurrenceId &quot;optional&quot;
-        enum   status &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        int    bookedIntervalWeeks &quot;interval when booked; never updated, ADR-006 d4b&quot;
+        enum   bookingStatus &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
+        date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
         datetime outcomeAt
         datetime recordedAt
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
         datetime paidAt
         string markedPaidBy
+        enum   paidVia &quot;CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
         int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
     }
-    CANCELLATION_BATCH {
+    RECURRENCE {
+        string recurrenceId
+        string studentId
+        string clientId
+        string weekday
+        time   startTime
+        int    intervalWeeks &quot;1-4; may only increase, ADR-009 d4a&quot;
+        date   endDate &quot;may only move earlier&quot;
+        date   startedOn
+        enum   recurrenceStatus &quot;ACTIVE|ENDED; never deleted, ADR-006 d4b&quot;
+    }
+    CHANGE_BATCH {
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   source &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
         int    clientCount
+        enum   executionStatus &quot;PLANNED|EXECUTED; EXECUTED fires the notifier, ADR-010 d5f&quot;
+        enum   planStatus &quot;WRITING|COMPLETE; nothing carried out until COMPLETE, ADR-010 d5h&quot;
     }
     CANCELLED_LESSON {
         string bookingId
@@ -597,12 +810,14 @@ erDiagram
         string studentName &quot;denormalized&quot;
         string clientId
         string recurrenceId &quot;optional&quot;
-        date   date
+        date   lessonDate
         time   startTime
         int    durationMinutes
         int    priceMinor
         datetime cancelledAt
         int    noticeHours &quot;gap to the lesson start&quot;
+        enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED, ADR-010 d5f&quot;
+        enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED, ADR-010 d5i&quot;
         enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
         datetime notifiedAt
         list   channels
@@ -610,8 +825,25 @@ erDiagram
         enum   paymentStatus &quot;Phase 2, ADR-015&quot;
         datetime paidAt &quot;Phase 2&quot;
         string markedPaidBy &quot;Phase 2&quot;
+        enum   paidVia &quot;Phase 2&quot;
         datetime waivedAt &quot;Phase 2&quot;
         string waivedBy &quot;Phase 2&quot;
+    }
+    REPRICED_LESSON {
+        string bookingId
+        string studentId
+        string clientId
+        date   lessonDate
+        time   startTime
+        int    oldPriceMinor
+        int    newPriceMinor
+        int    oldMissedLessonFeeMinor
+        int    newMissedLessonFeeMinor
+        enum   direction &quot;INCREASE|DECREASE&quot;
+        enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED&quot;
+        enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED&quot;
+        enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
+        datetime notifiedAt
     }</code></pre>
         </details>
       </figure>
@@ -631,8 +863,8 @@ sequenceDiagram
     participant Bus as EventBridge
     participant Cf as Confirmation λ
     participant SES as SES
-    P-&gt;&gt;API: POST /bookings (studentId, date, startTime, recurring?, endDate?)
-    Note over API: a recurrence expands weekly from the first&lt;br/&gt;occurrence; end date capped at 12 months
+    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
+    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence; end date capped at 12 months
     loop each occurrence
         API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
         alt slot free
@@ -655,8 +887,8 @@ sequenceDiagram
     participant Bus as EventBridge
     participant Cf as Confirmation λ
     participant SES as SES
-    P-&gt;&gt;API: POST /bookings (studentId, date, startTime, recurring?, endDate?)
-    Note over API: a recurrence expands weekly from the first&lt;br/&gt;occurrence; end date capped at 12 months
+    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
+    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence; end date capped at 12 months
     loop each occurrence
         API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
         alt slot free
@@ -720,8 +952,8 @@ sequenceDiagram
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
-    participant C as Coach (check-in app)
-    participant API as API λ
+    participant C as Coach (rinkside page)
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Pay as Payment-reminder λ
@@ -740,8 +972,8 @@ sequenceDiagram
         <details>
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
-    participant C as Coach (check-in app)
-    participant API as API λ
+    participant C as Coach (rinkside page)
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Pay as Payment-reminder λ
@@ -798,10 +1030,9 @@ sequenceDiagram
       <figure id="d7">
         <figcaption>
           <span class="num">07</span>
-          <span class="ttl">6.5 Schedule change → cancellation → notification</span>
+          <span class="ttl">6.5 Schedule change → cancellation and re-pricing → notification</span>
           <span class="kind">Sequence</span>
         </figcaption>
-        <p class="cap">A booking conflicts unless the pattern in effect on its date generates a slot with exactly its start time and duration. Conflicting bookings are deleted — because the booking item is the lock, a released time must stop existing — and recorded as cancellation…</p>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
@@ -809,30 +1040,38 @@ sequenceDiagram
     participant API as API λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant X as Cancellation λ
+    participant X as Schedule-change λ
     participant N as Notifier λ
     C-&gt;&gt;API: POST /schedule/preview
-    API--&gt;&gt;C: &quot;47 lessons, 12 clients&quot; — confirm?
+    API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
     API-&gt;&gt;DB: write default / date overrides
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
-    X-&gt;&gt;DB: claim CANCELBATCH, attribute_not_exists(SK) (5b)
+    X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
     alt claim taken
         Note over X: fresh run
     else claim fails
         Note over X: resume — the plan is already on disk
     end
-    X-&gt;&gt;DB: Query bookings in affected range
-    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# line first,&lt;br/&gt;each marked pending (5c — the plan survives a crash)
-    loop each cancellation
-        X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line executed, both or neither (5d)
+    X-&gt;&gt;DB: Query bookings in affected range; shared evaluator sorts each&lt;br/&gt;into unchanged / cancel / re-price (ADR-020)
+    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# and REPRICED# line first,&lt;br/&gt;executionStatus = PLANNED (5c — the plan survives a crash)
+    loop each line
+        alt cancellation line
+            X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
+        else re-price line
+            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED; otherwise mark SKIPPED (ADR-020 d5)
+        end
     end
-    Note over X,Bus: the consumer does not emit (5e) — the CANCELLED#&lt;br/&gt;write drives the notifier down the same CDC path
-    DB-&gt;&gt;Bus: (stream) LessonCancelled, from the CANCELLED# line write
-    Bus-&gt;&gt;N: route (per client)
-    N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
-    N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines</pre>
+    X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
+    Note over X,Bus: the consumer does not emit (5e) — the header&lt;br/&gt;reaching EXECUTED drives the notifier down the CDC path
+    DB-&gt;&gt;Bus: (stream) LessonsChanged — Pipe filter matches only&lt;br/&gt;the header&#x27;s transition to EXECUTED (5f)
+    Bus-&gt;&gt;N: route (one event per batch)
+    N-&gt;&gt;DB: read the batch&#x27;s EXECUTED lines, group by client
+    loop each client not yet SENT
+        N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+        N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
+    end</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -841,30 +1080,38 @@ sequenceDiagram
     participant API as API λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant X as Cancellation λ
+    participant X as Schedule-change λ
     participant N as Notifier λ
     C-&gt;&gt;API: POST /schedule/preview
-    API--&gt;&gt;C: &quot;47 lessons, 12 clients&quot; — confirm?
+    API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
     API-&gt;&gt;DB: write default / date overrides
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
-    X-&gt;&gt;DB: claim CANCELBATCH, attribute_not_exists(SK) (5b)
+    X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
     alt claim taken
         Note over X: fresh run
     else claim fails
         Note over X: resume — the plan is already on disk
     end
-    X-&gt;&gt;DB: Query bookings in affected range
-    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# line first,&lt;br/&gt;each marked pending (5c — the plan survives a crash)
-    loop each cancellation
-        X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line executed, both or neither (5d)
+    X-&gt;&gt;DB: Query bookings in affected range; shared evaluator sorts each&lt;br/&gt;into unchanged / cancel / re-price (ADR-020)
+    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# and REPRICED# line first,&lt;br/&gt;executionStatus = PLANNED (5c — the plan survives a crash)
+    loop each line
+        alt cancellation line
+            X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
+        else re-price line
+            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED; otherwise mark SKIPPED (ADR-020 d5)
+        end
     end
-    Note over X,Bus: the consumer does not emit (5e) — the CANCELLED#&lt;br/&gt;write drives the notifier down the same CDC path
-    DB-&gt;&gt;Bus: (stream) LessonCancelled, from the CANCELLED# line write
-    Bus-&gt;&gt;N: route (per client)
-    N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
-    N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines</code></pre>
+    X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
+    Note over X,Bus: the consumer does not emit (5e) — the header&lt;br/&gt;reaching EXECUTED drives the notifier down the CDC path
+    DB-&gt;&gt;Bus: (stream) LessonsChanged — Pipe filter matches only&lt;br/&gt;the header&#x27;s transition to EXECUTED (5f)
+    Bus-&gt;&gt;N: route (one event per batch)
+    N-&gt;&gt;DB: read the batch&#x27;s EXECUTED lines, group by client
+    loop each client not yet SENT
+        N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+        N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
+    end</code></pre>
         </details>
       </figure>
 

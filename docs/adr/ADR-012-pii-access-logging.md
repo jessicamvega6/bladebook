@@ -8,7 +8,7 @@ Answers §2 of [`docs/monitoring-questions.md`](../monitoring-questions.md), and
 `architecture.md` §7's *"consider a DynamoDB audit trail + S3 access logging for PII
 access."*
 
-Depends on ADR-011's staging environment, and on ADR-002 decision 4's
+Depends on ADR-011's staging environment (*read "staging" as dev since ADR-027*), and on ADR-002 decision 4's
 `clientRelationship`.
 
 **Amended — 2026-10-01.** Decision 1's *"CloudTrail cannot identify which coach read

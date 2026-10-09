@@ -30,9 +30,11 @@ changes, and how far ahead families book.
 2. When you change them, is it for everyone at once, or student by student?
 3. How often does your weekly schedule (days and times) change? 
   Not often
+   *Recorded 2026-10-08 in `Open-Pending.md` §4 (one-off date ceiling).*
 4. When you raise your price, should lessons **already booked** for the future stay at the old
    price, or move to the new one? Does it matter whether they are recurring?
    Move if they are outside the notice period
+   *Recorded 2026-10-08: matches ADR-020 (increases move only beyond the notice period).*
 5. How far ahead do your families usually book? Would anyone want to book a single lesson more
    than three months out?
 6. When you raise or lower your prices, **by how much** do you usually change them? Roughly a
@@ -41,7 +43,8 @@ changes, and how far ahead families book.
 **What the answers decide:**
 
 - Whether single bookings get a date ceiling, and what it is — none, 12 months, or the booking
-  page's three months. (ADR-006 Open; `Open-Pending.md` §4)
+  page's three months. (ADR-006 Open; `Open-Pending.md` §4) *Kim: schedules change "not often"
+  (question 3). Questions 1 and 5 are still unanswered, so the ceiling is still open.*
 - ~~Whether a price change should ever re-price lessons already booked.~~ *Decided by the
   owner 2026-09-30 (ADR-020): upcoming lessons follow the new price — increases only beyond
   the notice period, decreases at once — and families are told.* Kim's answer to question 4 is
@@ -117,18 +120,24 @@ keeping. The question is whether it gets in a coach's way.
    You approve a family
 2. How quickly would you usually get to an approval? Same day, or could a family wait a few
    days?
+   *Decided by the owner 2026-10-09:* no reminder email; the Students tab title shows the number
+   of pending students (ADR-002).
 4. Would you want to approve **siblings** added later by a family you already know, or should
    they be let in automatically?
+   *Decided by the owner 2026-10-09:* the coach approves everyone, siblings included (ADR-002).
 
 **What the answers decide:**
 
-- **Whether the `PENDING` step stays in MVP**, and with it whether a pending family sees
+- ~~**Whether the `PENDING` step stays in MVP**, and with it whether a pending family sees
   nothing of the coach's (ADR-002 decision 2, ADR-022 decision 6). If it goes, the security
   case has to be made another way — for example, codes that expire or can be used only a few
-  times.
-- **Whether a sibling of an approved family skips approval** (question 4). Today the family
-  can see the schedule once one skater is approved, but cannot book for the pending sibling.
-- **Whether a slow approval needs a reminder to the coach** (question 2). There is none today.
+  times.~~ ***Settled 2026-10-08 from Kim's answer to question 1: it stays*** (ADR-002).
+- ~~**Whether a sibling of an approved family skips approval** (question 4). Today the family
+  can see the schedule once one skater is approved, but cannot book for the pending sibling.~~
+  ***Settled 2026-10-09 by the owner: it doesn't*** (ADR-002).
+- ~~**Whether a slow approval needs a reminder to the coach** (question 2). There is none today.~~
+  ***Settled 2026-10-09 by the owner: no reminder; the Students tab title shows the pending
+  count*** (ADR-002).
 
 ---
 
@@ -185,14 +194,17 @@ machinery than such a rare case needs.
 
 **What the answers decide:**
 
-- **What the save does when a booking lands between preview and save**: ask the coach, cancel,
-  or keep. (ADR-006, ADR-008, ADR-020)
-- **Whether a separate "just booked, then cancelled" email template is needed.**
+- ~~**What the save does when a booking lands between preview and save**: ask the coach, cancel,
+  or keep.~~ ***Settled 2026-10-08 from Kim's answer: B*** — the save goes ahead and the family
+  gets the friendlier "just booked" email. (ADR-006, ADR-008, ADR-020)
+- **Whether a separate "just booked, then cancelled" email template is needed.** *Yes, with B.* *Moved to Phase 2 by the owner, 2026-10-09.*
   (`FeatureDecriptions/Email templates Needed:`)
-- **Whether slot holds during preview are built at all** (option D).
+- **Whether slot holds during preview are built at all** (option D). *No, with B.*
 - Underneath all options, the save would commit only if nothing was booked since the preview.
-  This is a booking counter checked at save time, and it is **not yet recorded in any ADR**.
-  It needs an amendment whichever option is chosen.
+  This is a booking counter checked at save time. ~~It is **not yet recorded in any ADR**.
+  It needs an amendment whichever option is chosen.~~ *Answered 2026-10-08:* recorded in the
+  2026-10-08 amendments to ADR-006, ADR-008 and ADR-020. *2026-10-09: no counter in MVP, since
+  the email it served is Phase 2.*
 
 ---
 
@@ -216,7 +228,12 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    lesson with you?~~ **Answered by the owner, 2026-10-07:** a skater can be invited before you've
    accepted them, but no lesson is booked for them until you do. If you don't, the lesson goes
    ahead private.
-   Yese
+   *The current flow:* the booking family enters the other skater's share code. That family is
+   emailed straight away. If the skater isn't yet your student, the email asks the family to
+   agree to join your roster; they sign in and confirm, and the skater appears in your pending
+   list like any new family. Once you accept them, they join the lesson automatically, as long
+   as it's still there, hasn't started and has room. If you don't accept them, the lesson goes
+   ahead private. (ADR-026 decision 5)
 5. If the family who booked the lesson cancels, what should happen to the skater they invited?
    Keep the lesson for them, cancel it for everyone, or ask the invited family?
 6. If the invited family hasn't said yes by the day before, should the invitation lapse and the
@@ -228,13 +245,15 @@ default) and the booking family is told. Both depend on the pricing answer.
 
 **What the answers decide:**
 
-- **The highest "skaters per lesson" a coach can set** (question 1). Until it's answered every
-  lesson stays private. (ADR-026 P1)
+- ~~**The highest "skaters per lesson" a coach can set** (question 1).~~ **Answered by the owner,
+  2026-10-07: 2.** (ADR-026 P1)
 - **How each skater's price is stamped**, and whether anyone is re-priced when a skater joins or
   leaves (questions 2 and 3). (ADR-026 P2, ADR-003, ADR-020)
-- **Whether an invited skater must be approved first** (question 4). (ADR-026 P3, ADR-024)
+- ~~**Whether an invited skater must be approved first** (question 4).~~ **Answered by the owner,
+  2026-10-07:** invited first, accepted by the coach before joining. (ADR-026 P3, ADR-024)
 - **What the booking family cancelling does** (question 5), and **when invitations lapse**
-  (question 6). (ADR-026 P4, P5)
+  (question 6). (ADR-026 P4, P5) *P5 is partly answered: if the coach doesn't accept the skater,
+  the lesson goes ahead private.*
 
 ---
 
@@ -330,7 +349,8 @@ These came up earlier and are recorded in `Open-Pending.md` as needing coach inp
    -Inside the notice period
 
 **Decides:** whether the cancellation notice to the coach has a threshold. Today it sends on
-every cancellation. (ADR-009 Open; the note in `FeatureDecriptions/Email templates Needed:`
+every cancellation. ***Settled 2026-10-08 from Kim's answer:*** *only cancellations inside the
+coach's notice period (`requiredNoticeHours`) notify the coach (ADR-009).* (ADR-009 Open; the note in `FeatureDecriptions/Email templates Needed:`
 reads *"check if needed from kim"*.)
 
 ### 3. Keeping records of cancelled lessons

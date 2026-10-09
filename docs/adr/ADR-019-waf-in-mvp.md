@@ -21,7 +21,7 @@ app's tokens*, is **closed** by [ADR-023](ADR-023-rinkside-check-in-joins-the-co
 the check-in app no longer has its own app client, so there is nothing to refuse and no
 Lambda authorizer. The built-in Cognito authorizer is enough.
 
-**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decisions 4 and 4a apply to the on-demand **dev** stack, which
+**Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decisions 4–4b apply to the on-demand **dev** stack, which
 replaces staging. Its firewall is still off by default and switched on to rehearse block mode,
 and it is now paid for only while dev exists — production's ~$10 a month is the steady cost.
 
@@ -214,7 +214,8 @@ delivered — cents a month here, nothing while off.
 
 ## Open
 
-- **How `api-coach` refuses the check-in app's tokens** (decision 3). Options:
+- ~~**How `api-coach` refuses the check-in app's tokens** (decision 3).~~ **Closed 2026-10-05 by
+  ADR-023.** The options considered, kept for the record:
   - **A small Lambda authorizer** that verifies the token and checks which app client issued
     it. Results are cached by API Gateway for a few minutes, so it runs rarely and costs
     almost nothing. Keeps the boundary in infrastructure, which is ADR-014 decision 11's

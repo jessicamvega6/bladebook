@@ -37,6 +37,12 @@ day. Both thresholds are configuration.
 in an on-demand **dev** stack, and the cancellation-path canary (*Explicitly not doing*) runs
 **against production** as a dedicated test coach and family.
 
+**Amended — 2026-10-09.** Decision **4**'s missed-run alarm counts a function's `Invocations`, which
+can't see a missed run of a function that also has other triggers. [ADR-026](ADR-026-shared-lessons-by-invitation.md)
+decision 5a's nightly invitation sweep runs inside `consumer-invite`, which also runs on every
+invitation event. So the sweep records its own metric, **`InviteSweepCompleted`**, each time it
+finishes, and its alarm watches that metric: `Sum < 1` over a day, `treatMissingData: breaching`.
+
 ---
 
 ## Context
@@ -166,7 +172,8 @@ means: stop watching for evidence of failure, and watch for evidence of life. Al
 Concretely, for each scheduled function: a CloudWatch alarm on `Invocations`, `Sum < 1` over
 the window in which it should have run, with **`treatMissingData: breaching`**. That last
 setting is the entire trick — the default treats missing data as "no opinion", which is
-exactly the case being watched for.
+exactly the case being watched for. *Amended 2026-10-09: a scheduled run inside a function that
+also has event triggers is watched through its own completion metric instead (see Status).*
 
 **Alerts about Simple Email Service (SES) go to a phone number.** *Decided by the owner, 2026-08-28.* Monitoring
 the email system with the email system is a loop: a cancellation-notifier failure is

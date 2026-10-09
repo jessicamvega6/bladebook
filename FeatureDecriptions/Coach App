@@ -1,4 +1,5 @@
 Coach App
+*Since ADR-023 (2026-10-05) this is the rinkside page inside the coach website (/coach/rinkside), not a separate app.*
 Seperate App from bladebook website. The app needs to be able for the coach to mark the student as checked in, no show, or can Cancel lesson.
 
 Also needs to show the coach who has signed up for lessons that day and what time the lesson is at.

@@ -44,7 +44,24 @@ dashboard buttons**, not a radio button on the form (decision 6a), and temporary
 **"No lessons (time off)"** option (decision 6b).
 
 **Extended — 2026-10-06** by [ADR-026](ADR-026-shared-lessons-by-invitation.md): each block gains **`maxSkaters`** (*skaters per lesson*),
-default 1. The editor allows only 1 until Kim sets the maximum.
+default 1. The editor allows only 1 until Kim sets the maximum. *Amended 2026-10-07 by ADR-026:
+default 1, at most 2, a setting that may be raised.*
+
+**Amended — 2026-10-08.** Kim's answer to `Items to ask Kim About.md` §7 (option **B**) settles **a booking that lands
+between the coach's preview and save**. The preview reads a per-coach booking counter that
+every booking increments; the save checks it. If it changed, the plan is recalculated and the
+save **goes ahead without asking the coach**: any booking made since the preview that the change
+cancels is cancelled like the rest, and its family gets a separate *"just booked"* email
+(*"Coach updated their schedule just as you booked. Here are other open times."*). Slot holds
+during preview (option D) are not built.
+
+**Amended — 2026-10-09.** *Decided by the owner.* The *"just booked"* email is **Phase 2**. In MVP
+the save still goes ahead without asking the coach (option B), and a booking made since the
+preview that the change cancels gets the ordinary cancellation email. **No booking counter is
+built in MVP:** it existed only to choose which email to send. When the email returns, the
+likely mechanism is for the save to recalculate the plan and compare it with the preview's,
+which needs no counter. **To be reconsidered if feedback supports that this is an issue.**
+
 ---
 
 ## Context
@@ -396,7 +413,9 @@ would drift into a preview that under-reports.
 
 The preview remains advisory: a client can book between preview and save, so the
 authoritative record of what was destroyed is always the batch written by the consumer
-(ADR-006 decision 5), never the number the coach was shown.
+(ADR-006 decision 5), never the number the coach was shown. *Amended 2026-10-08: the save now
+checks a per-coach booking counter (see Status).* *Amended 2026-10-09: no counter in MVP; the save
+simply goes ahead (see Status).*
 
 ---
 

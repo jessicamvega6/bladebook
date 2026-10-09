@@ -171,7 +171,8 @@ symmetric:
   record, which today has `priceMinor` but **no payment fields and no GSI3 membership**.
 
 So the `CANCELLED#` record gains `paymentStatus`, `paidAt`, `markedPaidBy` and is written
-into GSI3 while unpaid. Without the GSI3 half, the coach's outstanding-lessons view
+into GSI3 while unpaid. *Amended 2026-10-09: and `paidVia`, how the client paid
+(ADR-003 decision 4).* Without the GSI3 half, the coach's outstanding-lessons view
 (`architecture.md` §10 feature 13) silently omits late-cancellation fees, and the coach is
 owed money by a screen that never mentions it.
 

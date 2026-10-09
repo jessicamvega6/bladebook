@@ -8,7 +8,8 @@
 to a single coach for MVP"*) and decision **4**'s transactional contact fan-out.
 
 **Amends** [ADR-021](ADR-021-tenant-isolation-at-the-database.md) decision 6
-(`consumer-student-link` also writes each coach's view of the skater's other coaches),
+(`consumer-student-link` also writes each coach's view of the skater's other coaches; *Phase 2
+since 2026-10-07*),
 [ADR-022](ADR-022-client-isolation-at-the-database.md) decision 2 (`coachId` and `linkStatus`
 are per coach), [ADR-011](ADR-011-staging-environment.md) decision 8a (naming a client brings
 in all their coaches) and [ADR-001](ADR-001-backend-stack.md) A5 (one more consumer, thirteen
@@ -99,7 +100,7 @@ coach code while registering. Each code is looked up as now (before sign-in, und
 coach. Registration writes one link per skater per coach, each `PENDING` with its own coach.
 After sign-in, registration resolves every code again under the family's first session, as
 ADR-022 decision 7 requires, rather than trusting coach IDs the browser carried over. The same
-disclosure line shows when more than one coach is chosen.
+disclosure line shows when more than one coach is chosen. *Phase 2, with decision 4.*
 
 ### 3. Each request is about one coach
 
@@ -210,7 +211,7 @@ None of these screens is in the Harbor designs yet.
 ## Consequences
 
 - **The keys don't change.** One new item type (`SKATER#`), one new attribute
-  (`otherCoaches`), one new consumer and one new event.
+  (`otherCoaches`, Phase 2), one new consumer and one new event.
 - **Thirteen functions.** `consumer-family-sync` joins `consumers.jar`.
 - **A family's contact changes are eventually consistent** across coaches, about a second
   behind, where they were transactional.

@@ -5,6 +5,7 @@ As of now schedule creation will have
   (EOD)End of Day: A dropdown filled from 12am - 11:45pm in 15 minute intervals
   (LL)length of lesson (in mins): a dropdown with 30,45,60,90,120 in the list. 
   (LC)Lesson Cost: the cost of the lesson. represented in the currency selected on sign up. MVP the currency is USD or canadian. 
+  (SPL)Skaters per lesson: default 1, max 2 (owner, 2026-10-07; ADR-026 d1). Per tab.
   (R)Rink: the rink the lessons are at. Per tab, because a coach can work at more than one rink. Decides which ice types are listed. Added 2026-10-07.
                 Phase 1: fixed to Pelham Civic Center (PCC) and not selectable. Phase 2: a dropdown of the rinks BladeBook has ice types for.
   (IT)Ice Type: the type of ice the lessons are on, named the way the rink names its sessions, e.g. at PCC: Birmingham Figure Skating Club (BFSC) freestyle ice, Stick and Puck (S&P) ice, public ice. Added 2026-10-07 from talking with Kim. 
@@ -23,7 +24,7 @@ The calendar view will have tabs, one to start --- with a + button next to it. O
 Clicking a lesson slot on the schedule will select or deselect that lesson. If the LL is not defined when clicking on the schedule, the slot length will default to 30 mins. and will auto fill the LL input. 
 
 
-The view will be used for both the Default and the Temp. A radio button will indicate if schedule needs to be for default or temporary. 
+The view will be used for both the Default and the Temp. ~~A radio button will indicate if schedule needs to be for default or temporary.~~ *Superseded by ADR-008: two dashboard buttons.* 
 
 On click of Next, user will be taken to validation / confirmation page. the system Will validate that no schedule has overlapping times on the same day and will also check any existing temp schedules for date/time overlap. IF there are validation errors, a message will be presented to the user describging the issue. If no validation errors, will present to user the schedule for confirmation. For both schedule types (temp/default) it will also present any bookings that will get canceled, and how long the schedule will run for. For temps until the end date, for defaults indefinately. A message will display to the coach that on accept cancelation emails will be sent to clients with canceled bookings. The coach must accept before any bookings are canceled. 
 

@@ -36,6 +36,11 @@ stamp now protects **past** lessons, and anything already marked paid or waived.
 lesson follows the coach's current price — increases only beyond the notice period, decreases
 at once — and the family is told.
 
+**Amended — 2026-10-09.** *Decided by the owner, 2026-10-07, from talking with Kim.* Decision
+**4** records **how the client paid**. The coach chooses it on the payment dashboard; the
+options are the payment handles on the coach's profile ([ADR-016](ADR-016-coach-signup.md)
+decision 7), plus *Other*. No free text.
+
 **Accepted** — 2026-07-29. Closes the gap where MVP feature #6 (payment-reminder
 email on check-in) had no amount to send: `BOOKING` carried only
 `paymentReminderSent: bool`, and no price, rate or balance existed anywhere in the
@@ -169,6 +174,21 @@ one records that we asked, the other records that they paid.
 > audit trail — and the only available brake on a coach sending the same family a reminder
 > every hour, and on the SMS cost of doing so (ADR-007). Nothing rate-limits it today, which
 > is a gap to close when the button ships rather than after.
+>
+> Source: `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
+
+> **Amended 2026-10-09 — how the client paid.** *Decided by the owner, 2026-10-07.* The coach
+> records how each lesson was paid, as `paidVia` on the booking, alongside `paidAt` and
+> `markedPaidBy` — and on a paid `CANCELLED#` record in Phase 2 (ADR-015). The coach enters it; nothing else observes money changing hands.
+>
+> - **The options are the handles the coach has filled in on their profile, plus *Other*.**
+>   A coach with only a Cashapp handle sees Cashapp and Other; a coach with no handles sees
+>   only Other.
+> - **There is no free text.** A payment that matches no handle is *Other*.
+>
+> Still open (`Open-Pending.md` §3): whether *Show my payment handles*
+> (`displayPaymentTypesToClients`) affects the list, and whether cash should be a fixed option
+> (needs Kim).
 >
 > Source: `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
 

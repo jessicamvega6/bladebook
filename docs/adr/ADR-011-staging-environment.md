@@ -38,6 +38,11 @@ stack). Every masking rule — decisions 2–6c, 7, 8b, 8d–8f and 9 — **carr
 unchanged**; read "staging" as "dev" and "refresh" as "load". Tearing dev down is a purge, so
 it waits for triage (ADR-027 decision 4).
 
+**Amended — 2026-10-09.** [ADR-027](ADR-027-on-demand-dev-environment.md) decision 9: each load is
+an AWS Step Functions workflow. Decision 6a's checks, its fresh-export restart and 6b's after-load
+scan (run whether the load succeeds or fails) are its steps. Its run history and CloudTrail cover
+most of decision 7's log.
+
 ---
 
 ## Context
@@ -351,7 +356,8 @@ production:
 
 A refresh replaces staging's table — DynamoDB imports always create a new table, which
 staging is then pointed at — so anything set up by hand in staging is wiped. That is part of
-why refreshing is deliberate rather than continuous.
+why refreshing is deliberate rather than continuous. *Amended 2026-10-09 by ADR-028: dev's table is
+instead created from the import as part of building the stack, never repointed.*
 
 **Domain.** Staging uses subdomains of the production domain, in the same DNS zone:
 
@@ -375,7 +381,8 @@ search engines not to index it. Which domain `<domain>` is remains open — see 
 - Each refresh is logged: who ran it, when, how many items. *Amended 2026-09-29:* also the
   coach and client IDs requested, the `--as-of` export time, and a free-text reason. Pulling
   a specific family's data into a lower environment because of an incident is a deliberate
-  act on real people's data, masked or not, and the record should say why.
+  act on real people's data, masked or not, and the record should say why. *Amended 2026-10-09 by
+ADR-027: the workflow's run history and CloudTrail now cover most of this log.*
 
 ### 8. Staging holds a subset, remapped onto fixed test accounts
 
@@ -402,6 +409,7 @@ refresh-staging [--coaches <id>,…] [--clients <id>,…] [--as-of <timestamp>]
   read from Systems Manager Parameter Store, editable without a deployment.
 - **`--clients`** — production client IDs to copy. **Naming a client brings in their coach
   automatically**: a client belongs to exactly one coach in MVP (ADR-002 decision 5), and
+  *(amended 2026-10-06 by ADR-025: all of the client's coaches)*
   the coach's ID is in the client's link record, so the coach need not be looked up by hand.
 - **`--as-of`** — export the table as it stood at a given second, within Point-in-Time
   Recovery's 35-day window (ADR-010 decision 7). Omitted, the export is of now.
@@ -424,7 +432,8 @@ Everything else is dropped in memory and never reaches staging. This is also the
 exposure the subset was wanted for: a masking bug can only affect the families copied.
 
 A refresh replaces staging's data, so anything created by hand in staging since the last
-refresh is gone. To keep the default coaches while adding an incident coach, pass both.
+refresh is gone. To keep the default coaches while adding an incident coach, pass both. *Since ADR-027 there is
+no default list: name every coach.*
 
 #### 8c. Fixed pools of test accounts, assigned by order
 
@@ -525,7 +534,8 @@ untested per ADR-001 assumption 8 — all become observable somewhere other than
 **Harder.** A second stack is a second thing that can break, and ADR-001's framing is that
 the compounding cost for a solo developer is nights spent debugging. Two environments also
 drift unless refreshed regularly, and a staging environment that no longer resembles
-production produces false confidence rather than none.
+production produces false confidence rather than none. *Read "staging" as dev since ADR-027;
+a dev stack built fresh each time can't drift.*
 
 **The masking pipeline is a compliance-critical component**, and decision 6a makes it
 self-verifying rather than trusted. The cost is that a refresh can now fail for reasons that
@@ -548,7 +558,8 @@ thought about.
 - ~~Profile photos.~~ **Settled 2026-09-29** — decision 9: one shared placeholder, never
   the real photo.
 - ~~Is a full copy needed, or a subset?~~ **Settled 2026-09-29: a subset** — decision 8,
-  named per run, defaulting to a list in Parameter Store.
+  named per run, defaulting to a list in Parameter Store. *Amended 2026-10-07 by ADR-027: no
+  default list; coaches are named on every load.*
 - ~~Who verifies the mask?~~ **Settled 2026-08-30** — decisions 6a and 6b. The transform
   asserts on itself in-pipeline and aborts the refresh on failure; a scanner then checks
   staging from the outside, after every refresh and on demand.
@@ -570,7 +581,8 @@ thought about.
 - The masking job is ever found to have leaked a real value. That converts this from a
   process into an incident, and the answer becomes synthetic-only data.
 - Staging drifts far enough from production that a bug ships anyway — at which point the
-  environment is costing maintenance and returning nothing.
+  environment is costing maintenance and returning nothing. *Can't happen since ADR-027: dev is
+  built fresh each time.*
 - Payments arrive (§10 Phase 2). Real payment identifiers in a lower environment are a
   different class of problem from contact details, and this decision would need rewriting
   rather than extending.

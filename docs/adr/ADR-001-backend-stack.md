@@ -39,6 +39,24 @@ It reads and writes invitations in both families' partitions and holds `ses:Send
 on demand and destroyed afterwards. A4 criterion 5 now asks how each tool builds and tears down
 a second environment from nothing, not how it maintains one.
 
+**Amended** — 2026-10-08. ADR-026's rewritten decision 5: `consumer-invite` is also triggered by
+`StudentChanged` (the coach accepts or declines an invited skater). Its permissions are unchanged.
+ADR-027 decision 9 moves the staging shape check and the refresh's cross-environment role (A5, A6
+"Not yet assigned") into a data-loading stack in the production account.
+
+**Amended** — 2026-10-09. Corrects the 2026-10-08 note: ADR-027 keeps the **dev scanner** (ADR-011
+decision 6b's shape check) in **dev's application stack**, so it starts and stops with dev; it is
+not in the data-loading stack. The **data-loading stack** in the production account holds the
+AWS Step Functions workflow and the **transform Lambda** that masks each export, with its role
+(ADR-027 decision 9, amended 2026-10-09; [ADR-028](ADR-028-dev-table-built-from-one-import.md)).
+Like the PII access-log aggregator, the scanner and the transform Lambda are operational
+functions outside the request path and **outside the fourteen-function count**, which is
+unchanged.
+
+**Amended** — 2026-10-09. [ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 5a: `consumer-invite` also runs
+nightly on a schedule, after the end-of-day report, and gains `Query` on GSI2. Still fourteen
+functions.
+
 ---
 
 ## Amendments
@@ -175,9 +193,9 @@ exactly how decision 2 acquired an unexamined assumption in the first place.
 | 3 | **Preview quality** | `terraform plan` is expected to read more clearly than `cdk diff`, above all on IAM policy changes. |
 | 4 | **Toolchain cost** | CDK keeps `infra/` in TypeScript alongside `web/`. Terraform adds HCL as a fourth language on a one-person project. |
 | 5 | **Two environments** | ADR-011 needs staging as a full second stack. Compare CDK context flags against Terraform workspaces or a second `tfvars`. |
+| 6 | **Failure recovery** | CloudFormation can wedge a stack in `UPDATE_ROLLBACK_FAILED`; Terraform can drift or lose state. How hard is each to recover from? |
 
 *Criterion 5 amended 2026-10-07 by ADR-027: the second environment is dev, built and destroyed on demand. Compare how cleanly each tool creates it from nothing and removes it completely, while production's retained resources stay protected. Since ADR-027 decision 8, dev is also a **separate AWS account**: compare how each tool deploys to two accounts (CDK bootstraps each; Terraform uses a provider or credentials per account).*
-| 6 | **Failure recovery** | CloudFormation can wedge a stack in `UPDATE_ROLLBACK_FAILED`; Terraform can drift or lose state. How hard is each to recover from? |
 
 **Decision rule:** criterion 1 is a gate, not a weight — an option that cannot enforce §7 in
 CI is disqualified regardless of how it scores elsewhere. Among survivors, 2 and 4 carry the
@@ -219,7 +237,9 @@ to reconcile it against six later ADRs.
 
 **Nine functions, four build artifacts, nine IAM roles.** Two operational functions sit
 outside this list and outside the request path: the PII access-log aggregator (ADR-012) and
-the staging mask shape-check (ADR-011, staging only).
+the staging mask shape-check (ADR-011, staging only). *Amended 2026-10-09: the shape check is
+now dev's scanner, in dev's application stack; the transform Lambda in the data-loading stack is
+a third operational function, also outside the count (see Status).*
 
 `api-checkin` is a third Spring Boot artifact, which is the real cost of ADR-014 decision 11
 — the consumers still share one JAR across six handler entry points, so only the API tier
@@ -272,7 +292,9 @@ Key-management permissions follow whichever keys encrypt the table and bucket (�
 **Three observations the table makes visible:**
 
 - **GSI2 is held by exactly two functions**, both scheduled jobs. It is the one index that
-  crosses tenants, and no function a person can call holds it.
+  crosses tenants, and no function a person can call holds it. *Amended 2026-10-08: three
+  since ADR-010 decision 5k added `sched-drift-check` — the day-of reminder, the end-of-day
+  report and the drift check, all scheduled jobs.*
 - **Suppression write-back puts a client-profile write in three consumers.** ADR-007 decision
   9 requires flipping `smsOptIn` when an opted-out number is found. That is a write into the
   `CLIENT#` partition from functions that otherwise only read and send, and it is the
@@ -292,6 +314,9 @@ Key-management permissions follow whichever keys encrypt the table and bucket (�
 - **The operational functions A5 lists outside the request path** — the PII access-log
   aggregator (ADR-012) and the staging shape check (ADR-011 decision 6b) — plus the staging
   refresh's cross-environment role (ADR-011 decision 7). Each is specified in its own ADR.
+  *Amended 2026-10-09: the shape check is now dev's scanner, in dev's application stack; the
+  cross-environment role is the transform Lambda's, in the data-loading stack (ADR-027 decision 9,
+  ADR-028).*
 
 ### A7 — API Gateway is a REST API (2026-09-30)
 

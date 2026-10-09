@@ -43,6 +43,16 @@ copies the change to every coach. Decision 3's key shape is unchanged, as it ant
 the coach code (decision 1), an **invitation to a shared lesson** can bring a family onto a
 coach's roster. The family follows a consent link, signs in, confirms, and the skater becomes
 `PENDING` exactly as in decision 2. The coach still accepts or declines.
+
+**Amended — 2026-10-08.** Kim's answer to `Items to ask Kim About.md` §6 question 1, *"You approve
+a family"*, confirms decision 2: the `PENDING` step stays in MVP.
+
+**Amended — 2026-10-09.** *Decided by the owner,* answering `Items to ask Kim About.md` §6
+questions 2 and 4. **The coach approves everyone, siblings included:** a skater a family adds
+later is `PENDING` like any new student (decision 2), however well the coach knows the family.
+**No reminder email for waiting approvals.** Instead the coach website's **Students** tab shows
+the number of pending students in its title.
+
 ---
 
 ## Context

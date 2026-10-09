@@ -1,8 +1,8 @@
 Coaches can split one session time(slot) aounsts multiple students
 
 
-Q: how many students max are allowed to split a lesson. 
-Let the coach decide this? or hard code?
+~~Q: how many students max are allowed to split a lesson. 
+Let the coach decide this? or hard code?~~ *Answered: default 1, max 2 (ADR-026 P1).*
 
 
 Decided 2026-10-07:
@@ -33,6 +33,7 @@ Invitation (changed 2026-10-07):
   If they go ahead, the request follows the same flow as if they had entered the coach code at sign up.
   When the coach accepts skater B, skater B joins the lesson automatically.
   Before writing anything, the job checks that the lesson slot still exists and hasn't happened yet.
+    *Per ADR-026 d5: done by the coach's Accept itself, which also checks there's room and that the booking named this skater.*
   If those aren't true it does nothing, and family B is notified that the booking didn't happen.
   Recurring booking: the code shares every lesson in the series.
   Sibling (same family): just booked, no confirmation needed (still needs coach acceptance first).

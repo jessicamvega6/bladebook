@@ -16,7 +16,7 @@ There will also be a button the change the reoccuring frequency, you can change 
 Make note for phase 2
 For phase 2, clicking the lesson slot on the Week view if the booking belongs to the client clicking will give the option to cancel, also have cancel confirmation)
 For phase 2, on coach registration & profile, have a checkbox to indicate if the coach has a late cancelation fee. And if the couch does have one then that note is changed from 'may' to 'will'
-Phase 2: An email is sent to the coach when a client shortens or cancels their reocurring bookings. 
+An email is sent to the coach when a client shortens or cancels their reocurring bookings. *MVP per ADR-009 d9, only inside the notice period.* 
 
 
 Coach Week view: shows the coach the schedule for that week listed by timeslots and shows the unbooked slots with Open and the booked slots with the students name. 

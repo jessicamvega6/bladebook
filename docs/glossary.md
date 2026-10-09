@@ -17,9 +17,9 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **Coach website** | *(not an acronym)* | The coach's side of the BladeBook website, used at a desk: schedule editor, week and month views, student roster and `PENDING` approvals, payment dashboard, lesson list, profile. Calls `api-coach`. **Use this term, not "coach app"**, which the older documents used for both surfaces. |
 | **Rinkside app** | *(not an acronym)* | The page a coach uses at the rink, at `/coach/rinkside` in the coach website (ADR-023) — also called the **check-in app**. A web page, not a native app; it can be added to the phone's home screen, and the subject of `FeatureDecriptions/Coach App`. Today's lessons, check-in and no-show, guardian contacts fetched on a tap when there is signal (never cached — ADR-014 decision 9b), and lesson cancellation; works offline (ADR-014). Uses the coach website's sign-in and calls `api-coach` (ADR-023, superseding ADR-014 decisions 10–11). |
 | **Client website** | *(not an acronym)* | The client's side of the website: sign-up with a coach code, booking, My Bookings, cancellation and recurrence management, profile. Calls `api-client`. |
-| **Dev environment** | *(not an acronym)* | A full second stack — its own table, functions, API, Cognito pool and site — built from the same infrastructure code as production **when there is work for it, and destroyed when that work is done** (ADR-027). One at a time. Starts on seeded test data; a masked subset of production is loaded only on request, with `load-dev`, under ADR-011's masking rules. Replaced the long-running **staging** environment on 2026-10-07: production is the only long-running environment. |
+| **Dev environment** | *(not an acronym)* | A full second stack — its own table, functions, API, Cognito pool and site — built from the same infrastructure code as production **when there is work for it, and destroyed when that work is done** (ADR-027). One at a time. Its table is created from one import file when it is built: seed data by default, or a masked subset of production on request (`build-dev --masked`), under ADR-011's masking rules — never both (ADR-028). Replaced the long-running **staging** environment on 2026-10-07: production is the only long-running environment. Each masked file is prepared by an AWS Step Functions workflow in the data-loading stack (ADR-027, amended 2026-10-09). |
 | **ADR** | Architecture Decision Record | A numbered document capturing one significant decision, why it was made, and what it costs. Append-only: a changed decision gets a new ADR marking the old one "Superseded," rather than an edit. Lives in `docs/adr/`. |
-| **MVP** | Minimum Viable Product | Phase 1 in §10 — the fifteen features that must ship before anything else, which has grown from the original eight. |
+| **MVP** | Minimum Viable Product | Phase 1 in §10 — the sixteen features that must ship before anything else, which has grown from the original eight. |
 | **`missedLessonFeeMinor`** | *(not an acronym)* | *Formerly `lateFeeMinor`, renamed 2026-09-30.* The fee for a **missed lesson** — a no-show, or a client's cancellation inside the coach's notice period — one amount for both, in minor units, set **per block in the schedule builder** and stamped on the booking at creation beside `priceMinor` (ADR-015). `0` means no charge — the amount is its own off switch. Stamped so a later policy change cannot rewrite what a client agreed to when they booked. |
 | **`settleReminderSentOn`** | *(not an acronym)* | The date the coach was emailed that this lesson is still unpaid (ADR-018). Stamped on the booking so the weekly reminder lists each lesson once, when it first crosses the threshold, rather than every week. |
 | **`expiresAt`** | *(not an acronym)* | The table's Time to Live (TTL) attribute: when this item may be deleted, in seconds since 1970. Set per item from a per-item-type window in configuration; absent means never. Set on **settlement**, not creation, for bookings and chargeable cancellation lines, so an unpaid lesson never expires (ADR-017 decision 2). |
@@ -35,10 +35,21 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **IaC** | Infrastructure as Code | Defining AWS resources in a programming language rather than clicking the console, so infrastructure is reviewable and reproducible. CDK or Terraform — **undecided** (ADR-001 A4). |
 | **EIN** | Employer Identification Number | A United States tax identifier. Considered as a gate on coach signup and **rejected** (ADR-016 decision 1): there is no public way to verify one, and a Canadian business has a Canada Revenue Agency Business Number instead. Not collected. |
 | **Reply-To** | *(not an acronym)* | The email header naming where a reply goes, as distinct from who sent it. Set to the coach's `businessEmail` on every client-facing message (ADR-016 decision 8) so a family replying to an automated email reaches their coach. The envelope sender stays the application's verified domain. |
-| **HCL** | HashiCorp Configuration Language | Terraform's language. Not a general-purpose one — repetition is `for_each` rather than a loop, which is the main ergonomic difference from CDK when standing up eight similar Lambda functions. Under evaluation, not adopted (ADR-001 A4). |
+| **HCL** | HashiCorp Configuration Language | Terraform's language. Not a general-purpose one — repetition is `for_each` rather than a loop, which is the main ergonomic difference from CDK when standing up fourteen similar Lambda functions. Under evaluation, not adopted (ADR-001 A4). |
 | **CI** | Continuous Integration | Automated build/test on push. Where `cdk-nag` runs as a build gate. |
 | **UI / UX** | User Interface / User Experience | UX appears in the ADR to distinguish "cold start is a latency problem the user feels" from "cold start is a cost problem," which it isn't. |
 | **AI** | Artificial Intelligence | Used specifically to mean "how well an AI coding assistant can help with this framework," which the ADR treats as a real selection criterion for a solo developer. |
+| **YTD** | Year to Date | The financial page's totals: gross earned and rink fees paid so far this year (MVP feature 16; which year is open, Open-Pending §3). |
+| **PCC** | Pelham Civic Center | The one rink in Phase 1; the schedule builder's rink is fixed to it until rink selection ships (Phase 2). |
+| **SOD / EOD** | Start of Day / End of Day | Schedule-builder fields: the first and last time a tab's lessons may run (ADR-008). |
+| **LL / LC** | Lesson Length / Lesson Cost | Schedule-builder fields: a tab's lesson length in minutes and its price (ADR-008). |
+| **USD / CAD** | US Dollar / Canadian Dollar | The two currencies a coach can choose at sign-up; stamped onto every booking. |
+| **RFC** | Request for Comments | An internet standard; RFC 2606 reserves `example.com`, which masked emails use. |
+| **HTML** | HyperText Markup Language | The format of the web pages and of BladeBook's emails. |
+| **URL** | Uniform Resource Locator | A web address. |
+| **PIT** | *(PITest, a tool name)* | The mutation-testing tool run on `core/` (ADR-013). Not to be confused with PITR. |
+| **CLI** | Command-Line Interface | A program run by typing commands in a terminal, such as the operator's `reconcile-schedule` and `build-dev`. |
+| **GB / MB** | Gigabyte / Megabyte | Units of data size, used in storage and cost estimates. |
 
 ---
 
@@ -50,32 +61,38 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **TTL** | Time to Live | DynamoDB's built-in expiry. The table names one attribute — here `expiresAt`, in seconds since 1970 — and DynamoDB deletes each item some time after the timestamp it carries, typically **within a few days**, at no write cost. Items without the attribute never expire. Unlike an S3 lifecycle rule, it is per item: changing a policy does not re-date items already written (ADR-017). |
 | **Deep Archive** | *(S3 Glacier Deep Archive — a storage class, not an acronym)* | S3's cheapest, slowest storage. Reading an object needs a **restore taking up to 12 hours**, objects are billed for at least 180 days, and each is billed as at least about 40 KB. Used for the archive of expired items, for the friction rather than the price: archived children's data cannot be read casually (ADR-017 decision 6). |
 | **IAM** | Identity and Access Management | AWS's permission system. §7 mandates one IAM **role** per Lambda, each granted only the actions that function needs — no wildcards. |
+| **AWS Organization** | *(not an acronym)* | AWS's grouping of several accounts under one owner. BladeBook has two: production and dev (ADR-027 d8). |
+| **Stack** | *(not an acronym)* | A group of AWS resources that the infrastructure code creates, updates and deletes together, as one unit, inside one account: a CloudFormation stack in CDK, a separate configuration with its own state in Terraform. A stack groups what changes together; it is **not** a security boundary — an account is. The production account holds the **application stack** (deployed often) and the **data-loading stack** (the masking workflow, transform Lambda, export and masked buckets, load log and dev's access-log bucket; deployed rarely, ADR-027 d9). The dev account holds an **account stack** (Cognito and test accounts) and an **application stack** built from the seed or masked file and destroyed afterwards (ADR-028). |
+| **IAM Identity Center** | *(not an acronym)* | AWS's single sign-in across the accounts in an Organization, with multi-factor authentication (ADR-027 d8). |
+| **DNS** | Domain Name System | Maps names to addresses. The domain's zone is in production; `dev.<domain>` is delegated to the dev account (ADR-027 d8). |
 | **ARN** | Amazon Resource Name | The unique identifier for any AWS resource. Relevant because invoking a Lambda's *unqualified* ARN silently bypasses SnapStart — always point at the alias. |
 | **VPC** | Virtual Private Cloud | A private network inside AWS. BladeBook deliberately uses **no** VPC: it's what would force a NAT Gateway and blow the budget. |
 | **NAT** | Network Address Translation | NAT Gateway lets resources inside a VPC reach the internet — ~$32/month, always on. Avoiding it is the single biggest cost decision in §2. |
-| **S3** | Simple Storage Service | Object storage. Hosts the React build and the daily report archive. |
+| **S3** | Simple Storage Service | Object storage. Hosts the React build, the daily report archive, the TTL archive (ADR-017), and the dev load's export and masked buckets (ADR-027). |
 | **SES** | Simple Email Service | Email delivery. The primary notification channel. |
 | **SNS** | Simple Notification Service | Used here only for SMS, opted into per phone number (ADR-007 decision 8a). |
-| **KMS** | Key Management Service | Encryption key management for DynamoDB, SES, and the reports bucket. |
+| **KMS** | Key Management Service | Encryption key management. The table and every bucket use AWS-managed keys (`aws/dynamodb`, `aws/s3`). |
 | **CMK** | Customer Managed Key | A KMS key you create and control, versus an AWS-managed default. §7 allows either. |
-| **SSE-KMS** | Server-Side Encryption with KMS | Encryption-at-rest mode for the S3 reports bucket. |
+| **SSE-KMS** | Server-Side Encryption with KMS | Encryption-at-rest mode used for every S3 bucket, with the AWS-managed `aws/s3` key. |
 | **WAF** | Web Application Firewall | **In MVP** (ADR-019): one web ACL on the REST API's stage and the Cognito user pool, with AWS managed rules (SQLi/XSS, known bad inputs, IP reputation) and per-address rate limits. The reason the API is a REST API: WAF cannot attach to an HTTP API. ~$10/mo per environment. |
 | **CORS** | Cross-Origin Resource Sharing | The browser rule that a page on one domain may call an API on another only if the API says so. Needed because the site (CloudFront) and the API (API Gateway) are on different addresses (ADR-019). |
 | **ACL** | Access Control List | Here, a WAF **web ACL**: the set of rules attached to the API's stage and the Cognito user pool (ADR-019). |
 | **CDN** | Content Delivery Network | CloudFront — caches the static React site at edge locations. |
-| **CDK** | Cloud Development Kit | AWS's IaC framework. ADR-001 chose the **TypeScript** binding. |
+| **CDK** | Cloud Development Kit | AWS's IaC framework. ADR-001 chose the **TypeScript** binding; re-opened against Terraform by A4 (undecided). |
 | **L2** | CDK "Level 2" construct | An opinionated, high-level CDK class with sensible defaults. For some runtimes it also builds your code: `NodejsFunction` takes a `.ts` entry point and runs esbuild for you. **No `JavaFunction` L2 exists in any CDK language** (`aws-lambda-java-alpha` is not published), so for Java you run Maven yourself and hand `Code.fromAsset()` a path to the built JAR. That cost is identical in CDK-Java and CDK-TypeScript, so it can't favour either — but it's why `cdk.json` has to invoke Maven, or CDK will happily deploy a stale JAR. |
 | **jsii** | JavaScript Interop Interface | The tool that generates CDK's Java/Python/.NET bindings from the TypeScript source. Why TypeScript is the most mature CDK language: it's the original, the rest are generated. |
 | **cdk-nag** | *(not an acronym — a tool name)* | Rule packs that fail a CDK build on wildcard IAM actions, unencrypted buckets, missing Block Public Access. Automates most of §7's checklist. |
 | **SAM** | Serverless Application Model | An AWS IaC alternative to CDK, considered and not chosen. |
 | **SSM** | AWS Systems Manager | Parameter Store — holds the default coach timezone used to pre-fill onboarding. |
-| **PITR** | Point-in-Time Recovery | A DynamoDB feature that continuously captures changes and lets a table be restored to any second in the last **35 days**. Currently **off** — an omission, not a decision (ADR-010 Open). It is the only thing that would recover from a bug in the schedule-change cancellation consumer, whose job is to delete bookings in bulk. Restores to a **new** table, never in place, so using it is a runbook rather than a button. |
+| **PITR** | Point-in-Time Recovery | A DynamoDB feature that continuously captures changes and lets a table be restored to any second in the last **35 days**. **On**, with deletion protection (ADR-010 d7). It is the only thing that would recover from a bug in the schedule-change cancellation consumer, whose job is to delete bookings in bulk. Restores to a **new** table, never in place, so using it is a runbook rather than a button. |
 | **DLQ** | Dead-Letter Queue | Where a message goes after its retries are exhausted. ADR-010 gives one to every asynchronous consumer. The unit is *queue + depth alarm*, never the queue alone — a dead-letter queue nobody drains is a silent failure with extra steps. |
 | **Dead man's switch** | *(not an acronym)* | Named for the train control that brakes when the driver lets go: **inaction produces the safe outcome**. In ADR-010 it is how a cron that fails to fire is detected — a job that does not run emits no error and no metric datapoint, so there is nothing to alarm on. Instead the alarm watches for *evidence of life* (an `Invocations` datapoint) and fires when the heartbeat stops. |
 | **`treatMissingData`** | *(CloudWatch alarm setting)* | How an alarm reads an absence of data. Must be **`breaching`** for a dead man's switch. The default, `missing`, ignores gaps — producing an alarm that is visible, configured, and structurally incapable of firing, which is worse than no alarm because it looks like coverage. |
 | **RDS** | Relational Database Service | Managed Postgres/MySQL. Not used — it's the ~$20–45/mo option DynamoDB replaced. Appears in the ADR because AWS's headline SnapStart benchmarks were measured against it, on a data path BladeBook doesn't have. |
 | **EC2** | Elastic Compute Cloud | Ordinary virtual machines. Relevant only as the billing model behind Lambda Managed Instances, which is disqualified on budget. |
 | **EFS** | Elastic File System | Network filesystem for Lambda. Foreclosed by SnapStart. |
+| **AZ** | Availability Zone | One of the separate data centres within an AWS region; AWS services such as DynamoDB and Lambda spread across several (ADR-010). |
+| **STS** | Security Token Service | The AWS service that issues temporary credentials. Each API request assumes a tenant role through it (ADR-021, ADR-022). |
 | **SLA** | Service Level Agreement | A published guarantee. Cited as *absent*: AWS documents no frequency for the environment recycle that can invalidate a SnapStart snapshot. |
 | **`$LATEST`** | *(Lambda's reserved version name)* | The unpublished working version of a function. **SnapStart does not apply to `$LATEST`** — it silently does nothing, with no error. Seeing `[$LATEST]` in CloudWatch logs means the alias wiring broke and users are waiting seconds to book. |
 | **Alias** | *(not an acronym)* | A named pointer to a published Lambda version (`live`). API Gateway must integrate with the **alias**, never the unqualified function ARN — this is what makes SnapStart apply and what keeps the previous version serving during a snapshot build. |
@@ -173,6 +190,8 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **PII** | Personally Identifiable Information | Names, emails, phone numbers. §7 minimizes collection to what scheduling and contact actually require. |
+| **PCI** | Payment Card Industry (Data Security Standard) | The card-data security standard. BladeBook takes no card payments, so it stays out of scope (ADR-003). |
+| **TIN** | Taxpayer Identification Number | A United States tax identifier, of which the EIN is one kind (ADR-016). Not collected. |
 | **COPPA** | Children's Online Privacy Protection Act | US federal law governing data about children under 13. Applies where `isMinor = true`. §7 flags it for legal review before launch — it is not a hand-wave. |
 | **SQLi** | SQL injection | A WAF-blocked attack class. Largely inapplicable to DynamoDB, but the managed rule set covers it anyway. |
 | **SQL** | Structured Query Language | Relational query language. Not used — DynamoDB isn't relational. |
@@ -187,6 +206,9 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **SMS** | Short Message Service | Text messages, via SNS. **Opt-in per phone number** (ADR-007 decision 8a), both for cost and for consent. Every message opens `<Coach name> via BladeBook:`. |
 | **10DLC** | 10-Digit Long Code | The US registration regime for application-to-person SMS on a normal-looking number. ~$2/mo plus one-time registration — required before any text can send. |
 | **A2P** | Application-to-Person | Messages sent by software rather than a human — the category 10DLC registration governs. |
+| **TCPA** | Telephone Consumer Protection Act | United States law on consent for automated texts and calls. ADR-007 notes it does not require opt-out wording in every message; carrier and CTIA rules are what bite. |
+| **CTIA** | Cellular Telecommunications Industry Association | The wireless industry body whose messaging guidelines carriers enforce (ADR-007). |
+| **RCS** | Rich Communication Services | Richer messaging that may succeed SMS. Not used; its arrival is a revisit trigger for ADR-007. |
 | **GSM-7** | GSM 03.38 7-bit alphabet | The default SMS character set: **160 characters per segment**, which is the budget every BladeBook SMS is built against (ADR-007). Its *extension table* (`[ ] { } \ ~ ^ \|` and `€`) costs two characters each. |
 | **UCS-2** | Universal Coded Character Set, 2-byte | The fallback encoding the moment a message contains *any* non-GSM-7 character. Drops the segment to **70** characters — which is why ADR-007 restricts the character set and not just the length. The usual culprits are a typographic apostrophe `’`, an em dash, or an accented name. |
 | **Segment** | *(not an acronym)* | One billable SMS unit. Longer messages are split by the carrier, billed per segment, and reassembled with no ordering guarantee. ADR-007 permits exactly one. |
@@ -215,11 +237,25 @@ A **client** books, is billed, and is notified. This records why they hold that 
 
 | Value | Meaning |
 |---|---|
-| `PENDING` | Created by a client who entered the coach's `coachCode`, and **not yet confirmed and **cannot book**  |
+| `PENDING` | Created by a client who entered the coach's `coachCode`, or who followed a shared-lesson invitation's consent link and confirmed (ADR-026 d5), and **not yet confirmed** by the coach. **Cannot book.** |
 | `ACTIVE` | The coach has confirmed them. They can book. |
 
 > Denormalized onto the `CLIENT#…/STUDENT#…` link item as well, so a client's own roster
 > renders without a second read.
+
+### `INVITATION.inviteStatus` — where a shared-lesson invitation stands (ADR-026 d5)
+
+| Value | Meaning |
+|---|---|
+| `SENT` | Family B has been emailed and hasn't answered. Family A can still withdraw it. |
+| `AWAITING_COACH` | Family B confirmed, but skater B isn't yet the coach's student: they're in the coach's pending list. Once the coach accepts, the coach's Accept joins skater B automatically. |
+| `CONFIRMED` | Skater B has joined the lesson. |
+| `DECLINED` | Family B said no, or the coach declined skater B. |
+| `WITHDRAWN` | Family A took the invitation back before Family B confirmed. |
+| `EXPIRED` | Family B confirmed, but skater B never joined: the lesson passed before the coach acted, or the coach accepted and the join failed (cancelled, started or full). Family B is told. |
+
+> Not the same as `STUDENT.studentStatus` `PENDING`: an invitation's `AWAITING_COACH` is the
+> moment the invited skater has a `PENDING` student record with the coach.
 
 ### `BOOKING.bookingStatus` — what this slot actually is
 
@@ -239,6 +275,18 @@ A **client** books, is billed, and is notified. This records why they hold that 
 
 > Distinct from `paymentReminderSent` / `paymentReminderCount`, and deliberately so: those record that we **asked**,
 > the other records that they **paid**.
+
+### `BOOKING.paidVia` — how the client paid
+
+Set by the coach when marking a lesson paid (ADR-003 decision 4, amended 2026-10-09). Only the
+handles the coach has filled in on their profile are offered, plus `OTHER`; there is no free text.
+
+| Value | Meaning |
+|---|---|
+| `CASHAPP` | Paid to the coach's Cashapp handle. |
+| `VENMO` | Paid to the coach's Venmo handle. |
+| `PAYPAL` | Paid to the coach's PayPal handle. |
+| `OTHER` | Any other way: cash, cheque, Interac e-transfer, or a handle the coach has since removed. |
 
 ### `CHANGE_BATCH.cancelledBy` — *who* cancelled
 

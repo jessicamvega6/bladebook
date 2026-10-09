@@ -30,6 +30,9 @@ so every screen takes decision 5's "no photo uploaded" path. *Decided by the own
 where a photo would appear, including the family's code-entry screen, MVP shows the coach's
 **initials** in a circle.
 
+**Note — 2026-10-09.** [ADR-003](ADR-003-lesson-pricing-and-payment.md) decision 4 (amended) uses
+decision 7's handles as the options for **how the client paid**, plus *Other*.
+
 ---
 
 ## Context
@@ -80,7 +83,7 @@ therefore what this decision is standing in for.
 
 An identifier that cannot be validated is not a gate. Worse, it is a **net cost**: §7
 commits to collecting *"only what's needed for scheduling + contact"*, and an unvalidatable
-tax identifier sits in the table, the backups, the staging masking pipeline and any breach
+tax identifier sits in the table, the backups, the staging masking pipeline (*dev since ADR-027*) and any breach
 scope, doing no work. It is therefore not collected.
 
 ### 1b. A licence number would succeed where the EIN failed — for a different reason
@@ -139,8 +142,8 @@ gate question reopens immediately, because the account stops being inert.
 | `paymentInstructions` | Free text, as ADR-003 |
 | `displayPaymentTypesToClients` | Boolean, gating **only** the handles below |
 | `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional |
-| `smsCancellationAlerts` | Boolean, **false until the coach ticks it** — *"Text me when a family cancels"* on the signup form and profile. Sends the opt-in confirmation to `phone` when first ticked (ADR-009 decision 9, ADR-007 decision 8). *Added 2026-09-30* |
-| `themeId` | Phase 2; Forest for MVP |
+| `smsCancellationAlerts` | Boolean, **false until the coach ticks it** — *"Text me when a family cancels late"* on the signup form and profile *(label amended 2026-10-09: the text goes only for cancellations inside `requiredNoticeHours`, ADR-009)*. Sends the opt-in confirmation to `phone` when first ticked (ADR-009 decision 9, ADR-007 decision 8). *Added 2026-09-30* |
+| `themeId` | Phase 2; Harbor for MVP *(Amended 2026-10-09: Harbor replaced Forest on 2026-10-01)* |
 
 No password field. No EIN.
 
