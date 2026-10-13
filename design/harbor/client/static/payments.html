@@ -734,8 +734,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-tablewrap { overflow-x: auto; position: relative; }
 .bb .ac-tablewrap .table { min-width: 560px; }
 .bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
   .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
 }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
@@ -782,6 +790,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb button.rcard:hover { border-color: var(--primary); }
 .bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
 .bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
 @media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
@@ -805,7 +820,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook client website · Harbor · Phase 2</span><b>Payments</b><span class="sp-bar__note">New, Phase 2. Lessons the coach hasn’t marked paid, with the coach’s payment instructions; BladeBook doesn’t take payments.</span><nav class="sp-bar__nav"><a href="profile-remove-skater.html">← Profile — remove a skater</a><a href="index.html">All pages</a><a href="login.html">Log in →</a></nav></header>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Phase 2</span><b>Payments</b><span class="sp-bar__note">New, Phase 2. Lessons the coach hasn’t marked paid, with the coach’s payment instructions; BladeBook doesn’t take payments.</span><nav class="sp-bar__nav"><a href="profile-new-share-code.html">← Profile — new share code</a><a href="index.html">All pages</a><a href="login.html">Log in →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--family">
     <header class="nav"><a class="brand" href="home.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
       <nav class="nav__items" aria-label="Main"><a class="nav__item" href="home.html"><span>Home</span></a><a class="nav__item" href="book-calendar.html"><span>Book a lesson</span></a><a class="nav__item is-active" href="bookings.html" aria-current="page"><span>My bookings</span></a><a class="nav__item" href="profile.html"><span>Profile</span></a></nav>
@@ -815,6 +830,6 @@ html, body { margin: 0; background: var(--sp-bg); }
     <div class="banner banner--info"><span class="banner__icon"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><div class="banner__text"><div class="banner__title">Coming in Phase 2</div><div class="banner__body">This page isn’t in the first release. BladeBook doesn’t take payments: you pay Coach Dana directly, and they mark the lesson paid.</div></div></div>
     <div class="stats"><div class="stat"><span class="stat__icon"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span><div class="stat__label">Not marked paid</div><div class="stat__value">$200</div><div class="stat__sub">4 lessons</div></div><div class="stat"><span class="stat__icon"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div class="stat__label">Skaters</div><div class="stat__value">2</div><div class="stat__sub">Mia & Noah</div></div><div class="stat"><span class="stat__icon"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><div class="stat__label">Notice period</div><div class="stat__value">24 hours</div><div class="stat__sub">Late cancels may be charged</div></div></div>
     <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Not marked paid</h2></div></header><div class="card__body"><div class="ac-tablewrap"><table class="table"><thead><tr><th>Skater</th><th>Lesson</th><th>Attendance</th><th class="r">Amount</th></tr></thead><tbody><tr><td><span class="cellname"><span class="avatar avatar--sm">MC</span>Mia Chen</span></td><td>Wed, Sep 23 · 6:30 AM</td><td><span class="badge badge--success"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Attended</span></td><td class="r money">$50</td></tr><tr><td><span class="cellname"><span class="avatar avatar--sm">NC</span>Noah Chen</span></td><td>Fri, Oct 2 · 7:00 AM</td><td><span class="badge badge--success"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Attended</span></td><td class="r money">$50</td></tr><tr><td><span class="cellname"><span class="avatar avatar--sm">MC</span>Mia Chen</span></td><td>Mon, Oct 5 · 6:00 AM</td><td><span class="badge badge--success"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Attended</span></td><td class="r money">$50</td></tr><tr><td><span class="cellname"><span class="avatar avatar--sm">MC</span>Mia Chen</span></td><td>Wed, Oct 14 · 6:30 AM</td><td><span class="badge badge--danger"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>No-show</span></td><td class="r money">$50</td></tr></tbody></table></div></div></section>
-    <section class="card"><header class="card__head"><div><h2 class="h2">How to pay Coach Dana</h2></div></header><div class="card__body"><p class="ac-instr">Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.</p></div></section></div></main></div></div></div>
+    <section class="card"><header class="card__head"><div><h2 class="h2">How to pay Coach Dana</h2></div></header><div class="card__body"><p class="ac-instr">Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.</p><div class="ac-contact"><span><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Cash</span><span><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Venmo @dana-skates</span></div></div></section></div></main></div></div></div>
 </body>
 </html>

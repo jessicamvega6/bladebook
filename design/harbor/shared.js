@@ -42,37 +42,48 @@ const isStarted = l => l.iso < TODAY || (l.iso === TODAY && l.t <= NOW_MIN);
 /* Matches the schedule demo: Morning ice Mon/Wed/Fri 6:00–11:30, 30 min, $50; Afternoon power
    hours Mon 3:00–5:00 PM, 60 min, $80; Summer camp week Sep 14–20 (special schedule); Thanksgiving
    break Nov 22–28 (no lessons). */
+/* Rink and ice types (FeatureDecriptions/Schedule Creater.md). Phase 1 has one rink, fixed; each rink's list of ice
+   types is kept by the BladeBook owner. Families never see the ice type or skaters per lesson (ADR-026 d1). */
+const RINK = 'Pelham Civic Center (PCC)';
+const RINK_SHORT = 'Pelham Civic Center';
+const ICE_TYPES = ['Birmingham Figure Skating Club (BFSC) freestyle ice', 'Stick and Puck (S&P) ice', 'Public ice'];
+const ICE_SHORT = { [ICE_TYPES[0]]: 'BFSC freestyle', [ICE_TYPES[1]]: 'Stick and Puck', [ICE_TYPES[2]]: 'Public ice' };
+/* maxSkaters: skaters per lesson, default 1 (private), most 2 (ADR-026 d1). Morning ice can be shared. */
 const BLOCKS = [
-  { name: 'Morning ice', days: [1, 3, 5], sod: 360, eod: 690, len: 30, price: 50 },
-  { name: 'Afternoon power hours', days: [1], sod: 900, eod: 1020, len: 60, price: 80 },
+  { name: 'Morning ice', days: [1, 3, 5], sod: 360, eod: 690, len: 30, price: 50, maxSkaters: 2, rink: RINK, ice: ICE_TYPES[0] },
+  { name: 'Afternoon power hours', days: [1], sod: 900, eod: 1020, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[2] },
 ];
 const SPECIALS = [
-  { name: 'Summer camp week', kind: 'special', sd: '2026-09-14', ed: '2026-09-20', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80 }] },
+  { name: 'Summer camp week', kind: 'special', sd: '2026-09-14', ed: '2026-09-20', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[0] }] },
   { name: 'Thanksgiving break', kind: 'timeoff', sd: '2026-11-22', ed: '2026-11-28' },
-  { name: 'Holiday camp week', kind: 'special', sd: '2026-12-21', ed: '2026-12-27', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80 }] },
+  { name: 'Holiday camp week', kind: 'special', sd: '2026-12-21', ed: '2026-12-27', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[0] }] },
 ];
 /** Every slot the schedule produces on a date: [{t, len, price, block}]. */
 function slotsOn(iso) {
   const sp = SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
   const blocks = sp ? (sp.blocks || []) : BLOCKS.filter(b => b.days.includes(dowOf(iso)));
   const out = [];
-  for (const b of blocks) for (let t = b.sod; t + b.len <= b.eod; t += b.len) out.push({ t, len: b.len, price: b.price, block: b.name });
+  for (const b of blocks) for (let t = b.sod; t + b.len <= b.eod; t += b.len) out.push({ t, len: b.len, price: b.price, block: b.name, maxSkaters: b.maxSkaters || 1, ice: b.ice });
   return out;
 }
 const specialOn = iso => SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
 
 function freshStudents() {
   return [
-    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', since: '2025-09-02' },
-    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', since: '2025-09-02' },
-    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45 },
-    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15' },
-    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20' },
-    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04' },
-    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', since: '2026-10-12' },
-    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', since: '2026-10-12' },
-    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', since: '2026-10-13' },
+    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
+    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
+    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45, shareCode: 'SAM-6RZB' },
+    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
+    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
+    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
+    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQW' },
+    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JACK-4MVD' },
+    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLIV-9KRB' },
+    // Zoe skates with another coach. Grace invited her to share Mia's Friday lesson; Tom confirmed, so Zoe now waits for
+    // Coach Dana like any sign-up, and joins the lesson when Dana approves her (pendingJoins, ADR-026 d5).
+    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3P',
+      pendingJoins: [{ iso: '2026-10-16', t: 510, invite: 'i2' }], invitedBy: 'Grace Chen' },
   ];
 }
 /* Recurring arrangements: [studentId, weekday, start minute, first date, last date]. */
@@ -99,6 +110,7 @@ function freshLessons(students) {
       l.status = h === 0 ? 'NO_SHOW' : 'CHECKED_IN';
       l.pay = iso < '2026-09-21' ? (h === 3 ? 'WAIVED' : 'PAID') : (h % 3 === 0 ? 'UNPAID' : 'PAID');
       if (l.status === 'NO_SHOW') l.pay = 'UNPAID';
+      if (l.pay === 'PAID') l.paidBy = ['VENMO', 'CASH', 'VENMO', 'CASHAPP', null, 'OTHER'][h % 6];   // how the client paid; optional (ADR-003)
     }
     out.push(l);
   };
@@ -112,21 +124,55 @@ function freshLessons(students) {
   }
   for (const [sid, iso, t] of CAMP) add(sid, iso, { ...slotsOn(iso).find(s => s.t === t) });
   // A few one-off lessons
-  for (const [sid, iso, t] of [['s6', '2026-10-16', 480], ['s2', '2026-10-19', 450], ['s7', '2026-10-21', 660], ['s3', '2026-10-09', 600]]) add(sid, iso, slotsOn(iso).find(s => s.t === t));
+  for (const [sid, iso, t] of [['s1', '2026-10-16', 510], ['s6', '2026-10-16', 480], ['s2', '2026-10-19', 450], ['s7', '2026-10-21', 660], ['s3', '2026-10-09', 600]]) add(sid, iso, slotsOn(iso).find(s => s.t === t));
   // Today: Sam 6:00 and Mia 6:30 checked in; Owen 8:30 and Leo 10:00 still to come; 11:00 held.
   out.push({ id: 'h1', sid: null, iso: TODAY, t: 660, len: 30, price: 0, status: 'COACH_HELD', pay: null });
+  // Shared lessons (ADR-026). Sam's Wednesday 6:00 series is shared with Leo: each skater has their own attendance and payment.
+  for (const l of out.filter(x => x.sid === 's4' && dowOf(x.iso) === 3 && x.t === 360 && x.iso >= '2026-10-07'))
+    l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }];
+  // Grace invited Zoe Okafor to share Mia's Friday 8:30; Zoe waits for Coach Dana's approval (invite i2).
+  const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 'p4';
   // Not recorded: Ella's lesson last Friday has no attendance.
   const ella = out.find(l => l.sid === 's3' && l.iso === '2026-10-09' && l.t === 540); if (ella) { ella.status = 'BOOKED'; ella.pay = 'UNPAID'; }
   return out.sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
 }
 
+/* Shared-lesson invitations (ADR-026 d5). inviteStatus: SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
+   from: the booking family; skater: the invited skater; series: one invitation covers a whole recurring series. */
+function freshInvites() {
+  return [
+    { id: 'i1', from: 'Owen Brooks', fromSkater: 's7', skater: 's2', dow: 3, t: 510, len: 30, first: '2026-10-21', last: '2026-12-23', series: true, status: 'SENT', sent: '2026-10-13',
+      clashes: [{ when: 'Wed, Nov 4 · 8:30 AM', what: 'Noah’s lesson with Coach Ben Ortiz' }] },
+    { id: 'i2', from: 'Grace Chen', fromSkater: 's1', skater: 'p4', iso: '2026-10-16', t: 510, len: 30, series: false, status: 'AWAITING_COACH', sent: '2026-10-12', confirmed: '2026-10-13', warnedAt: '2026-10-13', clashes: [] },
+    { id: 'i3', from: 'Dee Rivera', fromSkater: 's4', skater: 's5', dow: 3, t: 360, len: 30, first: '2026-10-07', last: '2026-12-23', series: true, status: 'CONFIRMED', sent: '2026-10-01', clashes: [] },
+  ];
+}
+/** The shared-lesson warning time: 24 hours plus the coach's notice period before the lesson (ADR-026 d5a). The nightly
+   sweep sends a warning early rather than late, so one already sent (warnedAt) counts as warned. */
+const inviteWarned = (inv, notice = NOTICE_H) => { if (inv.status !== 'AWAITING_COACH' || !inv.iso) return false;
+  if (inv.warnedAt) return true;
+  const mins = Math.round((parseIso(inv.iso) - parseIso(TODAY)) / 864e5) * 1440 + inv.t - NOW_MIN; return mins > 0 && mins <= (24 + notice) * 60; };
+
+/* Payment types (ADR-016 d7, amended 2026-10-12): one switch per type. [paidVia value, label, handle key, switch key, placeholder].
+   A type switched on is a how-paid option (ADR-003 d4) and is shown to approved families. Cash has no handle. */
+const PAY_TYPES = [['CASH', 'Cash', null, 'cash', ''], ['VENMO', 'Venmo', 'venmo', 'onVenmo', '@handle'],
+  ['CASHAPP', 'Cash App', 'cashapp', 'onCashapp', '$cashtag'], ['PAYPAL', 'PayPal', 'paypal', 'onPaypal', 'paypal.me/you']];
+const payOn = p => PAY_TYPES.filter(([, , h, k]) => p[k] && (!h || p[h]));
+const payTypesFor = p => [...payOn(p).map(([v, l]) => [v, l]), ['OTHER', 'Other']];
+/** What approved families see: each type switched on, with its handle ('' for cash). */
+const payShown = p => payOn(p).map(([, l, h]) => [l, h ? p[h] : '']);
+const PAID_BY_LABEL = { CASH: 'Cash', VENMO: 'Venmo', CASHAPP: 'Cash App', PAYPAL: 'PayPal', OTHER: 'Other' };
+
 function freshProfile() {
   return {
     first: 'Dana', last: 'Whitfield', loginEmail: 'dana.whitfield@gmail.com', businessEmail: 'lessons@danawhitfieldskating.com',
     phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: 'DANA-7K2Q', photo: true,
-    showPhone: true, showEmail: true, showHandles: false, smsCancel: false,
+    showPhone: true, showEmail: true, smsCancel: false,
     instructions: 'Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.',
-    venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',
+    venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',   // handles; a handle is kept when its type is switched off
+    cash: true, onVenmo: true, onCashapp: false, onPaypal: false,   // one switch per payment type (ADR-016 d7, amended 2026-10-12)
+    payKept: { onCashapp: true },   // types switched off with a handle kept: switching back on asks the coach to verify it
+    sport: 'Figure skating', rinkPlan: 'percent',   // rink terms: one reading of Q_Rink-Fees.md (15% of gross, or $500 a month)
     emails: [{ addr: 'lessons@danawhitfieldskating.com', note: 'Current · confirmed' }, { addr: 'dana.whitfield@gmail.com', note: 'Your login email · verified' }],
   };
 }

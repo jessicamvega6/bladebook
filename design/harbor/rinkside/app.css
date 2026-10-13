@@ -71,3 +71,9 @@
   .bb .rk-body { overflow: visible; }
   .bb .tabbar { position: sticky; margin-top: auto; }
 }
+/* A shared lesson: one card, a row per skater, each recorded on their own (ADR-026 d6). */
+.bb .rk-shared__tag { flex: 1; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); }
+.bb .rk-shared .rbtn--sm { flex: 0 0 36px; height: 36px; }
+.bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.bb .rk-seat .rk-namebtn { align-self: flex-start; }
+.bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }

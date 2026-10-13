@@ -15,9 +15,9 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 44 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 26 pages. |
-| `rinkside/` | The rinkside check-in app: 13 phone screens. |
+| `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
+| `client/` | The family website: 37 pages. |
+| `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
 ## Coach website — `coach/`
 
@@ -41,20 +41,20 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 ### Pages
 
-44 static pages. New means no design existed before; redesigned means a Forest screen existed.
+53 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
 | Sign in | Log in, forgot password (email a code; code and new password) — new |
 | Sign up | Account, verify login email, business details (different / same email), confirm business email, all set — redesigned |
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub) |
-| Calendar | Month — new; week — redesigned; day — new; cancel preview — redesigned; week after cancelling — new |
-| Schedule | Hub, weekly editor, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
-| Students | Student list, edit contact, personal price, remove, pending list, decline, nobody waiting — new |
+| Calendar | Month — new; week — redesigned; day — new; day with a shared-lesson invitation — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
+| Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
+| Students | Student list, edit contact, personal price, remove, pending list (an invited skater joins their shared lesson on approval), decline, nobody waiting, after approving an invited skater — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
-| Payments | Pick a range, unpaid, all — redesigned |
+| Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
 | Profile | Details and coach code, business email, visibility and texts — redesigned; payments, account — new |
-| Phase 2 | Email templates — new |
+| Phase 2 | Email templates, with the shared-lesson emails — new |
 
 ### What the demo does not do
 
@@ -68,12 +68,15 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 `client/static/index.html` (gallery) and `client/demo/index.html` (demo). Sources: `app.js`
 (families, shell), `screens-booking.*` (book, pick times, confirm and repeat, results,
-My bookings, cancel, change a repeating lesson) and `screens-account.*` (log in, forgot
-password, sign-up with a coach code, home, profile, payments in Phase 2).
+My bookings, cancel, change a repeating lesson, sharing a lesson and withdrawing an invitation) and `screens-account.*`
+(log in, forgot password, sign-up with a coach code, home, profile with share codes, the shared-lesson invitation page,
+payments in Phase 2). Texts to families are Phase 2, so the SMS opt-ins show as Phase 2.
 
 The demo bar switches between **Grace Chen** (approved; parent of Mia and Noah) and
 **Sarah Park** (waiting for approval). A waiting family sees only Home and Profile: no
-schedule, open times or coach contact details (ADR-022 d6).
+schedule, open times or coach contact details (ADR-022 d6). **Tom Okafor** is the invited family: Grace invited his
+Zoe, who skates with another coach, to share Mia's Friday 8:30 lesson; Tom confirmed, so Zoe waits for Coach Dana's
+approval and both homes show the red shared-lesson banner (ADR-026 d5a).
 
 Removing an approved skater from the profile cancels their upcoming lessons, which is one
 reading of the open "delete a student" decision.
@@ -81,8 +84,10 @@ reading of the open "delete a student" decision.
 ## Rinkside app — `rinkside/`
 
 `rinkside/static/index.html` and `rinkside/demo/index.html`. A 390-pixel phone, centred on
-wide screens and full-screen on a phone. Now is 6:35 AM at Pelham Ice Rink. The demo bar
-turns signal off and on, moves the clock to 8:40 AM, and opens the app with nothing loaded.
+wide screens and full-screen on a phone. Now is 6:35 AM at Pelham Civic Center. The demo bar
+turns signal off and on, moves the clock to 5:45 or 8:40 AM, and opens the app with nothing loaded.
+Today's 6:00 lesson is shared by Sam and Leo: one card, each skater with their own check-in, and cancelling it
+cancels both (ADR-026 d6).
 Entries made with no signal are saved on the phone and sent when signal returns; one is
 rejected because the family cancelled meanwhile, and appears under "Couldn't be sent"
 (ADR-014). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a).

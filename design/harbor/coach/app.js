@@ -16,12 +16,29 @@ function freshState() {
   const students = freshStudents();
   return {
     screen: 'today', authed: true, modal: null, flash: '',
-    students, lessons: freshLessons(students), profile: freshProfile(),
+    students, lessons: freshLessons(students), profile: freshProfile(), invites: freshInvites(),
     ui: {},          // per-screen UI state; each screen group owns its own keys
     auth: { step: 0, email: 'dana.whitfield@gmail.com', bizSame: false, error: '' },
   };
 }
 let state = freshState();
+
+/* ================= shared lessons (ADR-026 d6) =================
+   A lesson's booking skater lives on the lesson itself; a second skater is in l.with. Each skater has their own
+   attendance and payment. skatersIn() flattens them: k is -1 for the booking skater, else the index in l.with,
+   and ref is the object to change. */
+const skatersIn = l => !l || !l.sid ? [] : [{ k: -1, ref: l }, ...(l.with || []).map((w, k) => ({ k, ref: w }))]
+  .map(({ k, ref }) => ({ id: l.id, k, ref, sid: ref.sid, status: ref.status, pay: ref.pay, paidBy: ref.paidBy, price: ref.price, iso: l.iso, t: l.t, len: l.len, recurring: l.recurring, lesson: l }));
+const isShared = l => !!(l && l.with && l.with.length);
+/** "Sam R. & Leo M." (short) or "Sam Rivera & Leo Martin". */
+const whoIn = (l, short = true) => l && l.sid ? skatersIn(l).map(p => short ? shortName(student(p.sid).name) : student(p.sid).name).join(' & ') : 'Held';
+const familiesIn = l => families(skatersIn(l).map(p => student(p.sid)));
+/** One attendance badge per skater; a shared lesson labels each with the skater's first name. */
+const skaterBadges = l => isShared(l) ? skatersIn(l).map(p => `<span class="sh-badge"><small>${esc(student(p.sid).name.split(' ')[0])}</small>${statusBadge(p)}</span>`).join('') : statusBadge(l);
+/** A shared-lesson invitation waiting for the coach, once its warning has gone out (ADR-026 d5a). The nightly sweep sends
+   early, so warnedAt can be set before the warning time itself. */
+const inviteNeedsCoach = inv => inv.status === 'AWAITING_COACH' && inv.iso && !isStarted({ iso: inv.iso, t: inv.t }) && !!(inv.warnedAt || inviteWarned(inv, state.profile.notice));
+const inviteWhen = inv => `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
 
 /** Links into the schedule section (schedule.html). */
 const SCHEDULE_PAGES = { hub: 'schedule.html', weekly: 'schedule.html#weekly', away: 'schedule.html#away' };
@@ -33,7 +50,7 @@ const NAV_ITEMS = [
 ];
 const SECTION_OF = s => ({
   today: 'Today', 'calendar-month': 'Calendar', 'calendar-week': 'Calendar', 'calendar-day': 'Calendar', 'cancel-preview': 'Calendar',
-  students: 'Students', pending: 'Students', lessons: 'Lessons', payments: 'Payments',
+  students: 'Students', pending: 'Students', lessons: 'Lessons', payments: 'Payments', finances: 'Payments',
   profile: 'Profile', 'profile-email': 'Profile', 'profile-visibility': 'Profile', 'profile-payments': 'Profile', 'profile-account': 'Profile', 'email-templates': 'Profile',
 }[s] || 'Today');
 
@@ -117,7 +134,7 @@ SCREENS.signup = () => {
     <div class="grid2">${INP('su-phone', 'Phone', 'profile.phone', { type: 'tel', optional: true })}${SEL('su-tz', 'Time zone', 'profile.tz', [['Eastern — New York', 'Eastern — New York'], ['Central — Chicago', 'Central — Chicago'], ['Mountain — Denver', 'Mountain — Denver'], ['Pacific — Los Angeles', 'Pacific — Los Angeles'], ['Eastern — Toronto', 'Eastern — Toronto']])}</div>
     <div class="fieldset"><div class="label">Currency</div>${SEG(['USD', 'CAD'], p.currency === 'USD' ? 0 : 1, 'signupCurrency', [], { block: true })}<div class="hint">Chosen once. Every lesson is priced in it.</div></div>
     ${TXT('su-instr', 'How families pay you', 'profile.instructions', { hint: 'Included in payment reminders. BladeBook doesn’t take payments itself.' })}
-    <div class="grid3">${INP('su-venmo', 'Venmo', 'profile.venmo', { optional: true })}${INP('su-cash', 'Cash App', 'profile.cashapp', { optional: true })}${INP('su-paypal', 'PayPal', 'profile.paypal', { optional: true })}</div>
+    <div class="fieldset"><div class="label">Payment types <span class="label__opt">Optional</span></div>${payTypeRows('su')}<div class="hint">Switch on each way families can pay you. You can change these any time from your profile.</div></div>
     <div class="fieldset"><div class="label">Profile photo <span class="label__opt">Optional</span></div><div class="photo-pick">${avatar(initials(p.first + ' ' + p.last), 'lg')}${B('Upload a photo', 'secondary', 'noop', { sm: true, icon: 'plus' })}<span class="hint">JPG or PNG, up to 2 MB. Families see it after entering your coach code.</span></div></div>
     ${B(a.bizSame ? 'Finish setup' : 'Save and continue', 'primary', 'signupNext', { block: true, lg: true })}`),
     help('Why a business email?', 'It’s the only address families see. Emails go out as “Dana Whitfield via BladeBook” and replies come to you. Your login email stays private unless you choose it here.'),
@@ -157,14 +174,19 @@ Object.assign(ACTIONS, {
 SCREENS.today = () => {
   const today = lessonsOn(TODAY);
   const ws = weekStart(TODAY), we = addDays(ws, 6);
-  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we);
-  const unpaid = state.lessons.filter(l => l.sid && isPast(l) && l.pay === 'UNPAID');
+  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we).flatMap(skatersIn);
+  const unpaid = state.lessons.filter(l => l.sid && isPast(l)).flatMap(skatersIn).filter(p => p.pay === 'UNPAID');
+  const waiting = state.invites.filter(inviteNeedsCoach);
   const pend = pending();
   const next = today.find(l => l.sid && !isStarted(l));
-  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(nameOf(l)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + money(l.price) : ' · not bookable'}`)}`,
-    `${l === next ? badge('Next', 'primary') : ''}${l.sid ? statusBadge(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
+  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
+    `${l === next ? badge('Next', 'primary') : ''}${l.sid ? skaterBadges(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
+  const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since) + (kids.some(k => k.invitedBy) ? ` · invited by ${esc(kids.find(k => k.invitedBy).invitedBy)} to share a lesson` : '');
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
+    ${waiting.map(inv => { const z = student(inv.skater), host = student(inv.fromSkater);
+      return banner('warning', `A shared lesson on ${inviteWhen(inv)} is waiting for you to accept ${esc(z.name.split(' ')[0])}`,
+        `${esc(z.client)} accepted ${esc(inv.from)}’s invitation for ${esc(z.name)} to join ${esc(shortName(host.name))}’s lesson. If you don’t accept ${esc(z.name.split(' ')[0])} before it starts, it goes ahead as a private lesson. <a class="link" href="${href('pending')}">Review sign-ups</a>`); }).join('')}
     <div class="stats">
       ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
       ${stat('Unpaid', money(unpaid.reduce((s, l) => s + l.price, 0)), plural(unpaid.length, 'past lesson'), 'card')}
@@ -173,13 +195,13 @@ SCREENS.today = () => {
     <div class="split split--today">
       ${card(today.length ? today.map(lessonRow).join('') + `<div class="card__note">${ic('info', 14)} Attendance comes from the rinkside app. Fix a mistake on ${A_('lessons', 'Lessons')}.</div>`
         : `<div class="pempty"><span class="pempty__icon">${ic('calendar', 22)}</span><b>No lessons today</b><span class="muted">Your next lesson is on Friday.</span></div>`,
-        { title: 'Today’s lessons', sub: `${plural(today.filter(l => l.sid).length, 'lesson')} · Pelham Ice Rink`, pad: false, action: A_('calendar-day', 'Day view') })}
+        { title: 'Today’s lessons', sub: `${plural(today.filter(l => l.sid).length, 'lesson')} · Pelham Civic Center`, pad: false, action: A_('calendar-day', 'Day view') })}
       <div class="stack">
-        ${pend.length ? card(`${families(pend).map(f => { const kids = pend.filter(s => s.client === f); return row(`${avatar(initials(f), 'sm')}${rowTitle(esc(f), kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since))}`, ''); }).join('')}
+        ${pend.length ? card(`${families(pend).map(f => { const kids = pend.filter(s => s.client === f); return row(`${avatar(initials(f), 'sm')}${rowTitle(esc(f), famSub(kids))}`, ''); }).join('')}
           <div class="card__foot">${B('Review sign-ups', 'primary', '', { href: href('pending'), block: true })}</div>`, { title: 'New families to approve', sub: 'They can’t see your times or book until you approve them.', pad: false, cls: 'card--attn' }) : ''}
         ${card(`<div class="quick">
           ${[['Edit weekly schedule', 'repeat', SCHEDULE_PAGES.weekly], ['Time off or special schedule', 'calOff', SCHEDULE_PAGES.away], ['Month', 'calendar', href('calendar-month')], ['Week', 'calendar', href('calendar-week')],
-             ['Students', 'users', href('students')], ['Payments', 'card', href('payments')], ['Profile', 'user', href('profile')], ['Email templates', 'mail', href('email-templates')]]
+             ['Students', 'users', href('students')], ['Payments', 'card', href('payments')], ['Financial summary', 'trend', href('finances')], ['Profile', 'user', href('profile')], ['Email templates', 'mail', href('email-templates')]]
             .map(([t, i, h]) => `<a class="quick__item" href="${h}"><span class="quick__icon">${ic(i, 18)}</span><span>${t}</span>${t === 'Email templates' ? '<small>Phase 2</small>' : ''}</a>`).join('')}
         </div>`, { title: 'Go to' })}
       </div>
@@ -192,10 +214,10 @@ PRESETS.push(
   { id: 'CoachForgotCode', file: 'forgot-password-code', group: 'Sign in', title: 'Forgot password — code and new password', note: 'New. ConfirmForgotPassword: code plus the new password rules.', setup: st => { st.screen = 'forgot'; st.auth.step = 1; } },
   { id: 'CoachAccount', file: 'signup-1-account', group: 'Sign up', title: '1 · Account', note: 'From CoachAccount; first and last name split, as ADR-016 stores them.', setup: st => { st.screen = 'signup'; st.auth.signup = 0; } },
   { id: 'CoachVerify', file: 'signup-2-verify', group: 'Sign up', title: '2 · Verify login email', note: 'From CoachVerify.', setup: st => { st.screen = 'signup'; st.auth.signup = 1; } },
-  { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, payment handles and the optional photo from the sign-up spec.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
+  { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, one switch per payment type (Cash, Venmo, Cash App, PayPal; ADR-016 d7, amended 2026-10-12) and the optional photo from the sign-up spec.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm.', setup: st => { st.screen = 'signup'; st.auth.signup = 3; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: today’s lessons, the numbers a coach checks, new families to approve, and a button to every page.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve (Tom Okafor was invited to share a lesson), the warning for a shared lesson waiting on the coach (ADR-026 d5a), and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
 );
 

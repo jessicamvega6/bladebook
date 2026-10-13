@@ -750,6 +750,12 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .rk-body { overflow: visible; }
   .bb .tabbar { position: sticky; margin-top: auto; }
 }
+/* A shared lesson: one card, a row per skater, each recorded on their own (ADR-026 d6). */
+.bb .rk-shared__tag { flex: 1; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); }
+.bb .rk-shared .rbtn--sm { flex: 0 0 36px; height: 36px; }
+.bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.bb .rk-seat .rk-namebtn { align-self: flex-start; }
+.bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }

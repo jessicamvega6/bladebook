@@ -734,8 +734,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-tablewrap { overflow-x: auto; position: relative; }
 .bb .ac-tablewrap .table { min-width: 560px; }
 .bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
   .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
 }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
@@ -782,6 +790,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb button.rcard:hover { border-color: var(--primary); }
 .bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
 .bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
 @media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
@@ -805,14 +820,17 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook client website · Harbor · Sign up</span><b>4 · Skater — myself</b><span class="sp-bar__note">Redesigned from ClientSkatersSelf. An adult signing up for themselves is the skater.</span><nav class="sp-bar__nav"><a href="signup-4-skaters.html">← 4 · Add skaters</a><a href="index.html">All pages</a><a href="signup-5-waiting.html">5 · Waiting for approval →</a></nav></header>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Sign up</span><b>4 · Skater — myself</b><span class="sp-bar__note">Redesigned from ClientSkatersSelf. An adult signing up for themselves is the skater, and enters their own U.S. Figure Skating or USA Hockey number.</span><nav class="sp-bar__nav"><a href="signup-4-skaters-number-error.html">← 4 · Add skaters — number format</a><a href="index.html">All pages</a><a href="signup-5-waiting.html">5 · Waiting for approval →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--wizard">
     <header class="wbar"><span class="brand"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></span><span class="wbar__ctx">Family sign up</span><span class="wbar__right"></span></header>
     <main class="wmain"><ol class="stepper"><li class="step step--done"><span class="step__dot"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="step__label">Coach code</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--done"><span class="step__dot"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="step__label">Your details</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--done"><span class="step__dot"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="step__label">Verify email</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--current"><span class="step__dot">4</span><span class="step__label">Skaters</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--todo"><span class="step__dot">5</span><span class="step__label">Done</span></li></ol><div class="wgrid"><div class="wcol"><section class="card"><div class="card__body">
       <h1 class="h1">You’re the skater</h1><p class="lede">Check your details. This is who Coach Dana will see.</p>
       <div class="skater"><span class="avatar">OG</span><div class="skater__text"><b>Olivia Grant <span class="badge badge--primary">You</span></b><small>Adult · from your account details</small></div></div>
       <label class="check"><input type="checkbox" class="check__input" checked data-act="noop"><span class="check__text"><span class="check__label">I’m 18 or older</span><span class="check__sub">If you’re under 18, a guardian needs to sign up and add you as their skater.</span></span></label>
+      
+  <div class="fieldset"><div class="label">Skating organization</div><div class="seg seg--block" role="group"><button type="button" class="seg__opt is-on" data-act="acSuSelfOrg" data-arg='[0]' aria-pressed="true">U.S. Figure Skating</button><button type="button" class="seg__opt" data-act="acSuSelfOrg" data-arg='[1]' aria-pressed="false">USA Hockey</button></div></div>
+  <div class="field"><label class="label" for="ac-su-self-num">Member number</label><input id="ac-su-self-num" class="ctl mono" type="text" value="2904417" data-bind="ui.su.selfNum" placeholder="e.g. 1234567" data-live="1"><div class="hint">From the skater’s U.S. Figure Skating membership for this season. It changes every season.</div></div>
       <p class="fine">Booking for someone else? <a class="link" data-act="acSuChangeWho">Change who the lessons are for</a>.</p>
-      <div class="actions"><div><button type="button" class="btn btn--ghost" data-act="acSuBack"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Back</span></button></div><div class="actions__r"><button type="button" class="btn btn--primary btn--lg" data-act="acSuFinish"><span>Send to Coach Dana</span><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div></div></div></section></div><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Skating yourself</div><div class="help__body">Coach Dana still approves you before you can book. You’ll get an email when they do.</div></aside></div></main></div></div></div>
+      <div class="actions"><div><button type="button" class="btn btn--ghost" data-act="acSuBack"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Back</span></button></div><div class="actions__r"><button type="button" class="btn btn--primary btn--lg" data-act="acSuFinish"><span>Send to Coach Dana</span><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div></div></div></section></div><div class="stack"><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Skating yourself</div><div class="help__body">Coach Dana still approves you before you can book. You’ll get an email when they do.</div></aside><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Your skater number</div><div class="help__body">Every skater needs a current U.S. Figure Skating or USA Hockey number to sign up. BladeBook can’t check it; your coach may.</div></aside></div></div></main></div></div></div>
 </body>
 </html>

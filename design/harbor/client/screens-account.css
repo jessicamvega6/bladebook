@@ -11,6 +11,14 @@
 .bb .ac-tablewrap { overflow-x: auto; position: relative; }
 .bb .ac-tablewrap .table { min-width: 560px; }
 .bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
   .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
 }

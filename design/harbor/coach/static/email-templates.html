@@ -721,6 +721,11 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* shared lessons: one attendance badge per skater */
+.bb .sh-badge { display: inline-flex; align-items: center; gap: 5px; }
+.bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
+.bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }
+
 /* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
 .bb .cal-scroll { overflow-x: auto; }
 .bb .cal-scroll .week { min-width: 860px; }
@@ -815,6 +820,28 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .mp-mail { padding: 16px; }
   .bb .mp-rrow { flex-wrap: wrap; }
 }
+/* how they paid (Payments) */
+.bb .mp-how { display: block; margin-top: 4px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.bb .mp-how .link { cursor: pointer; }
+.bb .mp-sub .ic { vertical-align: -2px; }
+.bb .mp-how-pick { text-align: left; }
+.bb .mp-how-pick .seg { flex-wrap: wrap; }
+.bb .mp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* financial summary */
+.bb .fin-split { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
+.bb .fin-table { min-width: 680px; }
+.bb .fin-table tfoot td { background: var(--surface-2); border-bottom: 0; }
+.bb .fin-table tr.fin-none td { color: var(--text-3); }
+.bb .fin-ice__row { display: flex; flex-direction: column; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.bb .fin-ice__row:first-of-type { border-top: 0; }
+@media (max-width: 980px) {
+  .bb .fin-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* One switch per payment type, each with its handle (ADR-016 d7, amended 2026-10-12) */
+.bb .paytype { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+.bb .paytype:last-of-type { border-bottom: 0; }
+.bb .paytype .field { margin-top: 4px; }
 
 /* Students — roster and pending sign-ups. Harbor tokens only. */
 .bb .stu-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
@@ -840,6 +867,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .stu-blocks { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); display: flex; flex-direction: column; gap: 4px; text-align: left; }
 .bb .stu-table .stu-sub .btn { margin-top: 4px; margin-left: -12px; }
 
+/* pending: a skater invited to share a lesson (ADR-026 d5) */
+.bb .stu-join { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--r-sm); background: var(--primary-tint); color: var(--text-2); font-size: 13px; line-height: 1.4; max-width: 520px; }
+.bb .stu-join .ic { flex: none; margin-top: 2px; color: var(--primary-text); }
+
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
 html, body { margin: 0; background: var(--sp-bg); }
@@ -853,25 +884,30 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook coach website · Harbor · Phase 2</span><b>Email templates</b><span class="sp-bar__note">New, Phase 2: each automatic email with an on/off switch and a preview; cancellation and schedule-change emails can’t be turned off.</span><nav class="sp-bar__nav"><a href="profile-account.html">← Profile — account</a><a href="index.html">All pages</a><a href="login.html">Log in →</a></nav></header>
+<header class="sp-bar"><span>BladeBook coach website · Harbor · Phase 2</span><b>Email templates</b><span class="sp-bar__note">New, Phase 2: each automatic email with an on/off switch and a preview; cancellation, schedule-change and shared-lesson emails can’t be turned off. The “just booked” email is itself Phase 2.</span><nav class="sp-bar__nav"><a href="profile-account.html">← Profile — account</a><a href="index.html">All pages</a><a href="email-templates-shared.html">Email templates — shared lesson invitation →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--coach">
     <header class="nav"><a class="brand" href="today.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
-      <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today.html"><span>Today</span></a><a class="nav__item" href="calendar-week.html"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">3</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item" href="payments-empty.html"><span>Payments</span></a><a class="nav__item is-active" href="profile-details.html" aria-current="page"><span>Profile</span></a></nav>
+      <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today.html"><span>Today</span></a><a class="nav__item" href="calendar-week.html"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">4</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item" href="payments-empty.html"><span>Payments</span></a><a class="nav__item is-active" href="profile-details.html" aria-current="page"><span>Profile</span></a></nav>
       <a class="nav__user" href="profile-details.html"><span class="avatar avatar--sm">DW</span><span class="nav__user-text"><b>Dana Whitfield</b><small>Coach</small></span></a></header>
     <main class="main"><div class="page page--wide">
     <div class="phead"><div class="phead__text"><div class="crumb"><a class="link" href="profile-details.html"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Profile</a></div><h1 class="h1">Email templates</h1><p class="lede">See what each automatic email says, and choose which ones go out.</p></div><div class="phead__actions"><span class="badge badge--neutral">Phase 2</span></div></div>
     <div class="banner banner--info"><span class="banner__icon"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><div class="banner__text"><div class="banner__title">Coming in Phase 2</div><div class="banner__body">This page isn’t in the first release. Until then, every email here is sent automatically.</div></div></div>
     <div class="split mp-split">
       <div class="stack">
-        <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Emails families get</h2><p class="card__sub">Emails about cancellations and schedule changes are always sent, so families are never left guessing.</p></div></header><div class="card__body"><div class="mp-tpl is-on"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["confirm"]' aria-pressed="true"><span class="mp-tpl__name">Booking confirmation</span><span class="mp-tpl__when">When a family books</span></button>
+        <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Emails families get</h2><p class="card__sub">Emails about cancellations, schedule changes and shared lessons are always sent, so families are never left guessing.</p></div></header><div class="card__body"><div class="mp-tpl is-on"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["confirm"]' aria-pressed="true"><span class="mp-tpl__name">Booking confirmation</span><span class="mp-tpl__when">When a family books</span></button>
     <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Booking confirmation" data-act="mpTplToggle" data-arg='["confirm"]'><span class="switch__knob"></span></button></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["reminder"]' aria-pressed="false"><span class="mp-tpl__name">Day-of reminder</span><span class="mp-tpl__when">Morning of each lesson</span></button>
     <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Day-of reminder" data-act="mpTplToggle" data-arg='["reminder"]'><span class="switch__knob"></span></button></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["payment"]' aria-pressed="false"><span class="mp-tpl__name">Payment reminder</span><span class="mp-tpl__when">After a lesson is checked in</span></button>
     <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Payment reminder" data-act="mpTplToggle" data-arg='["payment"]'><span class="switch__knob"></span></button></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["coachCancel"]' aria-pressed="false"><span class="mp-tpl__name">Lesson cancelled by you</span><span class="mp-tpl__when">When you cancel a lesson, day or week</span></button>
     <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["schedule"]' aria-pressed="false"><span class="mp-tpl__name">Schedule change</span><span class="mp-tpl__when">When a schedule save cancels or re-prices lessons</span></button>
+    <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["shareInvite"]' aria-pressed="false"><span class="mp-tpl__name">Invitation to share a lesson</span><span class="mp-tpl__when">When a family invites a skater from another family</span></button>
+    <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["shareWarn"]' aria-pressed="false"><span class="mp-tpl__name">Shared lesson not yet accepted</span><span class="mp-tpl__when">To both families, 24 hours plus your notice period before a shared lesson you haven’t accepted the skater for</span></button>
+    <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["shareExpired"]' aria-pressed="false"><span class="mp-tpl__name">Shared lesson expired, skater not yet accepted</span><span class="mp-tpl__when">To the invited family, when the lesson starts before you accept their skater</span></button>
+    <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["justBooked"]' aria-pressed="false"><span class="mp-tpl__name">Just booked, then cancelled <span class="badge badge--neutral">Phase 2</span></span><span class="mp-tpl__when">When a family books a time just as your schedule change cancels it</span></button>
     <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["declined"]' aria-pressed="false"><span class="mp-tpl__name">Sign-up declined</span><span class="mp-tpl__when">When you decline a new skater</span></button>
     <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div></div></section>
         <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Emails you get</h2></div></header><div class="card__body"><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["report"]' aria-pressed="false"><span class="mp-tpl__name">Daily report</span><span class="mp-tpl__when">Every evening at 9 PM</span></button>
-    <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Daily report" data-act="mpTplToggle" data-arg='["report"]'><span class="switch__knob"></span></button></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["familyCancel"]' aria-pressed="false"><span class="mp-tpl__name">A family cancelled</span><span class="mp-tpl__when">When a family cancels a lesson</span></button>
+    <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Daily report" data-act="mpTplToggle" data-arg='["report"]'><span class="switch__knob"></span></button></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["familyCancel"]' aria-pressed="false"><span class="mp-tpl__name">A family cancelled</span><span class="mp-tpl__when">When a family cancels inside your notice period</span></button>
+    <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["shareWaiting"]' aria-pressed="false"><span class="mp-tpl__name">Shared lesson waiting on your acceptance</span><span class="mp-tpl__when">24 hours plus your notice period before the lesson</span></button>
     <span class="badge badge--neutral"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Always sent</span></div><div class="mp-tpl"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["unpaid"]' aria-pressed="false"><span class="mp-tpl__name">Unpaid lessons</span><span class="mp-tpl__when">Weekly, on Monday morning</span></button>
     <button type="button" class="switch is-on" role="switch" aria-checked="true" aria-label="Send Unpaid lessons" data-act="mpTplToggle" data-arg='["unpaid"]'><span class="switch__knob"></span></button></div></div></section>
       </div>
@@ -883,7 +919,7 @@ html, body { margin: 0; background: var(--sp-bg); }
             <div class="kv"><span class="kv__k">To</span><span class="kv__v">grace.chen@example.com</span></div>
             <div class="kv"><span class="kv__k">Subject</span><span class="kv__v"><b>Booked: Mia’s lesson on Wed, Oct 21 at 6:30 AM</b></span></div>
           </div>
-          <div class="mp-mail__body"><p>Hi Grace,</p><p>Mia is booked with Dana Whitfield:</p><p><b>Wed, Oct 21 · 6:30 AM · 30 min · $50</b><br>Pelham Ice Rink</p><p>Need to cancel? Use My bookings on BladeBook. Cancelling within 24 hours may incur a fee.</p><p class="mp-mail__sig">— Dana Whitfield</p></div>
+          <div class="mp-mail__body"><p>Hi Grace,</p><p>Mia is booked with Dana Whitfield:</p><p><b>Wed, Oct 21 · 6:30 AM · 30 min · $50</b><br>Pelham Civic Center</p><p>Need to cancel? Use My bookings on BladeBook. Cancelling within 24 hours may incur a fee.</p><p class="mp-mail__sig">— Dana Whitfield</p></div>
         </div>
         </div></section>
     </div></div></main></div></div></div>

@@ -750,6 +750,12 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .rk-body { overflow: visible; }
   .bb .tabbar { position: sticky; margin-top: auto; }
 }
+/* A shared lesson: one card, a row per skater, each recorded on their own (ADR-026 d6). */
+.bb .rk-shared__tag { flex: 1; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); }
+.bb .rk-shared .rbtn--sm { flex: 0 0 36px; height: 36px; }
+.bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.bb .rk-seat .rk-namebtn { align-self: flex-start; }
+.bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -771,7 +777,7 @@ html, body { margin: 0; background: var(--sp-bg); }
     
     <div class="phone__body rk-body">
     <section class="rk-card"><div class="rk-who"><span class="avatar">DW</span><div><b>Dana Whitfield</b><span class="muted-sm">dana.whitfield@gmail.com</span></div></div>
-      <dl class="rk-kv"><div><dt>Rink</dt><dd>Pelham Ice Rink</dd></div><div><dt>Last synced</dt><dd>6:31 AM</dd></div><div><dt>Waiting to send</dt><dd>Nothing</dd></div></dl></section>
+      <dl class="rk-kv"><div><dt>Rink</dt><dd>Pelham Civic Center</dd></div><div><dt>Last synced</dt><dd>6:31 AM</dd></div><div><dt>Waiting to send</dt><dd>Nothing</dd></div></dl></section>
     <section class="rk-card"><b>Everything else is on the website</b><p class="fine">Your schedule, students, approvals, payments and profile are on bladebook.app. This app only sees today’s lessons, attendance and cancelling.</p></section>
     <button type="button" class="btn btn--secondary btn--block btn--lg" data-act="rkSignOut"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Log out</span></button></div>
     <nav class="tabbar" aria-label="Rinkside"><a class="tabbar__item" href="today.html"><span class="rk-tabicon"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span>Today</span></a><a class="tabbar__item" href="week.html"><span class="rk-tabicon"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span>Week</span></a><a class="tabbar__item is-active" href="account.html" aria-current="page"><span class="rk-tabicon"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span><span>Account</span></a></nav>

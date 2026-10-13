@@ -1,11 +1,12 @@
 /* Client website — booking and My bookings.
-   FeatureDecriptions/Bookings: and cancelation.md; ADR-006 d3, d4, d4a, d4b; ADR-009 d4; ADR-015 d1a; §7 privacy.
-   Registers SCREENS book / book-times / book-result / bookings / recurrence, MODALS bkConfirm / bkCancel,
+   FeatureDecriptions/Bookings: and cancelation.md; ADR-006 d3, d4, d4a, d4b; ADR-009 d4; ADR-015 d1a; §7 privacy;
+   sharing a lesson: ADR-026 d4–d5, FeatureDecriptions/Schedule lesson split.
+   Registers SCREENS book / book-times / book-result / bookings / recurrence, MODALS bkConfirm / bkCancel / bkWithdraw,
    ACTIONS bk*, and the 'Book a lesson' and 'My bookings' PRESETS.
    A family sees only open versus taken; who holds a taken time is never shown. Their own lessons show as theirs. */
 
 const BK_MONTHS = ['2026-10', '2026-11', '2026-12'];          // the booking page shows three months (UI limit only)
-const bkUi = () => (state.ui.book ??= { sid: null, month: BK_MONTHS[0], day: null, week: false, sel: [], repeat: false, every: 1, until: '', result: null, lastReq: null, noSchedule: false });
+const bkUi = () => (state.ui.book ??= { sid: null, month: BK_MONTHS[0], day: null, week: false, sel: [], repeat: false, every: 1, until: '', result: null, lastReq: null, noSchedule: false, share: '' });
 const bkState = () => (state.ui.bk ??= { arr: {}, rec: null, who: 'all', all: false, seq: 0 });
 const bkKid = () => { const u = bkUi(), kids = myActiveKids(); if (!u.sid || !kids.some(k => k.id === u.sid)) u.sid = kids[0] && kids[0].id; return student(u.sid); };
 const bkOpen = iso => bkUi().noSchedule ? [] : openSlots(iso);
@@ -135,6 +136,31 @@ function bkOccurrences(u) {
 }
 const bkMaxUntil = u => { const f = u.sel.map(x => x.iso).sort()[0] || TODAY; return addDays(f, 365); };
 const bkUntilError = u => !u.repeat ? '' : !u.until ? 'Pick an end date.' : u.until < (u.sel.map(x => x.iso).sort()[0] || TODAY) ? 'The end date is before your first lesson.' : u.until > bkMaxUntil(u) ? 'A repeating booking can run up to 12 months.' : '';
+/* Share this lesson (ADR-026 d4–d5). Only on times whose block takes 2 or more skaters; families never see how many.
+   One skater code per request. The lookup checks only that the skater exists and returns a display name, "Ella A.":
+   never the family, and never whether the skater is this coach's student. */
+const bkShareable = x => (slotsOn(x.iso).find(s => s.t === x.t) || {}).maxSkaters >= 2;
+function bkShareState(u, k) {
+  const raw = String(u.share || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+  if (!raw) return { st: 'empty' };
+  if (raw.length < 7) return { st: 'typing' };
+  const s = state.students.find(x => x.shareCode && x.shareCode.replace(/[^A-Z0-9]/g, '') === raw);
+  if (!s) return { st: 'wrong' };
+  return { st: s.id === k.id ? 'self' : 'found', s, name: shortName(s.name), sibling: s.client === state.me.name };
+}
+function bkShareBox(u, k, picks) {
+  const can = picks.filter(bkShareable); if (!can.length) return '';
+  const sh = bkShareState(u, k), s = sh.s, fn = s && esc(firstName(s.name)), coach = esc(coachFirst());
+  const err = sh.st === 'wrong' ? 'That code doesn’t match a skater. Check it with the other family.' : sh.st === 'self' ? `That’s ${esc(firstName(k.name))}’s own code.` : '';
+  const which = can.length < picks.length ? ` Only ${can.map(x => `${DOW[dowOf(x.iso)]} ${fmtT(x.t)}`).join(' and ')} can be shared.` : '';
+  const found = sh.st !== 'found' ? '' : `<div class="found">${avatar(initials(s.name), 'sm')}<div><div class="found__name">${esc(sh.name)}</div><div class="found__sub">${!sh.sibling ? 'Their family gets an email to accept.' : s.status === 'ACTIVE' ? `In your family, so ${fn} is added directly. No invitation.` : `In your family, so there’s no invitation. Coach ${coach} accepts ${fn} first, then ${fn} joins.`}</div></div>${badge('Code found', 'success', 'check')}</div>`;
+  return `<div class="bk-share"><div class="bk-share__head">${ic('users', 16)}<b>Share this lesson</b><span class="label__opt">Optional</span></div>
+    <p class="fine">Enter another skater’s share code. Their family must accept before their skater joins. If the skater isn’t Coach ${coach}’s student yet, Coach ${coach} accepts them first.${u.repeat ? ' Every lesson in the series is shared.' : ''}${which}</p>
+    ${INP('bk-share', 'Skater’s share code', 'ui.book.share', { live: true, mono: true, placeholder: 'e.g. LILY-6T2N', error: err })}
+    ${found}</div>`;
+}
+/** A typed code must check out before the booking can continue (ADR-026 d5). */
+const bkShareBlocks = (u, k) => { const st = bkShareState(u, k).st; return u.sel.some(bkShareable) && st !== 'empty' && st !== 'found'; };
 MODALS.bkConfirm = () => {
   const u = bkUi(), k = bkKid(), occ = bkOccurrences(u), err = bkUntilError(u);
   const picks = u.sel.slice().sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
@@ -149,11 +175,19 @@ MODALS.bkConfirm = () => {
       <div class="field"><label class="label" for="bk-every">Repeats</label><select id="bk-every" class="ctl" data-bind="ui.book.every" data-num="1"${dis}>${[1, 2, 3, 4].map(n => `<option value="${n}"${n === u.every ? ' selected' : ''}>${n === 1 ? 'Every week' : `Every ${n} weeks`}</option>`).join('')}</select></div>
       <div class="field${err ? ' field--error' : ''}"><label class="label" for="bk-until">Until</label><input id="bk-until" class="ctl${err ? ' is-error' : ''}" type="date" value="${u.until}" max="${bkMaxUntil(u)}" data-bind="ui.book.until" data-live="1"${dis}><div class="hint${err ? ' hint--error' : ''}">${err ? ic('alert', 14) + err : 'Starts three months out. Up to 12 months.'}</div></div>
     </div>
+    ${bkShareBox(u, k, picks)}
     <div class="summary"><div>${kv('Lessons', u.repeat ? `${plural(occ.length, 'lesson')} until ${dShort(u.until)}` : plural(occ.length, 'lesson'))}${kv(u.repeat ? 'First week' : 'Total', `<b>${money(first)}</b>`)}${u.repeat ? kv('All lessons', money(all)) : ''}</div><div class="summary__note">${ic('info', 14)}You pay ${esc(coachFirst())} directly. BladeBook only sends reminders.</div></div>
-    <div class="dialog__actions">${B('Back', 'secondary', 'closeModal')}${B(`Book ${plural(occ.length, 'lesson')}`, 'primary', 'bkBook', { disabled: !!err || !occ.length })}</div>`;
+    <div class="dialog__actions">${B('Back', 'secondary', 'closeModal')}${B(`Book ${plural(occ.length, 'lesson')}`, 'primary', 'bkBook', { disabled: !!err || !occ.length || bkShareBlocks(u, k) })}</div>`;
 };
 
 /* ================= 4 · Result ================= */
+/** What happened to the share code: an invitation to the other family, or a sibling added (ADR-026 d5). */
+function bkShareResult(r, k) {
+  const sh = r.share, s = student(sh.sid), fn = esc(firstName(s.name)), kf = esc(firstName(k.name)), coach = esc(coachFirst()), n = plural(sh.n, 'lesson');
+  if (!sh.sibling) return banner('info', `Invitation sent to ${esc(sh.name)}’s family`, `They get an email to accept sharing ${sh.n === 1 ? 'the lesson' : `all ${n}`}, and ${fn} joins once they do. If ${fn} isn’t Coach ${coach}’s student yet, Coach ${coach} accepts ${fn} first. Until then it’s ${kf}’s lesson alone. You can withdraw the invitation from My bookings until they answer.`, 'users');
+  return s.status === 'ACTIVE' ? banner('success', `${fn} added to ${kf}’s ${sh.n === 1 ? 'lesson' : n}`, `${fn} is in your family, so there’s no invitation.`, 'users')
+    : banner('info', `${fn} joins once Coach ${coach} accepts ${fn}`, `${fn} is in your family, so there’s no invitation. Coach ${coach} accepts new skaters before anything is booked for them.`, 'users');
+}
 SCREENS['book-result'] = () => {
   if (isPendingFamily()) return bkPendingGate();
   const r = bkUi().result;
@@ -170,6 +204,7 @@ SCREENS['book-result'] = () => {
     : `${booked.length ? 'A confirmation email is on its way. ' : ''}${skipped.length ? `${plural(skipped.length, 'date')} couldn’t be booked${booked.length ? '. Everything else is confirmed.' : '.'}` : ''}`;
   return shell(`
     <div class="hero ${booked.length || resubmit ? 'hero--success' : 'bk-hero--warn'}"><span class="hero__icon">${ic(booked.length || resubmit ? 'check' : 'alert', 26)}</span><div><h1 class="h1">${heroTitle}</h1><p class="lede">${heroSub}</p></div></div>
+    ${r.share ? bkShareResult(r, k) : ''}
     <div class="grid2 bk-series">${series}</div>
     ${mine.length ? card(mine.slice(0, 6).map(x => row(`<span class="roundicon roundicon--ok">${ic('check', 16)}</span>${rowTitle(`${dDow(x.iso)} · ${fmtT(x.t)}`, `Already booked for ${esc(firstName(k.name))}`)}`, `<span class="muted">${x.len} min</span>`)).join('') + (mine.length > 6 ? `<div class="card__note">and ${plural(mine.length - 6, 'more date')} already booked for ${esc(firstName(k.name))}</div>` : ''),
       { title: `Already booked for ${esc(firstName(k.name))}`, sub: 'From an earlier booking. They weren’t booked again.', pad: false }) : ''}
@@ -190,17 +225,35 @@ function bkArrangements() {
     return { key, sid: ls[0].sid, dow: dowOf(ls[0].iso), t: ls[0].t, len: ls[0].len, price: ls[0].price, interval: meta.interval || 1, end: meta.end || ls[ls.length - 1].iso, lessons: ls, up, future, ended: !!meta.ended };
   }).filter(a => a.up.length && !a.ended).sort((a, b) => (a.sid + a.dow + a.t).localeCompare(b.sid + b.dow + b.t));
 }
+/* Shared lessons (ADR-026 d5 step 6). Family A sees the invited skater's display name and the invitation's status, nothing
+   else. Family B sees the lesson they joined, without a price (shared pricing is still open, Kim P2) and without Cancel:
+   leaving a shared lesson isn't designed yet. */
+const bkInviteOf = l => l.inviteId ? state.invites.find(i => i.id === l.inviteId)
+  : state.invites.find(i => i.fromSkater === l.sid && i.skater === l.invited && i.t === l.t && (i.series ? i.dow === dowOf(l.iso) && l.iso >= i.first && l.iso <= i.last : i.iso === l.iso));
+const bkJoined = () => state.lessons.filter(l => l.with && !myKids().some(k => k.id === l.sid) && l.with.some(w => myKids().some(k => k.id === w.sid)));
+const bkSkaterOf = l => myKids().some(k => k.id === l.sid) ? l.sid : l.with.find(w => myKids().some(k => k.id === w.sid)).sid;
+function bkShareLine(l) {
+  const mine = myKids().some(k => k.id === l.sid);
+  if (!mine) return `${ic('users', 12)}Shared with ${esc(shortName(student(l.sid).name))}`;
+  if (l.with && l.with.length) return `${ic('users', 12)}Shared with ${l.with.map(w => esc(shortName(student(w.sid).name))).join(' and ')}`;
+  if (!l.invited) return '';
+  const inv = bkInviteOf(l), st = inv ? inv.status : 'AWAITING_COACH';   // a sibling waiting for the coach has no invitation
+  const what = { SENT: 'waiting for their family', AWAITING_COACH: `waiting for Coach ${esc(coachFirst())}`, DECLINED: 'declined · a private lesson', EXPIRED: 'expired · a private lesson' }[st];
+  return what ? `${ic('users', 12)}Shared with ${esc(shortName(student(l.invited).name))} · ${what}` : '';
+}
 SCREENS.bookings = () => {
   if (isPendingFamily()) return bkPendingGate();
   const b = bkState(), kids = myActiveKids();
   const whoIdx = b.who === 'all' ? 0 : kids.findIndex(k => k.id === b.who) + 1;
-  const upAll = myLessons().filter(l => !isStarted(l) && (b.who === 'all' || l.sid === b.who)).sort((x, y) => (x.iso + String(x.t).padStart(4, '0')).localeCompare(y.iso + String(y.t).padStart(4, '0')));
+  const upAll = [...myLessons(), ...bkJoined()].filter(l => !isStarted(l) && (b.who === 'all' || bkSkaterOf(l) === b.who)).sort((x, y) => (x.iso + String(x.t).padStart(4, '0')).localeCompare(y.iso + String(y.t).padStart(4, '0')));
   const up = b.all ? upAll : upAll.slice(0, 10);
   const recent = myLessons().filter(l => isPast(l) && (b.who === 'all' || l.sid === b.who)).sort((x, y) => y.iso.localeCompare(x.iso) || y.t - x.t).slice(0, 4);
   const arrs = bkArrangements().filter(a => b.who === 'all' || a.sid === b.who);
-  const lrow = l => { const k = student(l.sid), rec = bkKey(l) ? bkArrangements().find(a => a.key === bkKey(l)) : null;
-    return row(`<span class="dateblock"><b>${parseIso(l.iso).getDate()}</b><small>${MON[parseIso(l.iso).getMonth()]}</small></span>${rowTitle(`${DOW[dowOf(l.iso)]} · ${fmtT(l.t)}${l.iso === TODAY ? ' ' + badge('Today', 'primary') : ''}`, `${esc(firstName(k.name))} · ${l.len} min · ${money(l.price)}`)}`,
-      `${rec ? badge(rec.interval === 1 ? 'Repeats weekly' : `Every ${rec.interval} weeks`, 'neutral', 'repeat') : ''}${B('Cancel', 'ghost', 'bkCancelOpen', { sm: true, args: [l.id] })}`); };
+  const lrow = l => { const mine = myKids().some(k => k.id === l.sid), k = student(bkSkaterOf(l)), rec = mine && bkKey(l) ? bkArrangements().find(a => a.key === bkKey(l)) : null;
+    const share = bkShareLine(l), inv = mine && l.invited ? bkInviteOf(l) : null;
+    return row(`<span class="dateblock"><b>${parseIso(l.iso).getDate()}</b><small>${MON[parseIso(l.iso).getMonth()]}</small></span>${rowTitle(`${DOW[dowOf(l.iso)]} · ${fmtT(l.t)}${l.iso === TODAY ? ' ' + badge('Today', 'primary') : ''}`, `${esc(firstName(k.name))} · ${l.len} min${mine ? ` · ${money(l.price)}` : ''}${share ? `<span class="bk-shared">${share}</span>` : ''}`)}`,
+      !mine ? badge('Shared lesson', 'neutral', 'users')
+      : `${rec ? badge(rec.interval === 1 ? 'Repeats weekly' : `Every ${rec.interval} weeks`, 'neutral', 'repeat') : ''}${inv && inv.status === 'SENT' ? B('Withdraw invitation', 'ghost', 'bkWithdrawOpen', { sm: true, args: [inv.id] }) : ''}${B('Cancel', 'ghost', 'bkCancelOpen', { sm: true, args: [l.id] })}`); };
   return shell(`
     ${pageHead('My bookings', `Lessons with Coach ${esc(coachName())}`, B('Book a lesson', 'primary', '', { href: href('book'), icon: 'plus' }))}
     ${kids.length > 1 ? `<div class="bk-filter">${SEG(['Everyone', ...kids.map(k => esc(firstName(k.name)))], whoIdx, 'bkWho')}</div>` : ''}
@@ -218,8 +271,18 @@ MODALS.bkCancel = m => {
     <h2 class="h2">Cancel ${esc(firstName(k.name))}’s lesson?</h2>
     <div class="dialog__what"><b>${dDow(l.iso)} · ${fmtT(l.t)}</b><span>${l.len} min · ${money(l.price)}</span></div>
     ${late ? banner('warning', `Inside the ${NOTICE_H}-hour notice period`, `${esc(coachFirst())} may charge a late cancellation fee.`) : `<p class="fine">Cancelling within ${NOTICE_H} hours of a lesson may incur a late cancellation fee.</p>`}
-    <p class="fine">The time goes back on ${esc(coachFirst())}’s calendar and ${esc(coachFirst())} will be told.${rec ? ' Other lessons in this series aren’t affected.' : ''}</p>
+    <p class="fine">The time goes back on ${esc(coachFirst())}’s calendar${late ? ` and ${esc(coachFirst())} will be told, because it’s a late cancellation` : ''}.${rec ? ' Other lessons in this series aren’t affected.' : ''}</p>
     <div class="dialog__actions">${B('Keep lesson', 'secondary', 'closeModal')}${B('Cancel lesson', 'danger', 'bkCancel')}</div>`;
+};
+
+/* Family A can withdraw an invitation Family B hasn't confirmed (ADR-026 d5). Once confirmed it waits on the coach. */
+MODALS.bkWithdraw = m => {
+  const inv = state.invites.find(i => i.id === m.id), k = student(inv.fromSkater), b = student(inv.skater), n = invLessons(inv).length;
+  return `<div class="dialog__icon dialog__icon--danger">${ic('users', 22)}</div>
+    <h2 class="h2">Withdraw the invitation to ${esc(shortName(b.name))}?</h2>
+    <div class="dialog__what"><b>${invWhen(inv)}</b><span>${inv.series ? invDates(inv) : `${inv.len} min`}</span></div>
+    <p class="fine">Their family is told. ${esc(firstName(k.name))}’s ${n === 1 ? 'lesson stays' : 'lessons stay'} booked, just for ${esc(firstName(k.name))}.</p>
+    <div class="dialog__actions">${B('Keep invitation', 'secondary', 'closeModal')}${B('Withdraw', 'danger', 'bkWithdraw')}</div>`;
 };
 
 /* ================= Change a repeating lesson ================= */
@@ -275,8 +338,9 @@ Object.assign(ACTIONS, {
   /** Book every occurrence. A taken or vanished time is skipped and reported; a time already held by this skater is recognised, never booked twice (ADR-006 d4b). */
   bkBook() {
     const u = bkUi(), b = bkState(), k = bkKid();
-    if (bkUntilError(u) || !u.sel.length) return;
-    const series = [], items = [], seriesRid = {};
+    if (bkUntilError(u) || !u.sel.length || bkShareBlocks(u, k)) return;
+    const series = [], items = [], seriesRid = {}, shared = [];
+    const sh = u.sel.some(bkShareable) ? bkShareState(u, k) : { st: 'empty' };
     for (const x of u.sel) {
       const key = u.repeat ? `${dowOf(x.iso)}|${x.t}` : `${x.iso}|${x.t}`;
       if (series.some(s => s.key === key)) continue;
@@ -296,7 +360,9 @@ Object.assign(ACTIONS, {
       else if (lessonsOn(o.iso).some(l => l.t === o.t)) { it.res = 'skipped'; it.why = 'That time was taken.'; }
       else {
         it.res = 'booked';
-        state.lessons.push({ id: 'k' + (++n), sid: k.id, iso: o.iso, t: o.t, len: o.len, price: priceFor(k.id, slot), status: 'BOOKED', pay: 'UNPAID', recurring: u.repeat, recurrenceId: seriesRid[it.series] || null });
+        const l = { id: 'k' + (++n), sid: k.id, iso: o.iso, t: o.t, len: o.len, price: priceFor(k.id, slot), status: 'BOOKED', pay: 'UNPAID', recurring: u.repeat, recurrenceId: seriesRid[it.series] || null };
+        state.lessons.push(l);
+        if (sh.st === 'found' && slot.maxSkaters >= 2) shared.push(l);
       }
       items.push(it);
     }
@@ -310,11 +376,27 @@ Object.assign(ACTIONS, {
         if (left.length) dropped.push({ key: p.rid, dow: p.dow, t: p.t, count: left.length });
       }
     }
-    u.result = { sid: k.id, series, items, dropped };
+    // Sharing (ADR-026 d5). The lesson is booked as normal; then another family's skater gets an invitation per series,
+    // stamped on each booking as invitedStudentId. A sibling who is already the coach's student joins directly; one who
+    // isn't goes to the coach first with pendingJoins, like any invited skater.
+    let share = null;
+    if (shared.length) {
+      const b = sh.s, direct = sh.sibling && b.status === 'ACTIVE';
+      for (const l of shared) if (direct) l.with = [{ sid: b.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; else l.invited = b.id;
+      if (sh.sibling && !direct) b.pendingJoins = [...(b.pendingJoins || []), ...shared.map(l => ({ iso: l.iso, t: l.t }))];
+      if (!sh.sibling) for (const key of [...new Set(shared.map(l => l.recurrenceId || l.id))]) {
+        const ls = shared.filter(l => (l.recurrenceId || l.id) === key), f = ls[0], id = 'i' + (state.invites.length + 1);
+        state.invites.push({ id, from: state.me.name, fromSkater: k.id, skater: b.id, t: f.t, len: f.len, status: 'SENT', sent: TODAY, clashes: [],
+          ...(u.repeat ? { series: true, dow: dowOf(f.iso), first: f.iso, last: ls[ls.length - 1].iso } : { series: false, iso: f.iso }) });
+        for (const l of ls) l.inviteId = id;
+      }
+      share = { sid: b.id, name: sh.name, sibling: sh.sibling, n: shared.length };
+    }
+    u.result = { sid: k.id, series, items, dropped, share };
     u.lastReq = { sid: k.id, series: series.filter(s => s.repeat).map(s => ({ dow: s.dow, t: s.t, rid: s.rid })) };
     // Keep the earlier attempt's recurrence ids for series the resubmission recognised, so a later drop still finds them.
     for (const p of u.lastReq.series) { const hit = myLessons().find(l => l.sid === k.id && dowOf(l.iso) === p.dow && l.t === p.t && l.recurrenceId); if (hit) p.rid = hit.recurrenceId; }
-    u.sel = []; u.repeat = false; u.until = ''; u.every = 1;
+    u.sel = []; u.repeat = false; u.until = ''; u.every = 1; u.share = '';
     state.modal = null; go('book-result');
   },
   bkDroppedKeep(key) { const r = bkUi().result; r.dropped = r.dropped.filter(d => d.key !== key); state.flash = 'Kept. Those lessons stay booked.'; },
@@ -333,6 +415,13 @@ Object.assign(ACTIONS, {
     const l = state.lessons.find(x => x.id === state.modal.id), k = student(l.sid);
     state.lessons = state.lessons.filter(x => x !== l);
     state.modal = null; state.flash = `${firstName(k.name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is cancelled. Coach ${coachFirst()} has been told.`;
+  },
+  bkWithdrawOpen(id) { state.modal = { kind: 'bkWithdraw', id }; },
+  bkWithdraw() {
+    const inv = state.invites.find(i => i.id === state.modal.id), b = student(inv.skater);
+    for (const l of invLessons(inv)) if (bkInviteOf(l) === inv) { delete l.invited; delete l.inviteId; }
+    inv.status = 'WITHDRAWN';
+    state.modal = null; state.flash = `Invitation to ${shortName(b.name)} withdrawn. Their family has been told.`;
   },
   bkRecOpen(key) { const a = bkArrangements().find(x => x.key === key); bkState().rec = { key, mode: 1, end: '', interval: Math.min(4, a.interval + 1) }; if (a.interval >= 4) bkState().rec.mode = 0; go('recurrence'); },
   bkRecMode(i) { bkState().rec.mode = i; },
@@ -367,7 +456,15 @@ PRESETS.push(
     st.screen = 'book-times';
     bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-21', 420]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-12-14' }); ACTIONS.bkBook();
     bkStage('s1', [['2026-10-19', 570], ['2026-10-16', 510]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-12-14' }); ACTIONS.bkBook(); } },
-  { id: 'ClientBookings', file: 'bookings', group: 'My bookings', title: 'My bookings', note: 'Redesigned from Forest ClientMyBookings: upcoming lessons by date with Cancel on each, a filter per skater, the repeating series with Change, and recent attendance.', setup: st => { st.screen = 'bookings'; } },
+  { id: 'ClientBookings', file: 'bookings', group: 'My bookings', title: 'My bookings', note: 'Redesigned from Forest ClientMyBookings: upcoming lessons by date with Cancel on each, a filter per skater, the repeating series with Change, and recent attendance. Mia’s Friday 8:30 is shared with Zoe O., waiting for Coach Dana (ADR-026): Grace sees only Zoe’s display name and the status.', setup: st => { st.screen = 'bookings'; } },
   { id: 'ClientBookingsCancel', file: 'bookings-cancel', group: 'My bookings', title: 'Cancel a lesson', note: 'Redesigned from Forest ClientCancelConfirm. None of the sample lessons falls inside 24 hours, so Grace has booked Mia at 10:30 this morning to show the “may incur a fee” warning.', setup: st => { st.screen = 'bookings'; st.lessons.push({ id: 'k-today', sid: 's1', iso: TODAY, t: 630, len: 30, price: 50, status: 'BOOKED', pay: 'UNPAID', recurring: false }); st.modal = { kind: 'bkCancel', id: 'k-today' }; } },
+  { id: 'ClientShareConfirm', file: 'book-share-confirm', group: 'Shared lessons', title: 'Confirm — share this lesson', note: 'New (ADR-026 d5). Mia’s Monday 9:30 is on morning ice, which can be shared, so the pop-up shows the share box; the 4:00 PM power hour is private, so the box says only 9:30 can be shared. ELLA-3HTV checks out as “Ella A.”, the only thing the lookup returns.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); st.ui.book.share = 'ELLA-3HTV'; st.modal = { kind: 'bkConfirm' }; } },
+  { id: 'ClientShareWrong', file: 'book-share-no-match', group: 'Shared lessons', title: 'Confirm — share code doesn’t match', note: 'New. A repeating booking shares every lesson in the series. The code matches no skater, so Book stays disabled until it’s fixed or cleared.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTX' }); st.modal = { kind: 'bkConfirm' }; } },
+  { id: 'ClientShareResult', file: 'book-share-result', group: 'Shared lessons', title: 'Result — invitation sent', note: 'New. Mondays at 9:30 booked for Mia as normal, private until Ella’s family accepts; their invitation email has gone.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); } },
+  { id: 'ClientShareBookings', file: 'bookings-shared', group: 'Shared lessons', title: 'My bookings — shared lessons', note: 'New (ADR-026 d5 step 6). Mia’s Mondays wait for Ella’s family, with Withdraw invitation; her Friday 8:30 waits for Coach Dana to accept Zoe, so it can no longer be withdrawn.', setup: st => { bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); go('bookings'); } },
+  { id: 'ClientShareWithdraw', file: 'bookings-withdraw-invite', group: 'Shared lessons', title: 'Withdraw an invitation', note: 'New. Family A can withdraw an invitation Family B hasn’t answered. Mia’s lessons stay booked as private lessons.', setup: st => { bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); go('bookings'); st.modal = { kind: 'bkWithdraw', id: st.invites[st.invites.length - 1].id }; } },
+  { id: 'ClientInvite', file: 'invite', group: 'Shared lessons', title: 'Invitation — skater already a student', note: 'New (ADR-026 d5 steps 3–4). From the invitation email, after signing in. Owen Brooks invited Noah to share his Wednesday 8:30 series; one clash with Noah’s lesson with another coach is shown, and Go ahead joins Noah to every lesson now. No price is stated: shared pricing is still open (Kim P2).', setup: st => { st.screen = 'invite'; st.ui.inv = { id: 'i1' }; } },
+  { id: 'ClientInviteNew', file: 'invite-new-student', group: 'Shared lessons', title: 'Invitation — skater not yet the coach’s student', note: 'New (ADR-026 d5 step 5). Tom opens Grace’s invitation for Zoe, who skates with another coach. Going ahead agrees to Zoe joining Coach Dana’s roster; Zoe joins once Coach Dana accepts.', setup: st => { acTomBefore(st); st.screen = 'invite'; st.ui.inv = { id: 'i2' }; } },
+  { id: 'ClientInviteWaiting', file: 'invite-waiting', group: 'Shared lessons', title: 'Invitation — waiting for the coach', note: 'New. After Tom’s Go ahead: Zoe is pending with Coach Dana and the invitation is awaiting the coach. Inside the warning time, so the red banner shows here too.', setup: st => { acTomBefore(st); st.ui.inv = { id: 'i2' }; ACTIONS.invGo(); st.screen = 'invite'; } },
   { id: 'ClientRecurrence', file: 'recurrence', group: 'My bookings', title: 'Change a repeating lesson', note: 'Redesigned from Forest ClientRecurrence: Mia’s Wednesdays at 6:30 reduced to every 2 weeks, with every affected date previewed as kept or cancelled.', setup: st => { const a = bkArrangements().find(x => x.sid === 's1' && x.dow === 3 && x.t === 390); ACTIONS.bkRecOpen(a.key); st.ui.bk.rec.mode = 1; st.ui.bk.rec.interval = 2; } },
 );

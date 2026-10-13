@@ -734,8 +734,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-tablewrap { overflow-x: auto; position: relative; }
 .bb .ac-tablewrap .table { min-width: 560px; }
 .bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
   .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
 }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
@@ -782,6 +790,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb button.rcard:hover { border-color: var(--primary); }
 .bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
 .bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
 @media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
@@ -831,6 +846,10 @@ html, body { margin: 0; background: var(--sp-bg); }
     <div class="grid2">
       <div class="field"><label class="label" for="bk-every">Repeats</label><select id="bk-every" class="ctl" data-bind="ui.book.every" data-num="1"><option value="1" selected>Every week</option><option value="2">Every 2 weeks</option><option value="3">Every 3 weeks</option><option value="4">Every 4 weeks</option></select></div>
       <div class="field"><label class="label" for="bk-until">Until</label><input id="bk-until" class="ctl" type="date" value="2027-01-18" max="2027-10-19" data-bind="ui.book.until" data-live="1"><div class="hint">Starts three months out. Up to 12 months.</div></div>
+    </div>
+    <div class="bk-share"><div class="bk-share__head"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><b>Share this lesson</b><span class="label__opt">Optional</span></div>
+    <p class="fine">Enter another skater’s share code. Their family must accept before their skater joins. If the skater isn’t Coach Dana’s student yet, Coach Dana accepts them first. Every lesson in the series is shared. Only Mon 9:30 AM can be shared.</p>
+    <div class="field"><label class="label" for="bk-share">Skater’s share code</label><input id="bk-share" class="ctl mono" type="text" value="" data-bind="ui.book.share" placeholder="e.g. LILY-6T2N" data-live="1"></div>
     </div>
     <div class="summary"><div><div class="kv"><span class="kv__k">Lessons</span><span class="kv__v">28 lessons until Jan 18</span></div><div class="kv"><span class="kv__k">First week</span><span class="kv__v"><b>$130</b></span></div><div class="kv"><span class="kv__k">All lessons</span><span class="kv__v">$1,820</span></div></div><div class="summary__note"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>You pay Dana directly. BladeBook only sends reminders.</div></div>
     <div class="dialog__actions"><button type="button" class="btn btn--secondary" data-act="closeModal"><span>Back</span></button><button type="button" class="btn btn--primary" data-act="bkBook"><span>Book 28 lessons</span></button></div></div></div></div>

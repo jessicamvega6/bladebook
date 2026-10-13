@@ -27,6 +27,7 @@ const ICONS = {
   repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   calOff: '<path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18M21 15.5V6a2 2 0 0 0-2-2H9.5M3 10h7M21 10h-5.5M16 2v4M8 2v4M2 2l20 20"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
   spark: '<path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/>',
   eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
@@ -121,7 +122,7 @@ const COACH_STEPS = ['Account', 'Verify login email', 'Business details', 'Busin
 function phone(body, o = {}) {
   return `<div class="phone">
     <div class="phone__status"><span>6:24</span><span class="phone__status-r">${o.offline ? ic('wifiOff', 14) : '<span class="bars"><i></i><i></i><i></i><i></i></span>'}<span class="batt"><i></i></span></span></div>
-    <header class="phone__head"><div><div class="phone__title">Today</div><div class="phone__sub">Wed, Oct 14 · Pelham Ice Rink</div></div>${avatar('DW', 'sm')}</header>
+    <header class="phone__head"><div><div class="phone__title">Today</div><div class="phone__sub">Wed, Oct 14 · Pelham Civic Center</div></div>${avatar('DW', 'sm')}</header>
     ${o.progress ? `<div class="phone__progress"><div class="phone__progress-row"><span>${o.progress[0]} of ${o.progress[1]} recorded</span><span>${o.progress[2] || ''}</span></div><div class="meter"><span style="width:${(o.progress[0] / o.progress[1]) * 100}%"></span></div></div>` : ''}
     <div class="phone__body">${body}</div>${o.overlay || ''}
     <nav class="tabbar"><a class="tabbar__item is-active">${ic('list', 20)}<span>Today</span></a><a class="tabbar__item">${ic('calendar', 20)}<span>Week</span></a><a class="tabbar__item">${ic('users', 20)}<span>Skaters</span></a></nav>
@@ -252,7 +253,7 @@ add('Family · Sign up', 'ClientCodeEmpty', '1a · Coach code — empty', 1280, 
 add('Family · Sign up', 'ClientCode', '1b · Coach code — found', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
   ${field('Coach code', 'DANA-7K2Q', { mono: true, ok: true })}
-  <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Ice Rink · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
+  <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Civic Center · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
   ${btn('Continue with Dana', 'primary', { block: true, lg: true, iconR: 'arrowR' })}
   <p class="fine center">Wrong coach? Check the code with them.</p>`), famHelp), 'Confirmation of the coach is a clear identity card; the button names who you’re continuing with.');
 
@@ -566,7 +567,10 @@ add('Coach · Week, payments & lessons', 'CoachProfileVisibility', '5 · Profile
   ${card(`
     ${toggle('Phone number', true, '(205) 555-0142')}
     ${toggle('Email address', true, 'lessons@danawhitfieldskating.com')}
-    ${toggle('Payment handles', false, 'Venmo @dana-skates · Cash App $danaskates')}
+    ${toggle('Cash', true, 'Families can pay you in cash at the rink.')}
+    ${toggle('Venmo', true, '@dana-skates')}
+    ${toggle('Cash App', false, 'Off. $danaskates is kept; switching it back on asks you to check it.')}
+    ${toggle('PayPal', false, 'Add your handle, then switch it on.')}
     <div class="card__note">${ic('info', 14)} Payment instructions always appear in payment-reminder emails, and replies always reach your business email — whichever of these are on.</div>`, { title: 'What families can see', sub: 'Only families you’ve confirmed — never someone who has only entered your coach code.', pad: false })}
   ${card(`
     ${toggle('Text me when a family cancels', false, 'To (205) 555-0142. Msg & data rates may apply. Reply STOP to stop.')}

@@ -6,12 +6,16 @@
    Sample families (the same world as the coach demo: Coach Dana Whitfield, Wed Oct 14, 2026, 8:15 AM):
      - Grace Chen, guardian of Mia and Noah — approved (ACTIVE). The default.
      - Sarah Park, guardian of Ava and Jack — waiting for approval (PENDING). A pending family sees only
-       their own account: no schedule, no open times, no coach contact details (ADR-022 d6). */
+       their own account: no schedule, no open times, no coach contact details (ADR-022 d6).
+     - Tom Okafor, guardian of Zoe — invited by Grace to share Mia's Friday lesson; Zoe waits for Coach Dana (ADR-026 d5). */
 
 const APP_TITLE = 'Grace Chen · BladeBook family demo';
 const FAMILIES = {
   grace: { client: 'Grace Chen', rel: 'Guardian', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, kids: ['s1', 's2'] },
   sarah: { client: 'Sarah Park', rel: 'Guardian', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, kids: ['p1', 'p2'] },
+  /* Tom Okafor's Zoe skates with another coach. Grace invited Zoe to share Mia's Friday lesson; Tom confirmed, so Zoe waits
+     for Coach Dana's approval like any sign-up (ADR-026 d5). */
+  tom: { client: 'Tom Okafor', rel: 'Guardian', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, kids: ['p4'] },
 };
 
 function freshState(who = 'grace') {
@@ -19,7 +23,7 @@ function freshState(who = 'grace') {
   const f = FAMILIES[who];
   return {
     screen: 'home', authed: true, modal: null, flash: '', who,
-    students, lessons: freshLessons(students), profile: freshProfile(),   // profile = the coach's profile
+    students, lessons: freshLessons(students), profile: freshProfile(), invites: freshInvites(),   // profile = the coach's profile
     me: { name: f.client, rel: f.rel, email: f.email, phone: f.phone, sms: f.sms },
     ui: {},          // per-screen UI state; each screen group owns its own keys
     auth: { email: f.email },
@@ -44,13 +48,26 @@ function openSlots(iso) {
 const myLessonAt = (iso, t) => myLessons().find(l => l.iso === iso && l.t === t);
 const priceFor = (sid, slot) => student(sid).override || slot.price;
 
+/* ---------- shared-lesson invitations (ADR-026 d5, d5a) ---------- */
+/** The booking family's lessons an invitation covers: one lesson, or every lesson in the series. */
+const invLessons = inv => state.lessons.filter(l => l.sid === inv.fromSkater && l.t === inv.t && (inv.series ? dowOf(l.iso) === inv.dow && l.iso >= inv.first && l.iso <= inv.last : l.iso === inv.iso));
+const invWhen = inv => inv.series ? `${DOW_LONG[inv.dow]}s at ${fmtT(inv.t)}` : `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
+const invDates = inv => { const ls = invLessons(inv); return inv.series && ls.length ? `${dShort(ls[0].iso)} – ${dShort(ls[ls.length - 1].iso)} · ${plural(ls.length, 'lesson')}` : ''; };
+/** The red home banner shows from the warning time until the coach acts or the lesson starts (ADR-026 d5a). The nightly
+    sweep sends the warning early, so a warning already sent (warnedAt) shows the banner too. */
+const invWarned = inv => inviteWarned(inv) || (inv.status === 'AWAITING_COACH' && !!inv.warnedAt && !!inv.iso && !isStarted({ iso: inv.iso, t: inv.t }));
+/** Invitations for this family's skaters (Family B), and invitations this family sent (Family A). */
+const invsToMe = () => state.invites.filter(i => myKids().some(k => k.id === i.skater));
+const invsFromMe = () => state.invites.filter(i => i.from === state.me.name);
+const invLink = (id, label, v = 'primary') => `<a class="btn btn--${v} btn--sm" href="${href('invite')}"${actAttr('invOpen', [id])}><span>${label}</span></a>`;
+
 /* ---------- shells ---------- */
 const NAV_ACTIVE = [['Home', 'home'], ['Book a lesson', 'book'], ['My bookings', 'bookings'], ['Profile', 'profile']];
 const NAV_PENDING = [['Home', 'home'], ['Profile', 'profile']];
 const CLIENT_SECTION = s => ({
   home: 'Home', book: 'Book a lesson', 'book-times': 'Book a lesson', 'book-result': 'Book a lesson',
   bookings: 'My bookings', recurrence: 'My bookings', payments: 'My bookings',
-  profile: 'Profile',
+  profile: 'Profile', invite: 'Home',
 }[s] || 'Home');
 
 function shell(body, o = {}) {
@@ -72,6 +89,6 @@ function authShell(main, aside = '', o = {}) {
 
 /* ---------- demo controls (in the demo bar) ---------- */
 Object.assign(ACTIONS, {
-  /** Switch which family is signed in: 'grace' (approved) or 'sarah' (waiting for approval). */
+  /** Switch which family is signed in: 'grace' (approved), 'sarah' (waiting for approval) or 'tom' (invited to share). */
   asFamily(who) { state = freshState(who); state.screen = 'home'; },
 });

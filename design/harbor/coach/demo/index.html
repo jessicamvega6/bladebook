@@ -721,6 +721,11 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* shared lessons: one attendance badge per skater */
+.bb .sh-badge { display: inline-flex; align-items: center; gap: 5px; }
+.bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
+.bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }
+
 /* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
 .bb .cal-scroll { overflow-x: auto; }
 .bb .cal-scroll .week { min-width: 860px; }
@@ -815,6 +820,28 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .mp-mail { padding: 16px; }
   .bb .mp-rrow { flex-wrap: wrap; }
 }
+/* how they paid (Payments) */
+.bb .mp-how { display: block; margin-top: 4px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.bb .mp-how .link { cursor: pointer; }
+.bb .mp-sub .ic { vertical-align: -2px; }
+.bb .mp-how-pick { text-align: left; }
+.bb .mp-how-pick .seg { flex-wrap: wrap; }
+.bb .mp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* financial summary */
+.bb .fin-split { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
+.bb .fin-table { min-width: 680px; }
+.bb .fin-table tfoot td { background: var(--surface-2); border-bottom: 0; }
+.bb .fin-table tr.fin-none td { color: var(--text-3); }
+.bb .fin-ice__row { display: flex; flex-direction: column; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.bb .fin-ice__row:first-of-type { border-top: 0; }
+@media (max-width: 980px) {
+  .bb .fin-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* One switch per payment type, each with its handle (ADR-016 d7, amended 2026-10-12) */
+.bb .paytype { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+.bb .paytype:last-of-type { border-bottom: 0; }
+.bb .paytype .field { margin-top: 4px; }
 
 /* Students — roster and pending sign-ups. Harbor tokens only. */
 .bb .stu-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
@@ -839,6 +866,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 
 .bb .stu-blocks { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); display: flex; flex-direction: column; gap: 4px; text-align: left; }
 .bb .stu-table .stu-sub .btn { margin-top: 4px; margin-left: -12px; }
+
+/* pending: a skater invited to share a lesson (ADR-026 d5) */
+.bb .stu-join { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--r-sm); background: var(--primary-tint); color: var(--text-2); font-size: 13px; line-height: 1.4; max-width: 520px; }
+.bb .stu-join .ic { flex: none; margin-top: 2px; color: var(--primary-text); }
 
 .demo-bar a { color: inherit; font-weight: 700; }
 </style>
@@ -876,6 +907,7 @@ const ICONS = {
   repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   calOff: '<path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18M21 15.5V6a2 2 0 0 0-2-2H9.5M3 10h7M21 10h-5.5M16 2v4M8 2v4M2 2l20 20"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
   spark: '<path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/>',
   eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
@@ -970,7 +1002,7 @@ const COACH_STEPS = ['Account', 'Verify login email', 'Business details', 'Busin
 function phone(body, o = {}) {
   return `<div class="phone">
     <div class="phone__status"><span>6:24</span><span class="phone__status-r">${o.offline ? ic('wifiOff', 14) : '<span class="bars"><i></i><i></i><i></i><i></i></span>'}<span class="batt"><i></i></span></span></div>
-    <header class="phone__head"><div><div class="phone__title">Today</div><div class="phone__sub">Wed, Oct 14 · Pelham Ice Rink</div></div>${avatar('DW', 'sm')}</header>
+    <header class="phone__head"><div><div class="phone__title">Today</div><div class="phone__sub">Wed, Oct 14 · Pelham Civic Center</div></div>${avatar('DW', 'sm')}</header>
     ${o.progress ? `<div class="phone__progress"><div class="phone__progress-row"><span>${o.progress[0]} of ${o.progress[1]} recorded</span><span>${o.progress[2] || ''}</span></div><div class="meter"><span style="width:${(o.progress[0] / o.progress[1]) * 100}%"></span></div></div>` : ''}
     <div class="phone__body">${body}</div>${o.overlay || ''}
     <nav class="tabbar"><a class="tabbar__item is-active">${ic('list', 20)}<span>Today</span></a><a class="tabbar__item">${ic('calendar', 20)}<span>Week</span></a><a class="tabbar__item">${ic('users', 20)}<span>Skaters</span></a></nav>
@@ -1101,7 +1133,7 @@ add('Family · Sign up', 'ClientCodeEmpty', '1a · Coach code — empty', 1280, 
 add('Family · Sign up', 'ClientCode', '1b · Coach code — found', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
   ${field('Coach code', 'DANA-7K2Q', { mono: true, ok: true })}
-  <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Ice Rink · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
+  <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Civic Center · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
   ${btn('Continue with Dana', 'primary', { block: true, lg: true, iconR: 'arrowR' })}
   <p class="fine center">Wrong coach? Check the code with them.</p>`), famHelp), 'Confirmation of the coach is a clear identity card; the button names who you’re continuing with.');
 
@@ -1415,7 +1447,10 @@ add('Coach · Week, payments & lessons', 'CoachProfileVisibility', '5 · Profile
   ${card(`
     ${toggle('Phone number', true, '(205) 555-0142')}
     ${toggle('Email address', true, 'lessons@danawhitfieldskating.com')}
-    ${toggle('Payment handles', false, 'Venmo @dana-skates · Cash App $danaskates')}
+    ${toggle('Cash', true, 'Families can pay you in cash at the rink.')}
+    ${toggle('Venmo', true, '@dana-skates')}
+    ${toggle('Cash App', false, 'Off. $danaskates is kept; switching it back on asks you to check it.')}
+    ${toggle('PayPal', false, 'Add your handle, then switch it on.')}
     <div class="card__note">${ic('info', 14)} Payment instructions always appear in payment-reminder emails, and replies always reach your business email — whichever of these are on.</div>`, { title: 'What families can see', sub: 'Only families you’ve confirmed — never someone who has only entered your coach code.', pad: false })}
   ${card(`
     ${toggle('Text me when a family cancels', false, 'To (205) 555-0142. Msg & data rates may apply. Reply STOP to stop.')}
@@ -1507,37 +1542,48 @@ const isStarted = l => l.iso < TODAY || (l.iso === TODAY && l.t <= NOW_MIN);
 /* Matches the schedule demo: Morning ice Mon/Wed/Fri 6:00–11:30, 30 min, $50; Afternoon power
    hours Mon 3:00–5:00 PM, 60 min, $80; Summer camp week Sep 14–20 (special schedule); Thanksgiving
    break Nov 22–28 (no lessons). */
+/* Rink and ice types (FeatureDecriptions/Schedule Creater.md). Phase 1 has one rink, fixed; each rink's list of ice
+   types is kept by the BladeBook owner. Families never see the ice type or skaters per lesson (ADR-026 d1). */
+const RINK = 'Pelham Civic Center (PCC)';
+const RINK_SHORT = 'Pelham Civic Center';
+const ICE_TYPES = ['Birmingham Figure Skating Club (BFSC) freestyle ice', 'Stick and Puck (S&P) ice', 'Public ice'];
+const ICE_SHORT = { [ICE_TYPES[0]]: 'BFSC freestyle', [ICE_TYPES[1]]: 'Stick and Puck', [ICE_TYPES[2]]: 'Public ice' };
+/* maxSkaters: skaters per lesson, default 1 (private), most 2 (ADR-026 d1). Morning ice can be shared. */
 const BLOCKS = [
-  { name: 'Morning ice', days: [1, 3, 5], sod: 360, eod: 690, len: 30, price: 50 },
-  { name: 'Afternoon power hours', days: [1], sod: 900, eod: 1020, len: 60, price: 80 },
+  { name: 'Morning ice', days: [1, 3, 5], sod: 360, eod: 690, len: 30, price: 50, maxSkaters: 2, rink: RINK, ice: ICE_TYPES[0] },
+  { name: 'Afternoon power hours', days: [1], sod: 900, eod: 1020, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[2] },
 ];
 const SPECIALS = [
-  { name: 'Summer camp week', kind: 'special', sd: '2026-09-14', ed: '2026-09-20', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80 }] },
+  { name: 'Summer camp week', kind: 'special', sd: '2026-09-14', ed: '2026-09-20', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[0] }] },
   { name: 'Thanksgiving break', kind: 'timeoff', sd: '2026-11-22', ed: '2026-11-28' },
-  { name: 'Holiday camp week', kind: 'special', sd: '2026-12-21', ed: '2026-12-27', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80 }] },
+  { name: 'Holiday camp week', kind: 'special', sd: '2026-12-21', ed: '2026-12-27', blocks: [{ name: 'Camp ice', sod: 540, eod: 960, len: 60, price: 80, maxSkaters: 1, rink: RINK, ice: ICE_TYPES[0] }] },
 ];
 /** Every slot the schedule produces on a date: [{t, len, price, block}]. */
 function slotsOn(iso) {
   const sp = SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
   const blocks = sp ? (sp.blocks || []) : BLOCKS.filter(b => b.days.includes(dowOf(iso)));
   const out = [];
-  for (const b of blocks) for (let t = b.sod; t + b.len <= b.eod; t += b.len) out.push({ t, len: b.len, price: b.price, block: b.name });
+  for (const b of blocks) for (let t = b.sod; t + b.len <= b.eod; t += b.len) out.push({ t, len: b.len, price: b.price, block: b.name, maxSkaters: b.maxSkaters || 1, ice: b.ice });
   return out;
 }
 const specialOn = iso => SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
 
 function freshStudents() {
   return [
-    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', since: '2025-09-02' },
-    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', since: '2025-09-02' },
-    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45 },
-    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15' },
-    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20' },
-    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04' },
-    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', since: '2026-10-12' },
-    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', since: '2026-10-12' },
-    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', since: '2026-10-13' },
+    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
+    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
+    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45, shareCode: 'SAM-6RZB' },
+    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
+    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
+    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
+    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQW' },
+    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JACK-4MVD' },
+    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLIV-9KRB' },
+    // Zoe skates with another coach. Grace invited her to share Mia's Friday lesson; Tom confirmed, so Zoe now waits for
+    // Coach Dana like any sign-up, and joins the lesson when Dana approves her (pendingJoins, ADR-026 d5).
+    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3P',
+      pendingJoins: [{ iso: '2026-10-16', t: 510, invite: 'i2' }], invitedBy: 'Grace Chen' },
   ];
 }
 /* Recurring arrangements: [studentId, weekday, start minute, first date, last date]. */
@@ -1564,6 +1610,7 @@ function freshLessons(students) {
       l.status = h === 0 ? 'NO_SHOW' : 'CHECKED_IN';
       l.pay = iso < '2026-09-21' ? (h === 3 ? 'WAIVED' : 'PAID') : (h % 3 === 0 ? 'UNPAID' : 'PAID');
       if (l.status === 'NO_SHOW') l.pay = 'UNPAID';
+      if (l.pay === 'PAID') l.paidBy = ['VENMO', 'CASH', 'VENMO', 'CASHAPP', null, 'OTHER'][h % 6];   // how the client paid; optional (ADR-003)
     }
     out.push(l);
   };
@@ -1577,21 +1624,55 @@ function freshLessons(students) {
   }
   for (const [sid, iso, t] of CAMP) add(sid, iso, { ...slotsOn(iso).find(s => s.t === t) });
   // A few one-off lessons
-  for (const [sid, iso, t] of [['s6', '2026-10-16', 480], ['s2', '2026-10-19', 450], ['s7', '2026-10-21', 660], ['s3', '2026-10-09', 600]]) add(sid, iso, slotsOn(iso).find(s => s.t === t));
+  for (const [sid, iso, t] of [['s1', '2026-10-16', 510], ['s6', '2026-10-16', 480], ['s2', '2026-10-19', 450], ['s7', '2026-10-21', 660], ['s3', '2026-10-09', 600]]) add(sid, iso, slotsOn(iso).find(s => s.t === t));
   // Today: Sam 6:00 and Mia 6:30 checked in; Owen 8:30 and Leo 10:00 still to come; 11:00 held.
   out.push({ id: 'h1', sid: null, iso: TODAY, t: 660, len: 30, price: 0, status: 'COACH_HELD', pay: null });
+  // Shared lessons (ADR-026). Sam's Wednesday 6:00 series is shared with Leo: each skater has their own attendance and payment.
+  for (const l of out.filter(x => x.sid === 's4' && dowOf(x.iso) === 3 && x.t === 360 && x.iso >= '2026-10-07'))
+    l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }];
+  // Grace invited Zoe Okafor to share Mia's Friday 8:30; Zoe waits for Coach Dana's approval (invite i2).
+  const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 'p4';
   // Not recorded: Ella's lesson last Friday has no attendance.
   const ella = out.find(l => l.sid === 's3' && l.iso === '2026-10-09' && l.t === 540); if (ella) { ella.status = 'BOOKED'; ella.pay = 'UNPAID'; }
   return out.sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
 }
 
+/* Shared-lesson invitations (ADR-026 d5). inviteStatus: SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
+   from: the booking family; skater: the invited skater; series: one invitation covers a whole recurring series. */
+function freshInvites() {
+  return [
+    { id: 'i1', from: 'Owen Brooks', fromSkater: 's7', skater: 's2', dow: 3, t: 510, len: 30, first: '2026-10-21', last: '2026-12-23', series: true, status: 'SENT', sent: '2026-10-13',
+      clashes: [{ when: 'Wed, Nov 4 · 8:30 AM', what: 'Noah’s lesson with Coach Ben Ortiz' }] },
+    { id: 'i2', from: 'Grace Chen', fromSkater: 's1', skater: 'p4', iso: '2026-10-16', t: 510, len: 30, series: false, status: 'AWAITING_COACH', sent: '2026-10-12', confirmed: '2026-10-13', warnedAt: '2026-10-13', clashes: [] },
+    { id: 'i3', from: 'Dee Rivera', fromSkater: 's4', skater: 's5', dow: 3, t: 360, len: 30, first: '2026-10-07', last: '2026-12-23', series: true, status: 'CONFIRMED', sent: '2026-10-01', clashes: [] },
+  ];
+}
+/** The shared-lesson warning time: 24 hours plus the coach's notice period before the lesson (ADR-026 d5a). The nightly
+   sweep sends a warning early rather than late, so one already sent (warnedAt) counts as warned. */
+const inviteWarned = (inv, notice = NOTICE_H) => { if (inv.status !== 'AWAITING_COACH' || !inv.iso) return false;
+  if (inv.warnedAt) return true;
+  const mins = Math.round((parseIso(inv.iso) - parseIso(TODAY)) / 864e5) * 1440 + inv.t - NOW_MIN; return mins > 0 && mins <= (24 + notice) * 60; };
+
+/* Payment types (ADR-016 d7, amended 2026-10-12): one switch per type. [paidVia value, label, handle key, switch key, placeholder].
+   A type switched on is a how-paid option (ADR-003 d4) and is shown to approved families. Cash has no handle. */
+const PAY_TYPES = [['CASH', 'Cash', null, 'cash', ''], ['VENMO', 'Venmo', 'venmo', 'onVenmo', '@handle'],
+  ['CASHAPP', 'Cash App', 'cashapp', 'onCashapp', '$cashtag'], ['PAYPAL', 'PayPal', 'paypal', 'onPaypal', 'paypal.me/you']];
+const payOn = p => PAY_TYPES.filter(([, , h, k]) => p[k] && (!h || p[h]));
+const payTypesFor = p => [...payOn(p).map(([v, l]) => [v, l]), ['OTHER', 'Other']];
+/** What approved families see: each type switched on, with its handle ('' for cash). */
+const payShown = p => payOn(p).map(([, l, h]) => [l, h ? p[h] : '']);
+const PAID_BY_LABEL = { CASH: 'Cash', VENMO: 'Venmo', CASHAPP: 'Cash App', PAYPAL: 'PayPal', OTHER: 'Other' };
+
 function freshProfile() {
   return {
     first: 'Dana', last: 'Whitfield', loginEmail: 'dana.whitfield@gmail.com', businessEmail: 'lessons@danawhitfieldskating.com',
     phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: 'DANA-7K2Q', photo: true,
-    showPhone: true, showEmail: true, showHandles: false, smsCancel: false,
+    showPhone: true, showEmail: true, smsCancel: false,
     instructions: 'Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.',
-    venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',
+    venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',   // handles; a handle is kept when its type is switched off
+    cash: true, onVenmo: true, onCashapp: false, onPaypal: false,   // one switch per payment type (ADR-016 d7, amended 2026-10-12)
+    payKept: { onCashapp: true },   // types switched off with a handle kept: switching back on asks the coach to verify it
+    sport: 'Figure skating', rinkPlan: 'percent',   // rink terms: one reading of Q_Rink-Fees.md (15% of gross, or $500 a month)
     emails: [{ addr: 'lessons@danawhitfieldskating.com', note: 'Current · confirmed' }, { addr: 'dana.whitfield@gmail.com', note: 'Your login email · verified' }],
   };
 }
@@ -1739,12 +1820,29 @@ function freshState() {
   const students = freshStudents();
   return {
     screen: 'today', authed: true, modal: null, flash: '',
-    students, lessons: freshLessons(students), profile: freshProfile(),
+    students, lessons: freshLessons(students), profile: freshProfile(), invites: freshInvites(),
     ui: {},          // per-screen UI state; each screen group owns its own keys
     auth: { step: 0, email: 'dana.whitfield@gmail.com', bizSame: false, error: '' },
   };
 }
 let state = freshState();
+
+/* ================= shared lessons (ADR-026 d6) =================
+   A lesson's booking skater lives on the lesson itself; a second skater is in l.with. Each skater has their own
+   attendance and payment. skatersIn() flattens them: k is -1 for the booking skater, else the index in l.with,
+   and ref is the object to change. */
+const skatersIn = l => !l || !l.sid ? [] : [{ k: -1, ref: l }, ...(l.with || []).map((w, k) => ({ k, ref: w }))]
+  .map(({ k, ref }) => ({ id: l.id, k, ref, sid: ref.sid, status: ref.status, pay: ref.pay, paidBy: ref.paidBy, price: ref.price, iso: l.iso, t: l.t, len: l.len, recurring: l.recurring, lesson: l }));
+const isShared = l => !!(l && l.with && l.with.length);
+/** "Sam R. & Leo M." (short) or "Sam Rivera & Leo Martin". */
+const whoIn = (l, short = true) => l && l.sid ? skatersIn(l).map(p => short ? shortName(student(p.sid).name) : student(p.sid).name).join(' & ') : 'Held';
+const familiesIn = l => families(skatersIn(l).map(p => student(p.sid)));
+/** One attendance badge per skater; a shared lesson labels each with the skater's first name. */
+const skaterBadges = l => isShared(l) ? skatersIn(l).map(p => `<span class="sh-badge"><small>${esc(student(p.sid).name.split(' ')[0])}</small>${statusBadge(p)}</span>`).join('') : statusBadge(l);
+/** A shared-lesson invitation waiting for the coach, once its warning has gone out (ADR-026 d5a). The nightly sweep sends
+   early, so warnedAt can be set before the warning time itself. */
+const inviteNeedsCoach = inv => inv.status === 'AWAITING_COACH' && inv.iso && !isStarted({ iso: inv.iso, t: inv.t }) && !!(inv.warnedAt || inviteWarned(inv, state.profile.notice));
+const inviteWhen = inv => `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
 
 /** Links into the schedule section (schedule.html). */
 const SCHEDULE_PAGES = { hub: 'schedule.html', weekly: 'schedule.html#weekly', away: 'schedule.html#away' };
@@ -1756,7 +1854,7 @@ const NAV_ITEMS = [
 ];
 const SECTION_OF = s => ({
   today: 'Today', 'calendar-month': 'Calendar', 'calendar-week': 'Calendar', 'calendar-day': 'Calendar', 'cancel-preview': 'Calendar',
-  students: 'Students', pending: 'Students', lessons: 'Lessons', payments: 'Payments',
+  students: 'Students', pending: 'Students', lessons: 'Lessons', payments: 'Payments', finances: 'Payments',
   profile: 'Profile', 'profile-email': 'Profile', 'profile-visibility': 'Profile', 'profile-payments': 'Profile', 'profile-account': 'Profile', 'email-templates': 'Profile',
 }[s] || 'Today');
 
@@ -1840,7 +1938,7 @@ SCREENS.signup = () => {
     <div class="grid2">${INP('su-phone', 'Phone', 'profile.phone', { type: 'tel', optional: true })}${SEL('su-tz', 'Time zone', 'profile.tz', [['Eastern — New York', 'Eastern — New York'], ['Central — Chicago', 'Central — Chicago'], ['Mountain — Denver', 'Mountain — Denver'], ['Pacific — Los Angeles', 'Pacific — Los Angeles'], ['Eastern — Toronto', 'Eastern — Toronto']])}</div>
     <div class="fieldset"><div class="label">Currency</div>${SEG(['USD', 'CAD'], p.currency === 'USD' ? 0 : 1, 'signupCurrency', [], { block: true })}<div class="hint">Chosen once. Every lesson is priced in it.</div></div>
     ${TXT('su-instr', 'How families pay you', 'profile.instructions', { hint: 'Included in payment reminders. BladeBook doesn’t take payments itself.' })}
-    <div class="grid3">${INP('su-venmo', 'Venmo', 'profile.venmo', { optional: true })}${INP('su-cash', 'Cash App', 'profile.cashapp', { optional: true })}${INP('su-paypal', 'PayPal', 'profile.paypal', { optional: true })}</div>
+    <div class="fieldset"><div class="label">Payment types <span class="label__opt">Optional</span></div>${payTypeRows('su')}<div class="hint">Switch on each way families can pay you. You can change these any time from your profile.</div></div>
     <div class="fieldset"><div class="label">Profile photo <span class="label__opt">Optional</span></div><div class="photo-pick">${avatar(initials(p.first + ' ' + p.last), 'lg')}${B('Upload a photo', 'secondary', 'noop', { sm: true, icon: 'plus' })}<span class="hint">JPG or PNG, up to 2 MB. Families see it after entering your coach code.</span></div></div>
     ${B(a.bizSame ? 'Finish setup' : 'Save and continue', 'primary', 'signupNext', { block: true, lg: true })}`),
     help('Why a business email?', 'It’s the only address families see. Emails go out as “Dana Whitfield via BladeBook” and replies come to you. Your login email stays private unless you choose it here.'),
@@ -1880,14 +1978,19 @@ Object.assign(ACTIONS, {
 SCREENS.today = () => {
   const today = lessonsOn(TODAY);
   const ws = weekStart(TODAY), we = addDays(ws, 6);
-  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we);
-  const unpaid = state.lessons.filter(l => l.sid && isPast(l) && l.pay === 'UNPAID');
+  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we).flatMap(skatersIn);
+  const unpaid = state.lessons.filter(l => l.sid && isPast(l)).flatMap(skatersIn).filter(p => p.pay === 'UNPAID');
+  const waiting = state.invites.filter(inviteNeedsCoach);
   const pend = pending();
   const next = today.find(l => l.sid && !isStarted(l));
-  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(nameOf(l)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + money(l.price) : ' · not bookable'}`)}`,
-    `${l === next ? badge('Next', 'primary') : ''}${l.sid ? statusBadge(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
+  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
+    `${l === next ? badge('Next', 'primary') : ''}${l.sid ? skaterBadges(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
+  const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since) + (kids.some(k => k.invitedBy) ? ` · invited by ${esc(kids.find(k => k.invitedBy).invitedBy)} to share a lesson` : '');
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
+    ${waiting.map(inv => { const z = student(inv.skater), host = student(inv.fromSkater);
+      return banner('warning', `A shared lesson on ${inviteWhen(inv)} is waiting for you to accept ${esc(z.name.split(' ')[0])}`,
+        `${esc(z.client)} accepted ${esc(inv.from)}’s invitation for ${esc(z.name)} to join ${esc(shortName(host.name))}’s lesson. If you don’t accept ${esc(z.name.split(' ')[0])} before it starts, it goes ahead as a private lesson. <a class="link" href="${href('pending')}">Review sign-ups</a>`); }).join('')}
     <div class="stats">
       ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
       ${stat('Unpaid', money(unpaid.reduce((s, l) => s + l.price, 0)), plural(unpaid.length, 'past lesson'), 'card')}
@@ -1896,13 +1999,13 @@ SCREENS.today = () => {
     <div class="split split--today">
       ${card(today.length ? today.map(lessonRow).join('') + `<div class="card__note">${ic('info', 14)} Attendance comes from the rinkside app. Fix a mistake on ${A_('lessons', 'Lessons')}.</div>`
         : `<div class="pempty"><span class="pempty__icon">${ic('calendar', 22)}</span><b>No lessons today</b><span class="muted">Your next lesson is on Friday.</span></div>`,
-        { title: 'Today’s lessons', sub: `${plural(today.filter(l => l.sid).length, 'lesson')} · Pelham Ice Rink`, pad: false, action: A_('calendar-day', 'Day view') })}
+        { title: 'Today’s lessons', sub: `${plural(today.filter(l => l.sid).length, 'lesson')} · Pelham Civic Center`, pad: false, action: A_('calendar-day', 'Day view') })}
       <div class="stack">
-        ${pend.length ? card(`${families(pend).map(f => { const kids = pend.filter(s => s.client === f); return row(`${avatar(initials(f), 'sm')}${rowTitle(esc(f), kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since))}`, ''); }).join('')}
+        ${pend.length ? card(`${families(pend).map(f => { const kids = pend.filter(s => s.client === f); return row(`${avatar(initials(f), 'sm')}${rowTitle(esc(f), famSub(kids))}`, ''); }).join('')}
           <div class="card__foot">${B('Review sign-ups', 'primary', '', { href: href('pending'), block: true })}</div>`, { title: 'New families to approve', sub: 'They can’t see your times or book until you approve them.', pad: false, cls: 'card--attn' }) : ''}
         ${card(`<div class="quick">
           ${[['Edit weekly schedule', 'repeat', SCHEDULE_PAGES.weekly], ['Time off or special schedule', 'calOff', SCHEDULE_PAGES.away], ['Month', 'calendar', href('calendar-month')], ['Week', 'calendar', href('calendar-week')],
-             ['Students', 'users', href('students')], ['Payments', 'card', href('payments')], ['Profile', 'user', href('profile')], ['Email templates', 'mail', href('email-templates')]]
+             ['Students', 'users', href('students')], ['Payments', 'card', href('payments')], ['Financial summary', 'trend', href('finances')], ['Profile', 'user', href('profile')], ['Email templates', 'mail', href('email-templates')]]
             .map(([t, i, h]) => `<a class="quick__item" href="${h}"><span class="quick__icon">${ic(i, 18)}</span><span>${t}</span>${t === 'Email templates' ? '<small>Phase 2</small>' : ''}</a>`).join('')}
         </div>`, { title: 'Go to' })}
       </div>
@@ -1915,11 +2018,11 @@ PRESETS.push(
   { id: 'CoachForgotCode', file: 'forgot-password-code', group: 'Sign in', title: 'Forgot password — code and new password', note: 'New. ConfirmForgotPassword: code plus the new password rules.', setup: st => { st.screen = 'forgot'; st.auth.step = 1; } },
   { id: 'CoachAccount', file: 'signup-1-account', group: 'Sign up', title: '1 · Account', note: 'From CoachAccount; first and last name split, as ADR-016 stores them.', setup: st => { st.screen = 'signup'; st.auth.signup = 0; } },
   { id: 'CoachVerify', file: 'signup-2-verify', group: 'Sign up', title: '2 · Verify login email', note: 'From CoachVerify.', setup: st => { st.screen = 'signup'; st.auth.signup = 1; } },
-  { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, payment handles and the optional photo from the sign-up spec.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
+  { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, one switch per payment type (Cash, Venmo, Cash App, PayPal; ADR-016 d7, amended 2026-10-12) and the optional photo from the sign-up spec.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm.', setup: st => { st.screen = 'signup'; st.auth.signup = 3; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: today’s lessons, the numbers a coach checks, new families to approve, and a button to every page.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve (Tom Okafor was invited to share a lesson), the warning for a shared lesson waiting on the coach (ADR-026 d5a), and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
 );
 
 
@@ -1927,7 +2030,7 @@ PRESETS.push(
 /* BladeBook coach website — Calendar group: month, week, day, and the cancel preview.
    Registers SCREENS 'calendar-month', 'calendar-week', 'calendar-day', 'cancel-preview'.
    State lives in state.ui.cal. Sources: FeatureDecriptions/Coach Dashboard on website.md,
-   cancelation.md, ADR-009 (coach cancellation, release or hold). */
+   cancelation.md, ADR-009 (coach cancellation, release or hold), ADR-026 d6 (every skater in a shared lesson). */
 
 const calUi = () => (state.ui.cal ??= { month: TODAY.slice(0, 8) + '01', week: weekStart(TODAY), day: TODAY, sel: [], hold: {}, back: 'calendar-week', what: '' });
 
@@ -1942,6 +2045,8 @@ const calSlotPast = (iso, s) => iso < TODAY || (iso === TODAY && s.t + s.len <= 
 const calCancellable = l => !!(l && l.sid && !isStarted(l));
 const calFuture = iso => lessonsOn(iso).filter(calCancellable);
 const calWhere = iso => { const sp = specialOn(iso); return sp ? (sp.kind === 'timeoff' ? `Time off · ${sp.name}` : `Special schedule · ${sp.name}`) : ''; };
+/** A skater invited to share this lesson who is still waiting for the coach's approval (ADR-026 d5). */
+const calInviteNote = l => { const z = l && l.invited && student(l.invited); return z && z.status === 'PENDING' ? ` · <a class="link" href="${href('pending')}">${esc(z.name)} invited to share, waiting for your approval</a>` : ''; };
 const calViewSeg = on => SEG(['Month', 'Week', 'Day'], on, 'calView');
 
 function calStartCancel(ids, back, what) {
@@ -1961,7 +2066,7 @@ Object.assign(ACTIONS, {
   calDayToday() { calUi().day = TODAY; },
   calOpenDay(iso) { const c = calUi(); c.day = iso; c.week = weekStart(iso); go('calendar-day'); },
   calOpenWeek(iso) { const c = calUi(); c.week = weekStart(iso); c.day = iso; go('calendar-week'); },
-  calCancelOne(id, back) { const l = state.lessons.find(x => x.id === id); calStartCancel([id], back, `${shortName(nameOf(l))}’s lesson`); },
+  calCancelOne(id, back) { const l = state.lessons.find(x => x.id === id); calStartCancel([id], back, `${whoIn(l)}’s lesson`); },
   calCancelDay(iso, back) { calStartCancel(calFuture(iso).map(l => l.id), back, dDow(iso)); },
   calCancelRest() {
     const c = calUi(), ids = [];
@@ -1974,9 +2079,11 @@ Object.assign(ACTIONS, {
   calAccept() {
     const c = calUi();
     const sel = state.lessons.filter(l => c.sel.includes(l.id) && calCancellable(l));
-    const fams = families(sel.map(l => student(l.sid)));
+    const fams = families(sel.flatMap(l => skatersIn(l).map(p => student(p.sid))));
     for (const l of sel) {
-      if (c.hold[l.id]) Object.assign(l, { sid: null, status: 'COACH_HELD', price: 0, pay: null, recurring: false });
+      // A pending shared-lesson invitation can't join a cancelled lesson, so it ends as EXPIRED (ADR-026 d5).
+      if (l.invited) for (const inv of state.invites.filter(i => i.skater === l.invited && i.iso === l.iso && i.t === l.t && i.status === 'AWAITING_COACH')) inv.status = 'EXPIRED';
+      if (c.hold[l.id]) { Object.assign(l, { sid: null, status: 'COACH_HELD', price: 0, pay: null, recurring: false }); delete l.with; delete l.invited; }
       else state.lessons = state.lessons.filter(x => x !== l);
     }
     const held = sel.filter(l => c.hold[l.id]).length;
@@ -2027,10 +2134,10 @@ SCREENS['calendar-week'] = () => {
       const l = s.lesson, past = calSlotPast(iso, s);
       const kind = !l ? 'open' : l.sid ? '' : 'held';
       const cls = `wl${kind ? ' wl--' + kind : ''}${past ? ' wl--past' : ''}`;
-      const name = !l ? 'Open' : l.sid ? esc(shortName(nameOf(l))) : 'Held';
+      const name = !l ? 'Open' : l.sid ? esc(whoIn(l)) : 'Held';
       const inner = `<span class="wl__t">${fmtShortT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
       return calCancellable(l)
-        ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(nameOf(l))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
+        ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(whoIn(l, false))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
         : `<div class="${cls}">${inner}</div>`;
     }).join('');
     const empty = sp && sp.kind === 'timeoff' ? `Time off<br><small>${esc(sp.name)}</small>` : 'No lessons';
@@ -2052,8 +2159,8 @@ SCREENS['calendar-day'] = () => {
     const l = s.lesson, past = calSlotPast(iso, s);
     const who = !l ? `<span class="roundicon">${ic('plus', 14)}</span>${rowTitle('Open', 'Families can book this time')}`
       : !l.sid ? `<span class="roundicon roundicon--warn">${ic('lock', 14)}</span>${rowTitle('Held', 'You kept this time closed')}`
-      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${esc(student(l.sid).client)}${l.recurring ? ' · repeats weekly' : ''}`)}`;
-    const side = `<span class="muted num">${s.len} min · ${money(l && l.sid ? l.price : s.price)}</span>${l && l.sid && isStarted(l) ? statusBadge(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
+      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ' · repeats weekly' : ''}${calInviteNote(l)}`)}`;
+    const side = `<span class="muted num">${s.len} min · ${l && l.sid ? skatersIn(l).map(p => money(p.price)).join(' + ') : money(s.price)}</span>${l && l.sid && isStarted(l) ? skaterBadges(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
     return row(`<span class="cal-slot__t num">${fmtT(s.t)}</span>${who}`, side, { cls: past ? 'row--muted' : '' });
   }).join('');
   const empty = sp && sp.kind === 'timeoff'
@@ -2073,11 +2180,12 @@ SCREENS['cancel-preview'] = () => {
   const sel = state.lessons.filter(l => c.sel.includes(l.id) && calCancellable(l));
   const backLabel = { 'calendar-week': `Week of ${dShort(c.week)}`, 'calendar-day': dLong(c.day), 'calendar-month': 'Calendar' }[c.back] || 'Back';
   if (!sel.length) return shell(`${pageHead('Nothing to cancel', 'These lessons have already started or were cancelled.', '', `<a class="link" data-act="calBack" href="#">${ic('arrowL', 14)} ${backLabel}</a>`)}`);
-  const fams = families(sel.map(l => student(l.sid)));
+  const fams = families(sel.flatMap(l => skatersIn(l).map(p => student(p.sid))));
+  const shared = sel.filter(isShared);
   const held = sel.filter(l => c.hold[l.id]).length;
   const first = sel[0].iso, last = sel[sel.length - 1].iso;
   const span = first === last ? dDow(first) : `${dDow(first)} – ${dDow(last)}`;
-  const rows = sel.map(l => row(`${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${l.recurring ? ' · this week only' : ''}`)}`,
+  const rows = sel.map(l => row(`${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${l.recurring ? ' · this week only' : ''}${isShared(l) ? ' · both families emailed' : ''}`)}`,
     SEG(['Release for rebooking', 'Hold — keep closed'], c.hold[l.id] ? 1 : 0, 'calHold', [l.id]))).join('');
   return shell(`
     ${pageHead(`Cancel ${plural(sel.length, 'lesson')}, ${span}`, 'For each lesson, choose whether families can book the time again.', '', `<a class="link" href="#" data-act="calBack">${ic('arrowL', 14)} ${backLabel}</a>`)}
@@ -2085,19 +2193,24 @@ SCREENS['cancel-preview'] = () => {
     ${card(`<div class="tablehead"><span>Lesson</span><span>After cancelling</span></div>${rows}
       <div class="card__note">${ic('alert', 14)} A held time stays closed to families, and your schedule doesn’t change. You can’t undo a cancellation.</div>`,
       { pad: false, title: 'Lessons', action: held ? `<a class="link" href="#" data-act="calReleaseAll">Release all</a>` : '' })}
-    ${help('Who gets told', `${fams.map(esc).join(', ')} will each get one email listing their cancelled ${sel.length === 1 ? 'lesson' : 'lessons'}, with a link to book another time. Repeating lessons in other weeks aren’t affected.`)}
+    ${help('Who gets told', `${fams.map(esc).join(', ')} will each get one email listing their cancelled ${sel.length === 1 ? 'lesson' : 'lessons'}, with a link to book another time. Repeating lessons in other weeks aren’t affected.${shared.length ? ` A shared lesson is cancelled for every skater in it, and each skater’s family gets its own email.` : ''}`)}
     <div class="stickybar">${B('Back', 'secondary', 'calBack')}<span class="stickybar__note">${plural(fams.length, 'family', 'families')} will be emailed. Nothing changes until you confirm.</span>${B(`Cancel ${plural(sel.length, 'lesson')}`, 'danger', 'calAccept', { lg: true })}</div>`);
 };
 
 /* ---------- static pages ---------- */
 PRESETS.push(
   { id: 'CoachCalendarMonth', file: 'calendar-month', group: 'Calendar', title: 'Month view', note: 'New. October 2026 with booked and open counts per day, week links on the left, time off and the camp week marked.', setup: st => { st.screen = 'calendar-month'; } },
-  { id: 'CoachWeekView', file: 'calendar-week', group: 'Calendar', title: 'Week view', note: 'Redesigned from the Forest CoachWeekView: every time slot by name, Open or Held, with Cancel day and Cancel rest of week.', setup: st => { st.screen = 'calendar-week'; } },
-  { id: 'CoachCalendarDay', file: 'calendar-day', group: 'Calendar', title: 'Day view', note: 'New. Today as a list of every time, with attendance for lessons already taught and a cancel button on the rest.', setup: st => { st.screen = 'calendar-day'; } },
+  { id: 'CoachWeekView', file: 'calendar-week', group: 'Calendar', title: 'Week view', note: 'Redesigned from the Forest CoachWeekView: every time slot by name, Open or Held, with Cancel day and Cancel rest of week. A shared lesson names both skaters (Sam R. & Leo M., Wednesday 6:00; ADR-026 d6).', setup: st => { st.screen = 'calendar-week'; } },
+  { id: 'CoachCalendarDay', file: 'calendar-day', group: 'Calendar', title: 'Day view', note: 'New. Today as a list of every time, with attendance for lessons already taught and a cancel button on the rest. The shared 6:00 lists Sam and Leo, each with their own attendance.', setup: st => { st.screen = 'calendar-day'; } },
+  { id: 'CoachCalendarDayInvite', file: 'calendar-day-invite', group: 'Calendar', title: 'Day view — skater invited to share', note: 'New state. Friday, Oct 16: Grace invited Zoe Okafor to share Mia’s 8:30, and Zoe is waiting for the coach’s approval (ADR-026 d5).', setup: st => { st.screen = 'calendar-day'; calUi().day = '2026-10-16'; calUi().week = weekStart('2026-10-16'); } },
   { id: 'CoachCancelPreview', file: 'cancel-preview', group: 'Calendar', title: 'Cancel preview', note: 'Redesigned from the Forest CoachCancelPreview: the rest of this week, release or hold per lesson, one lesson set to Hold.', setup: st => {
     ACTIONS.calCancelRest();
     const c = calUi(); const leo = state.lessons.find(l => c.sel.includes(l.id) && l.sid === 's5' && l.iso === TODAY);
     if (leo) c.hold[leo.id] = true;
+  } },
+  { id: 'CoachCancelPreviewShared', file: 'cancel-preview-shared', group: 'Calendar', title: 'Cancel preview — a day with a shared lesson', note: 'New state. Cancelling Wed, Oct 21 cancels the shared 6:00 for both Sam and Leo, and both families are emailed (ADR-026 d6, ADR-009).', setup: st => {
+    const c = calUi(); c.week = weekStart('2026-10-21'); c.day = '2026-10-21';
+    ACTIONS.calCancelDay('2026-10-21', 'calendar-day');
   } },
   { id: 'CoachWeekAfterCancel', file: 'calendar-week-after-cancel', group: 'Calendar', title: 'Week view after cancelling', note: 'New state of the week view: the confirmation message, the released times back to Open and the held time closed.', setup: st => {
     ACTIONS.calCancelRest();
@@ -2108,12 +2221,14 @@ PRESETS.push(
 );
 
 ;
-/* BladeBook coach website — Lessons, Payments, Profile and Email templates (Phase 2).
+/* BladeBook coach website — Lessons, Payments, Financial summary, Profile and Email templates (Phase 2).
    Registers into SCREENS, ACTIONS, MODALS and PRESETS from app.js. UI state lives under
-   state.ui.lessons, state.ui.pay, state.ui.prof and state.ui.tpl. */
+   state.ui.lessons, state.ui.pay, state.ui.fin, state.ui.prof and state.ui.tpl.
+   Lessons and Payments list one row per skater: a shared lesson has a row for each, with their own attendance and
+   payment (ADR-026 d6). Actions take the lesson id and k (-1 for the booking skater, else the index in l.with). */
 
 /* ================= shared bits ================= */
-const mpHappened = (from, to) => state.lessons.filter(l => l.sid && isPast(l) && l.iso >= from && l.iso <= to);
+const mpHappened = (from, to) => state.lessons.filter(l => l.sid && isPast(l) && l.iso >= from && l.iso <= to).flatMap(skatersIn);
 const mpEmpty = (icon, title, body) =>
   `<div class="mp-empty"><span class="mp-empty__icon">${ic(icon, 22)}</span><b>${title}</b><span class="muted">${body}</span></div>`;
 /** Range check: '' when fine, else an error message. */
@@ -2125,6 +2240,12 @@ const mpRangeBar = (fromPath, toPath, idp, extra = '') => {
 const PAY_BADGE = { PAID: ['Paid', 'success', 'check'], WAIVED: ['Waived', 'neutral'], UNPAID: ['Unpaid', 'warning'] };
 const payBadge = l => { const [t, v, i] = PAY_BADGE[l.pay]; return badge(t, v, i); };
 const mpLesson = id => state.lessons.find(l => l.id === id);
+/** The object holding one skater's attendance and payment: the lesson itself (k = -1) or its entry in l.with. */
+const mpPart = (id, k = -1) => { const l = mpLesson(id); return !l ? null : k < 0 ? l : (l.with || [])[k] || null; };
+const mpSharedWith = p => isShared(p.lesson) ? `<small class="mp-sub">${ic('users', 12)} Shared with ${skatersIn(p.lesson).filter(x => x.sid !== p.sid).map(x => esc(shortName(student(x.sid).name))).join(', ')}</small>` : '';
+/** How-paid choices: the payment types the coach takes, plus Other (ADR-003 d4). A stored value whose type was later
+   switched off is kept as a choice, so editing never loses it. */
+const mpHowOpts = part => { const o = payTypesFor(state.profile); return part && part.paidBy && !o.some(([v]) => v === part.paidBy) ? [...o.slice(0, -1), [part.paidBy, PAID_BY_LABEL[part.paidBy]], o[o.length - 1]] : o; };
 
 /* ================= Lessons — attendance corrections ================= */
 SCREENS.lessons = () => {
@@ -2140,9 +2261,9 @@ SCREENS.lessons = () => {
     const rows = list.map(l => {
       const s = student(l.sid), st = statusOf(l);
       const on = l.status === 'CHECKED_IN' ? 0 : l.status === 'NO_SHOW' ? 1 : -1;
-      return row(`${avatar(initials(s.name), 'sm')}${rowTitle(`${esc(s.name)}${st === 'NOT_RECORDED' ? ' ' + badge('Not recorded', 'warning', 'alert') : ''}`,
-        `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${s.rel !== 'Self' ? ' · ' + esc(s.client) : ''}`)}`,
-        SEG(['Attended', 'No-show'], on, 'mpAttend', [l.id]), { cls: st === 'NOT_RECORDED' ? 'row--attn' : '' });
+      return row(`${avatar(initials(s.name), 'sm')}<div>${rowTitle(`${esc(s.name)}${st === 'NOT_RECORDED' ? ' ' + badge('Not recorded', 'warning', 'alert') : ''}`,
+        `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${s.rel !== 'Self' ? ' · ' + esc(s.client) : ''}`)}${mpSharedWith(l)}</div>`,
+        SEG(['Attended', 'No-show'], on, 'mpAttend', [l.id, l.k]), { cls: st === 'NOT_RECORDED' ? 'row--attn' : '' });
     }).join('');
     body = `
       ${nr.length ? banner('warning', `${plural(nr.length, 'lesson has', 'lessons have')} no attendance`, 'The rinkside app may still be holding a check-in that hasn’t been sent, or nobody recorded it. Pick Attended or No-show to settle it.') : ''}
@@ -2153,13 +2274,13 @@ SCREENS.lessons = () => {
     ${pageHead('Lessons', 'Check who came. Fix anything recorded wrong at the rink here; the rinkside app can’t change a recorded lesson.')}
     ${mpRangeBar('ui.lessons.from', 'ui.lessons.to', 'les')}
     ${body}
-    ${help('Changing a no-show', 'Switching a lesson to No-show doesn’t change its price. It stays unpaid until you mark it paid or waived on Payments.')}`, { width: 'wide' });
+    ${help('Changing a no-show', 'Switching a lesson to No-show doesn’t change its price. It stays unpaid until you mark it paid or waived on Payments. In a shared lesson each skater has their own attendance.')}`, { width: 'wide' });
 };
 Object.assign(ACTIONS, {
-  mpAttend(id, i) {
-    const l = mpLesson(id); if (!l) return;
-    l.status = i === 0 ? 'CHECKED_IN' : 'NO_SHOW';
-    state.flash = `${student(l.sid).name}, ${dShort(l.iso)} ${fmtT(l.t)}: marked ${i === 0 ? 'attended' : 'no-show'}.`;
+  mpAttend(id, k, i) {
+    const l = mpLesson(id), p = mpPart(id, k); if (!p) return;
+    p.status = i === 0 ? 'CHECKED_IN' : 'NO_SHOW';
+    state.flash = `${student(p.sid).name}, ${dShort(l.iso)} ${fmtT(l.t)}: marked ${i === 0 ? 'attended' : 'no-show'}.`;
   },
 });
 
@@ -2168,7 +2289,7 @@ SCREENS.payments = () => {
   const ui = (state.ui.pay ??= { from: '', to: '', filter: 0 });
   const ready = ui.from && ui.to && !mpRangeError(ui.from, ui.to);
   const head = pageHead('Payments', 'Track who has paid. BladeBook doesn’t take payments; you mark them here.',
-    `<span class="mp-phase">${B('Send reminders', 'secondary', '', { icon: 'mail', disabled: true })}${badge('Phase 2', 'neutral')}</span>`);
+    `${B('Financial summary', 'secondary', '', { icon: 'trend', href: href('finances') })}<span class="mp-phase">${B('Send reminders', 'secondary', '', { icon: 'mail', disabled: true })}${badge('Phase 2', 'neutral')}</span>`);
   const bar = mpRangeBar('ui.pay.from', 'ui.pay.to', 'pay', ready ? SEG(['Unpaid', 'All'], ui.filter, 'mpPayFilter') : '');
   if (!ready) return shell(`${head}${bar}${card(mpEmpty('card', 'Pick a date range', 'Choose a start and end date to see payments for the lessons in it.'))}`, { width: 'wide' });
 
@@ -2181,10 +2302,12 @@ SCREENS.payments = () => {
   const rowsHtml = list.map(l => {
     const s = student(l.sid);
     const acts = l.pay === 'UNPAID'
-      ? `${B('Waive', 'ghost', 'mpWaive', { sm: true, args: [l.id] })}${B('Mark paid', 'secondary', 'mpPaid', { sm: true, icon: 'check', args: [l.id] })}`
-      : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id] })}`;
-    return `<tr${statusOf(l) === 'NOT_RECORDED' ? ' class="mp-attn"' : ''}><td><span class="cellname">${avatar(initials(s.name), 'sm')}<span>${esc(s.name)}${s.rel !== 'Self' ? `<small class="mp-sub">${esc(s.client)}</small>` : ''}</span></span></td>
-      <td class="num">${dDow(l.iso)} · ${fmtT(l.t)}</td><td>${statusBadge(l)}</td><td class="r money">${money(l.price)}</td><td>${payBadge(l)}</td><td class="r"><span class="cellbtns">${acts}</span></td></tr>`;
+      ? `${B('Waive', 'ghost', 'mpWaive', { sm: true, args: [l.id, l.k] })}${B('Mark paid', 'secondary', 'mpPaidOpen', { sm: true, icon: 'check', args: [l.id, l.k] })}`
+      : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
+    // How they paid sits under the Paid badge and can be changed afterwards. Waived lessons have none.
+    const how = l.pay !== 'PAID' ? '' : `<small class="mp-how">${l.paidBy ? `${PAID_BY_LABEL[l.paidBy]} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
+    return `<tr${statusOf(l) === 'NOT_RECORDED' ? ' class="mp-attn"' : ''}><td><span class="cellname">${avatar(initials(s.name), 'sm')}<span>${esc(s.name)}${s.rel !== 'Self' ? `<small class="mp-sub">${esc(s.client)}</small>` : ''}${mpSharedWith(l)}</span></span></td>
+      <td class="num">${dDow(l.iso)} · ${fmtT(l.t)}</td><td>${statusBadge(l)}</td><td class="r money">${money(l.price)}</td><td>${payBadge(l)}${how}</td><td class="r"><span class="cellbtns">${acts}</span></td></tr>`;
   }).join('');
   const table = list.length
     ? `<div class="mp-tablewrap"><table class="table"><thead><tr><th>Skater</th><th>Lesson</th><th>Attendance</th><th class="r">Amount</th><th>Payment</th><th class="r"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`
@@ -2197,14 +2320,110 @@ SCREENS.payments = () => {
       ${stat('Not recorded', String(nr.length), nr.length ? `<a class="link" href="${href('lessons')}">Check attendance</a>` : 'All recorded', 'alert')}
       ${stat('Paid', money(paid.reduce((s, l) => s + l.price, 0)), plural(paid.length, 'lesson'), 'check')}
     </div>
-    ${card(table + `<div class="card__note">${ic('info', 14)} A no-show shows the full lesson price until you mark it paid or waived. Upcoming lessons aren’t listed until they’ve happened. All amounts are in ${state.profile.currency}.</div>`,
+    ${card(table + `<div class="card__note">${ic('info', 14)} A no-show shows the full lesson price until you mark it paid or waived. Upcoming lessons aren’t listed until they’ve happened. Each skater in a shared lesson pays for themselves. How a family paid is for your records only; families don’t see it. All amounts are in ${state.profile.currency}.</div>`,
       { title: ui.filter === 0 ? 'Unpaid lessons' : 'All lessons', sub: `${dFull(ui.from)} – ${dFull(ui.to)}`, pad: false })}`, { width: 'wide' });
 };
 Object.assign(ACTIONS, {
   mpPayFilter(i) { state.ui.pay.filter = i; },
-  mpPaid(id) { const l = mpLesson(id); if (!l) return; l.pay = 'PAID'; state.flash = `${student(l.sid).name}, ${dShort(l.iso)}: marked paid.`; },
-  mpWaive(id) { const l = mpLesson(id); if (!l) return; l.pay = 'WAIVED'; state.flash = `${student(l.sid).name}, ${dShort(l.iso)}: waived.`; },
-  mpUndo(id) { const l = mpLesson(id); if (!l) return; l.pay = 'UNPAID'; state.flash = `${student(l.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
+  mpPaidOpen(id, k = -1) { state.ui.pay.how = -1; state.modal = { kind: 'mpHow', id, k, edit: false }; },
+  mpHowOpen(id, k = -1) { const p = mpPart(id, k); if (!p) return; state.ui.pay.how = mpHowOpts(p).findIndex(([v]) => v === p.paidBy); state.modal = { kind: 'mpHow', id, k, edit: true }; },
+  mpHowPick(i) { const ui = state.ui.pay; ui.how = ui.how === i ? -1 : i; },
+  mpHowSave() {
+    const m = state.modal, l = mpLesson(m.id), p = mpPart(m.id, m.k); if (!p) return;
+    const how = state.ui.pay.how, v = how >= 0 ? mpHowOpts(p)[how][0] : null;
+    p.pay = 'PAID'; p.paidBy = v; state.modal = null;
+    state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: ${m.edit ? (v ? `paid by ${PAID_BY_LABEL[v]}.` : 'how they paid cleared.') : `marked paid${v ? ` by ${PAID_BY_LABEL[v]}` : ''}.`}`;
+  },
+  mpWaive(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p) return; p.pay = 'WAIVED'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: waived.`; },
+  mpUndo(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p) return; p.pay = 'UNPAID'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
+});
+/* Mark paid, with how they paid (ADR-003 d4, amended 2026-10-12): optional, editable afterwards, coach-only, fixed values. */
+MODALS.mpHow = m => {
+  const l = mpLesson(m.id), p = mpPart(m.id, m.k), opts = mpHowOpts(p), on = state.ui.pay.how;
+  return `<div class="dialog__icon">${ic('check', 22)}</div>
+    <h2 class="h2">${m.edit ? 'How did they pay?' : 'Mark paid'}</h2>
+    <div class="dialog__what"><b>${esc(student(p.sid).name)}</b><span>${dDow(l.iso)} · ${fmtT(l.t)} · ${money(p.price)}</span></div>
+    <div class="fieldset mp-how-pick"><div class="label">How did they pay? <span class="label__opt">Optional</span></div>
+      ${SEG(opts.map(([, t]) => t), on, 'mpHowPick', [], { block: true })}
+      <div class="hint">For your records only; families don’t see it. These are the payment types on your <a class="link" href="${href('profile-payments')}">profile</a>, plus Other.${on >= 0 ? ' Pick it again to clear it.' : ''}</div></div>
+    <div class="dialog__actions">${B('Cancel', 'secondary', 'closeModal')}${B(m.edit ? 'Save' : 'Mark paid', 'primary', 'mpHowSave', { icon: m.edit ? '' : 'check' })}</div>`;
+};
+
+/* ================= Financial summary (MVP feature 16) =================
+   Gross is money received: lessons marked paid, plus missed-lesson fees actually collected (a no-show marked paid).
+   Waived and unpaid lessons are left out; the year is the calendar year (Open-Pending §3, settled 2026-10-12).
+   BladeBook calculates rink fees, but how is open (docs/Q_Rink-Fees.md). Each rink's terms are added by the developer when
+   BladeBook reaches that rink, and the coach can't change them or enter what they paid (owner, 2026-10-12: B18, B19).
+   This page shows one reading of the rest: figure skating is 15% of each month's gross or $500 a month, the coach's
+   choice (Kim Q1–2), and a lesson counts in the month it was taught (Q6). */
+const FIN_YEAR = TODAY.slice(0, 4);
+const FIN_TERMS = { percent: 0.15, flat: 500, hockeyHour: 10 };
+const finMonths = () => {
+  const out = [];
+  for (let m = 0; m <= parseIso(TODAY).getMonth(); m++) {
+    const ym = `${FIN_YEAR}-${String(m + 1).padStart(2, '0')}`;
+    const parts = state.lessons.filter(l => l.sid && l.iso.startsWith(ym) && isPast(l)).flatMap(skatersIn);
+    const paid = parts.filter(p => p.pay === 'PAID');
+    const gross = paid.reduce((s, p) => s + p.price, 0);
+    const calc = !parts.length ? 0 : state.profile.rinkPlan === 'flat' ? FIN_TERMS.flat : Math.round(gross * FIN_TERMS.percent);
+    out.push({ ym, m, parts, paid, gross, fee: calc, unpaid: parts.filter(p => p.pay === 'UNPAID').reduce((s, p) => s + p.price, 0), waived: parts.filter(p => p.pay === 'WAIVED').reduce((s, p) => s + p.price, 0) });
+  }
+  return out;
+};
+
+/* Summary export (ADR-030 d7, MVP): a CSV for this year or last, one row per month, no personal data. */
+MODALS.finExport = () => { const y = state.ui.finYear || 0; return `
+  <div class="dialog__icon">${ic('arrowR', 22)}</div>
+  <h2 class="h2">Download a summary</h2>
+  <p class="fine">A CSV file with one row per month: gross received, rink fees and net, plus the year’s totals. No skater names.</p>
+  <div class="fieldset"><div class="label">Year</div>${SEG([`${FIN_YEAR} so far`, String(FIN_YEAR - 1)], y, 'finExportYear', [], { block: true })}
+    <div class="hint">${y ? `${FIN_YEAR - 1} is closed, so its figures won’t change.` : 'Calculated from the lessons you’ve marked as paid.'}</div></div>
+  <div class="dialog__actions">${B('Cancel', 'secondary', 'closeModal')}${B('Download CSV', 'primary', 'finExport')}</div>`; };
+SCREENS.finances = () => {
+  const p = state.profile, months = finMonths(), cur = state.profile.currency;
+  const sum = k => months.reduce((s, x) => s + x[k], 0);
+  const gross = sum('gross'), fees = sum('fee'), lessons = months.reduce((s, x) => s + x.paid.length, 0);
+  const firstWith = months.findIndex(x => x.parts.length);
+  const before = firstWith > 0 ? `<tr class="fin-none"><td>${MON_LONG[0]} – ${MON_LONG[firstWith - 1]}</td><td colspan="3" class="muted">No lessons in BladeBook</td></tr>` : '';
+  const rowsHtml = months.slice(Math.max(firstWith, 0)).map(x => {
+    const isNow = x.ym === TODAY.slice(0, 7);
+    const feeCell = `<b class="money">${money(x.fee)}</b><small class="mp-sub">Calculated${isNow ? ' so far' : ''}</small>`;
+    return `<tr><td><b>${MON_LONG[x.m]}</b>${isNow ? `<small class="mp-sub">To ${dShort(TODAY)}</small>` : ''}</td>
+      <td class="num">${plural(x.paid.length, 'lesson')}${x.unpaid ? `<small class="mp-sub">${money(x.unpaid)} still unpaid</small>` : ''}</td>
+      <td class="r money">${money(x.gross)}</td><td>${feeCell}</td></tr>`;
+  }).join('');
+  const plan = p.rinkPlan === 'flat' ? 1 : 0;
+  const blocksOn = ice => BLOCKS.filter(b => b.ice === ice).map(b => esc(b.name));
+  return shell(`
+    ${pageHead('Financial summary', `Your ${FIN_YEAR} figures so far, for your taxes. Gross is money you’ve received.`,
+      `${B('Download summary', 'secondary', 'finExportOpen', { icon: 'arrowR' })}<span class="mp-phase">${B('Past years', 'secondary', '', { icon: 'calendar', disabled: true })}${badge('Phase 2', 'neutral')}</span>`, crumb('payments', 'Payments'))}
+    ${banner('info', 'Based on lessons you’ve marked as paid', 'These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: marking one of its lessons paid later doesn’t change it.')}
+    ${banner('warning', 'How rink fees are worked out isn’t decided yet', `BladeBook calculates them from ${esc(RINK_SHORT)}’s terms. These figures are one reading of those terms; the open questions are in docs/Q_Rink-Fees.md.`)}
+    <div class="stats">
+      ${stat(`Gross, ${FIN_YEAR} to date`, money(gross), `${plural(lessons, 'lesson')} marked paid`, 'card')}
+      ${stat(`Rink fees, ${FIN_YEAR} to date`, money(fees), 'Tax deductible', 'pin')}
+      ${stat('After rink fees', money(gross - fees), `Jan 1 – ${dShort(TODAY)}`, 'trend')}
+    </div>
+    <div class="split fin-split">
+      ${card(`<div class="mp-tablewrap"><table class="table fin-table"><thead><tr><th>Month</th><th>Paid lessons</th><th class="r">Gross received</th><th>Rink fee</th></tr></thead><tbody>${before}${rowsHtml}</tbody>
+        <tfoot><tr><td><b>${FIN_YEAR} to date</b></td><td class="num">${plural(lessons, 'lesson')}</td><td class="r money">${money(gross)}</td><td><b class="money">${money(fees)}</b></td></tr></tfoot></table></div>
+        <div class="card__note">${ic('info', 14)} Gross counts lessons marked paid, including a missed-lesson fee once you’ve collected it (mark the no-show paid). Unpaid and waived lessons aren’t counted. A lesson counts in the month it was taught. Amounts are in ${cur}.</div>`,
+        { title: 'Month by month', sub: `${esc(RINK_SHORT)} · ${p.rinkPlan === 'flat' ? '$500 a month' : '15% of each month’s gross'}`, pad: false })}
+      <div class="stack">
+        ${card(`
+          <div class="fieldset"><div class="label">Figure skating</div>${SEG(['15% of gross each month', '$500 a month'], plan, 'finPlan', [], { block: true })}<div class="hint">Your choice of the two. You coach ${esc(p.sport.toLowerCase())}, so this is what BladeBook uses.</div></div>
+          ${kv('Hockey', '$10 an hour')}
+          <div class="fieldset fin-ice"><div class="label">Ice at this rink</div>${ICE_TYPES.map(t => `<div class="fin-ice__row"><span>${esc(t)}</span><small class="mp-sub">${blocksOn(t).length ? 'Your ' + blocksOn(t).join(', ') : 'Not on your schedule'}</small></div>`).join('')}</div>`,
+          { title: `${esc(RINK_SHORT)} terms`, sub: 'What the rink charges you. BladeBook keeps each rink’s terms and adds them when it reaches a new rink. Phase 1 has one rink.' })}
+        ${help('Rink fees are tax deductible', 'Download a summary for your tax records or your tax preparer: one row per month, no skater names. Seeing past years on screen, and a lesson-by-lesson export, come in Phase 2.')}
+      </div>
+    </div>`, { width: 'wide' });
+};
+Object.assign(ACTIONS, {
+  finPlan(i) { state.profile.rinkPlan = i === 1 ? 'flat' : 'percent'; },
+  finExportOpen() { state.ui.finYear = 0; state.modal = { kind: 'finExport' }; },
+  finExportYear(i) { state.ui.finYear = i; },
+  finExport() { state.modal = null; state.flash = `Saved bladebook-summary-${FIN_YEAR - (state.ui.finYear || 0)}.csv.`; },
 });
 
 /* ================= Profile ================= */
@@ -2255,27 +2474,41 @@ SCREENS['profile-email'] = () => {
 };
 SCREENS['profile-visibility'] = () => {
   const p = state.profile;
-  const handles = [p.venmo && 'Venmo ' + p.venmo, p.cashapp && 'Cash App ' + p.cashapp, p.paypal && 'PayPal ' + p.paypal].filter(Boolean).join(' · ') || 'No handles yet. Add them under Payments.';
   return profileShell(`
     ${card(`
       ${TOG('Phone number', p.showPhone, esc(p.phone), 'mpToggle', ['showPhone'])}
       ${TOG('Email address', p.showEmail, esc(p.businessEmail), 'mpToggle', ['showEmail'])}
-      ${TOG('Payment handles', p.showHandles, esc(handles), 'mpToggle', ['showHandles'])}
+      <div class="toggle-row"><div class="toggle-row__text"><div class="toggle-row__label">Payment types</div><div class="toggle-row__sub">${esc(payShown(p).map(([l, v]) => v ? `${l} ${v}` : l).join(' · ') || 'None switched on.')} Each has its own switch under <a class="link" href="${href('profile-payments')}">Payments</a>.</div></div></div>
       <div class="card__note">${ic('info', 14)} Your payment instructions always appear in payment-reminder emails. Replies always reach your business email, whichever of these are on.</div>`,
       { title: 'What families can see', sub: 'Only families you’ve approved. Never someone who has only entered your coach code.', pad: false })}
     ${card(`
-      ${TOG('Text me when a family cancels', p.smsCancel, `To ${esc(p.phone)}. Msg &amp; data rates may apply. Reply STOP to stop.`, 'mpToggle', ['smsCancel'])}
-      <div class="smsprev"><div class="smsprev__label">Example</div><div class="smsprev__bubble">BladeBook: Mia C. cancelled Wed 21 Oct 6:30am. See email.</div></div>`,
-      { title: 'Texts to you', sub: 'You always get an email when a family cancels. Texts are extra.', pad: false })}
+      ${TOG('Text me when a family cancels late', p.smsCancel, `To ${esc(p.phone)}. Msg &amp; data rates may apply. Reply STOP to stop.`, 'mpToggle', ['smsCancel'])}
+      <div class="smsprev"><div class="smsprev__label">Example</div><div class="smsprev__bubble">BladeBook: Mia C. cancelled Fri 16 Oct 8:30am, inside your notice period. See email.</div></div>`,
+      { title: 'Texts to you', sub: `You get an email when a family cancels inside your ${p.notice}-hour notice period (ADR-009 d9). Other cancellations just free the time. Texts are extra.`, pad: false })}
     ${saveBar()}`);
 };
-SCREENS['profile-payments'] = () => profileShell(`
+/** One switch per payment type, with its handle (ADR-016 d7, amended 2026-10-12). Used at sign-up and on the profile. */
+const payTypeRows = pre => PAY_TYPES.map(([, label, h, k, ph]) => {
+  const p = state.profile, on = !!p[k];
+  const sub = !h ? 'Families can pay you in cash at the rink.'
+    : on ? 'Shown to approved families, and a choice when you mark a lesson paid.'
+    : p[h] ? 'Off. Your handle is kept; switching it back on asks you to check it’s still right.'
+    : 'Add your handle, then switch it on.';
+  return `<div class="paytype">${TOG(label, on, sub, 'payTypeToggle', [k])}${h ? INP(`${pre}-${h}`, `${label} handle`, 'profile.' + h, { placeholder: ph, optional: !on }) : ''}</div>`;
+}).join('');
+SCREENS['profile-payments'] = () => {
+  const p = state.profile, types = payTypesFor(p).map(([, t]) => t);
+  return profileShell(`
   ${card(`
     ${TXT('pf-instr', 'How families pay you', 'profile.instructions', { rows: 3, hint: 'Always included in payment reminders. BladeBook doesn’t take payments itself.' })}
-    <div class="grid3 mp-grid3">${INP('pf-venmo', 'Venmo', 'profile.venmo', { optional: true, placeholder: '@handle' })}${INP('pf-cash', 'Cash App', 'profile.cashapp', { optional: true, placeholder: '$cashtag' })}${INP('pf-paypal', 'PayPal', 'profile.paypal', { optional: true, placeholder: 'paypal.me/you' })}</div>
-    <div class="hint">Handles appear in reminders only when <a class="link" href="${href('profile-visibility')}">Payment handles</a> is switched on.</div>`,
+    <div class="fieldset"><div class="label">Payment types</div>${payTypeRows('pf')}
+      <div class="hint">Each type you switch on is shown to approved families and in payment reminders. Switch one off any time; lessons you’ve already marked keep how they were paid.</div></div>`,
     { title: 'Getting paid' })}
+  ${card(`<div class="mp-chips">${types.map(t => `<span class="badge badge--neutral">${t}</span>`).join('')}</div>
+    <div class="hint">When you mark a lesson paid you can note how the family paid. The choices are the payment types you’ve switched on, plus Other. Lessons you’ve already marked keep what you chose.</div>`,
+    { title: 'How families paid', sub: 'Only you see this.' })}
   ${saveBar()}`);
+};
 SCREENS['profile-account'] = () => {
   const p = state.profile;
   return profileShell(`
@@ -2289,6 +2522,13 @@ SCREENS['profile-account'] = () => {
       { title: 'Rinkside app', pad: false })}
     <div class="actions"><div></div><div class="actions__r">${B('Log out', 'secondary', 'logout', { icon: 'arrowL' })}</div></div>`);
 };
+/* Switching Cash App, Venmo or PayPal back on: the coach verifies the kept handle first (ADR-016 d7, amended 2026-10-12). */
+MODALS.payVerify = m => { const [, label, h, , ph] = PAY_TYPES.find(t => t[3] === m.k); return `
+  <div class="dialog__icon">${ic('card', 22)}</div>
+  <h2 class="h2">Is this still your ${label}?</h2>
+  <p class="fine">Approved families will see it and send money to it. Check it, or change it, before switching ${label} back on.</p>
+  ${INP('pv-handle', `${label} handle`, 'profile.' + h, { placeholder: ph })}
+  <div class="dialog__actions">${B('Cancel', 'secondary', 'closeModal')}${B('Yes, switch it on', 'primary', 'payVerifyOk')}</div>`; };
 MODALS.mpRotate = () => `
   <div class="dialog__icon dialog__icon--danger">${ic('refresh', 22)}</div>
   <h2 class="h2">Rotate your coach code?</h2>
@@ -2306,6 +2546,18 @@ const MP_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 Object.assign(ACTIONS, {
   mpSave() { state.flash = 'Saved.'; },
   mpToggle(key) { state.profile[key] = !state.profile[key]; },
+  payTypeToggle(k) {
+    const p = state.profile, [, label, h] = PAY_TYPES.find(t => t[3] === k), kept = (p.payKept ??= {});
+    if (p[k]) { p[k] = false; if (h && p[h]) kept[k] = true; return; }
+    if (h && !p[h]) { state.flash = `Add your ${label} handle first.`; return; }
+    if (h && kept[k]) { state.modal = { kind: 'payVerify', k }; return; }
+    p[k] = true;
+  },
+  payVerifyOk() {
+    const k = state.modal.k, p = state.profile, [, label, h] = PAY_TYPES.find(t => t[3] === k);
+    if (!p[h]) { state.flash = `Add your ${label} handle first.`; return; }
+    p[k] = true; delete p.payKept[k]; state.modal = null; state.flash = `${label} switched on.`;
+  },
   mpPhotoRemove() { state.profile.photo = false; },
   mpRotateAsk() { state.modal = { kind: 'mpRotate' }; },
   mpRotate() {
@@ -2333,28 +2585,39 @@ Object.assign(ACTIONS, {
 /* ================= Email templates (Phase 2) ================= */
 const MP_TEMPLATES = [
   { key: 'confirm', who: 'families', name: 'Booking confirmation', when: 'When a family books', subject: 'Booked: Mia’s lesson on Wed, Oct 21 at 6:30 AM',
-    body: p => `<p>Hi Grace,</p><p>Mia is booked with ${esc(p.first)} ${esc(p.last)}:</p><p><b>Wed, Oct 21 · 6:30 AM · 30 min · $50</b><br>Pelham Ice Rink</p><p>Need to cancel? Use My bookings on BladeBook. Cancelling within ${p.notice} hours may incur a fee.</p>` },
+    body: p => `<p>Hi Grace,</p><p>Mia is booked with ${esc(p.first)} ${esc(p.last)}:</p><p><b>Wed, Oct 21 · 6:30 AM · 30 min · $50</b><br>Pelham Civic Center</p><p>Need to cancel? Use My bookings on BladeBook. Cancelling within ${p.notice} hours may incur a fee.</p>` },
   { key: 'reminder', who: 'families', name: 'Day-of reminder', when: 'Morning of each lesson', subject: 'Today: Mia’s lesson at 6:30 AM',
     body: p => `<p>Hi Grace,</p><p>A reminder that Mia has a lesson with ${esc(p.first)} today at <b>6:30 AM</b> (30 min).</p><p>See you at the rink.</p>` },
   { key: 'payment', who: 'families', name: 'Payment reminder', when: 'After a lesson is checked in', subject: 'Payment for Mia’s lesson on Oct 14',
-    body: p => `<p>Hi Grace,</p><p>Thanks for Mia’s lesson on <b>Wed, Oct 14</b>. The amount is <b>$50</b>.</p><p>${esc(p.instructions)}</p>${p.showHandles ? `<p>Venmo ${esc(p.venmo)} · Cash App ${esc(p.cashapp)}</p>` : ''}` },
+    body: p => `<p>Hi Grace,</p><p>Thanks for Mia’s lesson on <b>Wed, Oct 14</b>. The amount is <b>$50</b>.</p><p>${esc(p.instructions)}</p>${payShown(p).length ? `<p>${payShown(p).map(([l, v]) => v ? `${l} ${esc(v)}` : l).join(' · ')}</p>` : ''}` },
   { key: 'coachCancel', who: 'families', name: 'Lesson cancelled by you', when: 'When you cancel a lesson, day or week', required: true, subject: 'Cancelled: Mia’s lesson on Wed, Oct 21',
     body: p => `<p>Hi Grace,</p><p>${esc(p.first)} has cancelled Mia’s lesson on <b>Wed, Oct 21 at 6:30 AM</b>.</p><p>You won’t be charged. Book another time on BladeBook.</p>` },
   { key: 'schedule', who: 'families', name: 'Schedule change', when: 'When a schedule save cancels or re-prices lessons', required: true, subject: 'Changes to Mia’s upcoming lessons',
     body: p => `<p>Hi Grace,</p><p>${esc(p.first)} changed their schedule. This affects Mia’s lessons:</p><p><b>Cancelled:</b> Mon, Nov 2 · 6:00 AM<br><b>New price:</b> Wed, Nov 4 · 6:30 AM, $50 → $55</p><p>Book another time on BladeBook.</p>` },
+  // Shared lessons (ADR-026 d5, d5a). Invitations and warnings are always sent.
+  { key: 'shareInvite', who: 'families', name: 'Invitation to share a lesson', when: 'When a family invites a skater from another family', required: true, to: 'tom.okafor@example.com', subject: 'Grace Chen invited Zoe to share a lesson',
+    body: p => `<p>Hi Tom,</p><p>Grace Chen invited Zoe to share Mia’s lesson with Coach ${esc(p.first)} on <b>Fri, Oct 16 at 8:30 AM</b>.</p><p>Coach ${esc(p.first)} needs to accept Zoe first. By following the link below you agree to be added to Coach ${esc(p.first)}’s roster of students, and Zoe will join the lesson once Coach ${esc(p.first)} accepts.</p><p><a class="link">Review the invitation</a> (you’ll need to sign in)</p>` },
+  { key: 'shareWarn', who: 'families', name: 'Shared lesson not yet accepted', when: 'To both families, 24 hours plus your notice period before a shared lesson you haven’t accepted the skater for', required: true, to: 'grace.chen@example.com, tom.okafor@example.com', subject: 'Zoe isn’t confirmed for Friday’s shared lesson yet',
+    body: p => `<p>Hi Grace and Tom,</p><p>Coach ${esc(p.first)} hasn’t accepted Zoe for the shared lesson on <b>Fri, Oct 16 at 8:30 AM</b>. If Zoe isn’t accepted before then, the lesson goes ahead as Mia’s private lesson, at the price it was booked at.</p><p>Grace, if you’d rather not have a private lesson, you can cancel without a late fee until ${p.notice} hours before it.</p>` },
+  { key: 'shareExpired', who: 'families', name: 'Shared lesson expired, skater not yet accepted', when: 'To the invited family, when the lesson starts before you accept their skater', required: true, to: 'tom.okafor@example.com', subject: 'Friday’s shared lesson has expired',
+    body: p => `<p>Hi Tom,</p><p>The shared lesson on <b>Fri, Oct 16 at 8:30 AM</b> has expired, so Zoe didn’t join it.</p><p>Please reach out to Coach ${esc(p.first)} to be accepted onto Coach ${esc(p.first)}’s roster for any future shared lessons. Reply to this email to reach Coach ${esc(p.first)}.</p>` },
+  { key: 'justBooked', who: 'families', name: 'Just booked, then cancelled', when: 'When a family books a time just as your schedule change cancels it', required: true, phase2: true, subject: 'Your new booking on Mon, Nov 2 was cancelled',
+    body: p => `<p>Hi Grace,</p><p>You booked Mia’s lesson on <b>Mon, Nov 2 at 6:00 AM</b> just as ${esc(p.first)} changed their schedule, and that time is no longer offered. The booking has been cancelled and you won’t be charged.</p><p>Book another time on BladeBook.</p>` },
   { key: 'declined', who: 'families', name: 'Sign-up declined', when: 'When you decline a new skater', required: true, subject: 'Your sign-up with Dana Whitfield',
     body: p => `<p>Hi Sarah,</p><p>${esc(p.first)} ${esc(p.last)} doesn’t have availability to take on new students right now, so Ava’s sign-up wasn’t accepted.</p>` },
   { key: 'report', who: 'you', name: 'Daily report', when: 'Every evening at 9 PM', subject: 'Today: 5 lessons, 4 checked in, 1 not recorded',
     body: () => `<p>Your lessons for Wed, Oct 14:</p><p><b>Checked in:</b> Sam R. 6:00, Mia C. 6:30, Owen B. 8:30, Leo M. 10:00<br><b>Not recorded:</b> none</p>` },
-  { key: 'familyCancel', who: 'you', name: 'A family cancelled', when: 'When a family cancels a lesson', required: true, subject: 'Mia C. cancelled Wed, Oct 21 at 6:30 AM',
-    body: () => `<p>Grace Chen cancelled Mia’s lesson on <b>Wed, Oct 21 at 6:30 AM</b>. The time is open for booking again.</p>` },
+  { key: 'familyCancel', who: 'you', name: 'A family cancelled', when: 'When a family cancels inside your notice period', required: true, subject: 'Late cancellation: Mia C., Fri, Oct 16 at 8:30 AM',
+    body: p => `<p>Grace Chen cancelled Mia’s lesson on <b>Fri, Oct 16 at 8:30 AM</b>, inside your ${p.notice}-hour notice period. You may charge a late cancellation fee.</p><p>The time is open for booking again. Cancellations made earlier than this don’t send an email.</p>` },
+  { key: 'shareWaiting', who: 'you', name: 'Shared lesson waiting on your acceptance', when: '24 hours plus your notice period before the lesson', required: true, subject: 'A shared lesson on Fri, Oct 16 is waiting for you',
+    body: () => `<p>A shared lesson on <b>Fri, Oct 16 at 8:30 AM</b> is waiting for you to accept Zoe Okafor. Tom Okafor accepted Grace Chen’s invitation for Zoe to join Mia C.’s lesson.</p><p>If you don’t accept Zoe before the lesson starts, it goes ahead as Mia’s private lesson.</p><p><a class="link">Review sign-ups</a></p>` },
   { key: 'unpaid', who: 'you', name: 'Unpaid lessons', when: 'Weekly, on Monday morning', subject: '4 lessons are still unpaid',
     body: () => `<p>These lessons are more than a week old and still unpaid:</p><p>Leo M. · Fri, Sep 4 · $50<br>Ella A. · Fri, Oct 9 · $50</p><p>Mark each one paid or waived on Payments.</p>` },
 ];
 SCREENS['email-templates'] = () => {
   const ui = (state.ui.tpl ??= { sel: 'confirm', off: {} });
   const p = state.profile, t = MP_TEMPLATES.find(x => x.key === ui.sel) || MP_TEMPLATES[0];
-  const item = x => `<div class="mp-tpl${x.key === t.key ? ' is-on' : ''}"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["${x.key}"]' aria-pressed="${x.key === t.key}"><span class="mp-tpl__name">${x.name}</span><span class="mp-tpl__when">${x.when}</span></button>
+  const item = x => `<div class="mp-tpl${x.key === t.key ? ' is-on' : ''}"><button type="button" class="mp-tpl__pick" data-act="mpTpl" data-arg='["${x.key}"]' aria-pressed="${x.key === t.key}"><span class="mp-tpl__name">${x.name}${x.phase2 ? ' ' + badge('Phase 2', 'neutral') : ''}</span><span class="mp-tpl__when">${x.when}</span></button>
     ${x.required ? badge('Always sent', 'neutral', 'lock') : `<button type="button" class="switch${ui.off[x.key] ? '' : ' is-on'}" role="switch" aria-checked="${!ui.off[x.key]}" aria-label="Send ${esc(x.name)}" data-act="mpTplToggle" data-arg='["${x.key}"]'><span class="switch__knob"></span></button>`}</div>`;
   const group = (who, title, sub) => card(MP_TEMPLATES.filter(x => x.who === who).map(item).join(''), { title, sub, pad: false });
   const off = !t.required && ui.off[t.key];
@@ -2363,7 +2626,7 @@ SCREENS['email-templates'] = () => {
     ${banner('info', 'Coming in Phase 2', 'This page isn’t in the first release. Until then, every email here is sent automatically.')}
     <div class="split mp-split">
       <div class="stack">
-        ${group('families', 'Emails families get', 'Emails about cancellations and schedule changes are always sent, so families are never left guessing.')}
+        ${group('families', 'Emails families get', 'Emails about cancellations, schedule changes and shared lessons are always sent, so families are never left guessing.')}
         ${group('you', 'Emails you get')}
       </div>
       ${card(`
@@ -2371,7 +2634,7 @@ SCREENS['email-templates'] = () => {
           <div class="mp-mail__head">
             ${kv('From', `${esc(p.first)} ${esc(p.last)} via BladeBook`)}
             ${kv('Reply-To', t.who === 'families' ? esc(p.businessEmail) : 'no-reply@bladebook.app')}
-            ${kv('To', t.who === 'families' ? (t.key === 'declined' ? 'sarah.park@example.com' : 'grace.chen@example.com') : esc(p.loginEmail))}
+            ${kv('To', t.to || (t.who === 'families' ? (t.key === 'declined' ? 'sarah.park@example.com' : 'grace.chen@example.com') : esc(p.loginEmail)))}
             ${kv('Subject', `<b>${esc(t.subject)}</b>`)}
           </div>
           <div class="mp-mail__body">${t.body(p)}<p class="mp-mail__sig">— ${esc(p.first)} ${esc(p.last)}</p></div>
@@ -2391,22 +2654,53 @@ PRESETS.push(
   { id: 'CoachLessonList', file: 'lessons', group: 'Lessons', title: 'Lessons — correct attendance', note: 'Redesigned from Forest CoachLessonList: attendance per lesson, with Ella’s unrecorded lesson on Oct 9 flagged.', setup: st => { st.screen = 'lessons'; st.ui.lessons = { from: '2026-10-05', to: '2026-10-14' }; } },
   { id: 'CoachPaymentsEmpty', file: 'payments-empty', group: 'Payments', title: 'Payments — pick a date range', note: 'Redesigned from Forest CoachPayments: the date range comes first.', setup: st => { st.screen = 'payments'; } },
   { id: 'CoachPayments', file: 'payments', group: 'Payments', title: 'Payments — unpaid', note: 'Redesigned from Forest CoachPayments: unpaid lessons with Mark paid and Waive, and reminders shown as Phase 2.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0 }; } },
-  { id: 'CoachPaymentsAll', file: 'payments-all', group: 'Payments', title: 'Payments — all lessons', note: 'Redesigned from Forest CoachPayments: every lesson in the range, with Undo on paid and waived ones.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 1 }; } },
+  { id: 'CoachPaymentsAll', file: 'payments-all', group: 'Payments', title: 'Payments — all lessons', note: 'Redesigned from Forest CoachPayments: every lesson in the range, with Undo on paid and waived ones. Under each Paid badge, how the family paid, which the coach can change (ADR-003 d4). Sam and Leo’s shared Wednesday lessons have a row each.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 1 }; } },
+  { id: 'CoachPaymentsMarkPaid', file: 'payments-mark-paid', group: 'Payments', title: 'Payments — mark paid, how they paid', note: 'New. Marking a lesson paid offers an optional “How did they pay?”: the payment types the coach takes (Cash only if switched on) plus Other, no free text. Coach-only (Open-Pending §3, settled 2026-10-12).', setup: st => {
+    st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: 0 };
+    const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
+    st.modal = { kind: 'mpHow', id: l.id, k: -1, edit: false };
+  } },
+  { id: 'CoachFinances', file: 'finances', group: 'Payments', title: 'Financial summary', note: 'New, MVP feature 16. Year-to-date gross (money received) and rink fees for 2026, month by month, with Pelham Civic Center’s terms. How rink fees are calculated is open (docs/Q_Rink-Fees.md); this shows one reading: 15% or $500 a month by the coach’s choice, a lesson counted in the month it was taught. Rink terms are added by the developer; the coach can’t edit them or enter what they paid. Only September and October have sample lessons.', setup: st => { st.screen = 'finances'; } },
+  { id: 'CoachFinancesExport', file: 'finances-export', group: 'Payments', title: 'Financial summary — download', note: 'New state. The summary export (ADR-030 d7, MVP): a CSV for this year or last, one row per month, no skater names, so not a PII read.', setup: st => { st.screen = 'finances'; st.modal = { kind: 'finExport' }; st.ui.finYear = 0; } },
   { id: 'CoachProfileDetails', file: 'profile-details', group: 'Profile', title: 'Profile — details and coach code', note: 'New: name, phone, time zone, photo, read-only currency and the coach code with Rotate.', setup: st => { st.screen = 'profile'; } },
   { id: 'CoachProfileEmail', file: 'profile-email', group: 'Profile', title: 'Profile — business email', note: 'Redesigned from Forest CoachProfileEmail: a new address needs a confirmation link before it can be chosen.', setup: st => { st.screen = 'profile-email'; st.profile.emails.push({ addr: 'dana@pelhamfsc.org', pending: true }); } },
   { id: 'CoachProfileVisibility', file: 'profile-visibility', group: 'Profile', title: 'Profile — visibility and texts', note: 'Redesigned from Forest CoachProfileVisibility: what approved families see, and the cancellation text.', setup: st => { st.screen = 'profile-visibility'; } },
-  { id: 'CoachProfilePayments', file: 'profile-payments', group: 'Profile', title: 'Profile — payment details', note: 'New: payment instructions and Venmo, Cash App and PayPal handles.', setup: st => { st.screen = 'profile-payments'; } },
+  { id: 'CoachProfilePayments', file: 'profile-payments', group: 'Profile', title: 'Profile — payment details', note: 'Payment instructions and one switch per payment type (ADR-016 d7, amended 2026-10-12): Cash and Venmo on, Cash App off with its handle kept, PayPal not set up. A type switched on is shown to approved families and is a how-paid choice (ADR-003 d4).', setup: st => { st.screen = 'profile-payments'; } },
+  { id: 'CoachProfilePaymentsVerify', file: 'profile-payments-verify', group: 'Profile', title: 'Profile — switching a payment type back on', note: 'New state. Switching Cash App, Venmo or PayPal back on shows the kept handle and asks the coach to verify it before it takes effect (ADR-016 d7, amended 2026-10-12). Cash switches straight back on.', setup: st => { st.screen = 'profile-payments'; st.modal = { kind: 'payVerify', k: 'onCashapp' }; } },
   { id: 'CoachProfileAccount', file: 'profile-account', group: 'Profile', title: 'Profile — account', note: 'New: login email, password change through Cognito, the rinkside app, and Log out.', setup: st => { st.screen = 'profile-account'; } },
-  { id: 'CoachEmailTemplates', file: 'email-templates', group: 'Phase 2', title: 'Email templates', note: 'New, Phase 2: each automatic email with an on/off switch and a preview; cancellation and schedule-change emails can’t be turned off.', setup: st => { st.screen = 'email-templates'; } },
+  { id: 'CoachEmailTemplates', file: 'email-templates', group: 'Phase 2', title: 'Email templates', note: 'New, Phase 2: each automatic email with an on/off switch and a preview; cancellation, schedule-change and shared-lesson emails can’t be turned off. The “just booked” email is itself Phase 2.', setup: st => { st.screen = 'email-templates'; } },
+  { id: 'CoachEmailTemplatesShare', file: 'email-templates-shared', group: 'Phase 2', title: 'Email templates — shared lesson invitation', note: 'New state. The invitation Family B gets (sent by consumer-invite, ADR-026 d5), always sent. The other shared-lesson emails are in the same list.', setup: st => { st.screen = 'email-templates'; st.ui.tpl = { sel: 'shareInvite', off: {} }; } },
+  { id: 'CoachEmailTemplatesWaiting', file: 'email-templates-shared-waiting', group: 'Phase 2', title: 'Email templates — shared lesson waiting on you', note: 'New state. The coach’s warning for a shared lesson whose skater isn’t accepted yet (ADR-026 d5a, MVP).', setup: st => { st.screen = 'email-templates'; st.ui.tpl = { sel: 'shareWaiting', off: {} }; } },
 );
 
 ;
-/* Students — the roster and the pending sign-ups (FeatureDecriptions/Coach Dashboard; ADR-002, ADR-022 d6).
+/* Students — the roster and the pending sign-ups (FeatureDecriptions/Coach Dashboard; ADR-002, ADR-022 d6;
+   ADR-026 d5: an invited skater joins their shared lesson when approved).
    Registers SCREENS students / pending, ACTIONS stu*, MODALS stu*, and the Students PRESETS. */
 
 const stuUi = () => (state.ui.stu ??= { search: '', draft: null });
-const stuNext = s => state.lessons.find(l => l.sid === s.id && !isStarted(l));
-const stuUpcoming = s => state.lessons.filter(l => l.sid === s.id && !isStarted(l));
+const stuIn = (l, s) => skatersIn(l).some(p => p.sid === s.id);
+const stuNext = s => state.lessons.find(l => stuIn(l, s) && !isStarted(l));
+const stuUpcoming = s => state.lessons.filter(l => stuIn(l, s) && !isStarted(l));
+/** The lessons a pending skater was invited to share, and whether each can still be joined: it exists, hasn't started and has room. */
+const stuJoins = s => (s.pendingJoins || []).map(j => {
+  const l = state.lessons.find(x => x.iso === j.iso && x.t === j.t && x.sid && x.invited === s.id);
+  const slot = l && slotsOn(l.iso).find(x => x.t === l.t);
+  return { ...j, lesson: l, ok: !!(l && !isStarted(l) && skatersIn(l).length < (slot ? slot.maxSkaters : 1)) };
+});
+const stuJoinNote = s => stuJoins(s).map(j => `<div class="stu-join">${ic('users', 14)}<span>Invited by ${esc(s.invitedBy)} to share ${j.lesson ? esc(shortName(nameOf(j.lesson))) + '’s' : 'a'} lesson on ${dDow(j.iso)} at ${fmtT(j.t)}. ${j.ok ? `${esc(s.name.split(' ')[0])} joins it automatically when you approve.` : 'That lesson is no longer available, so approving won’t add them to it.'}</span></div>`).join('');
+/** Approving runs each pending join (ADR-026 d5): a lesson that fails a check gets nothing, and the invitation ends EXPIRED. */
+function stuApproveOne(s) {
+  s.status = 'ACTIVE';
+  const joined = [];
+  for (const j of stuJoins(s)) {
+    const inv = state.invites.find(i => i.id === j.invite);
+    if (j.ok) { (j.lesson.with ??= []).push({ sid: s.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: j.lesson.price }); delete j.lesson.invited; joined.push(j.lesson); if (inv) inv.status = 'CONFIRMED'; }
+    else if (inv) inv.status = 'EXPIRED';
+  }
+  delete s.pendingJoins;
+  return joined.map(l => ` ${s.name.split(' ')[0]} joined ${shortName(nameOf(l))}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)}.`).join('');
+}
 const stuTabs = on => SEG([`Students <span class="stu-count">${active().length}</span>`, `Waiting for approval <span class="stu-count${pending().length ? ' stu-count--attn' : ''}">${pending().length}</span>`], on, 'stuTab');
 const stuContact = s => `<div class="stu-contact"><span>${ic('mail', 13)}${esc(s.email)}</span><span>${ic('phone', 13)}${esc(s.phone)}</span><span>${ic('msg', 13)}${s.sms ? 'Texts on' : 'Email only'}</span></div>`;
 
@@ -2437,7 +2731,7 @@ SCREENS.pending = () => {
     const kids = pend.filter(s => s.client === f), c = kids[0];
     return card(`
       <div class="stu-family">${stuContact(c)}<span class="muted-sm">Signed up ${dShort(c.since)}</span></div>
-      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), k.minor ? 'Minor' : 'Adult · booking for themselves')}`,
+      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}<div>${rowTitle(esc(k.name), k.minor ? 'Minor' : 'Adult · booking for themselves')}${stuJoinNote(k)}</div>`,
         `${B('Decline', 'ghost', 'stuDeclineOpen', { sm: true, args: [k.id] })}${B('Approve', 'primary', 'stuApprove', { sm: true, icon: 'check', args: [k.id] })}`)).join('')}`,
       { pad: false, title: esc(f), sub: c.rel === 'Self' ? 'Signing up for themselves' : `${c.rel} · ${plural(kids.length, 'skater')}`, action: kids.length > 1 ? B('Approve all', 'secondary', 'stuApproveFamily', { sm: true, icon: 'check', args: [f] }) : '' });
   }).join('');
@@ -2475,6 +2769,7 @@ MODALS.stuDecline = m => {
   return `<div class="dialog__icon dialog__icon--danger">${ic('x', 22)}</div>
     <h2 class="h2">Decline ${esc(s.name)}?</h2>
     <p class="fine">${esc(s.client)} gets an email saying you don’t have availability to take on new students.</p>
+    ${stuJoins(s).filter(j => j.lesson).map(j => `<p class="fine">${esc(s.name)} won’t join ${esc(shortName(nameOf(j.lesson)))}’s shared lesson on ${dDow(j.iso)} at ${fmtT(j.t)}. It goes ahead as a private lesson, and ${esc(s.invitedBy)} is told.</p>`).join('')}
     ${banner('warning', `${esc(s.name)} is deleted`, 'Nothing about them is kept. If they sign up again, they’ll be back on this list.')}
     <div class="dialog__actions">${B('Keep waiting', 'secondary', 'closeModal')}${B('Decline and email', 'danger', 'stuDecline')}</div>`;
 };
@@ -2517,14 +2812,23 @@ Object.assign(ACTIONS, {
   stuRemoveOpen(id) { state.modal = { kind: 'stuRemove', id }; },
   stuRemove() {
     const s = student(state.modal.id), n = stuUpcoming(s).length;
+    // A shared lesson goes on for the other skater: drop this skater from it, or hand the booking to the other skater.
+    for (const l of state.lessons.filter(l => isShared(l) && stuIn(l, s) && !isStarted(l))) {
+      if (l.sid === s.id) { const w = l.with.shift(); Object.assign(l, { sid: w.sid, status: w.status, pay: w.pay, paidBy: w.paidBy, price: w.price }); }
+      else l.with = l.with.filter(w => w.sid !== s.id);
+      if (!l.with.length) delete l.with;
+    }
     state.lessons = state.lessons.filter(l => !(l.sid === s.id && !isStarted(l)));
-    state.students = state.students.filter(x => x.id !== s.id);
+    s.status = 'REMOVED';   // kept, not deleted: past lessons and payments still name them
     state.modal = null; state.flash = `${s.name} removed.${n ? ` ${plural(n, 'lesson')} cancelled and the family emailed.` : ''}`;
   },
-  stuApprove(id) { const s = student(id); s.status = 'ACTIVE'; state.flash = `${s.name} approved. ${s.client} can now book.`; },
-  stuApproveFamily(f) { const kids = pending().filter(s => s.client === f); kids.forEach(s => s.status = 'ACTIVE'); state.flash = `${kids.map(k => k.name).join(' and ')} approved. ${f} can now book.`; },
+  stuApprove(id) { const s = student(id), joined = stuApproveOne(s); state.flash = `${s.name} approved. ${s.client} can now book.${joined}`; },
+  stuApproveFamily(f) { const kids = pending().filter(s => s.client === f), joined = kids.map(stuApproveOne).join(''); state.flash = `${kids.map(k => k.name).join(' and ')} approved. ${f} can now book.${joined}`; },
   stuDeclineOpen(id) { state.modal = { kind: 'stuDecline', id }; },
-  stuDecline() { const s = student(state.modal.id); state.students = state.students.filter(x => x.id !== s.id); state.modal = null; state.flash = `${s.name} declined. ${s.rel === 'Self' ? 'They’ve' : s.client + ' has'} been emailed.`; },
+  stuDecline() {
+    const s = student(state.modal.id);
+    for (const j of stuJoins(s)) { if (j.lesson) delete j.lesson.invited; const inv = state.invites.find(i => i.id === j.invite); if (inv) inv.status = 'DECLINED'; }
+    state.students = state.students.filter(x => x.id !== s.id); state.modal = null; state.flash = `${s.name} declined. ${s.rel === 'Self' ? 'They’ve' : s.client + ' has'} been emailed.`; },
 });
 
 /* ---------- presets ---------- */
@@ -2533,7 +2837,8 @@ PRESETS.push(
   { id: 'CoachStudentsEdit', file: 'students-edit', group: 'Students', title: 'Student list — edit contact', note: 'New. Contact details belong to the family, so an edit applies to every skater in it.', setup: st => { st.screen = 'students'; const e = st.students.find(x => x.id === 's3'); st.ui.stu = { search: '', draft: { client: e.client, email: e.email, phone: e.phone } }; st.modal = { kind: 'stuEdit', id: 's3' }; } },
   { id: 'CoachStudentsPrice', file: 'students-price', group: 'Students', title: 'Student list — personal price', note: 'New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
   { id: 'CoachStudentsRemove', file: 'students-remove', group: 'Students', title: 'Student list — remove', note: 'New. One reading of an open decision (Open-Pending.md): upcoming lessons cancelled, no more booking, history kept.', setup: st => { st.screen = 'students'; st.modal = { kind: 'stuRemove', id: 's7' }; } },
-  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, approve per skater or all at once; pending families see only their own account (ADR-022 d6).', setup: st => { st.screen = 'pending'; } },
+  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, approve per skater or all at once; pending families see only their own account (ADR-022 d6). Zoe Okafor was invited by Grace Chen to share Mia’s Friday lesson and joins it automatically when approved, if it still exists, hasn’t started and has room (ADR-026 d5).', setup: st => { st.screen = 'pending'; } },
+  { id: 'CoachPendingApproved', file: 'pending-approved-shared', group: 'Students', title: 'Waiting for approval — invited skater approved', note: 'New state. Approving Zoe joins her to Mia’s Fri, Oct 16 8:30 lesson in the same step (ADR-026 d5).', setup: st => { st.screen = 'pending'; ACTIONS.stuApprove('p4'); } },
   { id: 'CoachPendingDecline', file: 'pending-decline', group: 'Students', title: 'Waiting for approval — decline', note: 'New. Declining emails the family and deletes the student outright (ADR-002 2b).', setup: st => { st.screen = 'pending'; st.modal = { kind: 'stuDecline', id: 'p3' }; } },
   { id: 'CoachPendingEmpty', file: 'pending-empty', group: 'Students', title: 'Waiting for approval — nobody waiting', note: 'New. Empty state that reminds the coach of their code.', setup: st => { st.screen = 'pending'; st.students = st.students.filter(s => s.status !== 'PENDING'); } },
 );

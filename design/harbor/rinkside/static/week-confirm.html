@@ -750,6 +750,12 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .rk-body { overflow: visible; }
   .bb .tabbar { position: sticky; margin-top: auto; }
 }
+/* A shared lesson: one card, a row per skater, each recorded on their own (ADR-026 d6). */
+.bb .rk-shared__tag { flex: 1; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); }
+.bb .rk-shared .rbtn--sm { flex: 0 0 36px; height: 36px; }
+.bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.bb .rk-seat .rk-namebtn { align-self: flex-start; }
+.bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -777,7 +783,8 @@ html, body { margin: 0; background: var(--sp-bg); }
       <p class="fine">2 lessons already started and can’t be cancelled.</p></section><section class="rk-day"><div class="rk-day__head"><b>Thu, Oct 15</b><span class="muted-sm">No lessons</span></div></section><section class="rk-day"><div class="rk-day__head"><b>Fri, Oct 16</b><button type="button" class="link" data-act="rkSelDay" data-arg='[&quot;2026-10-16&quot;,true]'>Select whole day</button></div>
       <div class="rk-pick is-on"><label class="rk-pick__row"><input type="checkbox" class="check__input" checked data-act="rkSel" data-arg='[&quot;b67&quot;]'><span class="num rk-pick__t">6:00</span><span class="rk-pick__n">Leo M.</span><span class="rl__len">30 min</span></label>
         <div class="seg seg--block" role="group"><button type="button" class="seg__opt is-on" data-act="rkHold" data-arg='[&quot;b67&quot;,0]' aria-pressed="true">Release</button><button type="button" class="seg__opt" data-act="rkHold" data-arg='[&quot;b67&quot;,1]' aria-pressed="false">Hold closed</button></div></div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b65&quot;]'><span class="num rk-pick__t">7:00</span><span class="rk-pick__n">Noah C.</span><span class="rl__len">30 min</span></label>
-        </div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b157&quot;]'><span class="num rk-pick__t">8:00</span><span class="rk-pick__n">Priya R.</span><span class="rl__len">30 min</span></label>
+        </div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b158&quot;]'><span class="num rk-pick__t">8:00</span><span class="rk-pick__n">Priya R.</span><span class="rl__len">30 min</span></label>
+        </div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b157&quot;]'><span class="num rk-pick__t">8:30</span><span class="rk-pick__n">Mia C.</span><span class="rl__len">30 min</span></label>
         </div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b66&quot;]'><span class="num rk-pick__t">9:00</span><span class="rk-pick__n">Ella A.</span><span class="rl__len">30 min</span></label>
         </div><div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b68&quot;]'><span class="num rk-pick__t">10:30</span><span class="rk-pick__n">Owen B.</span><span class="rl__len">30 min</span></label>
         </div>

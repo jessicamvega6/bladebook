@@ -734,8 +734,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-tablewrap { overflow-x: auto; position: relative; }
 .bb .ac-tablewrap .table { min-width: 560px; }
 .bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
   .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
 }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
@@ -782,6 +790,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb button.rcard:hover { border-color: var(--primary); }
 .bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
 .bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
 @media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
@@ -812,6 +827,7 @@ html, body { margin: 0; background: var(--sp-bg); }
       <a class="nav__user" href="profile.html"><span class="avatar avatar--sm">GC</span><span class="nav__user-text"><b>Grace Chen</b><small>Guardian · Coach Dana</small></span></a></header>
     <main class="main"><div class="page page--narrow">
     <div class="hero hero--success"><span class="hero__icon"><svg class="ic " width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><h1 class="h1">9 lessons booked for Mia</h1><p class="lede">A confirmation email is on its way. 3 dates couldn’t be booked. Everything else is confirmed.</p></div></div>
+    
     <div class="grid2 bk-series"><section class="card"><div class="card__body"><div class="series"><div class="series__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>Mondays · 9:00 AM</div><div class="series__sub">30 min · $50 · every week, Nov 2 – Jan 18</div><div class="meter meter--ok"><span style="width:75%"></span></div><div class="series__foot"><b>9 booked</b><span>3 unavailable</span></div></div></div></section></div>
     
     <section class="card card--flush"><header class="card__head"><div><h2 class="h2">3 dates need another time</h2><p class="card__sub">Or leave them. The rest of your bookings are confirmed.</p></div></header><div class="card__body"><div class="row"><div class="row__main"><span class="roundicon roundicon--warn"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><div class="row__title">Mon, Nov 9 · 9:00 AM</div><div class="row__sub">That time was taken.</div></div><div class="row__side"><button type="button" class="btn btn--secondary btn--sm" data-act="bkPickDay" data-arg='[&quot;2026-11-09&quot;]'><span>Pick another time</span></button></div></div><div class="row"><div class="row__main"><span class="roundicon roundicon--warn"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><div class="row__title">Mon, Nov 23 · 9:00 AM</div><div class="row__sub">Dana is away (Thanksgiving break).</div></div><div class="row__side"><button type="button" class="btn btn--secondary btn--sm" data-act="bkPickDay" data-arg='[&quot;2026-11-23&quot;]'><span>Pick another time</span></button></div></div><div class="row"><div class="row__main"><span class="roundicon roundicon--warn"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><div class="row__title">Mon, Dec 21 · 9:00 AM</div><div class="row__sub">That time no longer exists on the schedule.</div></div><div class="row__side"><button type="button" class="btn btn--secondary btn--sm" data-act="bkPickDay" data-arg='[&quot;2026-12-21&quot;]'><span>Pick another time</span></button></div></div></div></section>

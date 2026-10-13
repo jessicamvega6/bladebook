@@ -41,3 +41,8 @@
   .bb .wcol > .card > .card__body { padding: 20px; }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* shared lessons: one attendance badge per skater */
+.bb .sh-badge { display: inline-flex; align-items: center; gap: 5px; }
+.bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
+.bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }

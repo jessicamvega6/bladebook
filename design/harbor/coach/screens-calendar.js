@@ -1,7 +1,7 @@
 /* BladeBook coach website — Calendar group: month, week, day, and the cancel preview.
    Registers SCREENS 'calendar-month', 'calendar-week', 'calendar-day', 'cancel-preview'.
    State lives in state.ui.cal. Sources: FeatureDecriptions/Coach Dashboard on website.md,
-   cancelation.md, ADR-009 (coach cancellation, release or hold). */
+   cancelation.md, ADR-009 (coach cancellation, release or hold), ADR-026 d6 (every skater in a shared lesson). */
 
 const calUi = () => (state.ui.cal ??= { month: TODAY.slice(0, 8) + '01', week: weekStart(TODAY), day: TODAY, sel: [], hold: {}, back: 'calendar-week', what: '' });
 
@@ -16,6 +16,8 @@ const calSlotPast = (iso, s) => iso < TODAY || (iso === TODAY && s.t + s.len <= 
 const calCancellable = l => !!(l && l.sid && !isStarted(l));
 const calFuture = iso => lessonsOn(iso).filter(calCancellable);
 const calWhere = iso => { const sp = specialOn(iso); return sp ? (sp.kind === 'timeoff' ? `Time off · ${sp.name}` : `Special schedule · ${sp.name}`) : ''; };
+/** A skater invited to share this lesson who is still waiting for the coach's approval (ADR-026 d5). */
+const calInviteNote = l => { const z = l && l.invited && student(l.invited); return z && z.status === 'PENDING' ? ` · <a class="link" href="${href('pending')}">${esc(z.name)} invited to share, waiting for your approval</a>` : ''; };
 const calViewSeg = on => SEG(['Month', 'Week', 'Day'], on, 'calView');
 
 function calStartCancel(ids, back, what) {
@@ -35,7 +37,7 @@ Object.assign(ACTIONS, {
   calDayToday() { calUi().day = TODAY; },
   calOpenDay(iso) { const c = calUi(); c.day = iso; c.week = weekStart(iso); go('calendar-day'); },
   calOpenWeek(iso) { const c = calUi(); c.week = weekStart(iso); c.day = iso; go('calendar-week'); },
-  calCancelOne(id, back) { const l = state.lessons.find(x => x.id === id); calStartCancel([id], back, `${shortName(nameOf(l))}’s lesson`); },
+  calCancelOne(id, back) { const l = state.lessons.find(x => x.id === id); calStartCancel([id], back, `${whoIn(l)}’s lesson`); },
   calCancelDay(iso, back) { calStartCancel(calFuture(iso).map(l => l.id), back, dDow(iso)); },
   calCancelRest() {
     const c = calUi(), ids = [];
@@ -48,9 +50,11 @@ Object.assign(ACTIONS, {
   calAccept() {
     const c = calUi();
     const sel = state.lessons.filter(l => c.sel.includes(l.id) && calCancellable(l));
-    const fams = families(sel.map(l => student(l.sid)));
+    const fams = families(sel.flatMap(l => skatersIn(l).map(p => student(p.sid))));
     for (const l of sel) {
-      if (c.hold[l.id]) Object.assign(l, { sid: null, status: 'COACH_HELD', price: 0, pay: null, recurring: false });
+      // A pending shared-lesson invitation can't join a cancelled lesson, so it ends as EXPIRED (ADR-026 d5).
+      if (l.invited) for (const inv of state.invites.filter(i => i.skater === l.invited && i.iso === l.iso && i.t === l.t && i.status === 'AWAITING_COACH')) inv.status = 'EXPIRED';
+      if (c.hold[l.id]) { Object.assign(l, { sid: null, status: 'COACH_HELD', price: 0, pay: null, recurring: false }); delete l.with; delete l.invited; }
       else state.lessons = state.lessons.filter(x => x !== l);
     }
     const held = sel.filter(l => c.hold[l.id]).length;
@@ -101,10 +105,10 @@ SCREENS['calendar-week'] = () => {
       const l = s.lesson, past = calSlotPast(iso, s);
       const kind = !l ? 'open' : l.sid ? '' : 'held';
       const cls = `wl${kind ? ' wl--' + kind : ''}${past ? ' wl--past' : ''}`;
-      const name = !l ? 'Open' : l.sid ? esc(shortName(nameOf(l))) : 'Held';
+      const name = !l ? 'Open' : l.sid ? esc(whoIn(l)) : 'Held';
       const inner = `<span class="wl__t">${fmtShortT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
       return calCancellable(l)
-        ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(nameOf(l))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
+        ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(whoIn(l, false))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
         : `<div class="${cls}">${inner}</div>`;
     }).join('');
     const empty = sp && sp.kind === 'timeoff' ? `Time off<br><small>${esc(sp.name)}</small>` : 'No lessons';
@@ -126,8 +130,8 @@ SCREENS['calendar-day'] = () => {
     const l = s.lesson, past = calSlotPast(iso, s);
     const who = !l ? `<span class="roundicon">${ic('plus', 14)}</span>${rowTitle('Open', 'Families can book this time')}`
       : !l.sid ? `<span class="roundicon roundicon--warn">${ic('lock', 14)}</span>${rowTitle('Held', 'You kept this time closed')}`
-      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${esc(student(l.sid).client)}${l.recurring ? ' · repeats weekly' : ''}`)}`;
-    const side = `<span class="muted num">${s.len} min · ${money(l && l.sid ? l.price : s.price)}</span>${l && l.sid && isStarted(l) ? statusBadge(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
+      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ' · repeats weekly' : ''}${calInviteNote(l)}`)}`;
+    const side = `<span class="muted num">${s.len} min · ${l && l.sid ? skatersIn(l).map(p => money(p.price)).join(' + ') : money(s.price)}</span>${l && l.sid && isStarted(l) ? skaterBadges(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
     return row(`<span class="cal-slot__t num">${fmtT(s.t)}</span>${who}`, side, { cls: past ? 'row--muted' : '' });
   }).join('');
   const empty = sp && sp.kind === 'timeoff'
@@ -147,11 +151,12 @@ SCREENS['cancel-preview'] = () => {
   const sel = state.lessons.filter(l => c.sel.includes(l.id) && calCancellable(l));
   const backLabel = { 'calendar-week': `Week of ${dShort(c.week)}`, 'calendar-day': dLong(c.day), 'calendar-month': 'Calendar' }[c.back] || 'Back';
   if (!sel.length) return shell(`${pageHead('Nothing to cancel', 'These lessons have already started or were cancelled.', '', `<a class="link" data-act="calBack" href="#">${ic('arrowL', 14)} ${backLabel}</a>`)}`);
-  const fams = families(sel.map(l => student(l.sid)));
+  const fams = families(sel.flatMap(l => skatersIn(l).map(p => student(p.sid))));
+  const shared = sel.filter(isShared);
   const held = sel.filter(l => c.hold[l.id]).length;
   const first = sel[0].iso, last = sel[sel.length - 1].iso;
   const span = first === last ? dDow(first) : `${dDow(first)} – ${dDow(last)}`;
-  const rows = sel.map(l => row(`${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${l.recurring ? ' · this week only' : ''}`)}`,
+  const rows = sel.map(l => row(`${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${dDow(l.iso)} · ${fmtT(l.t)} · ${l.len} min${l.recurring ? ' · this week only' : ''}${isShared(l) ? ' · both families emailed' : ''}`)}`,
     SEG(['Release for rebooking', 'Hold — keep closed'], c.hold[l.id] ? 1 : 0, 'calHold', [l.id]))).join('');
   return shell(`
     ${pageHead(`Cancel ${plural(sel.length, 'lesson')}, ${span}`, 'For each lesson, choose whether families can book the time again.', '', `<a class="link" href="#" data-act="calBack">${ic('arrowL', 14)} ${backLabel}</a>`)}
@@ -159,19 +164,24 @@ SCREENS['cancel-preview'] = () => {
     ${card(`<div class="tablehead"><span>Lesson</span><span>After cancelling</span></div>${rows}
       <div class="card__note">${ic('alert', 14)} A held time stays closed to families, and your schedule doesn’t change. You can’t undo a cancellation.</div>`,
       { pad: false, title: 'Lessons', action: held ? `<a class="link" href="#" data-act="calReleaseAll">Release all</a>` : '' })}
-    ${help('Who gets told', `${fams.map(esc).join(', ')} will each get one email listing their cancelled ${sel.length === 1 ? 'lesson' : 'lessons'}, with a link to book another time. Repeating lessons in other weeks aren’t affected.`)}
+    ${help('Who gets told', `${fams.map(esc).join(', ')} will each get one email listing their cancelled ${sel.length === 1 ? 'lesson' : 'lessons'}, with a link to book another time. Repeating lessons in other weeks aren’t affected.${shared.length ? ` A shared lesson is cancelled for every skater in it, and each skater’s family gets its own email.` : ''}`)}
     <div class="stickybar">${B('Back', 'secondary', 'calBack')}<span class="stickybar__note">${plural(fams.length, 'family', 'families')} will be emailed. Nothing changes until you confirm.</span>${B(`Cancel ${plural(sel.length, 'lesson')}`, 'danger', 'calAccept', { lg: true })}</div>`);
 };
 
 /* ---------- static pages ---------- */
 PRESETS.push(
   { id: 'CoachCalendarMonth', file: 'calendar-month', group: 'Calendar', title: 'Month view', note: 'New. October 2026 with booked and open counts per day, week links on the left, time off and the camp week marked.', setup: st => { st.screen = 'calendar-month'; } },
-  { id: 'CoachWeekView', file: 'calendar-week', group: 'Calendar', title: 'Week view', note: 'Redesigned from the Forest CoachWeekView: every time slot by name, Open or Held, with Cancel day and Cancel rest of week.', setup: st => { st.screen = 'calendar-week'; } },
-  { id: 'CoachCalendarDay', file: 'calendar-day', group: 'Calendar', title: 'Day view', note: 'New. Today as a list of every time, with attendance for lessons already taught and a cancel button on the rest.', setup: st => { st.screen = 'calendar-day'; } },
+  { id: 'CoachWeekView', file: 'calendar-week', group: 'Calendar', title: 'Week view', note: 'Redesigned from the Forest CoachWeekView: every time slot by name, Open or Held, with Cancel day and Cancel rest of week. A shared lesson names both skaters (Sam R. & Leo M., Wednesday 6:00; ADR-026 d6).', setup: st => { st.screen = 'calendar-week'; } },
+  { id: 'CoachCalendarDay', file: 'calendar-day', group: 'Calendar', title: 'Day view', note: 'New. Today as a list of every time, with attendance for lessons already taught and a cancel button on the rest. The shared 6:00 lists Sam and Leo, each with their own attendance.', setup: st => { st.screen = 'calendar-day'; } },
+  { id: 'CoachCalendarDayInvite', file: 'calendar-day-invite', group: 'Calendar', title: 'Day view — skater invited to share', note: 'New state. Friday, Oct 16: Grace invited Zoe Okafor to share Mia’s 8:30, and Zoe is waiting for the coach’s approval (ADR-026 d5).', setup: st => { st.screen = 'calendar-day'; calUi().day = '2026-10-16'; calUi().week = weekStart('2026-10-16'); } },
   { id: 'CoachCancelPreview', file: 'cancel-preview', group: 'Calendar', title: 'Cancel preview', note: 'Redesigned from the Forest CoachCancelPreview: the rest of this week, release or hold per lesson, one lesson set to Hold.', setup: st => {
     ACTIONS.calCancelRest();
     const c = calUi(); const leo = state.lessons.find(l => c.sel.includes(l.id) && l.sid === 's5' && l.iso === TODAY);
     if (leo) c.hold[leo.id] = true;
+  } },
+  { id: 'CoachCancelPreviewShared', file: 'cancel-preview-shared', group: 'Calendar', title: 'Cancel preview — a day with a shared lesson', note: 'New state. Cancelling Wed, Oct 21 cancels the shared 6:00 for both Sam and Leo, and both families are emailed (ADR-026 d6, ADR-009).', setup: st => {
+    const c = calUi(); c.week = weekStart('2026-10-21'); c.day = '2026-10-21';
+    ACTIONS.calCancelDay('2026-10-21', 'calendar-day');
   } },
   { id: 'CoachWeekAfterCancel', file: 'calendar-week-after-cancel', group: 'Calendar', title: 'Week view after cancelling', note: 'New state of the week view: the confirmation message, the released times back to Open and the held time closed.', setup: st => {
     ACTIONS.calCancelRest();

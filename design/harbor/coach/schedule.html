@@ -612,6 +612,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .crumbbtn { font-size: 13px; padding: 0; }
 .bb .ctl { width: 100%; min-height: 44px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--r-input); background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
 .bb select.ctl { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%); background-position: calc(100% - 19px) 19px, calc(100% - 14px) 19px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+.bb .ctl--locked { background: var(--surface-2); color: var(--text-2); cursor: not-allowed; }
 .bb .ctl::placeholder { color: var(--text-3); }
 .bb .ctl.is-error { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
 .bb .ctl--money { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
@@ -694,6 +695,7 @@ const ICONS = {
   refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>',
   trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   bulb: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>',
 };
 const ic = (n, s = 16) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -704,8 +706,17 @@ const LENGTHS = [30, 45, 60, 90, 120];
 const NOW = new Date(2026, 9, 14, 8, 15);   // demo "now": Wed Oct 14 2026, 8:15 AM (matches the coach demo)
 const NOTICE_H = 24;
 const WARN_PCT = 50;                          // demo threshold for the big-price warning
+const MAX_SKATERS = 2;                        // most skaters per lesson; a configuration value that may be raised later (ADR-026 d1)
+const RINK = 'Pelham Civic Center (PCC)';    // Phase 1: the only rink, not selectable
+const ICE_TYPES = [                           // PCC's ice types, kept by BladeBook for each rink; never shown to families
+  { id: 'bfsc', name: 'Birmingham Figure Skating Club (BFSC) freestyle ice', short: 'BFSC freestyle' },
+  { id: 'sp', name: 'Stick and Puck (S&P) ice', short: 'S&P ice' },
+  { id: 'public', name: 'Public ice', short: 'Public ice' },
+];
+const iceShort = id => (ICE_TYPES.find(x => x.id === id) || {}).short;
+const skatersText = n => n > 1 ? `up to ${n} skaters` : '1 skater';
 
-let uid, state, BOOKINGS, SAVED;
+let uid, state, BOOKINGS, SAVED, SAVED_MAX;
 function freshState() {
   uid = 10;
   BOOKINGS = [
@@ -723,19 +734,19 @@ function freshState() {
   state = {
     screen: 'dashboard', mode: 'default', previewMode: 'all', ack: false, apply: null, flash: '', reviewing: null,
     def: { active: 1, blocks: [
-      { id: 1, name: 'Morning ice', sod: 360, eod: 690, len: 30, cost: 50, days: [0, 1, 0, 1, 0, 1, 0], off: {} },
-      { id: 2, name: 'Afternoon power hours', sod: 900, eod: 1020, len: 60, cost: 80, days: [0, 1, 0, 0, 0, 0, 0], off: {} },
+      { id: 1, name: 'Morning ice', sod: 360, eod: 690, len: 30, cost: 50, maxSkaters: 2, ice: 'bfsc', days: [0, 1, 0, 1, 0, 1, 0], off: {} },
+      { id: 2, name: 'Afternoon power hours', sod: 900, eod: 1020, len: 60, cost: 80, maxSkaters: 1, ice: 'public', days: [0, 1, 0, 0, 0, 0, 0], off: {} },
     ] },
     temps: [
       { id: 'camp', kind: 'special', name: 'Holiday camp week', sd: '2026-12-21', ed: '2026-12-27', active: 5,
-        blocks: [{ id: 5, name: 'Camp ice', sod: 540, eod: 960, len: 60, cost: 80, days: [1, 1, 1, 1, 1, 1, 1], off: {} }] },
+        blocks: [{ id: 5, name: 'Camp ice', sod: 540, eod: 960, len: 60, cost: 80, maxSkaters: 1, ice: 'bfsc', days: [1, 1, 1, 1, 1, 1, 1], off: {} }] },
       { id: 'tg', kind: 'timeoff', name: 'Thanksgiving break', sd: '2026-11-22', ed: '2026-11-28' },
     ],
     temp: null,
     away: { name: '', sd: '2026-10-26', ed: '2026-10-27' },
   };
-  SAVED = {};
-  for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) SAVED[b.id] = b.cost;
+  SAVED = {}; SAVED_MAX = {};
+  for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) { SAVED[b.id] = b.cost; SAVED_MAX[b.id] = b.maxSkaters; }
 }
 const clone = o => JSON.parse(JSON.stringify(o));
 const cur = () => state.mode === 'default' ? state.def : state.temp;
@@ -801,6 +812,10 @@ function bigChanges() {
   if (state.reviewing === 'timeoff') return [];
   return blks().filter(b => SAVED[b.id] > 0 && Math.abs(b.cost - SAVED[b.id]) / SAVED[b.id] * 100 >= WARN_PCT).map(b => ({ b, from: SAVED[b.id], to: b.cost }));
 }
+function skaterChanges() {
+  if (state.reviewing === 'timeoff') return [];
+  return blks().filter(b => SAVED_MAX[b.id] != null && b.maxSkaters !== SAVED_MAX[b.id]).map(b => ({ b, from: SAVED_MAX[b.id], to: b.maxSkaters }));
+}
 function overlapErrors(sd, ed, others) {
   const errs = [];
   for (const o of others) {
@@ -831,6 +846,7 @@ function invalid() {
     if (b.eod <= b.sod) bad.push(`<b>${nm}</b> ends before it starts.`);
     else if (slotsOf(b).length === 0) bad.push(`<b>${nm}</b> is too short for one ${b.len}-minute lesson.`);
     if (!isTemp() && !b.days.some(Boolean)) bad.push(`<b>${nm}</b> has no days selected. Pick at least one day.`);
+    if (!b.ice) bad.push(`<b>${nm}</b> has no ice type. Pick one.`);
   }
   if (isTemp()) {
     if (!state.temp.sd || !state.temp.ed) bad.push('A special schedule needs a start and end date.');
@@ -932,18 +948,18 @@ function builder() {
   const title = temp ? (esc(state.temp.name) || 'New special schedule') : 'Your teaching week';
   const sub = temp ? 'Replaces your weekly schedule on these dates only.' : 'Repeats every week — no dates, just the shape of your week.';
   const cols = temp ? dateList() : DAYS.map((d, i) => ({ label: d, dow: i }));
-  const was = SAVED[b.id];
+  const was = SAVED[b.id], wasMax = SAVED_MAX[b.id];
 
   const blocksCard = card(`
     ${blks().map(x => {
       const on = x.id === b.id;
       const days = temp ? 'Every date' : (x.days.map((v, i) => v ? DAYS[i] : null).filter(Boolean).join(' · ') || 'No days yet');
       return `<div class="block${on ? ' is-editing' : ''}"><span class="block__bar${on ? '' : ' block__bar--other'}"></span>
-        <button type="button" class="block__text" onclick="set(()=>cur().active=${x.id})" aria-pressed="${on}"><span class="block__name">${label(x)} ${on ? '<span class="badge badge--primary">Editing</span>' : ''}</span><span class="block__meta">${days} · ${short(x.sod)}–${short(x.eod)} · ${x.len} min · ${money(x.cost)}</span></button>
+        <button type="button" class="block__text" onclick="set(()=>cur().active=${x.id})" aria-pressed="${on}"><span class="block__name">${label(x)} ${on ? '<span class="badge badge--primary">Editing</span>' : ''}</span><span class="block__meta">${days} · ${short(x.sod)}–${short(x.eod)} · ${x.len} min · ${money(x.cost)} · ${skatersText(x.maxSkaters)} · ${iceShort(x.ice) || 'No ice type yet'}</span></button>
         ${blks().length > 1 ? `<button type="button" class="iconbtn iconbtn--sm" onclick="delBlock(${x.id})" aria-label="Delete ${label(x)}">${ic('trash', 15)}</button>` : ''}</div>`;
     }).join('')}
     <button type="button" class="addrow" onclick="addBlock()">${ic('plus', 16)}Add a block with a different length or price</button>`,
-    { title: 'Blocks', sub: 'Each block has one lesson length and price.' });
+    { title: 'Blocks', sub: 'Each block has one lesson length, price and ice type.' });
 
   const datesCard = temp ? card(`
     <div class="grid2">
@@ -964,6 +980,10 @@ function builder() {
       ${field('b-cost', 'Price per lesson', `<div class="ctl ctl--money"><span>$</span><input id="b-cost" type="number" min="0" step="1" value="${b.cost}" onchange="set(()=>blk().cost=Math.max(0,+this.value||0))"><span class="ctl__unit">USD</span></div>`,
         was != null && was !== b.cost ? `Was ${money(was)}. You’ll see affected lessons before saving.` : '')}
     </div>
+    ${field('b-max', 'Skaters per lesson', `<select id="b-max" class="ctl" onchange="set(()=>blk().maxSkaters=+this.value)">${Array.from({ length: MAX_SKATERS }, (_, k) => k + 1).map(n => `<option value="${n}"${n === b.maxSkaters ? ' selected' : ''}>${n === 1 ? '1 — private lesson' : `${n} — can be shared`}</option>`).join('')}</select>`,
+      wasMax != null && wasMax !== b.maxSkaters ? `Was ${wasMax}. Lessons already booked keep ${wasMax}; this applies to lessons booked from now on.` : 'Families don’t see this. On times in a block that allows 2, they see a “share this lesson” box.')}
+    ${field('b-rink', 'Rink', `<input id="b-rink" class="ctl ctl--locked" value="${RINK}" readonly>`, `${ic('lock', 12)}Choosing a rink comes in Phase 2.`)}
+    <div class="field${b.ice ? '' : ' field--error'}"><label class="label" for="b-ice">Ice type</label><select id="b-ice" class="ctl${b.ice ? '' : ' is-error'}" onchange="set(()=>blk().ice=this.value)">${b.ice ? '' : '<option value="" selected disabled>Pick an ice type</option>'}${ICE_TYPES.map(x => `<option value="${x.id}"${x.id === b.ice ? ' selected' : ''}>${x.name}</option>`).join('')}</select><div class="hint">Families don’t see this. The rink fee depends on it. BladeBook keeps the list for each rink.</div></div>
     ${temp ? '' : `<div class="fieldset"><div class="label" id="days-l">Days</div><div class="days" role="group" aria-labelledby="days-l">${DAYS.map((d, i) => {
       const on = !!b.days[i], other = state.def.blocks.some(x => x.id !== b.id && x.days[i]);
       return `<button type="button" class="day${on ? ' is-on' : ''}${other ? ' has-other' : ''}" aria-pressed="${on}" aria-label="${d}" onclick="set(()=>blk().days[${i}]=blk().days[${i}]?0:1)">${d[0]}</button>`;
@@ -1007,7 +1027,7 @@ function column(c, i, temp) {
 function review() {
   const kind = state.reviewing || (isTemp() ? 'temp' : 'default');
   state.reviewing = kind;
-  const v = verdict(), big = bigChanges();
+  const v = verdict(), big = bigChanges(), skaters = skaterChanges();
   const families = new Set([...v.cancel, ...v.reprice].map(b => b.who));
   const backTo = kind === 'timeoff' ? 'timeoff' : 'build';
   const what = kind === 'default' ? 'Weekly schedule · repeats every week until you change it'
@@ -1022,6 +1042,7 @@ function review() {
     <div class="impact"><div class="stat"><div class="stat__label">Cancelled</div><div class="stat__value">${plural(v.cancel.length, 'lesson')}</div></div><div class="stat"><div class="stat__label">New price</div><div class="stat__value">${plural(v.reprice.length, 'lesson')}</div></div><div class="stat"><div class="stat__label">Families emailed</div><div class="stat__value">${families.size}</div></div></div>
     ${big.length ? `<div class="alertcard" role="alert"><div class="alertcard__head">${ic('alert', 20)}<div><div class="alertcard__title">Check this price — it’s a big change</div>${big.map(c => `<div class="alertcard__body">${label(c.b)} ${c.to < c.from ? 'drops' : 'rises'} from <b>${money(c.from)}</b> to <b>${money(c.to)}</b>, a ${Math.round(Math.abs(c.to - c.from) / c.from * 100)}% ${c.to < c.from ? 'cut' : 'increase'}.</div>`).join('')}<div class="alertcard__body">If it’s a typo, families get emailed twice: once for the mistake, once for the fix.</div></div></div>
       <label class="check" for="ack"><input id="ack" type="checkbox" class="check__input" ${state.ack ? 'checked' : ''} onchange="set(()=>state.ack=this.checked)"><span class="check__text"><span class="check__label">I’ve checked the new price</span></span></label></div>` : ''}
+    ${skaters.length ? banner('info', 'Skaters per lesson changes', skaters.map(c => `${label(c.b)} goes from ${skatersText(c.from)} to ${skatersText(c.to)}.`).join(' ') + ' Lessons already booked keep their current setting. The change applies only to lessons booked from now on.') : ''}
     ${v.cancel.length ? card(v.cancel.map(b => lessonRow(b, '<span class="badge badge--danger">Cancelled</span>')).join(''), { title: `${plural(v.cancel.length, 'lesson')} will be cancelled`, sub: `Each family is emailed with a link to book another time.${kind === 'timeoff' ? ' These times stop existing, so nobody can rebook them.' : ''}`, flush: true }) : ''}
     ${v.reprice.length ? card(v.reprice.map(b => lessonRow(b, delta(b))).join('') + `<div class="card__note">${[ups.length ? 'Families with a price increase are emailed the new price.' : '', downs.length ? 'Families with a decrease are told: “Good news — some lessons are now cheaper.”' : ''].filter(Boolean).join(' ')}</div>`, { title: `${plural(v.reprice.length, 'upcoming lesson')} will change price`, flush: true }) : ''}
     ${v.kept.length ? card(v.kept.map(b => lessonRow(b, `<span class="muted">stays ${money(b.price)}</span>`)).join('') + `<div class="card__note">${ic('info', 14)}A price increase never reaches a lesson inside your ${NOTICE_H}-hour notice period.</div>`, { title: `Not changed — inside your ${NOTICE_H}-hour notice`, flush: true }) : ''}
@@ -1047,13 +1068,13 @@ function statusScreen() {
 function openWeekly() { state.editSnapshot = clone(state.def); set(() => { state.mode = 'default'; state.screen = 'build'; state.reviewing = null; state.flash = ''; window.scrollTo(0, 0); }); }
 function openTemp(id) { const t = state.temps.find(x => x.id === id); state.temp = clone(t); state.editSnapshot = clone(t); set(() => { state.mode = 'temp'; state.screen = 'build'; state.reviewing = null; state.flash = ''; window.scrollTo(0, 0); }); }
 function newTemp() { const id = 't' + (++uid); const bid = ++uid;
-  state.temp = { id, kind: 'special', name: '', sd: '2026-10-12', ed: '2026-10-16', active: bid, blocks: [{ id: bid, name: '', sod: 600, eod: 840, len: 60, cost: 80, days: [1, 1, 1, 1, 1, 1, 1], off: {} }] };
+  state.temp = { id, kind: 'special', name: '', sd: '2026-10-12', ed: '2026-10-16', active: bid, blocks: [{ id: bid, name: '', sod: 600, eod: 840, len: 60, cost: 80, maxSkaters: 1, ice: '', days: [1, 1, 1, 1, 1, 1, 1], off: {} }] };
   state.editSnapshot = clone(state.temp); set(() => { state.mode = 'temp'; state.screen = 'build'; state.reviewing = null; state.flash = ''; window.scrollTo(0, 0); }); }
 function openAway() { set(() => { state.screen = 'timeoff'; state.reviewing = null; state.flash = ''; }); }
 function reviewAway() { set(() => { state.reviewing = 'timeoff'; state.screen = 'review'; state.ack = false; window.scrollTo(0, 0); }); }
 function resetEdit() { if (!state.editSnapshot) return; if (isTemp()) state.temp = clone(state.editSnapshot); else state.def = clone(state.editSnapshot); render(); }
 function toggleSlot(id, i, t) { const b = blks().find(x => x.id === id), k = offKey(i, t); if (b.off[k]) delete b.off[k]; else b.off[k] = 1; cur().active = id; render(); }
-function addBlock() { const id = ++uid; blks().push({ id, name: '', sod: 1080, eod: 1200, len: 30, cost: 50, days: isTemp() ? [1, 1, 1, 1, 1, 1, 1] : [0, 0, 0, 0, 0, 0, 0], off: {} }); cur().active = id; render(); }
+function addBlock() { const id = ++uid; blks().push({ id, name: '', sod: 1080, eod: 1200, len: 30, cost: 50, maxSkaters: 1, ice: '', days: isTemp() ? [1, 1, 1, 1, 1, 1, 1] : [0, 0, 0, 0, 0, 0, 0], off: {} }); cur().active = id; render(); }
 function delBlock(id) { if (blks().length < 2) return; cur().blocks = blks().filter(x => x.id !== id); if (cur().active === id) cur().active = blks()[0].id; render(); }
 function accept() {
   const kind = state.reviewing, v = verdict();
@@ -1063,7 +1084,7 @@ function accept() {
   BOOKINGS = BOOKINGS.filter(b => !gone.has(b.id)).map(b => { const r = v.reprice.find(x => x.id === b.id); return r ? { ...b, price: r.newPrice } : b; });
   if (kind === 'timeoff') { state.temps.push({ id: 'a' + (++uid), kind: 'timeoff', name: state.away.name || 'Time off', sd: state.away.sd, ed: state.away.ed }); state.temps.sort((a, b) => a.sd < b.sd ? -1 : 1); }
   else if (kind === 'temp') { const i = state.temps.findIndex(t => t.id === state.temp.id); const saved = clone(state.temp); if (!saved.name) saved.name = 'Special schedule'; if (i >= 0) state.temps[i] = saved; else state.temps.push(saved); state.temps.sort((a, b) => a.sd < b.sd ? -1 : 1); }
-  for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) SAVED[b.id] = b.cost;
+  for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) { SAVED[b.id] = b.cost; SAVED_MAX[b.id] = b.maxSkaters; }
   state.mode = 'default';
   state.apply = { stage: 'applying', lessons, families };
   state.flash = families ? `Saved. ${plural(families, 'family', 'families')} emailed.` : 'Saved. No families needed telling.';
