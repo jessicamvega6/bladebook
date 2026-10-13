@@ -15,7 +15,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **Coach website** | *(not an acronym)* | The coach's side of the BladeBook website, used at a desk: schedule editor, week and month views, student roster and `PENDING` approvals, payment dashboard, lesson list, profile. Calls `api-coach`. **Use this term, not "coach app"**, which the older documents used for both surfaces. |
-| **Rinkside app** | *(not an acronym)* | The page a coach uses at the rink, at `/coach/rinkside` in the coach website (ADR-023) — also called the **check-in app**. A web page, not a native app; it can be added to the phone's home screen, and the subject of `FeatureDecriptions/Coach App`. Today's lessons, check-in and no-show, guardian contacts fetched on a tap when there is signal (never cached — ADR-014 decision 9b), and lesson cancellation; works offline (ADR-014). Uses the coach website's sign-in and calls `api-coach` (ADR-023, superseding ADR-014 decisions 10–11). |
+| **Rinkside app** | *(not an acronym)* | The page a coach uses at the rink, at `/coach/rinkside` in the coach website (ADR-023) — also called the **check-in app**. A web page, not a native app, opened in the phone's ordinary browser (Safari or Chrome) from a link or bookmark. *Users are not expected to add it to the home screen (owner, 2026-10-12): they are older, so nothing may depend on it.* and the subject of `FeatureDecriptions/Coach App`. Today's lessons, check-in and no-show, guardian contacts fetched on a tap when there is signal (never cached — ADR-014 decision 9b), and lesson cancellation; works offline (ADR-014). Uses the coach website's sign-in and calls `api-coach` (ADR-023, superseding ADR-014 decisions 10–11). |
 | **Client website** | *(not an acronym)* | The client's side of the website: sign-up with a coach code, booking, My Bookings, cancellation and recurrence management, profile. Calls `api-client`. |
 | **Dev environment** | *(not an acronym)* | A full second stack — its own table, functions, API, Cognito pool and site — built from the same infrastructure code as production **when there is work for it, and destroyed when that work is done** (ADR-027). One at a time. Its table is created from one import file when it is built: seed data by default, or a masked subset of production on request (`build-dev --masked`), under ADR-011's masking rules — never both (ADR-028). Replaced the long-running **staging** environment on 2026-10-07: production is the only long-running environment. Each masked file is prepared by an AWS Step Functions workflow in the data-loading stack (ADR-027, amended 2026-10-09). |
 | **ADR** | Architecture Decision Record | A numbered document capturing one significant decision, why it was made, and what it costs. Append-only: a changed decision gets a new ADR marking the old one "Superseded," rather than an edit. Lives in `docs/adr/`. |
@@ -39,10 +39,17 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **CI** | Continuous Integration | Automated build/test on push. Where `cdk-nag` runs as a build gate. |
 | **UI / UX** | User Interface / User Experience | UX appears in the ADR to distinguish "cold start is a latency problem the user feels" from "cold start is a cost problem," which it isn't. |
 | **AI** | Artificial Intelligence | Used specifically to mean "how well an AI coding assistant can help with this framework," which the ADR treats as a real selection criterion for a solo developer. |
-| **YTD** | Year to Date | The financial page's totals: gross earned and rink fees paid so far this year (MVP feature 16; which year is open, Open-Pending §3). |
+| **CSV** | Comma-Separated Values | The financial page's summary export: one row per month, no personal data (ADR-030 decision 7). |
+| **YTD** | Year to Date | The financial page's totals for the calendar year: gross (money received) and rink fees, calculated by BladeBook (MVP feature 16; Open-Pending §3, `Q_Rink-Fees.md`). |
 | **PCC** | Pelham Civic Center | The one rink in Phase 1; the schedule builder's rink is fixed to it until rink selection ships (Phase 2). |
+| **FS** | Figure Skating | Used beside hockey where the two are priced differently, as in rink fees (`Q_Rink-Fees.md`). |
+| **BFSC** | Birmingham Figure Skating Club | The club whose freestyle ice is one of PCC's ice types. |
+| **USFSA** | United States Figure Skating Association | The old name of US Figure Skating, still widely used. With USA Hockey, one of the two organisations whose number every skater must give in Phase 1 (Open-Pending §2b). |
+| **S&P** | Stick and Puck | A hockey practice session; one of PCC's ice types, which can carry its own rink rate. |
 | **SOD / EOD** | Start of Day / End of Day | Schedule-builder fields: the first and last time a tab's lessons may run (ADR-008). |
 | **LL / LC** | Lesson Length / Lesson Cost | Schedule-builder fields: a tab's lesson length in minutes and its price (ADR-008). |
+| **MF** | Missed-lesson Fee | Schedule-builder field: a tab's charge for a no-show or late cancellation (ADR-008, ADR-015). |
+| **SD / ED** | Start Date / End Date | Schedule-builder fields for a temporary tab (ADR-008). |
 | **USD / CAD** | US Dollar / Canadian Dollar | The two currencies a coach can choose at sign-up; stamped onto every booking. |
 | **RFC** | Request for Comments | An internet standard; RFC 2606 reserves `example.com`, which masked emails use. |
 | **HTML** | HyperText Markup Language | The format of the web pages and of BladeBook's emails. |
@@ -203,7 +210,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 
 | Term | Stands for | In BladeBook |
 |---|---|---|
-| **SMS** | Short Message Service | Text messages, via SNS. **Opt-in per phone number** (ADR-007 decision 8a), both for cost and for consent. Every message opens `<Coach name> via BladeBook:`. |
+| **SMS** | Short Message Service | Text messages, via SNS. **Opt-in per phone number** (ADR-007 decision 8a), both for cost and for consent. In MVP the only text is the coach's late-cancellation alert, which opens `BladeBook:`; texts to clients are **Phase 2** and open `<Coach name> via BladeBook:` (ADR-007, amended 2026-10-12). |
 | **10DLC** | 10-Digit Long Code | The US registration regime for application-to-person SMS on a normal-looking number. ~$2/mo plus one-time registration — required before any text can send. |
 | **A2P** | Application-to-Person | Messages sent by software rather than a human — the category 10DLC registration governs. |
 | **TCPA** | Telephone Consumer Protection Act | United States law on consent for automated texts and calls. ADR-007 notes it does not require opt-out wording in every message; carrier and CTIA rules are what bite. |
@@ -278,15 +285,26 @@ A **client** books, is billed, and is notified. This records why they hold that 
 
 ### `BOOKING.paidVia` — how the client paid
 
-Set by the coach when marking a lesson paid (ADR-003 decision 4, amended 2026-10-09). Only the
-handles the coach has filled in on their profile are offered, plus `OTHER`; there is no free text.
+Set by the coach when marking a lesson paid (ADR-003 decision 4, amended 2026-10-12). Only the
+payment types the coach has on their profile are offered, plus `OTHER`; no free text. Optional,
+editable afterwards, seen only by the coach; a waived lesson has none.
 
 | Value | Meaning |
 |---|---|
+| `CASH` | Paid in cash; offered only if the coach turned on *I accept cash* (`acceptsCash`). |
 | `CASHAPP` | Paid to the coach's Cashapp handle. |
 | `VENMO` | Paid to the coach's Venmo handle. |
 | `PAYPAL` | Paid to the coach's PayPal handle. |
-| `OTHER` | Any other way: cash, cheque, Interac e-transfer, or a handle the coach has since removed. |
+| `OTHER` | Any other way: cheque, Interac e-transfer, or a payment type the coach has since removed. |
+
+### `SKATER.skatingOrg` — which organisation issued the skater's number (ADR-029)
+
+| Value | Meaning |
+|---|---|
+| `USFS` | US Figure Skating (formerly USFSA). A member number; Learn to Skate USA numbers are a separate series. |
+| `USA_HOCKEY` | USA Hockey. A 14-character registration number, new every season. |
+
+Phase 2 adds `SKATE_CANADA` and `HOCKEY_CANADA`.
 
 ### `CHANGE_BATCH.cancelledBy` — *who* cancelled
 
