@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-09
+**As of:** 2026-10-13
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -28,7 +28,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **Pending decision: Who sends the SMS opt-in confirmation?** Required by ADR-007 decision 8,
   but no function holds `sns:Publish` where it happens. Suggested: a stream consumer on
   `smsOptIn` changing from false to true. Blocks SMS wiring, minimum viable product (MVP)
-  feature 15. (ADR-001 A6)
+  feature 15. (ADR-001 A6) *Narrowed 2026-10-12: all SMS to clients is Phase 2 (§7). Still
+  blocks the coach's late-cancellation text (`smsCancellationAlerts`), which sends the same
+  opt-in confirmation (ADR-016 decision 2, ADR-009 decision 9).*
 - ~~**Pending decision: Profile photo storage, upload path and resize step.**~~ **Moved to
   Phase 2 by the owner, 2026-10-05.** MVP ships without coach photos. ADR-016 fixes the limits
   (2 MB, 512 px); the bucket, upload route and resizing function are designed when photos
@@ -51,8 +53,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   lapses**. Nothing in the model expresses a suspended tenant. (ADR-016)
 - **Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
   expiry. The client sign-up note checks at 8 characters, ADR-016 says 5, the designs show 8. *Deferred by the owner, 2026-09-30.*
-  (ADR-002, ADR-016) *Since 2026-10-06 this may be replaced by the coach's registration
-  number: see §2b.*
+  (ADR-002, ADR-016) *The registration-number idea was dropped 2026-10-12 (§2b); the code
+  stays BladeBook-generated.*
 - **Open question: Photo moderation.** Nothing inspects or lets anyone report a coach's photo.
   (ADR-016)
 - **Open question: What a coach sees on first login** — an empty grey month, designed together
@@ -80,7 +82,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   yes** (ADR-026 d5).
 - **Open question: A series where skater B can't make some dates** — accept the dates that work,
   or all or none? (ADR-026 Open)
-- **Open question: Lowering `maxSkaters`** on lessons already booked with more skaters. (ADR-026)
+- ~~**Open question: Lowering `maxSkaters`** on lessons already booked with more skaters.~~
+  **Settled 2026-10-12 by the owner:** a lesson already booked can't have its `maxSkaters`
+  lowered. A schedule edit changes it only for lessons booked afterwards. (ADR-026)
 - **To-do: Add the share-code rows to the gate tests** and re-run them, since `client-tenant`
   gains a read statement. (ADR-026, `runbooks/database-gate-tests.md`)
 - **To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
@@ -106,31 +110,46 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 
 Added to the sign-up notes on 2026-10-05: families must enter a USFSA or USA Hockey
 registration number, and a coach's registration number becomes their coach code. Both can
-change each season. No ADR yet; it waits on the research and Kim's answers below.
+change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's answers below are its Open items.
+*2026-10-12:* the coach-code half is dropped, and a skater's number is required (see below).
 
 - **Research: Can USFSA and USA Hockey numbers be validated?** Is there an API, a lookup service
-  or a data agreement? Not known. Validation decides whether a coach's number can safely be
-  their code.
+  or a data agreement? Not known. No longer needed for the coach code; it would only let
+  BladeBook confirm a skater's number is real and current.
 - **Research: How each organisation's numbers behave year to year.** USA Hockey may issue a new
   number each season; US Figure Skating member numbers may be permanent with yearly renewal.
   Unverified.
-- **Pending decision: Is the coach code the coach's registration number, or a random BladeBook
-  code with the registration number stored separately?** Using the number is only safe if it
-  can be validated: otherwise anyone can claim a real coach's number, lock that coach out, and
-  receive their families' sign-ups. Registration numbers also aren't secret and may be
-  guessable, which weakens the step that keeps strangers out. The two organisations' numbers could collide, so codes would need a prefix. Ties to
-  blocker #7.
-- **Open question — needs Kim (§9): Is a skater's number required, and for whom?** It belongs
-  to each skater, not the family account; adults and learn-to-skate beginners may not have one.
-  Decide what happens when a number expires: blocked from booking, a reminder, or nothing.
-- **Open question: Does this exclude Canada?** Canadian skaters and coaches register with Skate
-  Canada or Hockey Canada. ADR-016 dropped the EIN gate partly because it excluded Canada, and
-  the design supports CAD. (Kim §9, question 6)
+- ~~**Pending decision: Is the coach code the coach's registration number, or a random BladeBook
+  code?**~~ **Settled 2026-10-12 by the owner:** BladeBook generates the coach code, as
+  ADR-016 decision 2 and ADR-002 decision 2a already have it. It is never the coach's
+  registration number. That removes the lockout and guessing risks. Length and alphabet still
+  follow blocker #7.
+- ~~**Open question — needs Kim (§9): Is a skater's number required?**~~ **Settled 2026-10-12
+  by the owner:** yes. In Phase 1 every skater needs a US Figure Skating (USFSA) or USA Hockey
+  number. It belongs to each skater, not the family account. **Still open, for Kim (§9):**
+  adults and learn-to-skate beginners who don't have a number yet, and what happens when a
+  number expires (blocked from booking, a reminder, or nothing).
+- ~~**Open question: Does this exclude Canada?**~~ **Settled 2026-10-12 by the owner:** in
+  Phase 1, yes. Skate Canada and Hockey Canada numbers are **Phase 2**. The design still
+  supports CAD for coaches.
+- **To-do: Validate and sanitize the skater's number.** It's a free-text box, so it needs a
+  rule for each organisation: trim spaces, uppercase, check against a pattern made only of
+  allowed characters, cap the length, and store the cleaned-up form. This checks the shape only;
+  it can't prove the number belongs to a real, current member. What's known so far
+  (researched 2026-10-12):
+  - **USA Hockey:** 14 characters, 9 digits and 5 letters, new every season. One digit
+    position is a check digit that's fixed for the season (2015–16: the 4th digit was 6), so
+    that value must be a setting, not built into the code. Volunteer and manager numbers
+    contain "XX"; older bulletins disagree about where.
+  - **US Figure Skating:** no published format found. Members seem to keep their number when
+    they renew. Learn to Skate USA numbers are a separate series. **Get the length and
+    characters from a real card or from Kim.** Until then: digits only, within a loose length
+    range.
 - **Open question: Why is a skater's number needed?** It adds personal data about minors, so
   §7's data minimisation needs a stated purpose. (Kim §9, question 2)
-- **Settled, no action:** a coach's code changing each year doesn't affect existing families or
-  recurring bookings. Links, bookings and recurrences point at the coach's internal ID, never the
-  code; only the sign-up lookup changes. Open: whether old codes keep working for new sign-ups.
+- ~~**Settled, no action:** a coach's code changing each year doesn't affect existing families or
+  recurring bookings.~~ *No longer applies (2026-10-12):* the coach code is generated by
+  BladeBook and doesn't follow a yearly registration number.
 
 ## 3. Money and payments
 
@@ -141,38 +160,62 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
   an amount?** MVP says "may incur" everywhere. (ADR-015 decision 6)
-- **Open question: Is unpaid history shown to the client, or only the coach?** Currently
-  coach-only. (ADR-003)
+- **Open question (Phase 2): Is unpaid history shown to the client, or only the coach?**
+  *Moved to Phase 2 by the owner, 2026-10-12.* Coach-only in MVP. (ADR-003)
 - **To-do (Phase 2): Rate-limit the manual payment reminder** before the button ships.
   (ADR-003)
-- **Pending decision: Does BladeBook calculate rink fees, or does the coach enter what they
-  paid?** *Added 2026-10-07 from talking with Kim.* The financial page shows year-to-date (YTD)
+- ~~**Pending decision: Does BladeBook calculate rink fees, or does the coach enter what they
+  paid?**~~ **Settled 2026-10-12 by the owner: BladeBook calculates them.** How it calculates
+  is open and complex, so every question about it is kept in its own document,
+  **`Q_Rink-Fees.md`**, with Part A for Kim and Part B for the owner. Recorded in ADR-030, which
+  is accepted in part until those are answered. Background as first
+  recorded: *Added 2026-10-07 from talking with Kim.* The financial page shows year-to-date (YTD)
   gross and fees paid to the rink. Calculating means modelling each rink's terms: a percentage of
   gross or a flat monthly fee (Pelham Civic Center (PCC) figure skating: 15% or $500 a month), an hourly rate (PCC
   hockey: $10 an hour), and rates that vary by ice type. Entering is simpler and always matches
   what was actually paid. Kim's own question applies: can a coach switch between percentage and
   flat fee from month to month? Coaches at more than one rink need fees per rink.
   (`FeatureDecriptions/Coach Financial Page.md`, `Talking with Kim:.md.md`)
-- **Open question: What counts as gross?** Lessons marked paid, or every lesson given whether
-  paid or not? Are waived lessons left out, and do missed-lesson fees count? Is the year the
-  calendar year (the tax year for individuals in both the US and Canada)? Are past years and an
-  export for a tax preparer needed? (`FeatureDecriptions/Coach Financial Page.md`)
-- **To-do: Check data retention against the financial page.** YTD totals need a full year of
+- ~~**Open question: What counts as gross?**~~ **Settled 2026-10-12 by the owner:** money
+  received. That means lessons marked paid, plus missed-lesson fees actually collected. Waived
+  and unpaid lessons are left out. The year is the calendar year (the tax year for individuals
+  in both the US and Canada). Past years on screen are **Phase 2**. A paid lesson counts by its
+  **lesson date**, and a finished year is **closed** for now. (ADR-030,
+  `FeatureDecriptions/Coach Financial Page.md`)
+- **Decided 2026-10-12 by the owner: a summary export is in MVP.** A **Download** button on the
+  financial page saves a CSV for a chosen calendar year (this year or last): one row per month
+  with gross received, rink fees and net, plus year totals. It has no skater names and no
+  personal data, so it isn't a PII read under ADR-012. It covers what the coach's tax preparer
+  needs, and lets the coach keep their own copy before records pass the 16-month floor (§8).
+  Rows read live data only, filtered on `expiresAt` (ADR-017 decision 1).
+- **Phase 2: A detailed export**, one row per lesson with skater names. Mostly children's data
+  leaving BladeBook in a file, so it's decided together with the privacy rules: every export
+  would be a logged PII read (ADR-012).
+- ~~**To-do: Check data retention against the financial page.** YTD totals need a full year of
   lesson and payment history, and tax records are normally kept for several years. Confirm that
   ADR-017's time-to-live (TTL) and archive rules don't remove records the page or a tax return
-  needs. (ADR-017)
+  needs.~~ **Settled 2026-10-12 by the owner:** a 16-month floor on every window that holds
+  lesson or payment records; rationale in §8. (ADR-017)
 - ~~**Open question: Which handles count as "on the profile" for how the client paid?**~~
-  **Settled 2026-10-07:** the handles the coach filled in, plus *Other*, no free text. Open only:
-  whether *Show my payment handles* (`displayPaymentTypesToClients`) matters. (`FeatureDecriptions/Coach Payment Section on
+  **Settled 2026-10-07:** the handles the coach filled in, plus *Other*, no free text. ~~Open only:
+  whether *Show my payment handles* (`displayPaymentTypesToClients`) matters.~~ **Settled
+  2026-10-12 by the owner:** each payment type has its own switch, which makes it a how-paid
+  option and shows it to families; `displayPaymentTypesToClients` is replaced. Families
+  seeing `paidVia` in the raw API response is accepted. (`FeatureDecriptions/Coach Payment Section on
   Dashboard.md`, ADR-003 decision 4, amended 2026-10-09)
-- **Open question — needs Kim: Should cash be a fixed option?** Under the rule above, cash at
-  the rink, cheques and Interac e-transfer all become *Other*. A Canadian-dollar (CAD) coach,
-  who usually has no Cashapp, Venmo or PayPal handle, would only ever see *Other*. (ADR-016
-  decision 7)
-- **Open question: How-paid details.** Is it required when marking a lesson paid? Can it be
-  changed afterwards? Does the family ever see it? A waived lesson has no method. Proposed:
-  store it on the booking as a fixed value (`CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
-  handle from the profile later doesn't change past records. (ADR-003)
+- ~~**Open question — needs Kim: Should cash be a fixed option?**~~ **Settled 2026-10-12 by
+  the owner:** no. **Cash** becomes a payment type the coach can turn on at sign-up or on their
+  profile, like the three handles. It shows as a how-paid option only if the coach turned it
+  on. No other types are added: cheques and Interac e-transfer are *Other*. (ADR-003 decision 4,
+  ADR-016 decision 7, both amended 2026-10-12)
+- ~~**Open question: How-paid details.**~~ **Settled 2026-10-12 by the owner:** optional when
+  marking a lesson paid, editable afterwards, and **seen only by the coach** for now. Stored on
+  the booking as a fixed value (`CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
+  payment type from the profile later doesn't change past records. A waived lesson has none.
+  (ADR-003)
+- ~~**To-do: Design the cash switch and the how-paid picker in Harbor.**~~ **Done 2026-10-12:**
+  one switch per payment type at sign-up and on the profile, with the handle check; the how-paid
+  picker is on the Payments page. (`FeatureDecriptions/Coach Sign Up`, `Coach Payment Section on Dashboard.md`)
 
 ## 4. Scheduling and booking
 
@@ -203,7 +246,9 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   (D) hide the affected times while the coach previews. Owner leans A + B. Record in an
   amendment to ADR-006/008/020 once answered. (`Items to ask Kim About.md` §7)~~ **Settled 2026-10-08 from Kim's answer: B** — the save goes ahead; bookings made since the preview are cancelled with the "just booked" email. Recorded in ADR-006, ADR-008 and ADR-020.
 - ~~**To-do: Write the "just booked, then cancelled" email** (`FeatureDecriptions/Email templates Needed:`).~~ **Moved to Phase 2 by the owner, 2026-10-09**, with the booking counter it needed (ADR-006, ADR-008, ADR-020). To be reconsidered if feedback supports that this is an issue.
-- **Pending decision: Bookings don't check the schedule atomically.** *Confirmed 2026-10-04.*
+- *Deferred to Phase 2 by the owner, 2026-10-12:* **Pending decision: Bookings don't check the
+  schedule atomically.** MVP relies on the after-the-fact cleanup described here. Revisit if
+  families report a booking cancelled moments after they made it. *Confirmed 2026-10-04.*
   Each occurrence is checked against the schedule in code, then written with a conditional
   `PutItem` whose only condition is `attribute_not_exists(SK)`. That prevents double-booking,
   but a schedule save landing between the check and the write isn't seen. Today the
@@ -215,16 +260,21 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   answer above. (ADR-004 d2, ADR-006, ADR-010 d5k)
 - **Open question (Phase 2): Do booked lessons follow a change to `requiredNoticeHours`?**
   (ADR-020)
-- **Open question: Timezone of the week grid for a client in another zone** — correct, but
-  unstated in the UI. (ADR-006)
+- ~~**Open question: Timezone of the week grid for a client in another zone**~~ — correct, but
+  unstated in the UI. **Settled 2026-10-12 by the owner:** times are always shown in the
+  coach's timezone, and always labelled with it (for example "Times are rink time (Central)"),
+  for every family, not only those in another zone. (ADR-006)
+- **Phase 2: Revisit timezones for competitions.** A competition can be in another timezone
+  from the coach's home rink, so "always the coach's timezone" may be wrong for those lessons.
+  Revisit when competitions are designed. (ADR-006, `Talking with Kim:.md.md`)
 - **To-do: Write the "no times posted yet" copy** for an all-grey calendar, and the coach's
   "build your schedule" prompt. (ADR-008)
 - **To-do: Amend ADR-008 to add rink and ice type to the block.** *Decided by the owner, 2026-10-07:*
   ice type is required on every tab and never shown to families. The values are each rink's own
   names for its sessions, kept in a per-rink list that the owner adds to as BladeBook reaches new
   rinks; coaches pick from it and don't create their own. The rink is also per tab, fixed to
-  PCC in Phase 1 (below). If BladeBook calculates rink fees
-  (§3), also stamp the ice type onto each booking, the way price and currency are, so a later
+  PCC in Phase 1 (below). BladeBook calculates rink fees (§3, settled 2026-10-12), so also
+  stamp the ice type onto each booking, the way price and currency are, so a later
   schedule change doesn't change last month's fees. (ADR-008, ADR-003,
   `FeatureDecriptions/Schedule Creater.md`)
 - **Open question (Phase 2): What a coach at a rink with no ice type list does.** *Decided by
@@ -242,25 +292,41 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   `FeatureDecriptions/Email templates Needed:`)
 - **Open question: Two overlapping recurrences where there should be one** — extension is
   excluded, so clients book a second. (ADR-009)
-- **Open question: Does a client ever see their own cancellation history?** Assumed email
-  only. (ADR-006)
+- ~~**Open question: Does a client ever see their own cancellation history?**~~ **Settled
+  2026-10-12 by the owner:** yes, in **Phase 2**. MVP stays email only. (ADR-006)
 - *Parked:* Held slots are permanent for MVP — revisit when a coach holds one by mistake.
   (ADR-009)
 
 ## 6. Rinkside app
 
-*Nothing open.*
+*Since 2026-10-12, the rinkside page is assumed to run in an ordinary browser tab, never from
+the home screen: BladeBook's users are older (ADR-023, amended).*
+
+- ~~**Open question: Safari may clear the page's offline copy and queue.** Outside a home-screen
+  app, Safari can remove a site's stored data after 7 days of use without a visit. A coach
+  back from a week off may find the page won't open offline at the rink. What does the page
+  do, and does anything else need to change? (ADR-023 Open, ADR-014 d1, d5)~~ *Settled
+  2026-10-13:* keep offline capture and guard the gap. The page says so and reloads its copy
+  when it opens with signal after being cleared; queued entries are sent as soon as there is
+  signal (ADR-014, amended 2026-10-13).
+- **Open question: How does the coach get to the rinkside page** without an icon: a link in
+  the morning email, a link on the coach website's home page, a bookmark? (ADR-023 Open)
 
 ## 7. Notifications and SMS
+
+*Deferred 2026-10-12 by the owner: all SMS to clients is Phase 2.* The coach's own
+late-cancellation text (`smsCancellationAlerts`, ADR-009 decision 9) isn't covered by this, so
+the carrier and `START`/`UNSTOP` items below still apply to it if it stays in MVP. "Real
+delivery confirmation" is about email (SES), not SMS, so it stays open.
 
 - **Open question: Does the one-time opt-in confirmation satisfy the carrier**, or is
   periodic re-disclosure needed? Answer comes from 10-digit long code (10DLC) campaign
   vetting. (ADR-007)
 - **Open question: `START`/`UNSTOP` asymmetry** — the carrier re-subscribes, our `smsOptIn`
   stays false. Explain it in the UI? (ADR-007)
-- **Open question: A client opted into SMS whose email bounces gets nothing usable.**
-  (ADR-007)
-- **To-do: Text-message templates for price changes** — increase, decrease ("good news") and a
+- *Deferred (Phase 2):* **Open question: A client opted into SMS whose email bounces gets
+  nothing usable.** (ADR-007)
+- *Deferred (Phase 2):* **To-do: Text-message templates for price changes** — increase, decrease ("good news") and a
   batch mixing price changes with cancellations, each length-tested. (ADR-007, ADR-020)
 - **Pending decision: Real delivery confirmation** — `SENT` only means "accepted by Simple
   Email Service (SES)." (ADR-006)
@@ -275,7 +341,18 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   configuration value applied through Time to Live (TTL), plus a one-off backfill.
   (architecture §7, ADR-017)
 - **Open question: The retention windows ADR-017 is waiting on** — each needs the legal
-  review:
+  review. *Floor set by the owner, 2026-10-12:* any window holding lesson or payment records
+  (settled bookings, chargeable cancellations, re-price lines) is **at least 16 months**,
+  whatever the legal review says. The review can make a window longer, never shorter.
+  **Why 16 months:** the financial page totals the calendar year, so on 31 December a lesson
+  from 1 January is already 12 months old and must still count. After that the coach files their
+  taxes from the year's figures: in the US by 15 April, and for most Canadians by 30 April. That's
+  15.5 to 16 months after 1 January, so 16 months keeps a whole year's records live until
+  those deadlines. It doesn't cover a US filing extension (to 15 October) or Canada's
+  self-employed deadline (15 June), and coaches are self-employed. Those need about 18 months, or
+  22 for the US extension. Records past the floor aren't lost; they're in the archive and can be
+  restored.
+  Each window still needs the legal review:
   - settled bookings (paid or waived), measured from settlement;
   - cancellation records, not chargeable and chargeable — ask a coach whether they are needed
     for tax, which would set the floor. *Deferred 2026-08-25.* (ADR-006, ADR-009);
@@ -293,10 +370,25 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   job is off until it is set), the cadence (weekly on Monday morning is proposed), and whether
   an unsettled lesson is listed again. *Left open by the owner, 2026-09-30, pending a
   conversation with a coach.* (ADR-018)
-- **Open question: Does a coach see anything when their history ages out?** (ADR-017)
-- **Open question: Are archive restores logged as personally identifiable information (PII) reads** under ADR-012, or is CloudTrail
-  enough? (ADR-017)
-- **Pending decision: Who sends the decline email for a rejected student?** A rejected
+- ~~**Open question: Does a coach see anything when their history ages out?**~~ **Settled
+  2026-10-12 by the owner:** yes. History screens carry a note such as "Lessons settled more
+  than *N* months ago are archived. Contact BladeBook to request them," where *N* comes from the
+  same setting as the retention window so the two can't drift. A warning before records are
+  archived is **Phase 2**. The MVP summary export (§3) already lets a coach keep their yearly
+  totals. (ADR-017)
+- ~~**Open question: Are archive restores logged as personally identifiable information (PII) reads** under ADR-012, or is CloudTrail
+  enough?~~ **Settled 2026-10-12 by the owner:** yes. The operator's restore tool writes a PII
+  access-log entry for every restore: who restored, which coach and student, the reason, and
+  when. Every read of a minor's data is then in one place, not split with CloudTrail, which
+  shows only object keys and keeps 90 days by default. (ADR-017, ADR-012)
+- **To-do: Build the archive restore as an operator command** (like `reconcile-schedule`), which
+  writes the access-log entry. Needed once the "contact BladeBook to request them" note ships.
+  (ADR-017)
+- ~~**Pending decision: Who sends the decline email for a rejected student?**~~ **Settled
+  2026-10-12 by the owner: `consumer-student-link`.** It gains `ses:SendEmail` and a
+  `GetItem` on the coach profile for the Reply-To. The recipient comes from the deleted
+  `STUDENT#` item's `clientEmail`, so the `StudentChanged` event for a removal must carry it.
+  Background: A rejected
   `PENDING` student is now deleted outright (ADR-002 decision 2b), so the email must be sent
   from the deleted record — most naturally by a consumer reading the removal off the change
   stream. No function does this yet. *Since 2026-10-01, `consumer-student-link` already
@@ -319,12 +411,40 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   owner, 2026-09-30.* (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
-  days, unselectively — Point-in-Time Recovery. (ADR-017, `design/deletion/`)
+  days, unselectively — Point-in-Time Recovery. (ADR-017, `design/deletion/`) *Added
+  2026-10-12:* and the monthly backups (12 months, §10), which also can't be edited.
+- **To-do (with the erasure design): An erased-ID list.** A small record, kept outside every
+  backup, of each erased student and client ID and the date. It holds IDs only, no names. Any
+  restore (PITR, monthly backup, archive) re-applies the erasure for every listed ID before the
+  data goes live, so a restore never brings an erased child back. An entry can be dropped once
+  the oldest backup that could hold it has been deleted. (`docs/deletion/`, ADR-010, ADR-017)
 - **Open question: Retention of the PII access log** —
-  itself a record about minors. (ADR-012)
-- **To-do: Set an interim CloudWatch log retention value** instead of "never expire."
-  (ADR-012)
-- **Open question: Does the access log need its own access logging?** (ADR-012)
+  itself a record about minors. Still for the legal review; the interim values below stand
+  until then. (ADR-012)
+- ~~**To-do: Set an interim CloudWatch log retention value** instead of "never expire."~~
+  **Decided 2026-10-12 by the owner:** the access log is kept in two tiers.
+  - **CloudWatch: 90 days**, searchable, for day-to-day questions.
+  - **Archive:** a subscription filter streams every line through Amazon Data Firehose into
+    an S3 bucket, batched into large files (Deep Archive bills each object as at least about
+    40 KB). A lifecycle rule moves the files to S3 Glacier Deep Archive and **deletes them
+    after 2 years** as an interim window. Older entries take up to 12 hours to restore,
+    the same trade-off as ADR-017's archive.
+  - **No S3 Object Lock for now.** It would make the log tamper-proof, but would also block
+    deleting it for an erasure request or a shorter legal window. Revisit after the legal
+    review.
+  (ADR-012, amended 2026-10-12)
+- **To-do: Add the access-log archive to the infrastructure:** the Firehose stream, its
+  role, the bucket (SSE-KMS, blocked public access, CloudTrail data events like the other
+  buckets) and the lifecycle rule. (ADR-012)
+- ~~**Open question: Does the access log need its own access logging?**~~ **Settled 2026-10-12
+  by the owner:** no. It stops at AWS's own controls: only the operator role can read it, with
+  multi-factor sign-in, and CloudTrail records what it can. Revisit if anyone else gains AWS
+  access. (ADR-012 Open)
+- **To-do: Confirm what CloudTrail records for CloudWatch Logs reads** (`GetLogEvents`,
+  `FilterLogEvents`, Logs Insights queries). (ADR-012 Open)
+- **Decided 2026-10-12 by the owner: access-log lines name the PII fields returned**
+  (`guardianEmail`, `phone`, …), never their values, so "who saw my phone number?" has an
+  answer. (ADR-012 decision 2, amended)
 
 ## 9. Monitoring, logging and tenant isolation
 
@@ -335,17 +455,46 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
   "was linked, no longer active" gets a clear message; "never yours" gets a not-found, a
   security event, and pages on 3+ in 15 minutes for one family or 10+ a day overall, both
   configurable. (monitoring-questions §1)
-- **To-do: Cross-tenant isolation test in continuous integration (CI)**; decide whether a
-  production canary that attempts a cross-tenant read is also needed. Separate from the
-  cancellation-flow canary, which ADR-027 decision 7 settled: it runs against production as a
-  test coach and test family. (monitoring-questions §1, ADR-013)
-- **Open question: Can accepting a `PENDING` student ever leak data across coaches**, for
-  example when someone guessed a coach code? (monitoring-questions §1)
+- **To-do: Cross-tenant isolation test in continuous integration (CI).** (monitoring-questions
+  §1, ADR-013)
+- **Decided 2026-10-12 by the owner: the production canary also tries cross-tenant reads.** It
+  adds a second test coach (coach B) to ADR-027 decision 7's canary run. Coach B tries to read
+  test coach A's students and bookings, and the test family tries to read a family that isn't
+  theirs. Every attempt must be refused; **any success pages.** This catches a deployed
+  permission change (a console edit, or infrastructure that slipped past CI) that the gate tests
+  and CI can't see. (monitoring-questions §1, ADR-027 d7, ADR-021, ADR-022)
+- ~~**Open question: Can accepting a `PENDING` student ever leak data across coaches**, for
+  example when someone guessed a coach code?~~ **Closed 2026-10-12 by the owner.** A pending
+  family can't read the coach's partition (ADR-022 d6); code guessing is rate-limited (ADR-019);
+  Accept is a write in the coach's own partition, and the database refuses any other (ADR-021,
+  gate tests passed 2026-10-05). What remains is a person risk, a coach accepting a stranger,
+  and the approval step is the control for it. (monitoring-questions §1)
+- **To-do: Confirm a gate-test row covers this exact case:** coach B's session updating coach
+  A's `PENDING` `STUDENT#` item is refused. Add it if missing. (`runbooks/database-gate-tests.md`,
+  ADR-021)
+- **To-do: Check the approval screen shows enough to recognise the family:** guardian name and
+  email, skaters' names, and their USFSA/USA Hockey numbers. (Harbor design, ADR-002)
 - **To-do: Configure SES event destinations** for bounce, complaint and delivery. The pages
   on bounce and complaint rate are already decided (ADR-010 decision 4); they need this data
   to fire. (monitoring-questions §3)
-- **Open question: What happens to a hard-bounced address?** Nothing marks it invalid, so the
-  next message goes to it again and pushes the bounce rate up. (monitoring-questions §3)
+- ~~**Open question: What happens to a hard-bounced address?**~~ Nothing marks it invalid, so the
+  next message goes to it again and pushes the bounce rate up. **Settled 2026-10-12 by the
+  owner.** Typos can't reach the system: sign-up and every email change are verified with a
+  code. A bounce means an address that worked has since died (a closed school or work account,
+  a lapsed domain), so bounces will be rare.
+  - **MVP:** rely on SES's account-level suppression list, which stops sends to a hard-bounced
+    address and protects the bounce rate.
+  - **Phase 2:** a bounce flag on the family's profile, set from the SES bounce event. The family
+    sees "We couldn't deliver email to *address*. Please update it" at login, and the coach sees
+    an "email not working" marker on the roster. It clears when the email changes.
+  (monitoring-questions §3)
+- **To-do: Confirm the SES account-level suppression list is on** (bounces and complaints) in
+  the production account. (monitoring-questions §3)
+- **To-do: Turn on Cognito's "keep original attribute value active until verified"** for
+  email, so a family who changes email but never enters the code keeps their old, verified
+  login. (`FeatureDecriptions/ClientProfileView`)
+- **To-do: Refresh every `STUDENT#` item's `clientEmail` copy** once a family's email change is
+  verified, so messages never go to a stale copy. (architecture §4, ADR-021 d6)
 - **To-do: Turn on Simple Notification Service (SNS) SMS delivery status logging.**
   (monitoring-questions §3)
 - **To-do: Thread correlation IDs** from API Gateway through the event bus to consumers.
@@ -356,12 +505,36 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 ## 10. Reliability and operations
 
 - **To-do: Write the restore runbook** — Point-in-Time Recovery (PITR) restores to a new
-  table; repoint or copy back? (ADR-010)
-- **To-do: Separate alert SMS from client SMS** (own topic and configuration set). (ADR-010)
+  table; repoint or copy back? (ADR-010) *Decided 2026-10-12 by the owner:* the same runbook
+  covers PITR and the monthly backups below, and it **defaults to copy back**: prod stays on
+  its table and a script copies back only the damaged records from the restored one.
+  **Repoint** (move every Lambda, IAM and gate policy, and stream wiring to the new table) is for
+  total loss only, because it loses everything since the restore point. Either way, the runbook
+  must:
+  - **pause notifications**: stop the stream consumers, or mark restore writes so they're
+    skipped, so families don't get emails for old events;
+  - **re-apply the erased-ID list** (§8) before anything goes live;
+  - re-apply what an import doesn't carry: TTL, PITR, streams and alarms, through the
+    infrastructure code.
+- *Deferred (Phase 2, 2026-10-12): client SMS is Phase 2, so MVP has only the coach's text.* **To-do: Separate alert SMS from client SMS** (own topic and configuration set). (ADR-010)
 - **To-do: Pass each scheduled job's target date in its trigger**, so a replayed or re-run job
   works on that date — this is what makes the end-of-day report re-runnable for a past date.
   (ADR-010 decision 2a)
-- **Pending decision: Backups beyond PITR's 35 days?** Ties to the retention questions.
+- ~~**Pending decision: Backups beyond PITR's 35 days?**~~ Ties to the retention questions.
+  **Settled 2026-10-12 by the owner:** yes, a **monthly export to S3**. EventBridge Scheduler
+  calls DynamoDB's export-from-PITR directly, with no Lambda, into a backup bucket of its own
+  (SSE-KMS, public access blocked, CloudTrail data events). Exports are stored in **S3 Glacier
+  Instant Retrieval**, readable at once, and a lifecycle rule **deletes them after 12 months**
+  (interim, for the legal review). This reuses the export-to-S3 pattern dev already uses
+  (ADR-027, ADR-028). Restore is Import from S3 into a new table, then the runbook above.
+  Cost: under a cent a month at today's few megabytes.
+  - **Not Deep Archive:** a backup older than 35 days is needed for corruption noticed late, so
+    the one wanted is usually 2–3 months old. A 12–48-hour wait for it defeats the purpose, and
+    the saving is fractions of a cent.
+  - **Revisit if the table grows to tens of GB:** then moving exports older than 90 days to
+    Deep Archive starts saving real money. (GIR bills a 90-day minimum, so don't move sooner.)
+  - **Phase 2 option:** AWS Backup, if copies in a separate AWS account are wanted as protection
+    against a compromised account.
   (ADR-010)
 - **Open question: Toll-free number or 10DLC for texts.** Undecided. 10DLC: a local-looking
   number, brand and campaign registration, a monthly campaign fee. Toll-free: an 8XX number,
@@ -385,8 +558,9 @@ change each season. No ADR yet; it waits on the research and Kim's answers below
 - ~~**Pending decision (ADR-023 Open): The coach website's refresh-token lifetime**~~ **Settled
   2026-10-05 (ADR-023 d6):** 60 minutes on the coach and family websites, 4 hours on the
   rinkside page, counted from sign-in.
-- **To-do (ADR-023 Open): Confirm on an iPhone** that a home-screen web app keeps its own
-  sign-in, separate from Safari.
+- ~~**To-do (ADR-023 Open): Confirm on an iPhone** that a home-screen web app keeps its own
+  sign-in, separate from Safari.~~ *Dropped 2026-10-12:* users are older and aren't expected
+  to add pages to the home screen (ADR-023, amended).
 - ~~**To-do: Confirm the Cognito feature plan allows a WAF association** on the user pool.~~
   **Done 2026-10-05:** available in all feature plans, per AWS's Cognito developer guide.
   (ADR-019)
@@ -472,4 +646,5 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   deleted by the owner.
 - **To-do: Commit the untracked work** — `terraform/`, `docs/Blockers-Before-Coding.md`,
   `docs/design-rationale.md`, `docs/Talking with Kim:.md.md`, `docs/deletion/`, `.claude/skills/`,
-  plus uncommitted edits to 26 tracked files.
+  `docs/Q_Rink-Fees.md`, the 15 new `FeatureDecriptions/C_*.md` notes and
+  `design/.backup-preforest/`, plus uncommitted edits to 31 tracked files.

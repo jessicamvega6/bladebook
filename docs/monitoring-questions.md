@@ -62,7 +62,7 @@ check.
   alerts if it ever succeeds? Or is a CI test sufficient given the isolation is structural?
 - **Does the coach-side confirmation of a `PENDING` student open anything?** ADR-002 says it
   is scoped by `coachId` from the token; worth confirming that holds for a student created
-  by someone who guessed a `coachCode`.
+  by someone who guessed a `coachCode`. **Closed 2026-10-12:** see `Open-Pending.md` §9.
 
 ---
 
@@ -111,6 +111,7 @@ a week.
 - **What happens to a hard-bounced address?** Nothing in the model marks a client's email
   invalid. ADR-006's `notificationStatus = FAILED` records that one message failed; it does
   not stop the next one being sent to the same dead address, which is what drives the rate up.
+  **Settled 2026-10-12:** see `Open-Pending.md` §9.
 - **Is there an alarm on bounce and complaint rate**, well below the suspension thresholds?
 - **SNS SMS delivery status logging** — off by default. Without it, a failed text is
   indistinguishable from a delivered one, which makes ADR-007's `SENT` state a guess.

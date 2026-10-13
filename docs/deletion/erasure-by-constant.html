@@ -1,0 +1,436 @@
+<title>Erasure by Constant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&display=swap">
+
+<style>
+:root{
+  --ground:#EDF3F0; --ground-2:#E7EEEA; --panel:#FFFAFB; --sunk:#DBE3DE;
+  --line:#748181; --line-soft:#869292;
+  --ink:#2B2C28; --ink-2:#494F4A; --ink-3:#5B635D; --ink-4:#66706C;
+  --edit:#2F633E; --edit-ink:#19552D; --edit-wash:#D6F7DD; --edit-line:#257E41;
+  --other:#8AE5A1; --other-wash:#CEF8D6; --other-line:#339953; --other-ink:#345F40;
+  --dead-fill:#DDE1E1; --dead-ink:#6E7777; --dead-line:#A6ACAC;
+  --warn-wash:#FDE9E7; --warn-line:#CC423B; --warn-ink:#A50E15;
+  --shadow:0 1px 2px rgba(43,44,40,.06), 0 8px 24px -12px rgba(43,44,40,.18);
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --ground:#171B19; --ground-2:#1E2321; --panel:#232927; --sunk:#161A18;
+    --line:#5D6867; --line-soft:#4C5654;
+    --ink:#E8EEEA; --ink-2:#B9C3BD; --ink-3:#9AA6A0; --ink-4:#828E88;
+    --edit:#8AE5A1; --edit-ink:#A8EFBB; --edit-wash:#1E3A28; --edit-line:#3E9159;
+    --other:#59B876; --other-wash:#1B3324; --other-line:#4AA167; --other-ink:#9EE3B2;
+    --dead-fill:#252A29; --dead-ink:#7D8785; --dead-line:#4A5352;
+    --warn-wash:#3A1F1D; --warn-line:#E0645C; --warn-ink:#F0938C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#171B19; --ground-2:#1E2321; --panel:#232927; --sunk:#161A18;
+  --line:#5D6867; --line-soft:#4C5654;
+  --ink:#E8EEEA; --ink-2:#B9C3BD; --ink-3:#9AA6A0; --ink-4:#828E88;
+  --edit:#8AE5A1; --edit-ink:#A8EFBB; --edit-wash:#1E3A28; --edit-line:#3E9159;
+  --other:#59B876; --other-wash:#1B3324; --other-line:#4AA167; --other-ink:#9EE3B2;
+  --dead-fill:#252A29; --dead-ink:#7D8785; --dead-line:#4A5352;
+  --warn-wash:#3A1F1D; --warn-line:#E0645C; --warn-ink:#F0938C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1100px; margin:0 auto; padding:56px 28px 96px}
+.prose{max-width:66ch}
+
+h1{
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:700;
+  font-size:clamp(2.1rem,4.4vw,3rem); line-height:1.08; letter-spacing:-.02em;
+  margin:0 0 14px; text-wrap:balance;
+}
+h2{
+  font-size:1.32rem; font-weight:600; letter-spacing:-.01em;
+  margin:0 0 12px; text-wrap:balance;
+}
+h3{font-size:1rem; font-weight:600; margin:0 0 8px}
+p{margin:0 0 16px; color:var(--ink-2)}
+strong{color:var(--ink); font-weight:600}
+
+.status-note{
+  background:var(--warn-wash); color:var(--warn-ink); border:1px solid var(--warn-line);
+  border-radius:8px; padding:10px 14px; margin:0 0 18px; font-size:.9rem; line-height:1.45;
+}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem; font-weight:500; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 18px;
+}
+.lede{font-size:1.08rem; color:var(--ink-2)}
+.lede strong{color:var(--ink)}
+
+.pair{
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem;
+  margin:0 0 40px;
+}
+.pair a{
+  color:var(--ink-2); text-decoration:none;
+  border:1px solid var(--line-soft); border-radius:999px; padding:5px 13px;
+  background:var(--panel);
+}
+.pair a:hover{border-color:var(--edit); color:var(--edit-ink)}
+.pair a:focus-visible{outline:2px solid var(--edit-line); outline-offset:2px}
+.pair .here{
+  background:var(--edit); color:var(--panel); border-color:var(--edit);
+  font-weight:500;
+}
+:root[data-theme="dark"] .pair .here{color:#12241A}
+:root:not([data-theme="light"]){@media (prefers-color-scheme:dark){.pair .here{color:#12241A}}}
+
+section{margin:0 0 56px}
+hr{border:0; border-top:1px solid var(--line-soft); opacity:.5; margin:56px 0}
+
+/* ---------- diagram ---------- */
+.scroller{overflow-x:auto; padding-bottom:6px; margin:0 0 14px}
+.diagram{width:980px; position:relative}
+
+.zone-label{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+  display:flex; align-items:center; gap:12px; margin:0 0 12px; color:var(--ink-3);
+}
+.zone-label::after{content:""; flex:1; height:1px; background:var(--line-soft); opacity:.55}
+.zone-label .n{
+  width:19px; height:19px; border-radius:50%; flex:none;
+  display:grid; place-items:center; font-size:.66rem;
+  background:var(--sunk); color:var(--ink-3); border:1px solid var(--line-soft);
+}
+
+.row4{display:grid; grid-template-columns:repeat(4,1fr); gap:20px}
+.row3{display:grid; grid-template-columns:repeat(3,1fr); gap:24px}
+
+.card{
+  background:var(--panel); border:1px solid var(--line-soft); border-radius:10px;
+  padding:13px 14px 14px; box-shadow:var(--shadow); min-width:0;
+}
+.card .k{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem; line-height:1.45; color:var(--ink-3);
+  word-break:break-all; margin:0 0 9px;
+  padding:0 0 8px; border-bottom:1px dashed var(--line-soft);
+}
+.card .k b{color:var(--ink-2); font-weight:600}
+.f{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.715rem; line-height:1.75; display:flex; gap:7px; color:var(--ink-3);
+}
+.f .nm{color:var(--ink-4); flex:none}
+.f .vl{color:var(--ink-2); font-weight:500}
+
+/* dead card */
+.card.dead{
+  background:var(--dead-fill); border-color:var(--dead-line);
+  border-style:dashed; box-shadow:none;
+}
+.card.dead .k{color:var(--dead-ink); border-bottom-color:var(--dead-line)}
+.card.dead .k b{color:var(--dead-ink)}
+.card.dead .f,.card.dead .f .nm,.card.dead .f .vl{color:var(--dead-ink)}
+.card.dead .k b, .card.dead .f .vl{text-decoration:line-through}
+
+/* survivor card */
+.card.live{border-color:var(--other-line)}
+.card.live .k b{color:var(--other-ink)}
+.val-gone{
+  background:var(--dead-fill); color:var(--dead-ink);
+  border:1px solid var(--dead-line); border-radius:4px;
+  padding:0 5px; font-weight:600; letter-spacing:.02em;
+}
+.val-keep{color:var(--edit-ink); font-weight:600}
+:root[data-theme="dark"] .val-keep{color:var(--edit-ink)}
+
+.tag{
+  display:inline-block; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.62rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  padding:2px 7px; border-radius:4px; margin:0 0 9px;
+}
+.tag.gone{background:var(--dead-line); color:var(--panel)}
+.tag.kept{background:var(--edit); color:var(--panel)}
+:root[data-theme="dark"] .tag.kept{color:#12241A}
+:root:not([data-theme="light"]){@media (prefers-color-scheme:dark){.tag.kept{color:#12241A}}}
+.tag.cond{background:var(--warn-line); color:var(--panel)}
+
+/* the band */
+.band{position:relative; height:132px; margin:4px 0 2px}
+.band svg{display:block; width:980px; height:132px}
+.band-note{
+  position:absolute; left:0; right:0; top:46px;
+  display:flex; justify-content:center; pointer-events:none;
+}
+.band-note span{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem; letter-spacing:.06em; color:var(--ink-3);
+  background:var(--ground); padding:4px 14px; border-radius:999px;
+  border:1px dashed var(--line-soft);
+}
+
+.caption{
+  font-size:.86rem; color:var(--ink-3); max-width:78ch; margin:2px 0 0;
+}
+.caption b{color:var(--ink-2)}
+
+/* ---------- callout ---------- */
+.note{
+  background:var(--panel); border:1px solid var(--line-soft);
+  border-left:3px solid var(--edit); border-radius:8px;
+  padding:16px 18px; margin:0 0 20px;
+}
+.note.warn{border-left-color:var(--warn-line); background:var(--warn-wash)}
+.note.warn h3{color:var(--warn-ink)}
+.note h3{font-family:"IBM Plex Sans",sans-serif; font-size:.94rem}
+.note p{margin:0; font-size:.92rem}
+.note p + p{margin-top:10px}
+
+/* ---------- table ---------- */
+.tbl-wrap{overflow-x:auto; border:1px solid var(--line-soft); border-radius:10px; background:var(--panel)}
+table{border-collapse:collapse; width:100%; min-width:640px; font-size:.88rem}
+th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+th{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.68rem; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; background:var(--ground-2);
+}
+tr:last-child td{border-bottom:0}
+td code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.8rem; color:var(--ink-2)}
+td.act{white-space:nowrap; font-weight:600}
+.act-del{color:var(--dead-ink)}
+.act-anon{color:var(--edit-ink)}
+.act-cond{color:var(--warn-ink)}
+
+code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.86em}
+p code,li code{background:var(--sunk); padding:1px 5px; border-radius:4px; color:var(--ink-2)}
+ul{margin:0 0 16px; padding-left:20px; color:var(--ink-2)}
+li{margin:0 0 7px}
+
+.foot{
+  margin-top:64px; padding-top:20px; border-top:1px solid var(--line-soft);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem; color:var(--ink-4); display:flex; gap:18px; flex-wrap:wrap;
+}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">BladeBook · §7 student deletion · option 1 of 2</p>
+  <p class="status-note"><strong>Draft — neither option is chosen.</strong> Student deletion was deferred by the owner on 2026-08-25 (Open-Pending §1). This page predates ADR-017 to ADR-029, so some stores and the multi-coach case are not covered yet.</p>
+  <h1>Erasure by Constant</h1>
+  <p class="lede prose">Every identifier on a surviving record is overwritten with the same
+  literal <code>"DELETED"</code>. The money and the dates stay. <strong>Because every row
+  carries the identical value, no row can be linked to any other</strong> — and that
+  unlinkability, not the removal of the name, is what makes this erasure.</p>
+
+  <nav class="pair">
+    <span class="here">Constant</span>
+    <a href="https://claude.ai/code/artifact/38f4d626-82a1-4eb0-893b-700273d65eb5">Compare: Erasure by Token →</a>
+  </nav>
+
+  <section>
+    <h2>After a guardian requests deletion</h2>
+    <p class="prose">One student, <code>s9</code>, taught by coach <code>c1</code>, booked by
+    guardian <code>sub-4b2</code>. Below is every place that student existed, and what each
+    one looks like once the request is honoured.</p>
+
+    <div class="scroller">
+      <div class="diagram">
+
+        <p class="zone-label"><span class="n">1</span>Hard deleted — identity records</p>
+        <div class="row4">
+
+          <div class="card dead">
+            <span class="tag gone">removed</span>
+            <p class="k"><b>COACH#c1</b><br>STUDENT#s9</p>
+            <p class="f"><span class="nm">studentName</span><span class="vl">Mia Calder</span></p>
+            <p class="f"><span class="nm">isMinor</span><span class="vl">true</span></p>
+            <p class="f"><span class="nm">clientEmail</span><span class="vl">j.calder@…</span></p>
+            <p class="f"><span class="nm">clientPhone</span><span class="vl">+1 613 555…</span></p>
+          </div>
+
+          <div class="card dead">
+            <span class="tag gone">removed</span>
+            <p class="k"><b>CLIENT#sub-4b2</b><br>STUDENT#c1#s9</p>
+            <p class="f"><span class="nm">studentName</span><span class="vl">Mia Calder</span></p>
+            <p class="f"><span class="nm">studentStatus</span><span class="vl">ACTIVE</span></p>
+            <p class="f" style="text-decoration:none">
+              <span class="nm" style="text-decoration:none">the denormalised copy</span></p>
+          </div>
+
+          <div class="card dead">
+            <span class="tag cond">last child only</span>
+            <p class="k"><b>CLIENT#sub-4b2</b><br>PROFILE</p>
+            <p class="f"><span class="nm">clientName</span><span class="vl">Jo Calder</span></p>
+            <p class="f"><span class="nm">clientEmail</span><span class="vl">j.calder@…</span></p>
+            <p class="f"><span class="nm">smsOptIn</span><span class="vl">true</span></p>
+          </div>
+
+          <div class="card dead">
+            <span class="tag cond">last child only</span>
+            <p class="k"><b>Cognito</b><br>user sub-4b2</p>
+            <p class="f"><span class="nm">email</span><span class="vl">j.calder@…</span></p>
+            <p class="f"><span class="nm">group</span><span class="vl">Client</span></p>
+            <p class="f" style="text-decoration:none">
+              <span class="nm" style="text-decoration:none">outside DynamoDB</span></p>
+          </div>
+
+        </div>
+
+        <div class="band">
+          <svg viewBox="0 0 980 132" width="980" height="132" role="img"
+               aria-label="The link between identity and financial records is severed. No connector reaches the surviving rows.">
+            <!-- stub descending from the deleted zone, cut short -->
+            <line x1="490" y1="0" x2="490" y2="30"
+                  stroke="var(--dead-line)" stroke-width="2" stroke-dasharray="4 5"/>
+            <!-- the cut -->
+            <line x1="452" y1="38" x2="528" y2="24"
+                  stroke="var(--warn-line)" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- nothing continues. three orphan arrow-heads pointing at nothing -->
+            <g fill="none" stroke="var(--dead-line)" stroke-width="1.5" stroke-dasharray="3 6">
+              <line x1="155" y1="108" x2="155" y2="132"/>
+              <line x1="490" y1="108" x2="490" y2="132"/>
+              <line x1="825" y1="108" x2="825" y2="132"/>
+            </g>
+            <g fill="var(--dead-line)">
+              <circle cx="155" cy="104" r="2.5"/>
+              <circle cx="490" cy="104" r="2.5"/>
+              <circle cx="825" cy="104" r="2.5"/>
+            </g>
+          </svg>
+          <div class="band-note"><span>no identifier survives to join these rows</span></div>
+        </div>
+
+        <p class="zone-label"><span class="n">2</span>Anonymised in place — financial records</p>
+        <div class="row3">
+
+          <div class="card live">
+            <span class="tag kept">retained</span>
+            <p class="k"><b>COACH#c1</b><br>BOOKING#2026-03-14#16:00</p>
+            <p class="f"><span class="nm">studentId</span><span class="val-gone">DELETED</span></p>
+            <p class="f"><span class="nm">GSI1PK</span><span class="val-gone">removed</span></p>
+            <p class="f"><span class="nm">lessonDate</span><span class="vl val-keep">2026-03-14</span></p>
+            <p class="f"><span class="nm">priceMinor</span><span class="vl val-keep">4500</span></p>
+            <p class="f"><span class="nm">currency</span><span class="vl val-keep">USD</span></p>
+            <p class="f"><span class="nm">paymentStatus</span><span class="vl val-keep">PAID</span></p>
+          </div>
+
+          <div class="card live">
+            <span class="tag kept">retained</span>
+            <p class="k"><b>COACH#c1</b><br>CANCELLED#…#b7</p>
+            <p class="f"><span class="nm">studentId</span><span class="val-gone">DELETED</span></p>
+            <p class="f"><span class="nm">studentName</span><span class="val-gone">DELETED</span></p>
+            <p class="f"><span class="nm">clientId</span><span class="val-gone">DELETED</span></p>
+            <p class="f"><span class="nm">lessonDate</span><span class="vl val-keep">2026-04-02</span></p>
+            <p class="f"><span class="nm">priceMinor</span><span class="vl val-keep">4500</span></p>
+            <p class="f"><span class="nm">noticeHours</span><span class="vl val-keep">3</span></p>
+          </div>
+
+          <div class="card live">
+            <span class="tag kept">retained</span>
+            <p class="k"><b>S3</b><br>coach=c1/date=…/report.json</p>
+            <p class="f"><span class="nm">studentId</span><span class="val-gone">DELETED</span></p>
+            <p class="f"><span class="nm">attended</span><span class="vl val-keep">7</span></p>
+            <p class="f"><span class="nm">noShow</span><span class="vl val-keep">1</span></p>
+            <p class="f" style="margin-top:6px"><span class="nm">free, if the archive stores
+              ids and resolves names at render</span></p>
+          </div>
+
+        </div>
+
+        <p class="caption" style="margin-top:16px"><b>Read the middle band.</b> Nothing crosses
+        it, and nothing runs between the three cards below it. Those rows are three separate
+        islands — the coach's revenue still totals correctly, and no query, join or eyeball can
+        establish that any two of them concern the same child.</p>
+
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Two keys that need handling, not just attributes</h2>
+    <p class="prose">Overwriting attributes is not sufficient on its own, because two index keys
+    embed the student identifier directly.</p>
+
+    <div class="note">
+      <h3><code>GSI1PK = STUDENT&lt;studentId&gt;</code> — must be removed</h3>
+      <p>Bookings are indexed by student for the client-facing views. Blanking the attribute
+      while leaving the key in place would keep every lesson retrievable under the child's
+      identifier. Deleting the two GSI1 attributes drops the row out of the index entirely,
+      which is exactly the intent.</p>
+    </div>
+
+    <div class="note">
+      <h3><code>GSI3SK = UNPAID#&lt;date&gt;#&lt;studentId&gt;</code> — resolves itself</h3>
+      <p>The unpaid index also embeds the identifier, but it is <strong>sparse and written only
+      while a booking is <code>UNPAID</code></strong>. A live debt cannot be anonymised anyway —
+      you would lose the ability to collect it — so by the time erasure is permitted the booking
+      is <code>PAID</code> or <code>WAIVED</code> and has already dropped out of GSI3. The
+      awkward case is closed by an ordering rule rather than by code.</p>
+    </div>
+
+    <div class="note warn">
+      <h3>One identifier is easy to miss</h3>
+      <p><code>CHANGE_BATCH.cancelledById</code> holds <em>the acting identity</em>. When
+      a client cancels their own lesson, that is their <code>clientId</code> — so the batch
+      header carries identity even though the batch itself is about a schedule change, not a
+      person. It needs the same treatment as the lines beneath it.</p>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Every store, and what happens to it</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Store</th><th>Holds</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>COACH#c1 / STUDENT#s9</code></td><td>studentName, isMinor, guardian contact (denormalised)</td><td class="act act-del">hard delete</td></tr>
+          <tr><td><code>CLIENT#sub / STUDENT#c1#s9</code></td><td>studentName (denormalised), studentStatus</td><td class="act act-del">hard delete</td></tr>
+          <tr><td><code>CLIENT#sub / PROFILE</code></td><td>guardian name, email, phone</td><td class="act act-cond">delete if last child</td></tr>
+          <tr><td>Cognito user</td><td>the guardian's account</td><td class="act act-cond">delete if last child</td></tr>
+          <tr><td><code>COACH#c1 / BOOKING#…</code></td><td>studentId, price, payment state</td><td class="act act-anon">anonymise</td></tr>
+          <tr><td><code>COACH#c1 / CANCELLED#…</code></td><td>studentId, studentName, clientId</td><td class="act act-anon">anonymise</td></tr>
+          <tr><td><code>COACH#c1 / CHANGEBATCH#…</code></td><td>cancelledById</td><td class="act act-anon">anonymise</td></tr>
+          <tr><td>S3 <code>report.json</code></td><td>per-student attendance</td><td class="act act-anon">free, if ids not names</td></tr>
+          <tr><td>CloudWatch access log</td><td>who read this student's data (ADR-012)</td><td class="act act-del">retention expiry</td></tr>
+          <tr><td>Phone offline queue</td><td>queued attendance outcomes (ADR-014)</td><td class="act act-anon">bookingId only — no PII</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr>
+
+  <section class="prose">
+    <h2>What this costs</h2>
+    <p><strong>The coach loses per-student history.</strong> "Mia paid me $2,400 last year" is
+    no longer answerable, because answering it requires exactly the linkage this option
+    destroys. Annual and per-date totals are unaffected — and totals are what a tax record
+    needs.</p>
+    <p>That trade is the honest version of the promise in §7. It should be stated to the coach
+    in those words before they confirm, not discovered afterwards.</p>
+  </section>
+
+  <p class="foot">
+    <span>BladeBook · architecture.md §4, §5, §7</span>
+    <span>ADR-006 · ADR-009 · ADR-012 · ADR-014</span>
+    <span>Forest palette</span>
+  </p>
+</div>
