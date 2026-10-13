@@ -262,6 +262,7 @@ default) and the booking family is told. Both depend on the pricing answer.
 **The scenario.** The sign-up notes say families must enter a USFSA or USA Hockey registration
 number to sign up, and that a coach's own registration number would be their coach code, the
 code families type to find them. Both numbers can change each season.
+*Update 2026-10-12: the coach-code half is dropped; BladeBook generates the code.*
 
 **Questions:**
 
@@ -272,21 +273,24 @@ code families type to find them. Both numbers can change each season.
 3. Do you check that a family's number is current each season? What happens if it has lapsed:
    would you still teach them?
 4. Does each skater have their own number, or is it one per family?
-5. Would you be comfortable with your own registration number being the code families use to
-   find you? Is your number written anywhere public, like a certificate, rink website or coach
-   directory?
+5. ~~Would you be comfortable with your own registration number being the code families use to
+   find you?~~ *No need to ask. The owner decided 2026-10-12 that BladeBook generates the coach
+   code.*
 6. Do you, or coaches you know, teach any skaters registered in Canada (Skate Canada, Hockey
-   Canada)?
+   Canada)? *The owner moved Canada to Phase 2 on 2026-10-12; her answer only tells us how
+   soon it's needed.*
+7. What does a US Figure Skating member number look like: how many digits, any letters? Is a
+   Learn to Skate USA number different? *Needed to check the number when a family types it in.*
 
 **What the answers decide:**
 
-- **Whether a membership number is required at all, optional, or per skater**, and what happens
-  when it expires (questions 1–4).
-- **Whether a coach's registration number can safely be their coach code**, or the code stays a
-  random BladeBook code with the registration number kept separately (question 5, together with
-  the validation research in `Open-Pending.md` §2b).
-- **Whether Canadian skaters and coaches are supported**, which a USFSA/USA Hockey requirement
-  would rule out (question 6).
+- ~~**Whether a membership number is required at all, optional, or per skater**~~ *The owner
+  decided 2026-10-12: required, per skater.* Still open: skaters who don't have a number yet,
+  and what happens when one expires (questions 1–4).
+- ~~**Whether a coach's registration number can safely be their coach code**~~ *Decided
+  2026-10-12: no, BladeBook generates it.*
+- ~~**Whether Canadian skaters and coaches are supported**~~ *Decided 2026-10-12: Phase 2.*
+- **The validation rule for US Figure Skating numbers** (question 7, `Open-Pending.md` §2b).
 
 ---
 
@@ -334,6 +338,13 @@ added as needed, so the multi-coach screens are designed for about 10.
 - **Whether adding and dropping coaches mid-season needs more than today's remove flow**
   (question 4), including what the family sees when one coach removes their skater while another
   keeps them. (ADR-025 Open; blocker #17)
+
+---
+
+## 11. Rink fees
+
+- [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). It's complex
+  enough to need its own session, so it's kept in its own document. Record her answers there.
 
 ---
 
