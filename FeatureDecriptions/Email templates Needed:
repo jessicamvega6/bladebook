@@ -1,4 +1,5 @@
 Email templates Needed:
+*Updated 2026-10-12 to match the Harbor design. The design is the source of truth.*
 
 Cancelation from Coach
 Cancellation from client to coach — only inside the notice period (ADR-009, Kim 2026-10-08).
@@ -7,6 +8,15 @@ Pending student declined by the coach (ADR-002 decision 2b).
 Shared lesson not yet accepted — to both families (ADR-026 d5a).
 Shared lesson waiting on your acceptance — to the coach (ADR-026 d5a).
 Shared lesson expired, skater not yet accepted — to the invited family (ADR-026 d5a).
+
+*In the Harbor design's email list (C_Coach Email Templates.md) and not above:*
+Booking confirmation — to the family, when they book.
+Day-of reminder — to the family, the morning of each lesson.
+Payment reminder — to the family, after a lesson is checked in. Includes the coach's payment instructions, and handles if switched on.
+Schedule change — to the family, when a schedule save cancels or re-prices their lessons. Always sent.
+Daily report — to the coach, every evening at 9 PM.
+Unpaid lessons — to the coach, weekly on Monday morning.
+*Confirmed by the owner 2026-10-12: the coach's "A family cancelled" email is sent only inside the notice period. The design matches.*
 
 
 Notes:

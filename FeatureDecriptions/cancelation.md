@@ -1,6 +1,12 @@
+*Updated 2026-10-12 to match the Harbor design (bookings-cancel.html, recurrence.html, calendar-week.html, cancel-preview.html). The design is the source of truth.*
+
 Client cancelation:
 Within 'My bookings' section by each lesson item there is a cancel button. on click of the cancel a confirmation pops up asking if they are sure they want to cancel. This will cancel that particular booking and release that time slop back into the available slots
-There will be a note that says bookings canceled within 24 hours may incur a late cancelation fee. 
+There will be a note that says bookings canceled within ~~24 hours~~ *the coach's notice period (24 hours in the design)* may incur a late cancelation fee. 
+*Design:* the confirmation shows the lesson (day, time, length, price). Inside the notice period the note becomes a warning:
+  "Inside the N-hour notice period. <coach> may charge a late cancellation fee."
+  It says the time goes back on the coach's calendar and the coach will be told, and, for a repeating lesson, that other
+  lessons in the series aren't affected. Buttons: "Keep lesson" and "Cancel lesson".
 
 
 
@@ -9,6 +15,15 @@ Client recurrence management:
 Within the 'My bookings' sections there will also be a button to modify reoccuring lessons. 
 This will allow the client to change the end date of the reoccuring lessons to a date earlier than currently selected. Or cancel all future lessons. Future lessons do not include that day's lesson if one exists. 
 There will also be a button the change the reoccuring frequency, you can change it to less frequenct but never more frequent. 
+*Design:* one page per series ("Change", from My bookings) with three choices:
+  End it earlier: a new last date, which must be before the current last date and not before today.
+  Make it less frequent: only the less frequent options are listed (every 2, 3 or 4 weeks). Already every 4 weeks: nothing to pick.
+  Cancel all future lessons: from tomorrow on; today's lesson is kept.
+  Beside the choices, "What this will do" previews every affected date as Kept or Cancelled, with the totals.
+  Warnings: if a cancelled lesson is inside the notice period, a late fee may be charged; cancelled times are released
+  for other families and switching back won't get them back.
+  The button reads "Cancel N lessons" and is disabled until the choice is valid and cancels at least one lesson.
+  To add lessons, the family books again.
 
 
 
@@ -17,21 +32,34 @@ Make note for phase 2
 For phase 2, clicking the lesson slot on the Week view if the booking belongs to the client clicking will give the option to cancel, also have cancel confirmation)
 For phase 2, on coach registration & profile, have a checkbox to indicate if the coach has a late cancelation fee. And if the couch does have one then that note is changed from 'may' to 'will'
 An email is sent to the coach when a client shortens or cancels their reocurring bookings. *MVP per ADR-009 d9, only inside the notice period.* 
+*Confirmed by the owner 2026-10-12: only inside the notice period. The design matches: the email template, the coach's
+profile ("You get an email when a family cancels inside your notice period") and the family's cancel pop-up, which says
+the coach will be told only for a late cancellation.*
 
 
 Coach Week view: shows the coach the schedule for that week listed by timeslots and shows the unbooked slots with Open and the booked slots with the students name. 
+*Design:* held slots show "Held". Past lessons are greyed and can't be cancelled. Each day heading opens the day view
+(see C_Coach Day View.md). A time-off day says "Time off" with its name; a special schedule day shows its name.
+Month / Week / Day switch, previous and next week, and a Today button.
 
 Coach cancelation:
 In week view there will be multiple ways to cancel. 
 1) cancel everything that day. (ex sick)
-2) cancel entire week (ex emergency came up)
-3) cancel per lesson (ex forgotten appts)
+2) cancel ~~entire week~~ *the rest of the week* (ex emergency came up). *Design: "Cancel rest of week" button.*
+3) cancel per lesson (ex forgotten appts). *Design: click a booked lesson.*
+*Design: day cancel is the "Cancel day" button under each day.*
 each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) is assigned to the coach. The default/temp schedule is not changed. 
+*Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed", with a
+"Release all" link. A held time stays closed to families.
 
 For cancelation types 1 & 2, only cancel the lessons that have not happened yet. 
 
 
 A confirmation view will show to the coach on all cancelation actions. This will present any bookings that will get canceled. A message will display to the coach that on accept cancelation emails will be sent to clients with canceled bookings. The coach must accept before any bookings are canceled. 
+*Design:* the confirmation view shows the count cancelled, held closed, and families emailed; that each family gets one
+email listing their cancelled lessons with a link to book another time; that repeating lessons in other weeks aren't
+affected; and that a cancellation can't be undone. Buttons: Back and "Cancel N lessons". Afterwards the week view shows
+a message with the counts, the released times back to Open and held times as Held.
 
 
 Phase 2: Make different types of emails for cancelation (sick, emergency, vacation, etc) and allow the coach to select type of cancelation. 

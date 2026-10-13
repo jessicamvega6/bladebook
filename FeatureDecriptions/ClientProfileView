@@ -1,3 +1,29 @@
 ClientProfileView
+*Updated 2026-10-12 to match the Harbor design (design/harbor/client/static/profile*.html). The design is the source of truth.*
 
 is a form that allows the client to change their phone number, email, add a student, remove a student, pick a different profile picture (Phase 2)
+
+*Design details:*
+Your details:
+  Your name, mobile phone, and email.
+  Email: the family logs in with it. Changing it sends a code to the new address.
+    *Decided 2026-10-12:* entering that code reuses the sign-up verify screen (signup-3-verify.html): 6-digit code,
+    "Verify email", "Resend code" and "Use a different email". The old address stays the login until the code is
+    entered (Cognito's keep-original-until-verified setting).
+  "Text me reminders" switch, with the SMS terms (same as sign-up). *Phase 2 (2026-10-12): all client SMS deferred.*
+  Profile picture: shown, with the Phase 2 tag; choosing one is disabled.
+
+Skaters (everyone who takes lessons with the coach):
+  Each skater with their name, under 18 or adult, organization and number, and "Approved" or "Waiting for approval".
+  Add a skater: full name, under 18 yes or no, skating organization (U.S. Figure Skating or USA Hockey) and number.
+    The coach approves new skaters before they can be booked; the family is emailed. "Add skater" is disabled until
+    the name and number are filled in.
+  An adult who skates themselves can't add skaters: a child needs their own family account.
+  Remove: asks for confirmation first.
+    Approved skater: their upcoming lessons are cancelled and the coach is told; late cancellations may be charged.
+    Waiting skater: the coach won't see the sign-up any more.
+    *This is the design's reading of the open "delete a student" decision (docs/Open-Pending.md).*
+
+Buttons: Save and Log out.
+
+Waiting for approval: the same page. It's most of what a waiting family can see (ADR-022 d6).

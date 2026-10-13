@@ -1,8 +1,26 @@
-Client Home View 
+Client Home View
+*Updated 2026-10-12 to match the Harbor design (design/harbor/client/static/home.html and home-pending.html). The design is the source of truth.*
 
-Shows their lesson(s) for that day. 
+Shows their lesson(s) for that day.
+*Design additions:*
+  A greeting with today's date, and a "Book a lesson" button.
+  Today: each lesson today with its time, skater, length and price. With none: "No lessons today" and when the next one is.
+  Coming up: the next 4 lessons, with a link to all bookings.
+  A banner when a skater is still waiting for the coach's approval: you can book for them once they're approved.
+  Your coach: the coach's name and initials, and only the contact details the coach has switched on (phone, email,
+    each payment type the coach has switched on, ADR-016 d7). With none switched on: "Reply to any lesson email to reach Coach <name>."
+  If past lessons aren't marked paid yet, a line under the buttons gives how many and the total. *Phase 2 (ADR-003, 2026-10-12): unpaid history is coach-only in MVP.*
 
-Button that routes to Monthly Client Booking View 
+Button that routes to Monthly Client Booking View ("Book a lesson")
+Button that routes to My bookings (see C_Client My Bookings.md)
 Button that routes to Profile view
-Button that routes to Payment view (phase 2)
+Button that routes to Payment view (phase 2), tagged "Phase 2"
 
+The main navigation is Home · Book a lesson · My bookings · Profile.
+
+Waiting for approval (no approved skater yet, ADR-022 d6):
+  The family sees only Home and Profile: no schedule, open times or coach contact details.
+  Home says they're waiting for the coach to approve, and that the coach checks they know each family who signs up.
+  Lists their skaters as waiting, with a link to edit or remove them.
+  "What happens next": the coach approves each skater, the family is emailed, then booking opens.
+  Signed up by mistake or with the wrong coach? Remove the skaters from the profile.

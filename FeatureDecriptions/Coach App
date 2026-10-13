@@ -1,4 +1,5 @@
 Coach App
+*Updated 2026-10-12 to match the Harbor design. The design is the source of truth.*
 *Since ADR-023 (2026-10-05) this is the rinkside page inside the coach website (/coach/rinkside), not a separate app.*
 Seperate App from bladebook website. The app needs to be able for the coach to mark the student as checked in, no show, or can Cancel lesson.
 
@@ -8,12 +9,25 @@ Also needs to show the coach who has signed up for lessons that day and what tim
     Note: the check in section also has a cancel functionality so a single lesson can be canceled in two places in the Coach app. -->
 
 
-The checkin app will allow a coach to cancelan individual lesson, or any lessons that day. When canceling the coach will be asked if they want to release or hold the slots. 
+The checkin app will allow a coach to cancelan individual lesson, or any lessons ~~that day~~ *from today to the end of this week (the Week tab, see C_Rinkside Cancel Several Lessons.md)*. When canceling the coach will be asked if they want to release or hold the slots. 
     Hold: means they are coach held
     Release: means they are rebookable by othr students
+*Design:* cancelling one lesson is under the "..." button on its card, kept away from Present and No-show. It always
+confirms, names the family who will be emailed, and asks Release for rebooking or Hold it closed (ADR-009 d5a).
+A lesson that has started can't be cancelled, and cancelling needs signal.
+
+*Design (today.html), the Today tab:*
+  A progress bar: how many of today's lessons are recorded, and who's next.
+  Each lesson card: time, skater, length. Present and No-show buttons once the lesson is within 10 minutes of starting;
+  before that it shows "Starts at <time>". A recorded lesson shows Present or No-show with the time, and Undo straight after.
+  A held slot shows "Held slot", closed to everyone.
+  Tabs along the bottom: Today, Week, Account (see C_Rinkside Account.md).
+  No signal: see C_Rinkside Offline.md.
 
 The app needs to also have a sign in screen where the coach is validated that they are who they say they are. 
+*Design (signin.html):* the same login email and password as the website (ADR-014 d10). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
 
 
 The app also needs to display the clients contact info at checkin
+*Design:* tapping a skater's name shows the family's name, phone and email, each with a Copy button. Fetched with signal for that tap only and never stored on the phone (ADR-014 d9b). With no signal it says "Contact details need a connection."
 

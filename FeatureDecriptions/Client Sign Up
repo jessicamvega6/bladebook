@@ -1,36 +1,79 @@
 Client Sign Up:
+*Updated 2026-10-12 to match the Harbor design (design/harbor/client/static/signup-*.html). The design is the source of truth.*
 
-CoachCode/Coach Name   : Code given to client by coach outside of website. 
-            : On focusOut of input field and while value.length = 8 check to see if this is a valid coach code. If yes, display coach name and photo (if uploaded) *(Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.)*
-            : Code has to match coach name or nothing is displayed/error is displayed saying please check code/coach name
+Five steps, with a step counter across the top. "Already have an account? Log in" on the first step.
+
+Step 1, Coach code:
+CoachCode/Coach Name   : Code given to client by coach outside of website.
+            : ~~On focusOut of input field and while value.length = 8 check to see if this is a valid coach code.~~
+              *Design:* the code is checked as the family types, once it has 8 letters and numbers (a dash, e.g. ABCD-1234, is ignored).
+              If yes, display coach name and photo (if uploaded) *(Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.)*
+              The lookup returns only the coach's name (ADR-022 d7).
+            : ~~Code has to match coach name or nothing is displayed/error is displayed saying please check code/coach name~~
+              *Design:* the family enters only the code, not the coach's name. Before a match, a placeholder says the coach
+              will appear there so they can check it's the right one. A full-length code that matches no coach shows:
+              "That code doesn't match a coach. Check it with your coach. Codes are 8 letters and numbers."
+            : Continue stays disabled until a code is found. Once found it reads "Continue with <coach first name>",
+              with "Wrong coach? Check the code with them." under it.
             : look up what Rate limiting would look like for the pic display
 
-Is Minor: checkbox
-Guardian First name:
-Guardian Last Name:
-
-Student Section: 
-Student First Name:
-Student Last Name: 
-
-Button to add another Student // is only enabled when is minor is checked
-
+Step 2, About you (the person who books and pays for lessons):
+~~Is Minor: checkbox~~
+~~Guardian First name:~~
+~~Guardian Last Name:~~
+*Design:* "Who are the lessons for?": "Me (18 or older)" or "A child I'm guardian of".
+    Either way the person signing up enters their own first and last name here. A guardian adds the child on step 4.
+    Under 18 and skating? The guardian signs up and adds them.
 
 Contact Section:
-phone number:
-email:
+mobile phone number:
+email: used for logging in, confirmations and reminders.
 
-Terms and Agreements for SMS
+~~Terms and Agreements for SMS~~
+*Design:* "Text me reminders too" checkbox (SMS opt-in, ADR-007) with the terms under it: texts arrive the morning of a
+    lesson and when a lesson is cancelled, message and data rates may apply, reply STOP to stop and HELP for help,
+    email reminders always go out. *Phase 2 (2026-10-12): all client SMS deferred.*
 
-password field
-confirm password field: confirm password can =not allow pasting. 
+password field, with the password rules listed under it (at least 8 characters)
+confirm password field: confirm password can =not allow pasting. The hint says pasting is turned off.
+
+"Create account" button.
+
+Step 3, Verify email:
+A 6-digit code is emailed to the address from step 2. It expires in 24 hours.
+"Verify email" button, "Resend code" and "Use a different email" links.
+
+Step 4, Skaters:
+~~Student Section:~~
+~~Student First Name:~~
+~~Student Last Name:~~
+~~Button to add another Student // is only enabled when is minor is checked~~
+*Design:*
+  Guardian ("Who's skating?"): add one or more skaters, each with their full name, "Under 18?" yes or no, skating
+    organization and number. "Add another skater" adds more. Each added skater can be removed.
+    "Send to Coach <name>" is disabled until at least one skater is added.
+  Adult skating themselves ("You're the skater"): their own name from step 2, an "I'm 18 or older" box, and their
+    organization and number. A link lets them change who the lessons are for.
+
+Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization. USA Hockey numbers change each season; US Figure Skating members seem to keep theirs.
+    Check to see if there is an API to check if the number is valid for the year/season.  *No way to verify it is valid as of now. Coach can verify themselves if they care*
+    *Design:* the number is per skater, not per account. Each skater picks U.S. Figure Skating (member number) or
+    USA Hockey (registration number) and enters the number. The hint says USA Hockey numbers change every season.
+    *Decided 2026-10-12:* required for every skater. Phase 1 takes USFSA or USA Hockey only; Skate Canada and Hockey Canada are Phase 2.
+    *Validation:* the number is a free-text box, so it must be checked and cleaned up before it's saved:
+        trim spaces, uppercase, check it against a pattern for its organization (allowed characters only), cap the length,
+        and store the cleaned-up form. This checks the shape only, not that the number is real.
+        USA Hockey: 14 characters, 9 digits and 5 letters, with a check digit that changes each season (a setting, not code).
+        US Figure Skating: format not yet known; get it from a real card or Kim. See ADR-029 and Open-Pending §2b.
+
+Step 5, Waiting for approval:
+"You're in", signed in, with each skater listed as waiting for the coach's approval.
+The family is emailed when the coach approves. Booking opens for each skater once they're approved.
+"Go to my account" button. While waiting, the family sees only Home and Profile (ADR-022 d6, see ClientHomeView).
 
 
 Profile Icon selection: A list of images uploaded by system phase 2
 
-Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization and changes each season. Check to see if there is an API to check if the number is valid for the year/season.
 
-
-Clients can have more than one coach. And at signup they put in all of their coaches codes.
-
-
+Clients can have more than one coach. ~~And at signup they put in all of their coaches codes.~~
+*Design:* sign-up takes one coach code. Entering several coaches at sign-up is Phase 2 (ADR-025, amended 2026-10-06).

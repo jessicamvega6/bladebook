@@ -1,4 +1,5 @@
-Coaches can split one session time(slot) aounsts multiple students
+Coaches can split one session time(slot) btwn multiple students
+*Design (added 2026-10-12): skaters per lesson in the schedule editor; client book-share-*.html, invite*.html, bookings-shared.html, home-invited.html; coach pending, day and payments pages; rinkside today-shared*.html.*
 
 
 ~~Q: how many students max are allowed to split a lesson. 
@@ -39,3 +40,5 @@ Invitation (changed 2026-10-07):
   Sibling (same family): just booked, no confirmation needed (still needs coach acceptance first).
 
 See docs/adr/ADR-026-shared-lessons-by-invitation.md.
+
+
