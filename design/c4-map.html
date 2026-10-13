@@ -1,0 +1,651 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>BladeBook C4 Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: wide diagram canvas with a sticky detail panel on the right; blocker ledger below.
+   Tokens: BladeBook's own Harbor theme (teal + coral on sand). Harbor is light-only by design, so this page commits to it. */
+:root {
+  --font: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --bg: #F7F3EC; --surface: #FFFDF9; --surface-2: #F2ECE2; --border: #E7DFD2; --border-strong: #8C826E;
+  --text: #1E292D; --text-2: #46524F; --text-3: #5F6966; --text-4: #6E7672;
+  --primary: #0E6C68; --on-primary: #FFFFFF; --primary-soft: #D4EBE8; --primary-soft-text: #0A5350; --primary-tint: #EFF7F5; --primary-border: #87C2BC;
+  --accent: #C2513A;
+  --ok: #2C7A4B; --ok-soft: #E5F2E8; --ok-border: #ADD4B8; --ok-text: #215F3A;
+  --warn: #B4650B; --warn-soft: #FCEFD9; --warn-border: #EDC98C; --warn-text: #874B07;
+  --bad: #C2412B; --bad-soft: #FCEBE6; --bad-border: #F0B7AA; --bad-text: #97301F;
+  --focus: rgba(14, 108, 104, .28);
+  --shadow: 0 1px 2px rgba(60, 45, 20, .05), 0 4px 14px -6px rgba(60, 45, 20, .10);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1640px; margin: 0 auto; padding-inline: 24px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 22px; }
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand__mark { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; flex: none; }
+.top h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; }
+.top .lede { color: var(--text-2); font-size: 15px; margin-top: 4px; max-width: 68ch; }
+.asof { font-size: 12.5px; color: var(--text-3); }
+
+/* foundation strip */
+.found { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border: 1px solid var(--bad-border); background: var(--bad-soft); border-radius: 14px; }
+.found__label { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--bad-text); }
+.found__items { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+.found__note { font-size: 12.5px; color: var(--bad-text); flex-basis: 100%; }
+.qchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--bad-border); font-size: 13px; font-weight: 500; cursor: pointer; }
+.qchip:hover { border-color: var(--bad); }
+.qid { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 999px; background: var(--bad); color: #fff; white-space: nowrap; }
+.qid.soft { background: var(--warn); }
+
+/* tabs + summary */
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+.tab { border: 0; background: none; padding: 8px 16px; border-radius: 999px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.tab small { font-family: var(--mono); font-size: 11px; color: var(--text-4); }
+.tab[aria-selected="true"] { background: var(--primary); color: var(--on-primary); }
+.tab[aria-selected="true"] small { color: var(--primary-soft); }
+.tab:focus-visible, .node:focus-visible, .qcard:focus-visible, .qchip:focus-visible, .linkbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.count { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+.count b { font-variant-numeric: tabular-nums; color: var(--text); font-size: 15px; }
+
+/* status dot + pill */
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
+.s-blocked .dot, .dot.s-blocked { background: var(--bad); }
+.s-partial .dot, .dot.s-partial { background: var(--warn); }
+.s-clear .dot, .dot.s-clear { background: var(--ok); }
+.s-later .dot, .dot.s-later { background: var(--text-4); }
+.pill.s-later { background: var(--surface-2); color: var(--text-3); }
+.node.s-later { border-style: dashed; border-color: var(--border-strong); opacity: .75; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.pill.s-blocked { background: var(--bad-soft); color: var(--bad-text); }
+.pill.s-partial { background: var(--warn-soft); color: var(--warn-text); }
+.pill.s-clear { background: var(--ok-soft); color: var(--ok-text); }
+
+/* layout */
+.work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (min-width: 1200px) { .work { grid-template-columns: minmax(0, 1fr) 360px; } }
+.stage { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
+.stage__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; padding: 4px 6px 14px; }
+.stage__head h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.stage__head p { color: var(--text-3); font-size: 13px; max-width: 70ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-2); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* canvas */
+.cwrap { overflow-x: auto; overflow-y: hidden; border-radius: 12px; background: var(--bg); }
+.csizer { position: relative; }
+.canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.canvas svg { position: absolute; inset: 0; overflow: visible; }
+.edge { fill: none; stroke: var(--text-4); stroke-width: 1.4; }
+.edge.dash { stroke-dasharray: 5 4; }
+.elabel { position: absolute; transform: translate(-50%, -50%); max-width: 150px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--text-2); background: var(--bg); padding: 1px 5px; border-radius: 6px; pointer-events: none; }
+.boundary { position: absolute; border: 1.5px dashed var(--border-strong); border-radius: 18px; pointer-events: none; }
+.boundary__label { position: absolute; left: 14px; bottom: -11px; background: var(--bg); padding: 0 8px; font-size: 12px; font-weight: 700; color: var(--text-3); letter-spacing: .02em; }
+
+/* nodes */
+.node { position: absolute; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; background: var(--surface); border: 1.5px solid var(--primary-border); border-radius: 12px; text-align: left; cursor: pointer; transition: opacity .15s, box-shadow .15s; }
+.node:hover { box-shadow: var(--shadow); }
+.node__kind { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.node__name { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+.node__tech { font-size: 11.5px; color: var(--primary-soft-text); font-weight: 500; }
+.node__desc { font-size: 12px; color: var(--text-2); line-height: 1.35; }
+.node__foot { margin-top: auto; padding-top: 4px; display: flex; }
+.node.s-blocked { border-color: var(--bad); background: linear-gradient(var(--surface), var(--surface)) padding-box; }
+.node.s-partial { border-color: var(--warn-border); }
+.node.s-clear { border-color: var(--ok-border); }
+.node.k-person { background: var(--primary-soft); border-color: var(--primary); border-radius: 48px 48px 14px 14px; align-items: center; text-align: center; padding-top: 8px; }
+.node.k-person .node__desc { color: var(--primary-soft-text); }
+.node.k-person .head { width: 22px; height: 22px; border-radius: 50%; background: var(--primary); flex: none; }
+.node.k-system { background: var(--primary); color: var(--on-primary); border-width: 3px; }
+.node.k-system .node__kind, .node.k-system .node__desc, .node.k-system .node__tech { color: var(--primary-soft); }
+.node.k-system.s-blocked { border-color: var(--bad); }
+.node.k-external { background: var(--surface-2); border-style: dashed; }
+.node.is-sel { box-shadow: 0 0 0 4px var(--focus); }
+.node.dim { opacity: .25; }
+.node.hit { box-shadow: 0 0 0 4px rgba(194, 65, 43, .28); }
+
+/* component view */
+.groups { display: flex; flex-direction: column; gap: 22px; padding: 14px 6px 6px; }
+.group { position: relative; border: 1.5px dashed var(--border-strong); border-radius: 18px; padding: 22px 14px 14px; background: var(--bg); }
+.group__label { position: absolute; left: 14px; top: -12px; background: var(--surface); padding: 0 8px; display: flex; gap: 8px; align-items: baseline; }
+.group__label b { font-size: 14px; font-weight: 800; }
+.group__label span { font-size: 11.5px; color: var(--text-3); }
+.group__rel { font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; }
+.group__rel::before { content: "→"; color: var(--text-4); font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.grid .node { position: static; min-height: 132px; }
+
+/* panel */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px; }
+@media (min-width: 1200px) { .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); max-height: calc(100vh - 32px); overflow-y: auto; } }
+.eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.panel h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; }
+.panel .desc { color: var(--text-2); }
+.panel .sec { display: flex; flex-direction: column; gap: 8px; }
+.panel .sec > .eyebrow { margin-top: 4px; }
+.qitem { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); }
+.qitem.stop { border-color: var(--bad-border); background: var(--bad-soft); }
+.qitem__top { display: flex; gap: 8px; align-items: flex-start; }
+.qitem__t { font-weight: 700; font-size: 13.5px; line-height: 1.3; }
+.qitem__why { font-size: 12.5px; color: var(--text-2); }
+.qitem__meta { font-size: 11.5px; color: var(--text-3); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.who { font-weight: 700; color: var(--primary-soft-text); }
+.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.plain li { padding-left: 14px; position: relative; font-size: 13px; color: var(--text-2); }
+.plain li::before { content: ""; position: absolute; left: 2px; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--text-4); }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.keyrow { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; font-size: 13px; color: var(--text-2); }
+.keyrow .pill { justify-self: start; }
+
+/* ledger */
+.ledger { display: flex; flex-direction: column; gap: 14px; }
+.ledger__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; align-items: baseline; }
+.ledger__head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.ledger__head p { color: var(--text-3); font-size: 13px; max-width: 72ch; }
+.whos { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.who-col { display: flex; flex-direction: column; gap: 8px; }
+.who-col h3 { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); display: flex; justify-content: space-between; }
+.qcard { text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+.qcard:hover { border-color: var(--border-strong); }
+.qcard.is-on { border-color: var(--bad); box-shadow: 0 0 0 3px rgba(194, 65, 43, .18); }
+.qcard__top { display: flex; gap: 8px; align-items: flex-start; }
+.qcard__t { font-weight: 700; font-size: 13.5px; line-height: 1.3; }
+.qcard__why { font-size: 12.5px; color: var(--text-2); }
+.qcard__parts { display: flex; flex-wrap: wrap; gap: 4px; }
+.part { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.part.stop { background: var(--bad-soft); color: var(--bad-text); font-weight: 600; }
+.qcard__src { font-size: 11.5px; color: var(--text-4); }
+
+@media (max-width: 640px) {
+  .page { padding-inline: 16px; }
+  .top h1 { font-size: 23px; }
+  .stage { padding: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .node { transition: none; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16h13a3 3 0 0 0 3-3V9"/><path d="M4 16V6l6 2v4l6 1"/><path d="M3 20h18"/></svg>
+        </div>
+        <h1>BladeBook C4 map</h1>
+      </div>
+      <p class="lede">The system at three zoom levels. Every box shows whether an open question stops it from being built today. Select a box to see the questions, or a question to see what it holds up.</p>
+    </div>
+    <p class="asof">Design status as of 13 Oct 2026 · from architecture.md, ADR-001 to 030, Blockers-Before-Coding.md, Open-Pending.md and Items to ask Kim About.md</p>
+  </header>
+
+  <section class="found" aria-label="Before any code at all">
+    <span class="found__label">Before any code at all</span>
+    <div class="found__items" id="found"></div>
+    <p class="found__note">These gate every deployable part, so they aren't repeated on each box below. Logic in core/ and the React screens can start before them.</p>
+  </section>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="counts" id="counts"></div>
+  </div>
+
+  <div class="work">
+    <section class="stage" id="stage"></section>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <section class="ledger">
+    <div class="ledger__head">
+      <h2>Open questions, by who answers</h2>
+      <p>Red tags stop a part outright. Amber tags hold up one feature inside a part that can otherwise be built. Select a question to light up the parts it touches in the diagram.</p>
+    </div>
+    <div class="whos" id="whos"></div>
+  </section>
+</div>
+
+<script>
+const WHO = { owner: 'Your decision', kim: 'Ask Kim', test: 'Test in real AWS', research: 'Research', task: 'Task' };
+
+const Q = {
+  B1: { n: '#1', who: 'task', t: 'Commit the design work that isn’t in git', src: 'git status · Open-Pending §13', why: 'Most of the design is untracked or uncommitted: on 13 Oct, 51 untracked paths (ADR-029, ADR-030 and this map among them) and edits to 150 tracked files. Code built on an uncommitted design has nothing to point back to.' },
+  B2: { n: '#2', who: 'owner', t: 'CDK or Terraform?', src: 'ADR-001 A4', why: 'Decides the infra/ folder and its language, the least-privilege CI check (cdk-nag or checkov/tfsec), and how ADR-021/022’s tenant roles are written. Expensive to switch after the first deploy.' },
+  B3: { n: '#3', who: 'task', t: 'Set up the first CI pipeline', src: 'ADR-013 d2', why: 'The test rule (every public class in core/ has a test, mutation testing on core/) only switches on with CI.' },
+  B7: { n: '#7', who: 'owner', t: 'Coach code format: length (5 or 8), alphabet and expiry', src: 'ADR-002 Open · Open-Pending §2 · ADR-016 d2', why: 'Settled 12 Oct: BladeBook generates the code; it is never the coach’s registration number. Still open: its length, characters and lifetime, which shape the CODE# key, code generation at sign-up, the code-entry screen and the WAF lookup limit. Skater share codes (ADR-026) follow the same choice.' },
+  B10: { n: '#10', who: 'kim', k: '§5', t: 'Hand-edited booking prices: drop per-booking editing, or mark hand-set prices so re-pricing skips them?', src: 'ADR-020 Open', why: 'Re-pricing on schedule save would overwrite a price the coach set by hand.' },
+  B11: { n: '#11', who: 'kim', k: '§5', t: 'Per-student price: fixed, a percentage, or an amount off? Does changing it re-price booked lessons? Can 0 mean free?', src: 'ADR-003 · ADR-020', why: 'Today a fixed price replaces every lesson length, so 60 minutes costs the same as 30.' },
+  B12: { n: '#12', who: 'kim', k: '§1', t: 'How big a price change needs a warning?', src: 'ADR-020 d4', why: 'The schedule review has a must-acknowledge warning with no threshold.' },
+  B13: { n: '#13', who: 'owner', t: 'Which function sends the SMS opt-in confirmation?', src: 'ADR-007 d8 · ADR-001 A6 · ADR-009 d9', why: 'Narrowed 12 Oct: texts to families are Phase 2. It still blocks the coach’s own late-cancellation text, which sends the same opt-in confirmation. No function holds sns:Publish where opt-in happens; a stream consumer is suggested.' },
+  B14: { n: '#14', who: 'research', t: 'Toll-free number or 10DLC, and what each needs from someone without a registered business?', src: 'ADR-007 · Open-Pending §10', why: 'No real text can be sent until a number is registered. In MVP that is only the coach’s late-cancellation text; texts to families are Phase 2.' },
+  B17: { n: '#17', who: 'owner', t: 'What does “remove a student” mean? Going forward or retroactive, can the family still book, what do they see?', src: 'Open-Pending §8', why: 'The designs show one reading. Deferred.' },
+  B20: { n: '#20', who: 'kim', k: 'waiting §4', t: 'Unpaid-lesson reminder: after how long, how often, does it repeat?', src: 'ADR-018', why: 'The job is built switched off until this is set. It blocks turning it on, not building it.' },
+  A1: { n: '023 Open', who: 'owner', t: 'Which actions besides a schedule save need a recent sign-in?', src: 'ADR-023 Open', why: 'Candidates: day or week cancellation, removing a student, approve and decline, changing contact or payment details.' },
+  M1: { n: '025 Open', who: 'task', t: 'Design the multi-coach screens', src: 'ADR-025 d7', why: 'Adding a coach, the coach switcher, lessons and payments grouped by coach, and each skater’s coaches, designed for about 10 coaches (no limit, settled 7 Oct). “Also coached by” moved to Phase 2. None is in the Harbor designs yet.' },
+  B21: { n: '#21', who: 'kim', k: '§8', t: 'Shared lessons: pricing, what the booking family cancelling does, and lapsing before the lesson', src: 'ADR-026 P2, P4, P5', why: 'Settled 7 Oct: at most 2 skaters, and a skater can be invited before the coach accepts them but joins only once accepted. A nightly sweep expires invitations once the lesson starts (9 Oct). Shared-lesson prices wait on these answers; private booking is unaffected.' },
+  B22: { n: '#22', who: 'task', t: 'Buy a BladeBook domain, then set up the AWS Organization', src: 'ADR-027 d8', why: 'Production and dev are separate accounts with IAM Identity Center, and dev.<domain> is delegated to the dev account. Tables and Cognito users can’t move accounts later, so this comes before any infrastructure.' },
+  N1: { n: 'Kim §9', who: 'kim', k: '§9', t: 'Skater membership numbers: skaters without one yet, what happens when one expires, and what a US Figure Skating number looks like', src: 'ADR-029 Open · Open-Pending §2b · Kim §9', why: 'Settled 12 Oct: every skater needs a USFSA or USA Hockey number (Canada is Phase 2). BladeBook checks only its shape. Learn-to-skate beginners, lapsed numbers and the figure-skating format rule are still open, and so is why the number is needed (data minimisation).' },
+  R1: { n: 'Kim §11', who: 'kim', k: '§11', t: 'Rink fees: how BladeBook calculates them for each rink’s terms', src: 'ADR-030 d8 · Q_Rink-Fees.md · Open-Pending §3', why: 'Settled 12 Oct: BladeBook calculates the fees, and gross is money received in the calendar year. How to model a percentage, a flat monthly fee, hourly rates and ice types is open, so the financial page’s fee figure waits.' },
+  R3: { n: '023 Open', who: 'owner', t: 'How does the coach reach the rinkside page without a home-screen icon?', src: 'ADR-023 Open · Open-Pending §6', why: 'Candidates: a link in the morning email, a large link on the coach home page, a bookmark.' },
+  S2: { n: '026 Open', who: 'owner', t: 'Recurring shared lesson: can the invited family accept only the dates that work?', src: 'ADR-026 Open · Open-Pending §2a', why: 'One invitation covers a series (d5). Whether a family can accept part of it is undecided.' },
+  S1: { n: '026 Open', who: 'task', t: 'Add share-code rows to the gate tests and re-run them', src: 'ADR-026 · runbooks/database-gate-tests.md', why: 'client-tenant gains a read statement for SKATERCODE# items, so the proven policy has changed.' },
+};
+const FOUNDATION = ['B1', 'B2', 'B3', 'B22'];
+// Decisions recorded since the 6 Oct version of this map.
+const SETTLED = [
+  ['#18 · Kim §6', 'The coach approves every new family, siblings included. The pending step stays; no reminder email, the Students tab shows the pending count (8–9 Oct).'],
+  ['Kim §7', 'A booking made while the coach is saving a schedule change is cancelled and the save goes ahead. The friendlier “just booked” email and its counter are Phase 2 (8–9 Oct).'],
+  ['Cancellation notices', 'From Kim: the coach hears only about cancellations inside their notice period (8 Oct).'],
+  ['Coach code', 'BladeBook generates it; it is never the coach’s registration number. Format still open (#7) (12 Oct).'],
+  ['Skater numbers', 'Required for every skater, USFSA or USA Hockey; Canada is Phase 2 (12 Oct).'],
+  ['Shared lessons', 'At most 2 skaters; invite first, the coach accepts before they join; one invitation covers a series; a nightly invitation sweep (7–9 Oct).'],
+  ['Many coaches', 'No limit per skater; screens designed for about 10; “Also coached by” is Phase 2 (7 Oct).'],
+  ['Texts', 'All texts to families are Phase 2, price-change templates included (was #19). The coach’s late-cancellation text stays (12 Oct).'],
+  ['Payments', 'How a lesson was paid is recorded, optional and coach-only; cash is a type the coach turns on. Rink fees are calculated; gross is money received (9–12 Oct).'],
+  ['#16', 'consumer-student-link sends the decline email for a rejected student; it gains ses:SendEmail and the coach profile read for Reply-To (12 Oct).'],
+  ['Rinkside', 'Runs in an ordinary browser tab; no home-screen use is assumed, so the iPhone check is dropped (12 Oct).'],
+  ['Offline at the rink', 'Offline capture stays in a browser tab. If Safari clears the page after a week away, it says so and reloads its copy once it has signal; queued check-ins are sent as soon as there is signal (13 Oct).'],
+  ['Environments', 'No staging. Production is the only long-running stack; dev is built on demand from one import, in its own AWS account (ADR-027, ADR-028).'],
+];
+
+// refs: comma list of question ids; a trailing ! means it stops the part outright.
+const E = {
+  coach: { kind: 'person', name: 'Coach', desc: 'Runs schedule, roster and payments on the website; records attendance rinkside on a phone.' },
+  family: { kind: 'person', name: 'Client', desc: 'An adult student, or a minor’s guardian. Books and pays for lessons.' },
+  system: { kind: 'system', name: 'BladeBook', tech: 'Serverless on AWS', desc: 'Scheduling, student management and payment reminders for skating coaches.', refs: 'B1!,B2!,B3!,B22!', note: 'More questions sit inside. Open the Containers view to see where.' },
+  ses: { kind: 'external', name: 'Email', tech: 'Amazon SES', desc: 'Confirmations, reminders, change notices, coach reports. Every client always gets email.', refs: '', launch: ['Choose the product’s final name', 'Leave the SES sandbox; bounce and complaint handling'] },
+  sms: { kind: 'external', name: 'Text messages', tech: 'Amazon SNS · opt-in', desc: 'MVP: only the coach’s opt-in late-cancellation text. Texts to families are Phase 2.', refs: 'B14!,B13' },
+
+  'web-coach': { kind: 'container', name: 'Coach website', tech: 'React + TypeScript', desc: 'Schedule editor, week view, roster, payments, profile, and the rinkside check-in page at /coach/rinkside.', refs: 'B10,B11,B12,B17,M1,B21,R1,R3', deps: ['api-coach'], note: 'The rinkside page is its own entry point with its own offline cache, but shares this site’s sign-in and ships with it (ADR-023). Harbor designs exist for every screen, so the UI can start now.' },
+  hosting: { kind: 'container', name: 'Static hosting', tech: 'S3 + CloudFront', desc: 'Serves the coach website (rinkside page included) and the family website.', refs: '' },
+  'web-family': { kind: 'container', name: 'Family website', tech: 'React + TypeScript', desc: 'Coach-code sign-up with skater membership numbers, adding coaches, booking (private or shared), cancellation.', refs: 'B7,B11,M1,B21,N1', deps: ['api-client'], note: 'Harbor designs and demos exist, so the UI can start now. The code-entry screen shows the coach’s initials; photos are Phase 2.' },
+  waf: { kind: 'container', name: 'WAF web ACL', tech: 'AWS WAF · ADR-019', desc: 'On the API stage and the Cognito pool: managed rules, IP reputation, tighter rate limits on sign-up and code lookup.', refs: '', note: 'Cognito supports a WAF association on every feature plan (AWS Cognito developer guide, confirmed 5 Oct). The Cognito rate rule needs a scope-down so it counts only Cognito requests, since the same ACL serves the API.', launch: ['Count-only for two weeks after launch, then block', 'Turn on in dev and re-run the Playwright flows'] },
+  apigw: { kind: 'container', name: 'API Gateway', tech: 'REST API · Cognito authorizer', desc: 'Routes /coach and /client. REST so it can take a WAF. No custom authorizer (ADR-023).', refs: '' },
+  cognito: { kind: 'container', name: 'Cognito user pool', tech: 'Coach / Client groups', desc: 'Owns credentials and recovery. Sessions end after 4 hours at most (refresh-token lifetime).', refs: '', note: 'Signed in for 60 minutes on the coach and family websites and 4 hours on the rinkside page, counted from sign-in. Cognito ends every session at 4 hours; the API enforces the 60-minute limit (ADR-023 d6).' },
+  'api-coach': { kind: 'container', name: 'api-coach', tech: 'Spring Boot 4 · Lambda', desc: 'The coach’s own partition, rinkside routes included, through a per-request tenant role.', refs: 'B10,B11,B12,B13,B17,A1,R1', deps: ['ddb'] },
+  'api-client': { kind: 'container', name: 'api-client', tech: 'Spring Boot 4 · Lambda', desc: 'The family’s account, plus allowlisted writes into the partition of the coach each request is about.', refs: 'B7,B11,B21,N1,S1,S2', deps: ['ddb'] },
+  photos: { kind: 'container', name: 'Photo storage', tech: 'S3 · Phase 2', desc: 'Coach photos: 2 MB cap, resized to 512 px. Moved to Phase 2 on 5 Oct; MVP has no photo upload.', refs: '', later: true },
+  ddb: { kind: 'container', name: 'DynamoDB', tech: 'Single table · on-demand · PITR', desc: 'Every coach and client partition. Tenant isolation, indexes included, verified against a real table on 5 Oct.', refs: '', launch: ['Write the restore runbook', 'Retention windows from the legal review'] },
+  backbone: { kind: 'container', name: 'Event backbone', tech: 'Streams → Pipe → EventBridge · Scheduler', desc: 'Events derived from committed writes, five cron schedules, a monthly table export to S3, one dead-letter queue per consumer.', refs: '' },
+  buckets: { kind: 'container', name: 'Reports & archive', tech: 'S3 · Glacier Deep Archive / Instant Retrieval', desc: 'Daily reports, TTL-expired items, the PII access-log archive (2 years), monthly table exports (12 months).', refs: '', launch: ['Retention windows from the legal review'] },
+  dataload: { kind: 'container', name: 'Data-loading stack', tech: 'Step Functions · transform λ · S3 · ADR-027 d9, ADR-028', desc: 'On request: export, mask, then import into a fresh dev table. Outside the fourteen functions.', refs: '' },
+  workers: { kind: 'container', name: 'Async workers', tech: 'Plain Java handlers · consumers.jar', desc: 'Confirmations, reminders, cancel + re-price, change notices, link and family sync, invitations, archiver, reports, drift check.', refs: 'B21,B10,B11,B13,B14,B17,B20,S2', deps: ['ddb'] },
+
+  'c-schedule': { kind: 'component', name: 'Schedule editor & save', tech: 'api-coach', desc: 'Weekly schedule, time off, special schedules; rink and ice type per tab (Pelham only in Phase 1); skaters per lesson (max 2) per block (ADR-026); impact preview, acceptance, change status.', refs: 'B12!,B10', deps: ['k-repo'], note: 'Kim §7, settled 8 Oct: a booking made after the preview is cancelled and the save goes ahead. The friendlier “just booked” email and the booking counter behind it are Phase 2.' },
+  'c-students': { kind: 'component', name: 'Students & approvals', tech: 'api-coach', desc: 'Roster, pending queue with the count on the Students tab, approve or decline every skater (siblings too), per-student price. Accepting an invited skater also joins them to the shared lesson (ADR-026 d5).', refs: 'B17!,B11,A1', deps: ['k-repo'], note: '#18 settled 8 Oct from Kim (§6): the coach approves each family, so the pending queue and the “pending sees nothing” rule stay. On 9 Oct the owner added that siblings need approval too and there is no reminder email.' },
+  'c-reauth': { kind: 'component', name: 'Sign-in age checks', tech: 'api-coach · ADR-023 d4, d6', desc: 'From the token’s auth_time: 60 minutes for coach-site routes, 4 hours for rinkside routes, 15 minutes for a schedule save.', refs: 'A1' },
+  'c-coach-cancel': { kind: 'component', name: 'Coach cancellation', tech: 'api-coach', desc: 'Cancel a lesson, day or week from the week view or rinkside; release or hold each slot.', refs: 'A1', deps: ['k-repo'] },
+  'c-payments': { kind: 'component', name: 'Payments & lesson list', tech: 'api-coach', desc: 'Lessons in a date range, mark paid or waived with how it was paid, unpaid filter (GSI3), attendance fixes; financial page: calendar-year gross received and rink fees by lesson date, and a CSV summary download (ADR-030).', refs: 'R1', deps: ['k-repo'] },
+  'c-profile': { kind: 'component', name: 'Sign-up & profile', tech: 'api-coach', desc: 'Resumable sign-up, timezone, currency, generated coach code, payment handles and cash, contact toggles, late-cancellation text. Photo is Phase 2.', refs: 'B7!,B13', deps: ['k-repo'] },
+
+  'c-register': { kind: 'component', name: 'Code lookup & registration', tech: 'api-client', desc: 'Find a coach by code before sign-in, then register one or more skaters, each with a membership number checked for shape only.', refs: 'B7!,N1', deps: ['k-repo'] },
+  'c-booking': { kind: 'component', name: 'Availability & booking', tech: 'api-client', desc: 'Open slots computed on read; single or recurring up to 12 months. Private by default; invited skaters join as participants (ADR-026).', refs: 'B11,B21,S1', deps: ['k-repo', 'k-link'] },
+  'c-client-cancel': { kind: 'component', name: 'Cancellation & recurrences', tech: 'api-client', desc: 'Cancel a lesson; end a recurrence earlier, reduce frequency, or cancel all future.', refs: '', deps: ['k-repo', 'k-link'] },
+  'c-invite': { kind: 'component', name: 'Share codes & invitations', tech: 'api-client · ADR-026', desc: 'Look up a skater share code; send, confirm, decline or withdraw an invitation. Joining is one capacity-checked transaction.', refs: 'B21,S1,S2', deps: ['k-repo', 'k-link'] },
+  'c-account': { kind: 'component', name: 'Account & skaters', tech: 'api-client', desc: 'Contact details, skaters and their membership numbers. Texts to families are Phase 2.', refs: 'N1', deps: ['k-repo', 'k-link'] },
+
+  'c-today': { kind: 'component', name: 'Today & attendance', tech: 'api-coach · rinkside', desc: 'Check-in and no-show with device timestamps; idempotent replay of the offline queue.', refs: '', deps: ['k-repo'] },
+  'c-contact': { kind: 'component', name: 'Contact reveal', tech: 'api-coach · rinkside', desc: 'A guardian’s details on a tap, with signal only, never cached, every reveal logged.', refs: '', deps: ['k-repo'] },
+
+  'w-confirm': { kind: 'component', name: 'Booking confirmation', tech: 'on LessonBooked', desc: 'Confirmation email, Reply-To the coach.', refs: '', deps: ['k-repo'] },
+  'w-payrem': { kind: 'component', name: 'Payment reminder', tech: 'on CheckInRecorded', desc: 'Email with payment instructions. Texts to families are Phase 2.', refs: '', deps: ['k-repo'] },
+  'w-schedchange': { kind: 'component', name: 'Schedule change', tech: 'on ScheduleChanged', desc: 'Cancels removed lessons, including any booked since the preview, and re-prices the rest as one change batch.', refs: 'B10!,B11', deps: ['k-repo'] },
+  'w-notifier': { kind: 'component', name: 'Change notifier', tech: 'on LessonsChanged', desc: 'One email per family per batch; cancellations inside the notice period go to the coach, by email and opt-in text.', refs: 'B14', deps: ['k-repo'] },
+  'w-link': { kind: 'component', name: 'Student link sync', tech: 'on StudentChanged', desc: 'Mirrors student changes onto the family’s link item, and emails the decline to a rejected pending family (ADR-002 2b). The list of a skater’s other coaches is Phase 2 (ADR-025 d4).', refs: 'B17', deps: ['k-repo'] },
+  'w-familysync': { kind: 'component', name: 'Family sync', tech: 'on FamilyChanged · ADR-025', desc: 'Copies a family’s contact and skater changes onto every coach’s record of their skaters, and issues each new skater’s share code.', refs: '', deps: ['k-repo'] },
+  'w-invite': { kind: 'component', name: 'Invitations', tech: 'on InviteChanged, StudentChanged · nightly · ADR-026', desc: 'Copies an invitation to the other family and emails them. Nightly: warns about invitations still waiting on the coach and expires those whose lesson has started.', refs: 'B21', deps: ['k-repo'] },
+  'w-optin': { kind: 'component', name: 'SMS opt-in confirmation', tech: 'unassigned', desc: 'The two-segment opt-in text, with program identity and HELP/STOP, for the coach’s late-cancellation alerts.', refs: 'B13!,B14' },
+  'w-photo': { kind: 'component', name: 'Photo resize', tech: 'unassigned', desc: 'Resize uploads to 512 px and drop the original. Phase 2, with photo upload.', refs: '', later: true },
+  'w-archiver': { kind: 'component', name: 'TTL archiver', tech: 'stream, TTL removals only', desc: 'Copies each expired item to the archive bucket, keyed by coach and student.', refs: '', launch: ['Retention windows from the legal review'] },
+  'w-dayof': { kind: 'component', name: 'Day-of reminder', tech: 'Scheduler, ~7:00am', desc: 'One email reminder per skater per lesson. Texts to families are Phase 2.', refs: '', deps: ['k-repo'] },
+  'w-report': { kind: 'component', name: 'End-of-day report', tech: 'Scheduler, ~9:00pm', desc: 'Checked in, no-show, pending; archived to S3 and emailed to the coach.', refs: '', deps: ['k-repo'] },
+  'w-unpaid': { kind: 'component', name: 'Unpaid-lesson reminder', tech: 'Scheduler, weekly', desc: 'Lists lessons unpaid past a threshold. Built switched off.', refs: 'B20', deps: ['k-repo'] },
+  'w-drift': { kind: 'component', name: 'Drift check', tech: 'Scheduler, nightly', desc: 'Read-only. Pages on stuck batches or lessons that should have been cancelled.', refs: '', deps: ['k-repo'] },
+
+  'k-rules': { kind: 'component', name: 'Schedule & calendar rules', tech: 'core', desc: 'Slot expansion, recurrence dates, week arithmetic, conflict test. Shared JSON fixture with web/.', refs: '', note: 'Listed in Blockers-Before-Coding as work that can start now.' },
+  'k-price': { kind: 'component', name: 'Price resolution', tech: 'core', desc: 'Which price a lesson gets at booking and on re-price.', refs: 'B11', note: 'The lesson-length and block parts can start now; the per-student piece waits.' },
+  'k-repo': { kind: 'component', name: 'Repository & AccessContext', tech: 'core.data', desc: 'Every read and write. DynamoDB client comes from the per-request tenant role.', refs: '', deps: ['ddb'], note: 'The database-gate tests passed on 5 Oct 2026 (runbooks/database-gate-tests.md): every tenant role holds, and GSI1 and GSI3 are locked to their owner.' },
+  'k-link': { kind: 'component', name: 'Client link check', tech: 'core.data · ADR-024', desc: 'Writes take a LinkedSkater only core.data can create; existing bookings carry a clientId condition. Failures are logged; patterns page.', refs: '', note: 'Alert thresholds (3 in 15 minutes for one family, 10 a day overall) are configuration and can be changed without a code change.' },
+  'k-sms': { kind: 'component', name: 'SMS composer', tech: 'core', desc: 'GSM-7 only, 160 characters, deterministic truncation. MVP: the coach’s “BladeBook:” late-cancellation text. The “<Coach> via BladeBook:” family templates are Phase 2.', refs: '' },
+  'k-events': { kind: 'component', name: 'Domain events', tech: 'core', desc: 'Event types and serialization: LessonBooked, LessonsChanged, ScheduleChanged and the rest.', refs: '' },
+};
+for (const [id, e] of Object.entries(E)) {
+  e.id = id;
+  e.refs = (e.refs || '').split(',').filter(Boolean).map(r => ({ id: r.replace('!', ''), stop: r.endsWith('!') }));
+  e.status = e.kind === 'person' ? null : e.later ? 'later' : e.refs.some(r => r.stop) ? 'blocked' : e.refs.length ? 'partial' : 'clear';
+}
+
+const C = (c) => 24 + c * 244, W = 214;
+const VIEWS = [
+  {
+    id: 'context', tab: 'System context', lvl: 'L1', type: 'canvas', w: 1000, h: 640,
+    title: 'Level 1 · System context',
+    sub: 'Who uses BladeBook and what it depends on outside itself.',
+    nodes: [
+      { id: 'coach', x: 30, y: 245, w: 220, h: 112 },
+      { id: 'family', x: 750, y: 245, w: 220, h: 112 },
+      { id: 'system', x: 350, y: 215, w: 300, h: 172 },
+      { id: 'ses', x: 150, y: 490, w: 250, h: 120 },
+      { id: 'sms', x: 600, y: 490, w: 250, h: 120 },
+    ],
+    edges: [
+      { f: 'coach', t: 'system', l: 'Runs schedule, roster and payments; checks in rinkside' },
+      { f: 'family', t: 'system', l: 'Signs up with a coach code and skater numbers; books and cancels' },
+      { f: 'system', t: 'ses', l: 'Sends email' },
+      { f: 'system', t: 'sms', l: 'Coach’s late-cancellation texts' },
+      { f: 'ses', t: 'coach', l: 'Email to coaches and families' },
+      { f: 'sms', t: 'family', l: 'Texts to families: Phase 2', dash: true },
+    ],
+    boundaries: [],
+  },
+  {
+    id: 'containers', tab: 'Containers', lvl: 'L2', type: 'canvas', w: 1238, h: 1262,
+    title: 'Level 2 · Containers',
+    sub: 'The deployable pieces inside BladeBook and how requests and events move between them.',
+    nodes: [
+      { id: 'coach', x: C(0), y: 20, w: W, h: 100 },
+      { id: 'family', x: C(3), y: 20, w: W, h: 100 },
+      { id: 'web-coach', x: C(0), y: 196, w: W, h: 128 },
+      { id: 'hosting', x: C(2), y: 196, w: W, h: 128 },
+      { id: 'web-family', x: C(3), y: 196, w: W, h: 128 },
+      { id: 'waf', x: C(0), y: 380, w: 946, h: 64 },
+      { id: 'apigw', x: C(1), y: 500, w: W, h: 128 },
+      { id: 'cognito', x: C(3), y: 500, w: W, h: 128 },
+      { id: 'api-coach', x: C(0), y: 690, w: W, h: 128 },
+      { id: 'api-client', x: C(2), y: 690, w: W, h: 128 },
+      { id: 'photos', x: C(0), y: 880, w: W, h: 128 },
+      { id: 'ddb', x: C(1), y: 880, w: W, h: 128 },
+      { id: 'backbone', x: C(3), y: 880, w: W, h: 150 },
+      { id: 'buckets', x: C(1), y: 1070, w: W, h: 150 },
+      { id: 'workers', x: C(2), y: 1070, w: W, h: 150 },
+      { id: 'dataload', x: C(0), y: 1070, w: W, h: 150 },
+      { id: 'ses', x: C(4), y: 950, w: W, h: 120 },
+      { id: 'sms', x: C(4), y: 1100, w: W, h: 120 },
+    ],
+    edges: [
+      { f: 'coach', t: 'web-coach', l: 'Plans, manages, checks in rinkside' },
+      { f: 'family', t: 'web-family', l: 'Signs up, books' },
+      { f: 'web-coach', t: 'hosting', l: 'Served from' },
+      { f: 'web-family', t: 'hosting', l: 'Served from' },
+      { f: 'web-coach', t: 'waf', l: 'HTTPS / JSON' },
+      { f: 'web-family', t: 'waf', l: 'HTTPS / JSON' },
+      { f: 'waf', t: 'apigw', l: 'API calls' },
+      { f: 'waf', t: 'cognito', l: 'Sign-up, sign-in' },
+      { f: 'apigw', t: 'cognito', l: 'Verifies tokens' },
+      { f: 'apigw', t: 'api-coach', l: '/coach' },
+      { f: 'apigw', t: 'api-client', l: '/client' },
+      { f: 'api-coach', t: 'photos', l: 'Phase 2', dash: true },
+      { f: 'api-coach', t: 'ddb', l: 'coach-tenant role' },
+      { f: 'api-client', t: 'ddb', l: 'client-tenant role' },
+      { f: 'ddb', t: 'backbone', l: 'Change stream' },
+      { f: 'backbone', t: 'workers', l: 'Events, cron' },
+      { f: 'workers', t: 'ddb', l: 'Reads, send state' },
+      { f: 'workers', t: 'buckets', l: 'Reports, archive' },
+      { f: 'workers', t: 'ses', l: 'Email' },
+      { f: 'workers', t: 'sms', l: 'Coach texts' },
+      { f: 'ddb', t: 'dataload', l: 'Export' },
+    ],
+    boundaries: [{ x: 10, y: 172, w: 976, h: 1074, l: 'BladeBook · AWS production account (dev built on demand, ADR-027)' }],
+  },
+  {
+    id: 'components', tab: 'Components', lvl: 'L3', type: 'groups',
+    title: 'Level 3 · Backend components',
+    sub: 'Inside the Lambda functions and the shared core/ module. Every group reaches DynamoDB only through core’s repository.',
+    groups: [
+      { name: 'core/', tech: 'framework-free Java', rel: 'The only package allowed to touch DynamoDB (ArchUnit rule). Used by every group below.', ids: ['k-rules', 'k-price', 'k-repo', 'k-link', 'k-sms', 'k-events'] },
+      { name: 'api-coach', tech: 'Spring Boot 4 · Lambda', rel: 'core/ repository, under the coach-tenant role. Serves the coach website and its rinkside page (ADR-023).', ids: ['c-schedule', 'c-reauth', 'c-students', 'c-coach-cancel', 'c-payments', 'c-profile', 'c-today', 'c-contact'] },
+      { name: 'api-client', tech: 'Spring Boot 4 · Lambda', rel: 'core/ repository under the client-tenant role; every write passes the link check; requests need a sign-in from the last 60 minutes. Code lookup runs under code-lookup before sign-in.', ids: ['c-register', 'c-booking', 'c-invite', 'c-client-cancel', 'c-account'] },
+      { name: 'Async workers', tech: 'consumers.jar · plain RequestHandlers', rel: 'Own execution roles. Each event consumer has a dead-letter queue. The SMS opt-in confirmation has no owner yet; photo resize is Phase 2.', ids: ['w-confirm', 'w-payrem', 'w-schedchange', 'w-notifier', 'w-link', 'w-familysync', 'w-invite', 'w-optin', 'w-photo', 'w-archiver', 'w-dayof', 'w-report', 'w-unpaid', 'w-drift'] },
+    ],
+  },
+];
+
+const KIND = { person: 'Person', system: 'Software system', external: 'External system', container: 'Container', component: 'Component' };
+const STATUS = { blocked: 'Blocked', partial: 'Partly blocked', clear: 'Clear to build', later: 'Phase 2' };
+const $ = (s, r = document) => r.querySelector(s);
+const h = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let state = { view: 'containers', sel: null, q: null };
+try { const v = localStorage.getItem('bb-c4-view'); if (VIEWS.some(x => x.id === v)) state.view = v; } catch (e) {}
+
+function pill(e) {
+  if (!e.status) return '';
+  const stops = e.refs.filter(r => r.stop).length, all = e.refs.length;
+  const txt = e.status === 'blocked' ? `Blocked · ${stops}` : e.status === 'partial' ? `${all} feature${all > 1 ? 's' : ''} waiting` : e.status === 'later' ? 'Phase 2' : 'Clear';
+  return `<span class="pill s-${e.status}"><span class="dot"></span>${txt}</span>`;
+}
+
+function nodeEl(e) {
+  const b = h('button', `node k-${e.kind}${e.status ? ' s-' + e.status : ''}`);
+  b.type = 'button';
+  b.dataset.id = e.id;
+  b.setAttribute('aria-label', `${e.name}${e.status ? ', ' + STATUS[e.status] : ''}`);
+  b.innerHTML = (e.kind === 'person' ? '<span class="head" aria-hidden="true"></span>' : `<span class="node__kind">${KIND[e.kind]}</span>`) +
+    `<span class="node__name">${esc(e.name)}</span>` +
+    (e.tech ? `<span class="node__tech">${esc(e.tech)}</span>` : '') +
+    `<span class="node__desc">${esc(e.desc)}</span>` +
+    (e.status ? `<span class="node__foot">${pill(e)}</span>` : '');
+  b.addEventListener('click', () => select(e.id));
+  return b;
+}
+
+function anchor(n, o) {
+  const c = { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+  if (n.w > 400) c.x = Math.min(Math.max(o.x + o.w / 2, n.x + 30), n.x + n.w - 30);
+  return c;
+}
+function clip(n, c, to) {
+  const dx = to.x - c.x, dy = to.y - c.y, pad = 5;
+  const hx = (dx > 0 ? n.x + n.w - c.x : c.x - n.x) + pad, hy = (dy > 0 ? n.y + n.h - c.y : c.y - n.y) + pad;
+  const s = Math.min(dx ? hx / Math.abs(dx) : Infinity, dy ? hy / Math.abs(dy) : Infinity);
+  return { x: c.x + dx * s, y: c.y + dy * s };
+}
+
+function renderCanvas(v) {
+  const wrap = h('div', 'cwrap'), sizer = h('div', 'csizer'), cv = h('div', 'canvas');
+  cv.style.width = v.w + 'px'; cv.style.height = v.h + 'px';
+  const pos = Object.fromEntries(v.nodes.map(n => [n.id, n]));
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', v.w); svg.setAttribute('height', v.h); svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<defs><marker id="arr-' + v.id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6E7672"/></marker></defs>';
+  for (const b of v.boundaries) {
+    const d = h('div', 'boundary'); Object.assign(d.style, { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px' });
+    d.append(h('span', 'boundary__label', esc(b.l))); cv.append(d);
+  }
+  cv.append(svg);
+  for (const ed of v.edges) {
+    const A = pos[ed.f], B = pos[ed.t];
+    const ca = anchor(A, B), cb = anchor(B, A);
+    const pa = clip(A, ca, cb), pb = clip(B, cb, ca);
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M${pa.x},${pa.y} L${pb.x},${pb.y}`);
+    p.setAttribute('class', 'edge' + (ed.dash ? ' dash' : ''));
+    p.setAttribute('marker-end', `url(#arr-${v.id})`);
+    p.dataset.f = ed.f; p.dataset.t = ed.t;
+    svg.append(p);
+    if (ed.l) {
+      const lab = h('div', 'elabel', esc(ed.l));
+      lab.style.left = (pa.x + pb.x) / 2 + 'px'; lab.style.top = (pa.y + pb.y) / 2 + 'px';
+      cv.append(lab);
+    }
+  }
+  for (const n of v.nodes) {
+    const b = nodeEl(E[n.id]);
+    Object.assign(b.style, { left: n.x + 'px', top: n.y + 'px', width: n.w + 'px', height: n.h + 'px' });
+    if (n.w > 400) { b.style.flexDirection = 'row'; b.style.alignItems = 'center'; b.style.gap = '14px'; b.style.flexWrap = 'wrap'; }
+    cv.append(b);
+  }
+  sizer.append(cv); wrap.append(sizer);
+  const fit = () => {
+    const avail = wrap.clientWidth || v.w;
+    const s = Math.max(Math.min(1, avail / v.w), 0.62);
+    cv.style.transform = `scale(${s})`;
+    sizer.style.width = v.w * s + 'px'; sizer.style.height = v.h * s + 'px';
+  };
+  new ResizeObserver(fit).observe(wrap);
+  requestAnimationFrame(fit);
+  return wrap;
+}
+
+function renderGroups(v) {
+  const box = h('div', 'groups');
+  for (const g of v.groups) {
+    const gr = h('div', 'group');
+    gr.append(h('div', 'group__label', `<b>${esc(g.name)}</b><span>${esc(g.tech)}</span>`));
+    gr.append(h('div', 'group__rel', `<span>${esc(g.rel)}</span>`));
+    const grid = h('div', 'grid');
+    g.ids.forEach(id => grid.append(nodeEl(E[id])));
+    gr.append(grid); box.append(gr);
+  }
+  return box;
+}
+
+function viewIds(v) { return v.type === 'canvas' ? v.nodes.map(n => n.id) : v.groups.flatMap(g => g.ids); }
+
+function renderTabs() {
+  const t = $('#tabs'); t.innerHTML = '';
+  for (const v of VIEWS) {
+    const b = h('button', 'tab', `${esc(v.tab)} <small>${v.lvl}</small>`);
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', v.id === state.view);
+    b.addEventListener('click', () => { state.view = v.id; state.sel = null; try { localStorage.setItem('bb-c4-view', v.id); } catch (e) {} render(); });
+    t.append(b);
+  }
+}
+
+function renderCounts(v) {
+  const ids = viewIds(v).filter(id => E[id].status);
+  const n = s => ids.filter(id => E[id].status === s).length;
+  $('#counts').innerHTML = ['blocked', 'partial', 'clear'].map(s =>
+    `<span class="count s-${s}"><span class="dot"></span><b>${n(s)}</b> ${STATUS[s].toLowerCase()}</span>`).join('');
+}
+
+function renderStage() {
+  const v = VIEWS.find(x => x.id === state.view);
+  const st = $('#stage'); st.innerHTML = '';
+  const head = h('div', 'stage__head');
+  head.innerHTML = `<div><h2>${esc(v.title)}</h2><p>${esc(v.sub)}</p></div>
+    <div class="legend"><span><span class="dot s-blocked"></span>Blocked: a question stops it</span><span><span class="dot s-partial"></span>Partly: start now, features wait</span><span><span class="dot s-clear"></span>Clear</span></div>`;
+  st.append(head);
+  st.append(v.type === 'canvas' ? renderCanvas(v) : renderGroups(v));
+  renderCounts(v);
+  applyMarks();
+}
+
+function qBlock(r) {
+  const q = Q[r.id];
+  return `<div class="qitem${r.stop ? ' stop' : ''}">
+    <div class="qitem__top"><span class="qid${r.stop ? '' : ' soft'}">${esc(q.n)}</span><span class="qitem__t">${esc(q.t)}</span></div>
+    <span class="qitem__why">${esc(q.why)}</span>
+    <span class="qitem__meta"><span class="who">${WHO[q.who]}${q.k ? ' ' + esc(q.k) : ''}</span><span>${esc(q.src)}</span></span></div>`;
+}
+
+function renderPanel() {
+  const p = $('#panel');
+  const e = state.sel && E[state.sel];
+  if (!e) {
+    const v = VIEWS.find(x => x.id === state.view);
+    p.innerHTML = `<span class="eyebrow">How to read this</span>
+      <h3>Select any box</h3>
+      <p class="desc">The panel shows what the part is, the open questions that belong to it, and the blocked parts it depends on.</p>
+      <div class="sec"><span class="eyebrow">Status</span>
+        <div class="keyrow"><span class="pill s-blocked"><span class="dot"></span>Blocked</span><span>An open question changes the shape of this part. Building it now risks rework.</span>
+        <span class="pill s-partial"><span class="dot"></span>Partly</span><span>The part can be built. One or more features inside it wait on an answer.</span>
+        <span class="pill s-clear"><span class="dot"></span>Clear</span><span>No open question of its own. It may still depend on a blocked part.</span></div></div>
+      <div class="sec"><span class="eyebrow">Notation</span>
+        <ul class="plain"><li>Rounded-top boxes are people.</li><li>Dashed boxes are outside systems.</li><li>Dashed outlines group what deploys together.</li><li>The rinkside check-in page is part of the coach website (ADR-023).</li><li>The foundation items at the top gate every deployable part and aren’t repeated on each box.</li></ul></div>
+      <div class="sec"><span class="eyebrow">Can start today</span>
+        <ul class="plain"><li>Framework-free logic in core/: slot expansion, recurrence dates, week arithmetic, the conflict test.</li><li>The React screens against the Harbor designs and demos.</li><li>The repository in core.data: the database-gate tests passed on 5 Oct.</li></ul></div>
+      <div class="sec"><span class="eyebrow">Settled since 6 Oct</span>
+        <ul class="plain">${SETTLED.map(([k, t]) => `<li><b>${esc(k)}</b>: ${esc(t)}</li>`).join('')}</ul></div>`;
+    return;
+  }
+  const stops = e.refs.filter(r => r.stop), feats = e.refs.filter(r => !r.stop);
+  const deps = (e.deps || []).map(d => E[d]).filter(d => d.status === 'blocked');
+  let html = `<span class="eyebrow">${KIND[e.kind]}${e.tech ? ' · ' + esc(e.tech) : ''}</span>
+    <h3>${esc(e.name)}</h3>${e.status ? `<div>${pill(e)}</div>` : ''}
+    <p class="desc">${esc(e.desc)}</p>`;
+  if (e.note) html += `<p class="desc" style="color:var(--primary-soft-text)">${esc(e.note)}</p>`;
+  if (stops.length) html += `<div class="sec"><span class="eyebrow">Stops it from being built</span>${stops.map(qBlock).join('')}</div>`;
+  if (feats.length) html += `<div class="sec"><span class="eyebrow">Holds up a feature inside it</span>${feats.map(qBlock).join('')}</div>`;
+  if (deps.length) html += `<div class="sec"><span class="eyebrow">Also waits on</span><ul class="plain">${deps.map(d => `<li><button class="linkbtn" data-go="${d.id}">${esc(d.name)}</button>, which is blocked</li>`).join('')}</ul></div>`;
+  if (e.launch) html += `<div class="sec"><span class="eyebrow">Before launch, not before coding</span><ul class="plain">${e.launch.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
+  if (e.status === 'later') html += `<p class="desc">Moved to Phase 2 by the owner on 5 Oct 2026. Nothing in MVP needs it.</p>`;
+  if (e.status === 'clear' && !deps.length && !e.launch) html += `<p class="desc">Nothing open stops this part.</p>`;
+  if (e.kind === 'person') html += `<p class="desc">People carry no build status.</p>`;
+  html += `<div><button class="linkbtn" data-go="">Clear selection</button></div>`;
+  p.innerHTML = html;
+  p.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => select(b.dataset.go || null, true)));
+}
+
+function select(id, jump) {
+  state.sel = state.sel === id ? null : id;
+  if (jump && id) {
+    const here = viewIds(VIEWS.find(v => v.id === state.view));
+    if (!here.includes(id)) { const v = VIEWS.find(x => viewIds(x).includes(id)); if (v) { state.view = v.id; renderTabs(); renderStage(); } }
+  }
+  renderPanel(); applyMarks();
+}
+
+function applyMarks() {
+  const hitIds = state.q ? Object.values(E).filter(e => e.refs.some(r => r.id === state.q)).map(e => e.id) : null;
+  document.querySelectorAll('#stage .node').forEach(n => {
+    const id = n.dataset.id;
+    n.classList.toggle('is-sel', id === state.sel);
+    n.setAttribute('aria-pressed', id === state.sel);
+    n.classList.toggle('hit', !!hitIds && hitIds.includes(id));
+    n.classList.toggle('dim', !!hitIds && !hitIds.includes(id));
+  });
+  document.querySelectorAll('.qcard').forEach(c => c.classList.toggle('is-on', c.dataset.q === state.q));
+}
+
+function partsFor(qid) {
+  return Object.values(E).filter(e => e.refs.some(r => r.id === qid) && e.kind !== 'system')
+    .map(e => ({ e, stop: e.refs.find(r => r.id === qid).stop }))
+    .sort((a, b) => (b.stop - a.stop));
+}
+
+function renderLedger() {
+  const order = ['kim', 'owner', 'test', 'research', 'task'];
+  const box = $('#whos'); box.innerHTML = '';
+  for (const w of order) {
+    const qs = Object.entries(Q).filter(([id, q]) => q.who === w && !FOUNDATION.includes(id));
+    if (!qs.length) continue;
+    const col = h('div', 'who-col');
+    col.append(h('h3', null, `<span>${WHO[w]}</span><span class="mono">${qs.length}</span>`));
+    for (const [id, q] of qs) {
+      const parts = partsFor(id);
+      const anyStop = parts.some(p => p.stop);
+      const c = h('button', 'qcard');
+      c.type = 'button'; c.dataset.q = id;
+      c.innerHTML = `<span class="qcard__top"><span class="qid${anyStop ? '' : ' soft'}">${esc(q.n)}</span><span class="qcard__t">${esc(q.t)}</span></span>
+        <span class="qcard__why">${esc(q.why)}</span>
+        <span class="qcard__parts">${parts.map(p => `<span class="part${p.stop ? ' stop' : ''}">${esc(p.e.name)}</span>`).join('')}</span>
+        <span class="qcard__src">${w === 'kim' && q.k ? 'Items to ask Kim ' + esc(q.k) + ' · ' : ''}${esc(q.src)}</span>`;
+      c.addEventListener('click', () => { state.q = state.q === id ? null : id; applyMarks(); });
+      col.append(c);
+    }
+    box.append(col);
+  }
+}
+
+function renderFoundation() {
+  $('#found').innerHTML = FOUNDATION.map(id => `<button class="qchip" type="button" data-f="${id}"><span class="qid">${Q[id].n}</span>${esc(Q[id].t)}</button>`).join('');
+  document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+    state.view = 'context'; state.sel = null; renderTabs(); renderStage(); select('system');
+  }));
+}
+
+function render() { renderTabs(); renderStage(); renderPanel(); }
+renderFoundation(); renderLedger(); render();
+</script>
+
+</body></html>
