@@ -12,6 +12,12 @@ Header: "My bookings", the coach's name, and a "Book a lesson" button.
 Skater filter: shown when the family has more than one approved skater. "Everyone" plus one choice per
 skater. Filters every section below.
 
+*Coach filter (owner, 2026-10-13; ADR-025 o; bookings-coach-filter.html):* a "Coach" dropdown beside the skater
+filter, "All coaches" by default. It lists only coaches with upcoming lessons and is shown once two or more coaches
+have them. It combines with the skater filter (e.g. Mia with Coach Ben) and filters every section below.
+With more than one coach, the header says "Lessons with all your coaches" and each lesson names its coach.
+When the filters leave nothing: "Nothing booked for <skater> with Coach <name>" and a "Show everything" button.
+
 Upcoming:
   Every lesson that hasn't started yet, soonest first. Shows the first 10, with "Show all" to see the rest.
   Each row: the date, day and time, the skater's first name, the lesson length and price.

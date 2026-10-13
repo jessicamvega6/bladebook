@@ -22,3 +22,15 @@
   .bb .ac-code { padding-left: 20px; }
   .bb .ac-code__btns { margin-left: 0; }
 }
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }

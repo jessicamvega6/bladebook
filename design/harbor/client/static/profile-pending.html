@@ -745,6 +745,18 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .ac-code { padding-left: 20px; }
   .bb .ac-code__btns { margin-left: 0; }
 }
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
 .bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
@@ -782,7 +794,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .dialog .check, .bb .dialog .summary, .bb .dialog .grid2 { text-align: left; }
 .bb .bk-hero--warn .hero__icon { background: var(--warning-soft); color: var(--warning); }
 .bb .bk-series .series { min-width: 0; }
-.bb .bk-filter { display: flex; }
+.bb .bk-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .bb .bk-dateblock--past { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
 .bb .bk-opt { display: flex; flex-direction: column; gap: 10px; }
 .bb .bk-opt + .bk-opt { margin-top: 10px; }
@@ -806,6 +818,31 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .dialog { width: calc(100% - 24px); max-width: 440px; top: 80px; padding: 20px; }
   .bb .dialog .grid2 { grid-template-columns: minmax(0, 1fr); }
 }
+/* Many coaches (ADR-025): the coach dropdown, picks grouped by coach, and clashes with another coach's lessons. */
+.bb .bk-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-coachsel { width: auto; min-width: 210px; height: 40px; border-radius: 999px; font-weight: var(--w-bold); }
+.bb .bk-pickcoach { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 4px 0 6px; font-size: 13px; }
+.bb .bk-pickcoach span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .picks + .bk-pickcoach { margin-top: 14px; }
+.bb .bk-total-note { font-size: 13px; color: var(--text-2); font-weight: var(--w-med); }
+.bb .slot.bk-clash { border-color: var(--warning-border); box-shadow: inset 3px 0 0 var(--warning); }
+.bb .slot .bk-clash__note { display: inline-flex; align-items: center; gap: 4px; color: var(--warning-text, var(--text-2)); font-weight: var(--w-med); }
+.bb .slot--mine .bk-clash__note { color: var(--on-primary); }
+.bb .bk-pick--clash { box-shadow: inset 3px 0 0 var(--warning); }
+.bb .bk-dlist__h { margin: 12px 0 6px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); text-align: left; }
+.bb .bk-dlist + .bk-dlist__h { margin-top: 14px; }
+.bb .bk-clashes { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+@media (max-width: 760px) { .bb .bk-coachsel { min-width: 0; width: 100%; } .bb .bk-pickers > .picker { width: 100%; } }
+.bb .total:has(.bk-total-note) { flex-wrap: wrap; gap: 4px 12px; }
+.bb .total span { white-space: nowrap; }
+.bb .slot.bk-clash .slot__time { white-space: nowrap; }
+.bb .dialog > * { flex-shrink: 0; }
+/* Result split by coach (owner, 2026-10-13). */
+.bb .bk-rescoach { display: flex; align-items: center; gap: 12px; margin: 8px 0 -4px; }
+.bb .bk-rescoach > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bb .bk-rescoach b { font-size: 16px; }
+.bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
+.bb .dialog .summary__note + .summary__note { margin-top: 6px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -820,7 +857,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook client website · Harbor · Profile</span><b>Profile — waiting for approval</b><span class="sp-bar__note">New. The same profile for a family still waiting; this is most of what they can see.</span><nav class="sp-bar__nav"><a href="profile.html">← Profile</a><a href="index.html">All pages</a><a href="profile-remove-skater.html">Profile — remove a skater →</a></nav></header>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Profile</span><b>Profile — waiting for approval</b><span class="sp-bar__note">New. The same profile for a family still waiting; this is most of what they can see.</span><nav class="sp-bar__nav"><a href="profile-coach-sent.html">← Profile — coach added, waiting</a><a href="index.html">All pages</a><a href="profile-remove-skater.html">Profile — remove a skater →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--family">
     <header class="nav"><a class="brand" href="home.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
       <nav class="nav__items" aria-label="Main"><a class="nav__item" href="home.html"><span>Home</span></a><a class="nav__item is-active" href="profile.html" aria-current="page"><span>Profile</span></a></nav>
@@ -835,6 +872,7 @@ html, body { margin: 0; background: var(--sp-bg); }
     <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Skaters</h2><p class="card__sub">Everyone who takes lessons with Coach Dana.</p></div></header><div class="card__body"><div class="row"><div class="row__main"><span class="avatar avatar--sm">AP</span><div class="row__title">Ava Park</div><div class="row__sub">Under 18 · U.S. Figure Skating <span class="mono">#3318246</span></div></div><div class="row__side"><span class="badge badge--warning"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Waiting for approval</span><button type="button" class="btn btn--ghost btn--sm" data-act="acRemoveOpen" data-arg='[&quot;p1&quot;]'><span>Remove</span></button></div></div><div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">AVA-8TQW</span><span class="ac-code__btns"><button type="button" class="btn btn--ghost btn--sm" data-act="acCopyCode" data-arg='[&quot;p1&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span></button><button type="button" class="btn btn--ghost btn--sm" data-act="acNewCodeOpen" data-arg='[&quot;p1&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg><span>New code</span></button></span></div><div class="row"><div class="row__main"><span class="avatar avatar--sm">JP</span><div class="row__title">Jack Park</div><div class="row__sub">Under 18 · USA Hockey <span class="mono">#2027HN7342PW6R</span></div></div><div class="row__side"><span class="badge badge--warning"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Waiting for approval</span><button type="button" class="btn btn--ghost btn--sm" data-act="acRemoveOpen" data-arg='[&quot;p2&quot;]'><span>Remove</span></button></div></div><div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">JACK-4MVD</span><span class="ac-code__btns"><button type="button" class="btn btn--ghost btn--sm" data-act="acCopyCode" data-arg='[&quot;p2&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span></button><button type="button" class="btn btn--ghost btn--sm" data-act="acNewCodeOpen" data-arg='[&quot;p2&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg><span>New code</span></button></span></div>
       <div class="card__note"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> To share a lesson, give a skater’s share code to the other family. They enter it when they book.</div>
       <button type="button" class="addrow" data-act="acAddStart"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add a skater</button></div></section>
+    <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Your coaches</h2><p class="card__sub">Each coach approves your skaters and sets their own times and prices.</p></div></header><div class="card__body"><div class="row"><div class="row__main"><span class="avatar avatar--sm">DW</span><div class="row__title">Coach Dana Whitfield</div><div class="row__sub">Figure skating · Ava (waiting), Jack (waiting)</div></div><div class="row__side"><span class="badge badge--warning"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Waiting for approval</span></div></div><button type="button" class="addrow" data-act="acCoachStart"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add a coach</button></div></section>
     <div class="actions"><div></div><div class="actions__r"><button type="button" class="btn btn--ghost" data-act="acLogout"><span>Log out</span></button><button type="button" class="btn btn--primary" data-act="acSave"><span>Save</span></button></div></div></div></main></div></div></div>
 </body>
 </html>

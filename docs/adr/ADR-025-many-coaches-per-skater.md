@@ -40,6 +40,59 @@ only exception to keeping coaches' data apart out of MVP.
 `SKATER#` item gains `skatingOrg` and `registrationNumber`, required for every skater and copied
 to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
 
+**Amended — 2026-10-13.** *Decided by the owner.* **Booking with more than one coach**
+(decisions 3, 5 and 7). Designed in `design/harbor/client/` (`book-*-coach-*`, `book-*-two-coaches`).
+
+- **a. One coach at a time.** The booking pages have a **Coach** dropdown listing the coaches
+  the selected skater is with. A coach still to approve that skater is listed but can't be
+  picked. **Switching coach keeps the times already picked with other coaches**; switching
+  skater clears them, as before. *Your picks* groups the picks by coach with a total for each,
+  never one total across coaches.
+- **b. What counts as a clash** (decision 5): any overlap in time. Lessons that only touch
+  (one ends at 8:00, the next starts at 8:00) don't clash. Allowing travel time between rinks
+  is **Phase 3**.
+- **c. One Repeat and one Until for the whole booking.** They apply to every pick, whichever
+  coach it's with.
+- **d. Notice periods differ by coach.** Both booking pages show the selected coach's
+  cancellation notice period. The confirm pop-up doesn't list each coach's terms; when the
+  family has more than one coach it says *"Coaches can have different cancellation notice
+  periods."*
+- **e. Each coach's booking succeeds or fails on its own.** A booking across coaches is one
+  request per coach (decision 3). The result page has **one section per coach**. If one
+  coach's request fails, that section says nothing was booked with them and offers **Try
+  again**, which resends only that coach's picks. A time already booked for the skater is
+  recognised and never booked twice (ADR-006 d4b).
+- **f. The clash warning goes to the family only.** It can miss a clash made a second or two
+  earlier (decision 5); that's accepted for now. The coach isn't told. Revisit when coaches can
+  book on a family's behalf (Phase 2, ADR-009).
+- **g. One coach removing a skater, or cancelling their lessons, doesn't affect the skater's
+  lessons with other coaches.** (Narrows blocker #17.)
+
+**Amended again — 2026-10-13.** *Decided by the owner.* **The rest of the family website**
+(decisions 2, 3 and 7):
+
+- **h. Several coach codes at sign-up are MVP**, not Phase 2. The first step takes one code
+  and offers *Add another coach*; each skater then ticks which of those coaches they join and
+  waits for each one separately. (Only the disclosure line about other coaches stays Phase 2,
+  with decision 4.)
+- **i. A family is "waiting" only until any coach approves any of its skaters** (decision 3 and
+  ADR-022 d6, applied to the whole site). After that it sees the whole site; a coach still to
+  approve is named wherever it matters (a Home banner per waiting coach, the Coach dropdown,
+  the profile), and nothing of that coach is shown — no times, contact details or booking.
+  Every waiting message names the coach or coaches, never only one.
+- **j. Home shows one card per coach.** An approved coach's card shows the contact details
+  that coach switched on; a coach still to approve shows none.
+- **k. Adding a skater on the profile asks which coaches they join** (when the family has more
+  than one). The new skater waits for each coach picked.
+- **l. Shared-lesson invitations name their coach** on every family page (home banner,
+  invitations card, invitation page). The invitation emails already did.
+- **m. Payments (Phase 2) are grouped by coach**, never totalled across coaches (as d7 says).
+- **n. Removing a skater from one coach or from all** stays deferred with the "delete a
+  student" question (blocker #17).
+- **o. My bookings has a coach filter** *(owner, 2026-10-13)*: a Coach dropdown beside the
+  skater filter, "All coaches" by default, listing only coaches with upcoming lessons. The two
+  filters combine.
+
 ---
 
 ## Context
@@ -192,7 +245,9 @@ That's acceptable for a contact change; it doesn't widen anyone's access.
 | Payments owed | **Grouped by coach, never totalled across them.** Coaches may use different currencies (USD and CAD), and each family pays each coach directly. |
 | Skaters | Each skater lists their coaches and the status with each (*Approved*, *Waiting for Coach Sam*). |
 
-None of these screens is in the Harbor designs yet.
+*2026-10-13:* booking (the coach switcher), sign-up with several codes, Home's coach cards,
+the waiting pages and the profile's coaches are in the Harbor designs; My lessons labels each
+lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 2) is not yet.
 
 ---
 
@@ -235,7 +290,10 @@ None of these screens is in the Harbor designs yet.
 - *(Phase 2)* `otherCoaches` appears on both coaches' records only when the skater is `ACTIVE`
   with both, and disappears when one link is removed.
 - A booking that overlaps the skater's lesson with another coach returns the clash for a
-  warning and still books when confirmed.
+  warning and still books when confirmed. Lessons that only touch return no clash.
+- A booking across two coaches where one coach's request fails leaves the other coach's
+  lessons booked; retrying the failed coach books only theirs, and nothing twice.
+- A coach removing a skater leaves the skater's lessons with other coaches untouched.
 - A contact change reaches every coach's `STUDENT#` copy; a duplicate `FamilyChanged`
   delivery has one effect.
 
@@ -245,10 +303,13 @@ None of these screens is in the Harbor designs yet.
 
 - ~~**Is there a limit on coaches per skater?**~~ **Settled by the owner, 2026-10-07: no
   limit.** A skater signs up with 1 to 10 coaches and adds more as needed.
-- **Designs for the new screens** (decision 7), for about 10 coaches. *"Also coached by"* on the
-  coach side is Phase 2.
+- **Designs for the new screens** (decision 7), for about 10 coaches. *Booking and the
+  profile's coaches designed 2026-10-13*, then sign-up, Home and the waiting pages the same
+  day. Payments (Phase 2) is still to do; per-coach removal
+  is deferred (n). *"Also coached by"* on the coach side is Phase 2.
 - **What the family sees when one coach removes their skater** while another coach keeps them.
-  Part of blocker #17.
+  Part of blocker #17. *2026-10-13: the other coaches' lessons aren't affected (g); what the
+  family sees is still open.*
 
 ---
 

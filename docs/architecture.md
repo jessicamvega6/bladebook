@@ -1661,6 +1661,8 @@ delivery confirmation needs SES event destinations and is not in MVP.
   is fixed to PCC.
 - **"Also coached by"** — a coach sees the names of a skater's other coaches (ADR-025 d4),
   with a one-off backfill of `otherCoaches` when it ships.
+- **Phase 3: travel time between rinks in the clash check.** MVP warns only about lessons that
+  overlap in time (ADR-025, amended 2026-10-13).
 - **Applying a saved schedule** — the second half of ADR-008's optional Name field.
 - **Recurrence extension** — moving a recurrence's end date *later*, which re-runs
   materialization. MVP only moves it earlier (ADR-009 decision 4).

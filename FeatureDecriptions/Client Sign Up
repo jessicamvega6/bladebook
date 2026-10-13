@@ -75,5 +75,14 @@ The family is emailed when the coach approves. Booking opens for each skater onc
 Profile Icon selection: A list of images uploaded by system phase 2
 
 
-Clients can have more than one coach. ~~And at signup they put in all of their coaches codes.~~
-*Design:* sign-up takes one coach code. Entering several coaches at sign-up is Phase 2 (ADR-025, amended 2026-10-06).
+Clients can have more than one coach. And at signup they put in all of their coaches codes.
+~~*Design:* sign-up takes one coach code. Entering several coaches at sign-up is Phase 2 (ADR-025, amended 2026-10-06).~~
+*Decided 2026-10-13: several coaches at sign-up is MVP (ADR-025 h). Design: signup-1-two-coaches.html,
+signup-4-skaters-two-coaches.html, signup-5-waiting-two-coaches.html.*
+  Step 1: each coach found is listed with a Remove button. Under the code box, "Add another coach" keeps the coach
+    just found and clears the box for the next code. A code already on the list says so. Continue reads
+    "Continue with <name>" for one coach, "Continue with N coaches" for more.
+  Step 4: with more than one coach, each skater has "Which coaches?" checkboxes, all ticked to start; at least one
+    is needed. The skater list shows each skater's coaches. The button reads "Send to your coaches".
+  Step 5: each skater lists each coach they're waiting for. Booking with a coach opens once that coach approves.
+  The adult skating themselves also picks which coaches.

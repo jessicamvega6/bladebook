@@ -16,7 +16,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 37 pages. |
+| `client/` | The family website: 48 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
 ## Coach website — `coach/`
@@ -77,6 +77,14 @@ The demo bar switches between **Grace Chen** (approved; parent of Mia and Noah) 
 schedule, open times or coach contact details (ADR-022 d6). **Tom Okafor** is the invited family: Grace invited his
 Zoe, who skates with another coach, to share Mia's Friday 8:30 lesson; Tom confirmed, so Zoe waits for Coach Dana's
 approval and both homes show the red shared-lesson banner (ADR-026 d5a).
+
+**More than one coach (ADR-025):** Grace's Mia and Noah also skate with **Coach Ben Ortiz** (power skating;
+48-hour notice), and Noah is waiting for **Coach Lauren Hayes**. These coaches exist only in the family demo. The
+booking pages have a Coach dropdown; picks are kept across coaches; clashes are warned about; the result has a
+section per coach, including one where Coach Ben's booking didn't go through. The profile adds a coach with a code
+(try `MARC-6P2D`), and adding a skater asks which coaches they join. Sign-up takes several coach codes
+(`DANA-7K2Q`, `BENO-4R8T`, `LAUR-3J9W`, `MARC-6P2D`). Home has one card per coach, and a family is "waiting" only
+until any coach approves a skater.
 
 Removing an approved skater from the profile cancels their upcoming lessons, which is one
 reading of the open "delete a student" decision.

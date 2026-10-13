@@ -745,6 +745,18 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .ac-code { padding-left: 20px; }
   .bb .ac-code__btns { margin-left: 0; }
 }
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
 .bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
@@ -782,7 +794,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .dialog .check, .bb .dialog .summary, .bb .dialog .grid2 { text-align: left; }
 .bb .bk-hero--warn .hero__icon { background: var(--warning-soft); color: var(--warning); }
 .bb .bk-series .series { min-width: 0; }
-.bb .bk-filter { display: flex; }
+.bb .bk-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .bb .bk-dateblock--past { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
 .bb .bk-opt { display: flex; flex-direction: column; gap: 10px; }
 .bb .bk-opt + .bk-opt { margin-top: 10px; }
@@ -806,6 +818,31 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .dialog { width: calc(100% - 24px); max-width: 440px; top: 80px; padding: 20px; }
   .bb .dialog .grid2 { grid-template-columns: minmax(0, 1fr); }
 }
+/* Many coaches (ADR-025): the coach dropdown, picks grouped by coach, and clashes with another coach's lessons. */
+.bb .bk-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-coachsel { width: auto; min-width: 210px; height: 40px; border-radius: 999px; font-weight: var(--w-bold); }
+.bb .bk-pickcoach { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 4px 0 6px; font-size: 13px; }
+.bb .bk-pickcoach span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .picks + .bk-pickcoach { margin-top: 14px; }
+.bb .bk-total-note { font-size: 13px; color: var(--text-2); font-weight: var(--w-med); }
+.bb .slot.bk-clash { border-color: var(--warning-border); box-shadow: inset 3px 0 0 var(--warning); }
+.bb .slot .bk-clash__note { display: inline-flex; align-items: center; gap: 4px; color: var(--warning-text, var(--text-2)); font-weight: var(--w-med); }
+.bb .slot--mine .bk-clash__note { color: var(--on-primary); }
+.bb .bk-pick--clash { box-shadow: inset 3px 0 0 var(--warning); }
+.bb .bk-dlist__h { margin: 12px 0 6px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); text-align: left; }
+.bb .bk-dlist + .bk-dlist__h { margin-top: 14px; }
+.bb .bk-clashes { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+@media (max-width: 760px) { .bb .bk-coachsel { min-width: 0; width: 100%; } .bb .bk-pickers > .picker { width: 100%; } }
+.bb .total:has(.bk-total-note) { flex-wrap: wrap; gap: 4px 12px; }
+.bb .total span { white-space: nowrap; }
+.bb .slot.bk-clash .slot__time { white-space: nowrap; }
+.bb .dialog > * { flex-shrink: 0; }
+/* Result split by coach (owner, 2026-10-13). */
+.bb .bk-rescoach { display: flex; align-items: center; gap: 12px; margin: 8px 0 -4px; }
+.bb .bk-rescoach > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bb .bk-rescoach b { font-size: 16px; }
+.bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
+.bb .dialog .summary__note + .summary__note { margin-top: 6px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -820,14 +857,15 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook client website · Harbor · Sign up</span><b>1 · Coach code — no match</b><span class="sp-bar__note">New state. A full-length code that matches no coach; the error says what to do.</span><nav class="sp-bar__nav"><a href="signup-1-code-found.html">← 1 · Coach code — found</a><a href="index.html">All pages</a><a href="signup-2-details.html">2 · Your details →</a></nav></header>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Sign up</span><b>1 · Coach code — no match</b><span class="sp-bar__note">New state. A full-length code that matches no coach; the error says what to do.</span><nav class="sp-bar__nav"><a href="signup-1-code-found.html">← 1 · Coach code — found</a><a href="index.html">All pages</a><a href="signup-1-two-coaches.html">1 · Coach code — a second coach →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--wizard">
     <header class="wbar"><span class="brand"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></span><span class="wbar__ctx">Family sign up</span><span class="wbar__right">Already have an account? <a class="link" href="login.html">Log in</a></span></header>
     <main class="wmain"><ol class="stepper"><li class="step step--current"><span class="step__dot">1</span><span class="step__label">Coach code</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--todo"><span class="step__dot">2</span><span class="step__label">Your details</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--todo"><span class="step__dot">3</span><span class="step__label">Verify email</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--todo"><span class="step__dot">4</span><span class="step__label">Skaters</span></li><li class="step__line" aria-hidden="true"></li><li class="step step--todo"><span class="step__dot">5</span><span class="step__label">Done</span></li></ol><div class="wgrid"><div class="wcol"><section class="card"><div class="card__body">
-    <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
+    <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you. More than one coach? Add each one’s code.</p>
+    
     <div class="field field--error"><label class="label" for="ac-code">Coach code</label><input id="ac-code" class="ctl is-error mono" type="text" value="DANA-7K2X" data-bind="ui.su.code" placeholder="e.g. ABCD-1234" data-live="1"><div class="hint hint--error"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>That code doesn’t match a coach. Check it with your coach. Codes are 8 letters and numbers.</div></div>
     <div class="empty-coach"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span>Your coach will appear here so you can check it’s the right one.</span></div>
     <button type="button" class="btn btn--primary btn--block btn--lg" disabled><span>Continue</span></button>
-    <p class="fine center">No code? Ask your coach. Every coach has their own.</p></div></section></div><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>How signing up works</div><div class="help__body">Your coach gives you a code. You create an account, add the skater (you or your child), and your coach approves them. Booking opens as soon as they do.</div></aside></div></main></div></div></div>
+    <p class="fine center">No code? Ask your coach. Every coach has their own.</p></div></section></div><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>How signing up works</div><div class="help__body">Each coach gives you a code. You create an account, add the skater (you or your child), and each coach approves them. Booking with a coach opens as soon as they do.</div></aside></div></main></div></div></div>
 </body>
 </html>

@@ -18,11 +18,25 @@ Skaters (everyone who takes lessons with the coach):
   Add a skater: full name, under 18 yes or no, skating organization (U.S. Figure Skating or USA Hockey) and number.
     The coach approves new skaters before they can be booked; the family is emailed. "Add skater" is disabled until
     the name and number are filled in.
+  *More than one coach (2026-10-13, ADR-025 k):* adding a skater asks "Which coaches?"; at least one must be ticked.
+    The new skater waits for each coach picked.
   An adult who skates themselves can't add skaters: a child needs their own family account.
+  Share code: each skater shows their share code with Copy and New code. A new code stops the old one working
+    straight away, so it asks first (profile-new-share-code.html).
+    Share codes are how lessons are shared: reference 'Schedule lesson split' for details.
   Remove: asks for confirmation first.
     Approved skater: their upcoming lessons are cancelled and the coach is told; late cancellations may be charged.
     Waiting skater: the coach won't see the sign-up any more.
     *This is the design's reading of the open "delete a student" decision (docs/Open-Pending.md).*
+
+*More than one coach (2026-10-13; ADR-025 d2; profile-add-coach.html, profile-coach-sent.html):*
+  Each skater lists their coaches: approved, or "Waiting for Coach <name>".
+  Your coaches: each coach, their sport, and which skaters are with them (approved or waiting).
+  Add a coach: enter the coach's code; the coach is shown to check it's the right one; tick which skaters join.
+    Skaters already with that coach are shown but can't be ticked. Each skater then waits for that coach's
+    approval alone; their other coaches aren't affected. To add a new skater, add them under Skaters first.
+  Removing a skater from one coach doesn't affect their lessons with other coaches. Whether Remove takes a skater
+    from one coach or all of them is deferred with the "delete a student" question (owner, 2026-10-13).
 
 Buttons: Save and Log out.
 

@@ -1126,7 +1126,7 @@ add('Family · My bookings', 'ClientNoTimesYet', '5 · Coach hasn’t posted tim
   ${card(`
     <div class="calbar"><button class="iconbtn">${ic('chevL', 18)}</button><div class="calbar__title">October 2026</div><button class="iconbtn">${ic('chevR', 18)}</button></div>
     <div class="cal-wrap">${monthGrid(2026, 9, d => `<div class="cal__cell cal__cell--off"><span class="cal__num">${d}</span></div>`, { cls: 'cal--ghost' })}
-      <div class="cal-empty"><span class="cal-empty__icon">${ic('calendar', 24)}</span><h2 class="h2">No lesson times yet</h2><p>Dana hasn’t posted any times. We’ll email you as soon as booking opens.</p>${btn('Email me when times appear', 'secondary', { icon: 'mail' })}</div></div>`)}`, { width: 'wide' }), 'An empty calendar now has an empty state with something to do — get notified — rather than a lone line of text.');
+      <div class="cal-empty"><span class="cal-empty__icon">${ic('calendar', 24)}</span><h2 class="h2">No lesson times yet</h2><p>Dana hasn’t posted any times. Check back soon.</p></div></div>`)}`, { width: 'wide' }), 'An empty calendar now has an empty state that says why, rather than a lone line of text.');
 
 /* ===== Coach · Sign up ===== */
 const coachSteps = (i) => i;

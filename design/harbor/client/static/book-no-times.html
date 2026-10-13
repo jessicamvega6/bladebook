@@ -745,6 +745,18 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .ac-code { padding-left: 20px; }
   .bb .ac-code__btns { margin-left: 0; }
 }
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
 
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
 .bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
@@ -782,7 +794,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .dialog .check, .bb .dialog .summary, .bb .dialog .grid2 { text-align: left; }
 .bb .bk-hero--warn .hero__icon { background: var(--warning-soft); color: var(--warning); }
 .bb .bk-series .series { min-width: 0; }
-.bb .bk-filter { display: flex; }
+.bb .bk-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .bb .bk-dateblock--past { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
 .bb .bk-opt { display: flex; flex-direction: column; gap: 10px; }
 .bb .bk-opt + .bk-opt { margin-top: 10px; }
@@ -806,6 +818,31 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .dialog { width: calc(100% - 24px); max-width: 440px; top: 80px; padding: 20px; }
   .bb .dialog .grid2 { grid-template-columns: minmax(0, 1fr); }
 }
+/* Many coaches (ADR-025): the coach dropdown, picks grouped by coach, and clashes with another coach's lessons. */
+.bb .bk-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-coachsel { width: auto; min-width: 210px; height: 40px; border-radius: 999px; font-weight: var(--w-bold); }
+.bb .bk-pickcoach { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 4px 0 6px; font-size: 13px; }
+.bb .bk-pickcoach span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .picks + .bk-pickcoach { margin-top: 14px; }
+.bb .bk-total-note { font-size: 13px; color: var(--text-2); font-weight: var(--w-med); }
+.bb .slot.bk-clash { border-color: var(--warning-border); box-shadow: inset 3px 0 0 var(--warning); }
+.bb .slot .bk-clash__note { display: inline-flex; align-items: center; gap: 4px; color: var(--warning-text, var(--text-2)); font-weight: var(--w-med); }
+.bb .slot--mine .bk-clash__note { color: var(--on-primary); }
+.bb .bk-pick--clash { box-shadow: inset 3px 0 0 var(--warning); }
+.bb .bk-dlist__h { margin: 12px 0 6px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); text-align: left; }
+.bb .bk-dlist + .bk-dlist__h { margin-top: 14px; }
+.bb .bk-clashes { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+@media (max-width: 760px) { .bb .bk-coachsel { min-width: 0; width: 100%; } .bb .bk-pickers > .picker { width: 100%; } }
+.bb .total:has(.bk-total-note) { flex-wrap: wrap; gap: 4px 12px; }
+.bb .total span { white-space: nowrap; }
+.bb .slot.bk-clash .slot__time { white-space: nowrap; }
+.bb .dialog > * { flex-shrink: 0; }
+/* Result split by coach (owner, 2026-10-13). */
+.bb .bk-rescoach { display: flex; align-items: center; gap: 12px; margin: 8px 0 -4px; }
+.bb .bk-rescoach > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bb .bk-rescoach b { font-size: 16px; }
+.bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
+.bb .dialog .summary__note + .summary__note { margin-top: 6px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -820,14 +857,14 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook client website · Harbor · Book a lesson</span><b>1 · Coach hasn’t posted times</b><span class="sp-bar__note">Redesigned from Forest ClientNoTimesYet: the same page when the coach has no schedule yet, with a ghost calendar and an email-me action.</span><nav class="sp-bar__nav"><a href="book-calendar.html">← 1 · Pick a day</a><a href="index.html">All pages</a><a href="book-times.html">2 · Pick your times →</a></nav></header>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Book a lesson</span><b>1 · Coach hasn’t posted times</b><span class="sp-bar__note">Redesigned from Forest ClientNoTimesYet: the same page when the coach has no schedule yet, with a ghost calendar and a “No lesson times yet” message.</span><nav class="sp-bar__nav"><a href="book-result-coach-failed.html">← 4 · Result — one coach didn’t go through</a><a href="index.html">All pages</a><a href="book-times.html">2 · Pick your times →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--family">
     <header class="nav"><a class="brand" href="home.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
       <nav class="nav__items" aria-label="Main"><a class="nav__item" href="home.html"><span>Home</span></a><a class="nav__item is-active" href="book-calendar.html" aria-current="page"><span>Book a lesson</span></a><a class="nav__item" href="bookings.html"><span>My bookings</span></a><a class="nav__item" href="profile.html"><span>Profile</span></a></nav>
-      <a class="nav__user" href="profile.html"><span class="avatar avatar--sm">GC</span><span class="nav__user-text"><b>Grace Chen</b><small>Guardian · Coach Dana</small></span></a></header>
+      <a class="nav__user" href="profile.html"><span class="avatar avatar--sm">GC</span><span class="nav__user-text"><b>Grace Chen</b><small>Guardian · 3 coaches</small></span></a></header>
     <main class="main"><div class="page page--wide">
-    <div class="phead"><div class="phead__text"><h1 class="h1">Book a lesson</h1><p class="lede">Coach Dana Whitfield</p></div><div class="phead__actions"><div class="picker"><span class="picker__label">Booking for</span><div class="seg" role="group"><button type="button" class="seg__opt is-on" data-act="bkKid" data-arg='[0]' aria-pressed="true">Mia</button><button type="button" class="seg__opt" data-act="bkKid" data-arg='[1]' aria-pressed="false">Noah</button></div></div></div></div>
+    <div class="phead"><div class="phead__text"><h1 class="h1">Book a lesson</h1><p class="lede">Coach Dana Whitfield</p></div><div class="phead__actions"><div class="bk-pickers"><div class="picker"><span class="picker__label">Booking for</span><div class="seg" role="group"><button type="button" class="seg__opt is-on" data-act="bkKid" data-arg='[0]' aria-pressed="true">Mia</button><button type="button" class="seg__opt" data-act="bkKid" data-arg='[1]' aria-pressed="false">Noah</button></div></div><div class="picker"><label class="picker__label" for="bk-coach">Coach</label><select id="bk-coach" class="ctl bk-coachsel" data-bind="ui.book.coach"><option value="dana" selected>Coach Dana Whitfield</option><option value="ben">Coach Ben Ortiz</option></select></div></div></div></div>
     <section class="card"><div class="card__body"><div class="calbar"><button type="button" class="iconbtn" aria-label="Previous month" disabled><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="calbar__title">October 2026</div><button type="button" class="iconbtn" aria-label="Next month" data-act="bkMonth" data-arg='[&quot;2026-11&quot;]'><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div><div class="cal-wrap"><div class="cal cal--ghost"><div class="cal__dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="cal__grid"><div class="cal__cell cal__cell--pad"></div><div class="cal__cell cal__cell--pad"></div><div class="cal__cell cal__cell--pad"></div><div class="cal__cell cal__cell--pad"></div><div class="cal__cell cal__cell--off"><span class="cal__num">1</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">2</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">3</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">4</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">5</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">6</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">7</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">8</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">9</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">10</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">11</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">12</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">13</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">14</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">15</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">16</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">17</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">18</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">19</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">20</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">21</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">22</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">23</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">24</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">25</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">26</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">27</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">28</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">29</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">30</span></div><div class="cal__cell cal__cell--off"><span class="cal__num">31</span></div></div></div>
-      <div class="cal-empty"><span class="cal-empty__icon"><svg class="ic " width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><h2 class="h2">No lesson times yet</h2><p>Dana hasn’t posted any times. We’ll email you as soon as booking opens.</p><button type="button" class="btn btn--secondary" data-act="bkNotify"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg><span>Email me when times appear</span></button></div></div></div></section></div></main></div></div></div>
+      <div class="cal-empty"><span class="cal-empty__icon"><svg class="ic " width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><h2 class="h2">No lesson times yet</h2><p>Dana hasn’t posted any times. Check back soon.</p></div></div></div></section></div></main></div></div></div>
 </body>
 </html>

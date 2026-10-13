@@ -6,6 +6,10 @@ Phase 2. Not in the first release. Home links to it with a "Phase 2" tag.
 BladeBook doesn't take payments. The family pays the coach directly and the coach marks the lesson paid
 (see Coach Payment Section on Dashboard.md). This page only shows what the coach hasn't marked paid yet.
 
+*To-do (owner, 2026-10-13; ADR-025 m): group everything on this page by coach.* A family with several coaches
+pays each one directly, possibly in different currencies, so each coach gets their own section (not marked paid,
+how to pay, notice period) and there is no total across coaches. The current design still adds them together.
+
 Banner at the top: "Coming in Phase 2", and that payment goes straight to the coach.
 
 Figures across the top:

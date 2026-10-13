@@ -2,7 +2,8 @@ Bookings:
 *Updated 2026-10-12 to match the Harbor design (design/harbor/client/static/book-*.html). The design is the source of truth.*
 
 Only families with an approved skater can book. A family still waiting sees "Booking opens once Coach <name> approves"
-instead (ADR-022 d6).
+instead (ADR-022 d6). *With several coaches it names each one: "Booking opens once Coach Dana or Coach Ben approves"
+(2026-10-13, ADR-025 i).*
 
 Booking for: at the top of every booking page. With one approved skater it names them; with more, a switch picks which
 skater is being booked. Changing skater clears the picked times.
@@ -14,8 +15,8 @@ The Booking Page will show a calendar view with the months available on the righ
   A day where the skater already has a lesson is marked with a tick and their first name.
   A time-off day says "No lessons".
   A "Booking window" note: you can see three months ahead; a repeating booking can run past that.
-  Coach hasn't posted any times: the calendar is greyed out with "No lesson times yet" and an
-    "Email me when times appear" button.
+  Coach hasn't posted any times: the calendar is greyed out with "No lesson times yet" ~~and an
+    "Email me when times appear" button~~. *Removed 2026-10-13: no email when times appear.*
 
 A schedule view will ~~have time blocks starting at the coaches first lesson of the day, and going until the last lesson of the day, The Interval btwn the start of day and end of day will be the length of lessons. Example, Coaches first lesson of the day is 6am and the lesson is 30 mins, then the schedule will display the times 6:00 -6:30 6:30-7:00 etc up to the end of the day.~~ The schedule view will display the results from the coachs schedule query.
 *Design:* the day's times as a timeline, grouped by the coach's blocks. Each block is labelled with its name, lesson
@@ -56,6 +57,23 @@ A confirmation page will display afterwards showing the successful and unsuccess
 At least one lesson slot must be selected for the ~~Submit~~ *Continue* button to enabled. If the reocurring checkbox is unselected then the reoccuring frequency dropdown value in the object being submitted is set to null/empty.
 
 
+
+*More than one coach (decided by the owner 2026-10-13; ADR-025; book-times-coach-switch.html,
+book-confirm-two-coaches.html, book-result-two-coaches.html, book-result-coach-failed.html):*
+  A "Coach" dropdown sits next to "Booking for". It lists the coaches the selected skater is with; a coach
+    still to approve that skater is listed but can't be picked. The pages show one coach's times at a time.
+  Switching coach keeps the times picked with other coaches (a note says so). Switching skater clears all picks.
+  "Your picks" groups picks by coach, with a total per coach and no total across coaches.
+  Both booking pages show the selected coach's cancellation notice period.
+  A time that overlaps the skater's lesson or pick with another coach is marked, not blocked. Only overlapping
+    times clash; lessons that only touch don't. Travel time between rinks is Phase 3.
+  Confirm pop-up: picks listed per coach, a lesson count and total per coach, every clashing date listed and the
+    button reads "Book anyway". One Repeat and Until apply to every pick. With more than one coach it says
+    "Coaches can have different cancellation notice periods."
+  Result: one section per coach. Each coach's booking goes through on its own; if one fails, its section says
+    nothing was booked with that coach and offers "Try again", which resends only that coach's picks and never
+    books anything twice.
+  Clashes are only warned about to the family; the coach isn't told.
 
 Lessons can be split: reference 'Schedule lesson split' for details
 *Design (book-share-confirm.html, book-share-no-match.html, book-share-result.html): the box is in the confirm pop-up, only when a picked time can be shared.*

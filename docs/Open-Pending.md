@@ -63,8 +63,20 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 
 - **To-do: Design the multi-coach screens** (ADR-025 d7): adding a coach, the coach switcher,
   lessons and payments across coaches (grouped by coach, never totalled), and each skater's
-  coaches and status, designed for about 10 coaches. None is in the Harbor designs.
+  coaches and status, designed for about 10 coaches.
   *"Also coached by"* on the coach's skater record is Phase 2 (ADR-025 d4).
+  *Partly done 2026-10-13:* the booking pages (Coach dropdown, picks kept across coaches, clash
+  warning, result per coach), the profile (each skater's coaches, *Your coaches*, *Add a coach*)
+  and coach labels on Home and My bookings are designed (ADR-025, amended 2026-10-13). *Later
+  the same day:* sign-up with several coach codes, one Home card per coach, per-coach waiting
+  wording, coach choice when adding a skater, and invitations naming their coach (ADR-025 h–l).
+  Still to do:
+  - ~~**Pending decision: a coach filter on My bookings**~~ **Settled by the owner, 2026-10-13:**
+    a Coach dropdown beside the skater filter, "All coaches" by default; designed (ADR-025 o).
+  - **To-do (Phase 2): group the Payments page by coach**, with no total across coaches
+    (ADR-025 m). Today's Phase 2 design adds every coach together.
+  - *Deferred by the owner, 2026-10-13:* removing a skater from one coach or from all — part of
+    the "delete a student" question (§8).
 - ~~**Pending decision — needs Kim (§10): Is there a limit on coaches per skater?**~~
   **Settled by the owner, 2026-10-07: no limit.** A skater signs up with 1 to 10 coaches and adds
   more later as needed. (ADR-025)
@@ -225,6 +237,11 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   prices — see `Items to ask Kim About.md` §1. *Kim, recorded 2026-10-08: the weekly schedule
   changes "not often"; how often prices change and how far ahead families book are still
   unanswered.* (ADR-006, `FeatureDecriptions/Bookings:`)
+- **Phase 3: Travel time between rinks in the clash check.** Today only lessons that overlap
+  in time clash; back-to-back lessons at different rinks don't. *Decided by the owner,
+  2026-10-13.* (ADR-025, amended 2026-10-13, b)
+- **Revisit with coach booking for a family (Phase 2, ADR-009): tell the coach about a clash?**
+  For now only the family is warned. *Decided by the owner, 2026-10-13.* (ADR-025 f)
 - **Open question (Phase 2): Is a saved schedule a third item type or a header not in
   effect?** Decides whether "save" and "apply" are one action or two. (ADR-008)
 - **Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
@@ -408,7 +425,9 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
 - **Open question: What does "delete a student/client" from the coach's student list mean?**
   Going forward or retroactive? Can the client still book? What does the client see? Also
   covers what happens to a client account left empty by a rejection. *Deferred by the
-  owner, 2026-09-30.* (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
+  owner, 2026-09-30.* *Narrowed 2026-10-13 by the owner:* removal is per coach, and a coach
+  removing a skater doesn't affect the skater's lessons with other coaches (ADR-025 g).
+  (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
   days, unselectively — Point-in-Time Recovery. (ADR-017, `design/deletion/`) *Added
