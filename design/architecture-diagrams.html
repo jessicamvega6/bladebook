@@ -160,19 +160,30 @@ pre.src{
 <div class="wrap">
   <p class="eyebrow">BladeBook · generated from docs/architecture.md</p>
   <h1>Architecture Diagrams</h1>
-  <p class="lede">All 7 mermaid diagrams from <code>architecture.md</code>, rendered.
+  <p class="lede">All 18 mermaid diagrams from <code>architecture.md</code>, rendered.
   <strong>Nothing here is hand-drawn</strong> — each one is lifted verbatim from the document,
   so re-running <code>design/render-diagrams.py</code> after an edit regenerates this page
   rather than letting it drift. Every diagram keeps its source one click away.</p>
 
   <nav>
         <a href="#d1"><span class="i">01</span>3. System Architecture</a>
-        <a href="#d2"><span class="i">02</span>4. Domain Model</a>
-        <a href="#d3"><span class="i">03</span>6.1 Booking a lesson</a>
-        <a href="#d4"><span class="i">04</span>6.2 Day-of reminders</a>
-        <a href="#d5"><span class="i">05</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
-        <a href="#d6"><span class="i">06</span>6.4 End-of-day report</a>
-        <a href="#d7"><span class="i">07</span>6.5 Schedule change → cancellation and re-pricing → notification</a>
+        <a href="#d2"><span class="i">02</span>3.1 Event consumers</a>
+        <a href="#d3"><span class="i">03</span>4. Domain Model</a>
+        <a href="#d4"><span class="i">04</span>6.1 Booking a lesson</a>
+        <a href="#d5"><span class="i">05</span>6.2 Day-of reminders</a>
+        <a href="#d6"><span class="i">06</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
+        <a href="#d7"><span class="i">07</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
+        <a href="#d8"><span class="i">08</span>6.4 End-of-day report</a>
+        <a href="#d9"><span class="i">09</span>6.5 Schedule change → cancellation and re-pricing → notification</a>
+        <a href="#d10"><span class="i">10</span>6.6 Direct cancellation</a>
+        <a href="#d11"><span class="i">11</span>6.7 Client registration and coach approval</a>
+        <a href="#d12"><span class="i">12</span>6.8 Family changes reach every coach</a>
+        <a href="#d13"><span class="i">13</span>6.9 Shared lesson by invitation</a>
+        <a href="#d14"><span class="i">14</span>6.10 Nightly invitation sweep</a>
+        <a href="#d15"><span class="i">15</span>6.11 Coach sign-up</a>
+        <a href="#d16"><span class="i">16</span>Client writes into a coach&#x27;s partition</a>
+        <a href="#d17"><span class="i">17</span>Lower environments</a>
+        <a href="#d18"><span class="i">18</span>Lower environments</a>
   </nav>
 
   <div class="zoom" role="group" aria-label="Diagram size">
@@ -218,24 +229,12 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day + weekly unpaid)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly invitation sweep)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+        Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
-    subgraph Consumers[&quot;Event Consumers (λ)&quot;]
-        L_Confirm[&quot;λ Booking confirmation&quot;]
-        L_Remind[&quot;λ Day-of reminder&quot;]
-        L_Pay[&quot;λ Payment reminder&quot;]
-        L_Report[&quot;λ End-of-day report&quot;]
-        L_Unpaid[&quot;λ Unpaid-lesson reminder&lt;br/&gt;(weekly, to the coach)&quot;]
-        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;(read-only, alerts)&quot;]
-        L_Cancel[&quot;λ Schedule change&lt;br/&gt;(cancel + re-price)&quot;]
-        L_Notify[&quot;λ Change notifier&quot;]
-        L_Archive[&quot;λ TTL archiver&lt;br/&gt;(ADR-017)&quot;]
-        L_Link[&quot;λ Student link sync&lt;br/&gt;(ADR-021)&quot;]
-        L_Family[&quot;λ Family sync&lt;br/&gt;(ADR-025)&quot;]
-        L_Invite[&quot;λ Invite&lt;br/&gt;(shared lessons, ADR-026)&quot;]
-    end
+    Consumers[&quot;λ 12 event consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
@@ -243,18 +242,11 @@ flowchart TB
         Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
 
-    subgraph DataLoad[&quot;Data-loading stack (production account, ADR-027 d9)&quot;]
-        SFN[&quot;Step Functions workflow&lt;br/&gt;(masked dev builds, on request)&quot;]
-        L_Transform[&quot;λ Transform&lt;br/&gt;(filter, mask, remap — operational)&quot;]
-        ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, deleted after a day)&quot;]
-        MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(deleted after 24 hours)&quot;]
-    end
-
-    DevTable[(&quot;Dev table&lt;br/&gt;(dev account — built from one import, ADR-028)&quot;)]
+    DataLoadRef[&quot;Data-loading stack&lt;br/&gt;(masked dev builds, on request — §7 Lower environments)&quot;]
 
     subgraph Notify[&quot;Delivery&quot;]
         SES[&quot;SES (email)&quot;]
-        SNS[&quot;SNS (SMS, opt-in)&quot;]
+        SNS[&quot;SNS (coach SMS, opt-in)&quot;]
     end
 
     Coach --&gt; CF
@@ -269,41 +261,17 @@ flowchart TB
     L_Api &lt;--&gt; DDB
 
     DDB --&gt; Stream --&gt; Pipe --&gt; Bus
-    Stream --&gt;|TTL removals only| L_Archive --&gt; Archive
-    Sched --&gt; L_Remind
-    Sched --&gt; L_Report
-    Sched --&gt; L_Unpaid
-    Sched --&gt; L_Drift
-    Sched --&gt; L_Invite
-    L_Drift --&gt; DDB
-    L_Unpaid --&gt; SES
-    L_Unpaid &lt;--&gt; DDB
-    Bus --&gt; L_Confirm
-    Bus --&gt; L_Pay
-    Bus --&gt; L_Cancel
-    Bus --&gt; L_Notify
-    Bus --&gt; L_Link
-    L_Link --&gt; DDB
-    Bus --&gt; L_Family
-    L_Family &lt;--&gt; DDB
-    Bus --&gt; L_Invite
-    L_Invite &lt;--&gt; DDB
-    L_Invite --&gt; SES &amp; SNS
+    Bus --&gt; Consumers
+    Sched --&gt; Consumers
+    Stream --&gt;|TTL removals only| Consumers
+    Consumers &lt;--&gt; DDB
+    Consumers --&gt; SES &amp; SNS
+    Consumers --&gt; Reports
+    Consumers --&gt; Archive
+    Consumers --&gt; Alerts
+    Consumers -.-&gt;|on repeated failure| DLQ
 
-    L_Confirm --&gt; SES
-    L_Remind --&gt; SES &amp; SNS
-    L_Pay --&gt; SES &amp; SNS
-    L_Notify --&gt; SES &amp; SNS
-    L_Report --&gt; SES
-    L_Report --&gt; Reports
-    L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
-
-    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite -.-&gt;|on repeated failure| DLQ
-
-    SFN --&gt;|starts export| DDB
-    DDB --&gt;|export| ExportB --&gt; L_Transform --&gt; MaskedB
-    SFN --&gt; L_Transform
-    MaskedB -.-&gt;|imported when dev is built| DevTable</pre>
+    DDB -.-&gt;|export, on request| DataLoadRef</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -333,24 +301,12 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(morning + end-of-day + weekly unpaid)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly invitation sweep)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+        Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
-    subgraph Consumers[&quot;Event Consumers (λ)&quot;]
-        L_Confirm[&quot;λ Booking confirmation&quot;]
-        L_Remind[&quot;λ Day-of reminder&quot;]
-        L_Pay[&quot;λ Payment reminder&quot;]
-        L_Report[&quot;λ End-of-day report&quot;]
-        L_Unpaid[&quot;λ Unpaid-lesson reminder&lt;br/&gt;(weekly, to the coach)&quot;]
-        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;(read-only, alerts)&quot;]
-        L_Cancel[&quot;λ Schedule change&lt;br/&gt;(cancel + re-price)&quot;]
-        L_Notify[&quot;λ Change notifier&quot;]
-        L_Archive[&quot;λ TTL archiver&lt;br/&gt;(ADR-017)&quot;]
-        L_Link[&quot;λ Student link sync&lt;br/&gt;(ADR-021)&quot;]
-        L_Family[&quot;λ Family sync&lt;br/&gt;(ADR-025)&quot;]
-        L_Invite[&quot;λ Invite&lt;br/&gt;(shared lessons, ADR-026)&quot;]
-    end
+    Consumers[&quot;λ 12 event consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
@@ -358,18 +314,11 @@ flowchart TB
         Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
 
-    subgraph DataLoad[&quot;Data-loading stack (production account, ADR-027 d9)&quot;]
-        SFN[&quot;Step Functions workflow&lt;br/&gt;(masked dev builds, on request)&quot;]
-        L_Transform[&quot;λ Transform&lt;br/&gt;(filter, mask, remap — operational)&quot;]
-        ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, deleted after a day)&quot;]
-        MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(deleted after 24 hours)&quot;]
-    end
-
-    DevTable[(&quot;Dev table&lt;br/&gt;(dev account — built from one import, ADR-028)&quot;)]
+    DataLoadRef[&quot;Data-loading stack&lt;br/&gt;(masked dev builds, on request — §7 Lower environments)&quot;]
 
     subgraph Notify[&quot;Delivery&quot;]
         SES[&quot;SES (email)&quot;]
-        SNS[&quot;SNS (SMS, opt-in)&quot;]
+        SNS[&quot;SNS (coach SMS, opt-in)&quot;]
     end
 
     Coach --&gt; CF
@@ -384,47 +333,103 @@ flowchart TB
     L_Api &lt;--&gt; DDB
 
     DDB --&gt; Stream --&gt; Pipe --&gt; Bus
-    Stream --&gt;|TTL removals only| L_Archive --&gt; Archive
-    Sched --&gt; L_Remind
-    Sched --&gt; L_Report
-    Sched --&gt; L_Unpaid
-    Sched --&gt; L_Drift
-    Sched --&gt; L_Invite
-    L_Drift --&gt; DDB
-    L_Unpaid --&gt; SES
-    L_Unpaid &lt;--&gt; DDB
-    Bus --&gt; L_Confirm
-    Bus --&gt; L_Pay
-    Bus --&gt; L_Cancel
-    Bus --&gt; L_Notify
-    Bus --&gt; L_Link
-    L_Link --&gt; DDB
-    Bus --&gt; L_Family
-    L_Family &lt;--&gt; DDB
-    Bus --&gt; L_Invite
-    L_Invite &lt;--&gt; DDB
-    L_Invite --&gt; SES &amp; SNS
+    Bus --&gt; Consumers
+    Sched --&gt; Consumers
+    Stream --&gt;|TTL removals only| Consumers
+    Consumers &lt;--&gt; DDB
+    Consumers --&gt; SES &amp; SNS
+    Consumers --&gt; Reports
+    Consumers --&gt; Archive
+    Consumers --&gt; Alerts
+    Consumers -.-&gt;|on repeated failure| DLQ
 
-    L_Confirm --&gt; SES
-    L_Remind --&gt; SES &amp; SNS
-    L_Pay --&gt; SES &amp; SNS
-    L_Notify --&gt; SES &amp; SNS
-    L_Report --&gt; SES
-    L_Report --&gt; Reports
-    L_Confirm &amp; L_Remind &amp; L_Report &amp; L_Cancel &amp; L_Notify &lt;--&gt; DDB
-
-    L_Confirm &amp; L_Remind &amp; L_Pay &amp; L_Report &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite -.-&gt;|on repeated failure| DLQ
-
-    SFN --&gt;|starts export| DDB
-    DDB --&gt;|export| ExportB --&gt; L_Transform --&gt; MaskedB
-    SFN --&gt; L_Transform
-    MaskedB -.-&gt;|imported when dev is built| DevTable</code></pre>
+    DDB -.-&gt;|export, on request| DataLoadRef</code></pre>
         </details>
       </figure>
 
       <figure id="d2">
         <figcaption>
           <span class="num">02</span>
+          <span class="ttl">3.1 Event consumers</span>
+          <span class="kind">Flowchart</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+flowchart LR
+    Bus[&quot;EventBridge custom bus&lt;br/&gt;(domain events)&quot;]
+    Sched[&quot;EventBridge Scheduler&quot;]
+    Stream[&quot;DynamoDB Streams&quot;]
+
+    subgraph OnEvent[&quot;Run on an event&quot;]
+        L_Confirm[&quot;λ Booking confirmation&lt;br/&gt;table read/write · email&quot;]
+        L_Pay[&quot;λ Payment reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Cancel[&quot;λ Schedule change (cancel + re-price)&lt;br/&gt;table read/write&quot;]
+        L_Notify[&quot;λ Change notifier&lt;br/&gt;table read/write · email · coach SMS&quot;]
+        L_Link[&quot;λ Student link sync (ADR-021)&lt;br/&gt;table read/write · decline email&quot;]
+        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write&quot;]
+        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;table read/write · email&quot;]
+    end
+
+    subgraph OnSchedule[&quot;Run on a schedule&quot;]
+        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
+        L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
+        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
+    end
+
+    subgraph OnStream[&quot;Run on an expired item&quot;]
+        L_Archive[&quot;λ TTL archiver (ADR-017)&lt;br/&gt;S3 archive bucket&quot;]
+    end
+
+    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;(a run that keeps failing lands here)&quot;]
+
+    Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
+    Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
+    Sched --&gt;|nightly invitation sweep| L_Invite
+    Stream --&gt;|TTL removals only| L_Archive
+    OnEvent &amp; OnSchedule -.-&gt; DLQ</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>flowchart LR
+    Bus[&quot;EventBridge custom bus&lt;br/&gt;(domain events)&quot;]
+    Sched[&quot;EventBridge Scheduler&quot;]
+    Stream[&quot;DynamoDB Streams&quot;]
+
+    subgraph OnEvent[&quot;Run on an event&quot;]
+        L_Confirm[&quot;λ Booking confirmation&lt;br/&gt;table read/write · email&quot;]
+        L_Pay[&quot;λ Payment reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Cancel[&quot;λ Schedule change (cancel + re-price)&lt;br/&gt;table read/write&quot;]
+        L_Notify[&quot;λ Change notifier&lt;br/&gt;table read/write · email · coach SMS&quot;]
+        L_Link[&quot;λ Student link sync (ADR-021)&lt;br/&gt;table read/write · decline email&quot;]
+        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write&quot;]
+        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;table read/write · email&quot;]
+    end
+
+    subgraph OnSchedule[&quot;Run on a schedule&quot;]
+        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
+        L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
+        L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
+    end
+
+    subgraph OnStream[&quot;Run on an expired item&quot;]
+        L_Archive[&quot;λ TTL archiver (ADR-017)&lt;br/&gt;S3 archive bucket&quot;]
+    end
+
+    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;(a run that keeps failing lands here)&quot;]
+
+    Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
+    Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
+    Sched --&gt;|nightly invitation sweep| L_Invite
+    Stream --&gt;|TTL removals only| L_Archive
+    OnEvent &amp; OnSchedule -.-&gt; DLQ</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d3">
+        <figcaption>
+          <span class="num">03</span>
           <span class="ttl">4. Domain Model</span>
           <span class="kind">Entity relationships</span>
         </figcaption>
@@ -442,6 +447,11 @@ erDiagram
     BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
     STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
     CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
+    INVITATION }o--|| BOOKING : &quot;invites to (bookingKey)&quot;
+    CLIENT ||--o{ CLIENT_STUDENT_LINK : &quot;sees each coach through&quot;
+    CLIENT_STUDENT_LINK }o--|| STUDENT : &quot;mirrors (ADR-021 d6)&quot;
+    COACH ||--|| COACH_CODE : &quot;is found by (ADR-022 d7)&quot;
+    CLIENT ||--o{ RECURRENCE : &quot;holds in its partition (ADR-022 d5)&quot;
     COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
     STUDENT ||--o{ BOOKING : &quot;has&quot;
@@ -466,10 +476,13 @@ erDiagram
         string coachCode &quot;system-generated, ADR-002 d2a&quot;
         string profilePhotoKey &quot;optional, S3, Phase 2&quot;
         string paymentInstructions &quot;always in the reminder email&quot;
-        bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
+        bool   acceptsCashapp &quot;ADR-016 d7&quot;
+        bool   acceptsVenmo &quot;ADR-016 d7&quot;
+        bool   acceptsPaypal &quot;ADR-016 d7&quot;
         string cashappHandle &quot;optional&quot;
         string venmoHandle &quot;optional&quot;
         string paypalHandle &quot;optional&quot;
+        bool   acceptsCash &quot;default false; adds Cash to how-paid, ADR-016 d7&quot;
         string themeId &quot;Phase 2; Harbor for MVP&quot;
     }
     SCHEDULE_DEFAULT {
@@ -481,11 +494,13 @@ erDiagram
         string scheduleName &quot;optional label&quot;
         date   startDate
         date   endDate
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     DATE_OVERRIDE {
         date   overrideDate
         string tempId &quot;which temp expanded into this date&quot;
         list   blocks &quot;empty = no lessons that day&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CLIENT {
         string clientId &quot;Cognito sub&quot;
@@ -493,7 +508,7 @@ erDiagram
         string clientEmail
         string clientPhone
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
-        bool   smsOptIn
+        bool   smsOptIn &quot;Phase 2; ADR-007&quot;
     }
     STUDENT {
         string studentId
@@ -504,8 +519,10 @@ erDiagram
         string clientName &quot;denormalized from CLIENT&quot;
         string clientEmail &quot;denormalized from CLIENT&quot;
         string clientPhone &quot;denormalized from CLIENT&quot;
-        bool   smsOptIn &quot;denormalized from CLIENT&quot;
+        bool   smsOptIn &quot;denormalized from CLIENT; Phase 2&quot;
         enum   studentStatus &quot;PENDING|ACTIVE&quot;
+        enum   skatingOrg &quot;copied from SKATER, ADR-029&quot;
+        string registrationNumber &quot;copied from SKATER, ADR-029&quot;
         int    priceMinorOverride &quot;optional&quot;
         list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
         list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
@@ -515,6 +532,8 @@ erDiagram
         string studentName
         bool   isMinor
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
+        enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
+        string registrationNumber &quot;cleaned-up form; ADR-029&quot;
         string shareCode &quot;ADR-026 d4&quot;
     }
     SKATER_CODE {
@@ -537,6 +556,7 @@ erDiagram
         string invitedStudentId
         string displayName
         enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
+        datetime warnedAt &quot;pre-lesson warning sent, ADR-026 d5a&quot;
     }
     BOOKING {
         string bookingId
@@ -565,12 +585,13 @@ erDiagram
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
         datetime paidAt
         string markedPaidBy
-        enum   paidVia &quot;CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
+        enum   paidVia &quot;CASH|CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
         int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     RECURRENCE {
         string recurrenceId
@@ -582,18 +603,20 @@ erDiagram
         date   endDate &quot;may only move earlier&quot;
         date   startedOn
         enum   recurrenceStatus &quot;ACTIVE|ENDED; never deleted, ADR-006 d4b&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CHANGE_BATCH {
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
         int    clientCount
         enum   executionStatus &quot;PLANNED|EXECUTED; EXECUTED fires the notifier, ADR-010 d5f&quot;
         enum   planStatus &quot;WRITING|COMPLETE; nothing carried out until COMPLETE, ADR-010 d5h&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CANCELLED_LESSON {
         string bookingId
@@ -619,6 +642,7 @@ erDiagram
         enum   paidVia &quot;Phase 2&quot;
         datetime waivedAt &quot;Phase 2&quot;
         string waivedBy &quot;Phase 2&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     REPRICED_LESSON {
         string bookingId
@@ -635,6 +659,23 @@ erDiagram
         enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED&quot;
         enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
         datetime notifiedAt
+        list   channels
+        string failureReason
+        number expiresAt &quot;TTL, ADR-017&quot;
+    }
+    CLIENT_STUDENT_LINK {
+        string studentName &quot;mirrored from STUDENT&quot;
+        enum   studentStatus &quot;mirrored from STUDENT&quot;
+        int    priceMinorOverride &quot;mirrored from STUDENT&quot;
+        string coachFirstName &quot;copied from COACH_CODE at registration&quot;
+        string coachLastName &quot;copied from COACH_CODE at registration&quot;
+    }
+    COACH_CODE {
+        string coachCode &quot;the code a family types, item key&quot;
+        string coachId
+        string coachFirstName
+        string coachLastName
+        string profilePhotoKey
     }</pre>
         </div>
         <details>
@@ -651,6 +692,11 @@ erDiagram
     BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
     STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
     CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
+    INVITATION }o--|| BOOKING : &quot;invites to (bookingKey)&quot;
+    CLIENT ||--o{ CLIENT_STUDENT_LINK : &quot;sees each coach through&quot;
+    CLIENT_STUDENT_LINK }o--|| STUDENT : &quot;mirrors (ADR-021 d6)&quot;
+    COACH ||--|| COACH_CODE : &quot;is found by (ADR-022 d7)&quot;
+    CLIENT ||--o{ RECURRENCE : &quot;holds in its partition (ADR-022 d5)&quot;
     COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
     STUDENT ||--o{ BOOKING : &quot;has&quot;
@@ -675,10 +721,13 @@ erDiagram
         string coachCode &quot;system-generated, ADR-002 d2a&quot;
         string profilePhotoKey &quot;optional, S3, Phase 2&quot;
         string paymentInstructions &quot;always in the reminder email&quot;
-        bool   displayPaymentTypesToClients &quot;gates the handles only&quot;
+        bool   acceptsCashapp &quot;ADR-016 d7&quot;
+        bool   acceptsVenmo &quot;ADR-016 d7&quot;
+        bool   acceptsPaypal &quot;ADR-016 d7&quot;
         string cashappHandle &quot;optional&quot;
         string venmoHandle &quot;optional&quot;
         string paypalHandle &quot;optional&quot;
+        bool   acceptsCash &quot;default false; adds Cash to how-paid, ADR-016 d7&quot;
         string themeId &quot;Phase 2; Harbor for MVP&quot;
     }
     SCHEDULE_DEFAULT {
@@ -690,11 +739,13 @@ erDiagram
         string scheduleName &quot;optional label&quot;
         date   startDate
         date   endDate
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     DATE_OVERRIDE {
         date   overrideDate
         string tempId &quot;which temp expanded into this date&quot;
         list   blocks &quot;empty = no lessons that day&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CLIENT {
         string clientId &quot;Cognito sub&quot;
@@ -702,7 +753,7 @@ erDiagram
         string clientEmail
         string clientPhone
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
-        bool   smsOptIn
+        bool   smsOptIn &quot;Phase 2; ADR-007&quot;
     }
     STUDENT {
         string studentId
@@ -713,8 +764,10 @@ erDiagram
         string clientName &quot;denormalized from CLIENT&quot;
         string clientEmail &quot;denormalized from CLIENT&quot;
         string clientPhone &quot;denormalized from CLIENT&quot;
-        bool   smsOptIn &quot;denormalized from CLIENT&quot;
+        bool   smsOptIn &quot;denormalized from CLIENT; Phase 2&quot;
         enum   studentStatus &quot;PENDING|ACTIVE&quot;
+        enum   skatingOrg &quot;copied from SKATER, ADR-029&quot;
+        string registrationNumber &quot;copied from SKATER, ADR-029&quot;
         int    priceMinorOverride &quot;optional&quot;
         list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
         list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
@@ -724,6 +777,8 @@ erDiagram
         string studentName
         bool   isMinor
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
+        enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
+        string registrationNumber &quot;cleaned-up form; ADR-029&quot;
         string shareCode &quot;ADR-026 d4&quot;
     }
     SKATER_CODE {
@@ -746,6 +801,7 @@ erDiagram
         string invitedStudentId
         string displayName
         enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
+        datetime warnedAt &quot;pre-lesson warning sent, ADR-026 d5a&quot;
     }
     BOOKING {
         string bookingId
@@ -774,12 +830,13 @@ erDiagram
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
         datetime paidAt
         string markedPaidBy
-        enum   paidVia &quot;CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
+        enum   paidVia &quot;CASH|CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
         int    paymentReminderCount &quot;Phase 2; includes manual re-sends&quot;
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     RECURRENCE {
         string recurrenceId
@@ -791,18 +848,20 @@ erDiagram
         date   endDate &quot;may only move earlier&quot;
         date   startedOn
         enum   recurrenceStatus &quot;ACTIVE|ENDED; never deleted, ADR-006 d4b&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CHANGE_BATCH {
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
         int    clientCount
         enum   executionStatus &quot;PLANNED|EXECUTED; EXECUTED fires the notifier, ADR-010 d5f&quot;
         enum   planStatus &quot;WRITING|COMPLETE; nothing carried out until COMPLETE, ADR-010 d5h&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     CANCELLED_LESSON {
         string bookingId
@@ -828,6 +887,7 @@ erDiagram
         enum   paidVia &quot;Phase 2&quot;
         datetime waivedAt &quot;Phase 2&quot;
         string waivedBy &quot;Phase 2&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
     }
     REPRICED_LESSON {
         string bookingId
@@ -844,13 +904,30 @@ erDiagram
         enum   skippedReason &quot;BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED&quot;
         enum   notificationStatus &quot;PENDING|SENT|FAILED|SUPPRESSED&quot;
         datetime notifiedAt
+        list   channels
+        string failureReason
+        number expiresAt &quot;TTL, ADR-017&quot;
+    }
+    CLIENT_STUDENT_LINK {
+        string studentName &quot;mirrored from STUDENT&quot;
+        enum   studentStatus &quot;mirrored from STUDENT&quot;
+        int    priceMinorOverride &quot;mirrored from STUDENT&quot;
+        string coachFirstName &quot;copied from COACH_CODE at registration&quot;
+        string coachLastName &quot;copied from COACH_CODE at registration&quot;
+    }
+    COACH_CODE {
+        string coachCode &quot;the code a family types, item key&quot;
+        string coachId
+        string coachFirstName
+        string coachLastName
+        string profilePhotoKey
     }</code></pre>
         </details>
       </figure>
 
-      <figure id="d3">
+      <figure id="d4">
         <figcaption>
-          <span class="num">03</span>
+          <span class="num">04</span>
           <span class="ttl">6.1 Booking a lesson</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -858,22 +935,27 @@ erDiagram
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
     participant P as Client (web)
-    participant API as API λ
+    participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Cf as Confirmation λ
     participant SES as SES
     P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
-    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence; end date capped at 12 months
+    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence, end date capped at 12 months
     loop each occurrence
-        API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
+        API-&gt;&gt;DB: conditional PutItem BOOKING#35;&lt;date&gt;#35;&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
         alt slot free
             DB--&gt;&gt;API: claimed
         else already taken
-            DB--&gt;&gt;API: ConditionalCheckFailed — skip this date
+            DB--&gt;&gt;API: ConditionalCheckFailed
+            API-&gt;&gt;DB: Query GSI1 (CLIENT#35;&lt;clientId&gt;) for the family&#x27;s own booking at that date and time
+            Note over API: theirs → already booked for this student&lt;br/&gt;otherwise → unavailable (ADR-006 d3, ADR-022)
         end
     end
-    API--&gt;&gt;P: 201 Created — N booked, plus the dates that were skipped
+    opt recurring, and at least one date booked
+        API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
+    end
+    API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
     DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
     Bus-&gt;&gt;Cf: route
     Cf-&gt;&gt;SES: confirmation email</pre>
@@ -882,31 +964,36 @@ sequenceDiagram
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
     participant P as Client (web)
-    participant API as API λ
+    participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Cf as Confirmation λ
     participant SES as SES
     P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
-    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence; end date capped at 12 months
+    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence, end date capped at 12 months
     loop each occurrence
-        API-&gt;&gt;DB: conditional PutItem BOOKING#&lt;date&gt;#&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
+        API-&gt;&gt;DB: conditional PutItem BOOKING#35;&lt;date&gt;#35;&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
         alt slot free
             DB--&gt;&gt;API: claimed
         else already taken
-            DB--&gt;&gt;API: ConditionalCheckFailed — skip this date
+            DB--&gt;&gt;API: ConditionalCheckFailed
+            API-&gt;&gt;DB: Query GSI1 (CLIENT#35;&lt;clientId&gt;) for the family&#x27;s own booking at that date and time
+            Note over API: theirs → already booked for this student&lt;br/&gt;otherwise → unavailable (ADR-006 d3, ADR-022)
         end
     end
-    API--&gt;&gt;P: 201 Created — N booked, plus the dates that were skipped
+    opt recurring, and at least one date booked
+        API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
+    end
+    API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
     DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
     Bus-&gt;&gt;Cf: route
     Cf-&gt;&gt;SES: confirmation email</code></pre>
         </details>
       </figure>
 
-      <figure id="d4">
+      <figure id="d5">
         <figcaption>
-          <span class="num">04</span>
+          <span class="num">05</span>
           <span class="ttl">6.2 Day-of reminders</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -916,13 +1003,13 @@ sequenceDiagram
     participant Sch as EventBridge Scheduler (7:00am)
     participant R as Reminder λ
     participant DB as DynamoDB (GSI2)
-    participant N as SES / SNS
-    Sch-&gt;&gt;R: cron trigger
-    R-&gt;&gt;DB: Query GSI2PK = DATE#today
+    participant N as SES
+    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
+    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
     loop each booking
-        R-&gt;&gt;R: skip if remindedOn == today
-        R-&gt;&gt;N: email (always) + SMS (if smsOptIn)
-        R-&gt;&gt;DB: set remindedOn = today
+        R-&gt;&gt;R: skip if remindedOn == target date
+        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
+        R-&gt;&gt;DB: set remindedOn = target date
     end</pre>
         </div>
         <details>
@@ -931,20 +1018,20 @@ sequenceDiagram
     participant Sch as EventBridge Scheduler (7:00am)
     participant R as Reminder λ
     participant DB as DynamoDB (GSI2)
-    participant N as SES / SNS
-    Sch-&gt;&gt;R: cron trigger
-    R-&gt;&gt;DB: Query GSI2PK = DATE#today
+    participant N as SES
+    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
+    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
     loop each booking
-        R-&gt;&gt;R: skip if remindedOn == today
-        R-&gt;&gt;N: email (always) + SMS (if smsOptIn)
-        R-&gt;&gt;DB: set remindedOn = today
+        R-&gt;&gt;R: skip if remindedOn == target date
+        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
+        R-&gt;&gt;DB: set remindedOn = target date
     end</code></pre>
         </details>
       </figure>
 
-      <figure id="d5">
+      <figure id="d6">
         <figcaption>
-          <span class="num">05</span>
+          <span class="num">06</span>
           <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -957,17 +1044,19 @@ sequenceDiagram
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Pay as Payment-reminder λ
+    participant SES as SES
     C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
-    API-&gt;&gt;DB: conditional update (status=BOOKED) → outcome,&lt;br/&gt;outcomeAt (device), recordedAt (server)
+    API-&gt;&gt;DB: conditional update (bookingStatus = BOOKED) → bookingStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server)
     alt CHECKED_IN
         DB-&gt;&gt;Bus: (stream) CheckInRecorded
+        Bus-&gt;&gt;Pay: route
+        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
+        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
+        Pay-&gt;&gt;DB: set paymentReminderSent
     else NO_SHOW
         DB-&gt;&gt;Bus: (stream) NoShowRecorded
-    end
-    Note over Bus,Pay: separate events — the reminder wording differs,&lt;br/&gt;and a no-show is charged from Phase 2 (ADR-015)
-    Bus-&gt;&gt;Pay: route event
-    Pay-&gt;&gt;DB: read client contact details + smsOptIn
-    Pay-&gt;&gt;C: (no) — sends to the student&#x27;s client via SES / SNS</pre>
+        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
+    end</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -977,23 +1066,121 @@ sequenceDiagram
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Pay as Payment-reminder λ
+    participant SES as SES
     C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
-    API-&gt;&gt;DB: conditional update (status=BOOKED) → outcome,&lt;br/&gt;outcomeAt (device), recordedAt (server)
+    API-&gt;&gt;DB: conditional update (bookingStatus = BOOKED) → bookingStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server)
     alt CHECKED_IN
         DB-&gt;&gt;Bus: (stream) CheckInRecorded
+        Bus-&gt;&gt;Pay: route
+        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
+        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
+        Pay-&gt;&gt;DB: set paymentReminderSent
     else NO_SHOW
         DB-&gt;&gt;Bus: (stream) NoShowRecorded
-    end
-    Note over Bus,Pay: separate events — the reminder wording differs,&lt;br/&gt;and a no-show is charged from Phase 2 (ADR-015)
-    Bus-&gt;&gt;Pay: route event
-    Pay-&gt;&gt;DB: read client contact details + smsOptIn
-    Pay-&gt;&gt;C: (no) — sends to the student&#x27;s client via SES / SNS</code></pre>
+        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
+    end</code></pre>
         </details>
       </figure>
 
-      <figure id="d6">
+      <figure id="d7">
         <figcaption>
-          <span class="num">06</span>
+          <span class="num">07</span>
+          <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach
+    participant P as Rinkside page (browser tab)
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
+    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
+        P--&gt;&gt;C: says so plainly and reloads the copy
+    end
+    C-&gt;&gt;P: open at the rink with no signal
+    alt today&#x27;s lessons are cached
+        P--&gt;&gt;C: today&#x27;s check-in list
+    else not cached, or the page was cleared
+        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
+    end
+    C-&gt;&gt;P: tap Checked in or No-show
+    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
+    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
+    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
+    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
+    loop each queued entry
+        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
+        alt outcomeAt outside the lesson window, or in the future (d2a)
+            API--&gt;&gt;P: rejected
+            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
+        else time fits the lesson
+            API-&gt;&gt;DB: conditional update, bookingStatus = BOOKED →&lt;br/&gt;bookingStatus, outcomeAt (device), recordedAt (server) (d2, d3)
+            alt booking still BOOKED
+                API--&gt;&gt;P: recorded - drop from the queue
+                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
+            else already recorded - a duplicate replay or a website correction
+                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
+            else booking gone - the family cancelled while the phone was offline
+                API--&gt;&gt;P: condition failed
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+            else any other failure
+                P--&gt;&gt;C: stays queued and visible (d4)
+            end
+        end
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach
+    participant P as Rinkside page (browser tab)
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
+    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
+        P--&gt;&gt;C: says so plainly and reloads the copy
+    end
+    C-&gt;&gt;P: open at the rink with no signal
+    alt today&#x27;s lessons are cached
+        P--&gt;&gt;C: today&#x27;s check-in list
+    else not cached, or the page was cleared
+        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
+    end
+    C-&gt;&gt;P: tap Checked in or No-show
+    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
+    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
+    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
+    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
+    loop each queued entry
+        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
+        alt outcomeAt outside the lesson window, or in the future (d2a)
+            API--&gt;&gt;P: rejected
+            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
+        else time fits the lesson
+            API-&gt;&gt;DB: conditional update, bookingStatus = BOOKED →&lt;br/&gt;bookingStatus, outcomeAt (device), recordedAt (server) (d2, d3)
+            alt booking still BOOKED
+                API--&gt;&gt;P: recorded - drop from the queue
+                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
+            else already recorded - a duplicate replay or a website correction
+                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
+            else booking gone - the family cancelled while the phone was offline
+                API--&gt;&gt;P: condition failed
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+            else any other failure
+                P--&gt;&gt;C: stays queued and visible (d4)
+            end
+        end
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d8">
+        <figcaption>
+          <span class="num">08</span>
           <span class="ttl">6.4 End-of-day report</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1005,8 +1192,8 @@ sequenceDiagram
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
     participant SES as SES
-    Sch-&gt;&gt;Rep: cron trigger
-    Rep-&gt;&gt;DB: Query GSI2PK = DATE#today
+    Sch-&gt;&gt;Rep: cron trigger, carrying its target date (ADR-010)
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
     Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
     Rep-&gt;&gt;S3: PutObject report.json (archive)
     Rep-&gt;&gt;SES: email coach the daily summary</pre>
@@ -1019,17 +1206,17 @@ sequenceDiagram
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
     participant SES as SES
-    Sch-&gt;&gt;Rep: cron trigger
-    Rep-&gt;&gt;DB: Query GSI2PK = DATE#today
+    Sch-&gt;&gt;Rep: cron trigger, carrying its target date (ADR-010)
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
     Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
     Rep-&gt;&gt;S3: PutObject report.json (archive)
     Rep-&gt;&gt;SES: email coach the daily summary</code></pre>
         </details>
       </figure>
 
-      <figure id="d7">
+      <figure id="d9">
         <figcaption>
-          <span class="num">07</span>
+          <span class="num">09</span>
           <span class="ttl">6.5 Schedule change → cancellation and re-pricing → notification</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1037,7 +1224,7 @@ sequenceDiagram
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
     participant C as Coach
-    participant API as API λ
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant X as Schedule-change λ
@@ -1045,22 +1232,27 @@ sequenceDiagram
     C-&gt;&gt;API: POST /schedule/preview
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
+    Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
     API-&gt;&gt;DB: write default / date overrides
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
     X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
-    alt claim taken
-        Note over X: fresh run
-    else claim fails
-        Note over X: resume — the plan is already on disk
+    alt claim succeeds
+        Note over X: fresh run — header planStatus = WRITING
+    else header already exists
+        Note over X: resume — write only the missing records (5h)
     end
-    X-&gt;&gt;DB: Query bookings in affected range; shared evaluator sorts each&lt;br/&gt;into unchanged / cancel / re-price (ADR-020)
-    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# and REPRICED# line first,&lt;br/&gt;executionStatus = PLANNED (5c — the plan survives a crash)
+    X-&gt;&gt;DB: Query bookings and participants in affected range — shared evaluator&lt;br/&gt;sorts each into unchanged / cancel / re-price (ADR-020, ADR-026)
+    X-&gt;&gt;DB: write EVERY CANCELLED#35; and REPRICED#35; line, executionStatus = PLANNED,&lt;br/&gt;then planStatus = COMPLETE (5c, 5h — no booking is touched before this)
     loop each line
-        alt cancellation line
+        X-&gt;&gt;DB: re-check against the current schedule and booking (5i)
+        alt no longer applies
+            X-&gt;&gt;DB: mark the line SKIPPED with its skippedReason
+            Note over X: a cancellation SKIPPED as LESSON_PASSED → the coach is told
+        else cancellation line
             X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
         else re-price line
-            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED; otherwise mark SKIPPED (ADR-020 d5)
+            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED (ADR-020 d5)
         end
     end
     X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
@@ -1069,7 +1261,7 @@ sequenceDiagram
     Bus-&gt;&gt;N: route (one event per batch)
     N-&gt;&gt;DB: read the batch&#x27;s EXECUTED lines, group by client
     loop each client not yet SENT
-        N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+        N-&gt;&gt;N: SES email (SMS is Phase 2, ADR-007)
         N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
     end</pre>
         </div>
@@ -1077,7 +1269,7 @@ sequenceDiagram
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
     participant C as Coach
-    participant API as API λ
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant X as Schedule-change λ
@@ -1085,22 +1277,27 @@ sequenceDiagram
     C-&gt;&gt;API: POST /schedule/preview
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
+    Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
     API-&gt;&gt;DB: write default / date overrides
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
     X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
-    alt claim taken
-        Note over X: fresh run
-    else claim fails
-        Note over X: resume — the plan is already on disk
+    alt claim succeeds
+        Note over X: fresh run — header planStatus = WRITING
+    else header already exists
+        Note over X: resume — write only the missing records (5h)
     end
-    X-&gt;&gt;DB: Query bookings in affected range; shared evaluator sorts each&lt;br/&gt;into unchanged / cancel / re-price (ADR-020)
-    X-&gt;&gt;DB: write the batch header and EVERY CANCELLED# and REPRICED# line first,&lt;br/&gt;executionStatus = PLANNED (5c — the plan survives a crash)
+    X-&gt;&gt;DB: Query bookings and participants in affected range — shared evaluator&lt;br/&gt;sorts each into unchanged / cancel / re-price (ADR-020, ADR-026)
+    X-&gt;&gt;DB: write EVERY CANCELLED#35; and REPRICED#35; line, executionStatus = PLANNED,&lt;br/&gt;then planStatus = COMPLETE (5c, 5h — no booking is touched before this)
     loop each line
-        alt cancellation line
+        X-&gt;&gt;DB: re-check against the current schedule and booking (5i)
+        alt no longer applies
+            X-&gt;&gt;DB: mark the line SKIPPED with its skippedReason
+            Note over X: a cancellation SKIPPED as LESSON_PASSED → the coach is told
+        else cancellation line
             X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
         else re-price line
-            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED; otherwise mark SKIPPED (ADR-020 d5)
+            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED (ADR-020 d5)
         end
     end
     X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
@@ -1109,9 +1306,706 @@ sequenceDiagram
     Bus-&gt;&gt;N: route (one event per batch)
     N-&gt;&gt;DB: read the batch&#x27;s EXECUTED lines, group by client
     loop each client not yet SENT
-        N-&gt;&gt;N: SES email (+ SNS if smsOptIn)
+        N-&gt;&gt;N: SES email (SMS is Phase 2, ADR-007)
         N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
     end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d10">
+        <figcaption>
+          <span class="num">10</span>
+          <span class="ttl">6.6 Direct cancellation</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant F as Family (web)
+    participant C as Coach (website or rinkside)
+    participant AC as api-client λ
+    participant AK as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant N as consumer-change-notifier λ
+    participant SES as SES
+    participant SNS as SNS
+    alt family cancels (ADR-009 d2, d4)
+        F-&gt;&gt;AC: cancel one lesson, or a recurrence change —&lt;br/&gt;end earlier, reduce frequency, cancel all future
+        Note over F,AC: confirm first - any lesson inside requiredNoticeHours&lt;br/&gt;&quot;may incur a late cancellation fee&quot; (ADR-015 d1a)
+        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, a CANCELLED#35; line per lesson&lt;br/&gt;(cancelledAt, noticeHours), delete each booking if clientId = caller (ADR-024 d1)
+        Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
+    else coach cancels (ADR-009 d5, d5a)
+        Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
+        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold asked per lesson
+        opt more than one lesson, or any cancel from the check-in list
+            AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
+            C-&gt;&gt;AK: accept
+        end
+        Note over AK: skip lessons already started, CHECKED_IN or NO_SHOW (d7)
+        AK-&gt;&gt;DB: header cancelledBy = COACH, a CANCELLED#35; line per lesson, and per booking&lt;br/&gt;release = delete it, hold = replace with COACH_HELD at the same key
+    end
+    Note over AC,DB: one lesson - header, line and booking change in one transaction, all EXECUTED.&lt;br/&gt;Several - one transaction per booking, header marked EXECUTED last (ADR-010 d5d, d5f)
+    DB-&gt;&gt;Bus: (stream) LessonsChanged - the header reaching EXECUTED
+    Bus-&gt;&gt;N: route (one event per batch)
+    N-&gt;&gt;DB: read the batch header and its EXECUTED lines
+    alt cancelledBy = COACH (ADR-009 d9)
+        loop each affected client not yet SENT
+            N-&gt;&gt;SES: one email - lessons cancelled, link to book another time,&lt;br/&gt;Reply-To the coach (client SMS is Phase 2)
+            N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
+        end
+    else cancelledBy = CLIENT, inside requiredNoticeHours (amended 2026-10-08)
+        N-&gt;&gt;SES: email the coach
+        opt coach ticked smsCancellationAlerts (MVP)
+            N-&gt;&gt;SNS: one text - &quot;BladeBook: Mia R. cancelled Tue 14 Oct 4:00pm. See email.&quot;
+        end
+        N-&gt;&gt;DB: stamp notificationStatus
+    else cancelledBy = CLIENT, with enough notice
+        Note over N: nobody is told - the family already knows
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant F as Family (web)
+    participant C as Coach (website or rinkside)
+    participant AC as api-client λ
+    participant AK as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant N as consumer-change-notifier λ
+    participant SES as SES
+    participant SNS as SNS
+    alt family cancels (ADR-009 d2, d4)
+        F-&gt;&gt;AC: cancel one lesson, or a recurrence change —&lt;br/&gt;end earlier, reduce frequency, cancel all future
+        Note over F,AC: confirm first - any lesson inside requiredNoticeHours&lt;br/&gt;&quot;may incur a late cancellation fee&quot; (ADR-015 d1a)
+        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, a CANCELLED#35; line per lesson&lt;br/&gt;(cancelledAt, noticeHours), delete each booking if clientId = caller (ADR-024 d1)
+        Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
+    else coach cancels (ADR-009 d5, d5a)
+        Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
+        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold asked per lesson
+        opt more than one lesson, or any cancel from the check-in list
+            AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
+            C-&gt;&gt;AK: accept
+        end
+        Note over AK: skip lessons already started, CHECKED_IN or NO_SHOW (d7)
+        AK-&gt;&gt;DB: header cancelledBy = COACH, a CANCELLED#35; line per lesson, and per booking&lt;br/&gt;release = delete it, hold = replace with COACH_HELD at the same key
+    end
+    Note over AC,DB: one lesson - header, line and booking change in one transaction, all EXECUTED.&lt;br/&gt;Several - one transaction per booking, header marked EXECUTED last (ADR-010 d5d, d5f)
+    DB-&gt;&gt;Bus: (stream) LessonsChanged - the header reaching EXECUTED
+    Bus-&gt;&gt;N: route (one event per batch)
+    N-&gt;&gt;DB: read the batch header and its EXECUTED lines
+    alt cancelledBy = COACH (ADR-009 d9)
+        loop each affected client not yet SENT
+            N-&gt;&gt;SES: one email - lessons cancelled, link to book another time,&lt;br/&gt;Reply-To the coach (client SMS is Phase 2)
+            N-&gt;&gt;DB: stamp notificationStatus on that client&#x27;s lines
+        end
+    else cancelledBy = CLIENT, inside requiredNoticeHours (amended 2026-10-08)
+        N-&gt;&gt;SES: email the coach
+        opt coach ticked smsCancellationAlerts (MVP)
+            N-&gt;&gt;SNS: one text - &quot;BladeBook: Mia R. cancelled Tue 14 Oct 4:00pm. See email.&quot;
+        end
+        N-&gt;&gt;DB: stamp notificationStatus
+    else cancelledBy = CLIENT, with enough notice
+        Note over N: nobody is told - the family already knows
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d11">
+        <figcaption>
+          <span class="num">11</span>
+          <span class="ttl">6.7 Client registration and coach approval</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant F as Family (web)
+    participant Cog as Cognito
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant AC as api-coach λ
+    participant Bus as EventBridge
+    participant SL as consumer-student-link λ
+    participant SES as SES
+    F-&gt;&gt;API: look up coach code, before sign-in — WAF 20 per 5 min (ADR-019)
+    API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
+    API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
+    Note over F: one or more coach codes (ADR-025 d2)
+    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
+    API-&gt;&gt;DB: resolve every code again in the clientId-only session (ADR-022 d7)
+    API-&gt;&gt;DB: write own partition — PROFILE, SKATER#35;&lt;studentId&gt; per skater,&lt;br/&gt;a link per skater per coach, PENDING, with the coach&#x27;s name
+    loop each coach, in a session tagged with that coach
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING under COACH#35;&lt;coachId&gt; (ADR-002 d1)
+    end
+    API--&gt;&gt;F: &quot;Waiting for Coach Dana&#x27;s approval&quot; — sees nothing of the coach,&lt;br/&gt;cannot book (ADR-002 d2, ADR-022 d6)
+    alt coach accepts
+        AC-&gt;&gt;DB: STUDENT#35; studentStatus = ACTIVE — only that item (ADR-021 d6)
+        DB-&gt;&gt;Bus: (stream) StudentChanged
+        Bus-&gt;&gt;SL: route
+        SL-&gt;&gt;DB: set status ACTIVE on the link item, if it exists
+        Note over F,DB: about a second later the family&#x27;s session for this coach is ACTIVE —&lt;br/&gt;schedule readable, booking allowed (ADR-025 d3)
+    else coach declines
+        AC-&gt;&gt;DB: DeleteItem STUDENT#35; — an application delete, not TTL (ADR-002 d2b)
+        DB-&gt;&gt;Bus: (stream) StudentChanged — removal, old image carries the contents
+        Bus-&gt;&gt;SL: route
+        SL-&gt;&gt;DB: delete the link item
+        SL-&gt;&gt;DB: GetItem coach profile (Reply-To)
+        SL-&gt;&gt;SES: decline email — &quot;the coach does not have availability&lt;br/&gt;to take on new students&quot; (settled 2026-10-12)
+        Note over F: the client account is kept, even with no students
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant F as Family (web)
+    participant Cog as Cognito
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant AC as api-coach λ
+    participant Bus as EventBridge
+    participant SL as consumer-student-link λ
+    participant SES as SES
+    F-&gt;&gt;API: look up coach code, before sign-in — WAF 20 per 5 min (ADR-019)
+    API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
+    API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
+    Note over F: one or more coach codes (ADR-025 d2)
+    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
+    API-&gt;&gt;DB: resolve every code again in the clientId-only session (ADR-022 d7)
+    API-&gt;&gt;DB: write own partition — PROFILE, SKATER#35;&lt;studentId&gt; per skater,&lt;br/&gt;a link per skater per coach, PENDING, with the coach&#x27;s name
+    loop each coach, in a session tagged with that coach
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING under COACH#35;&lt;coachId&gt; (ADR-002 d1)
+    end
+    API--&gt;&gt;F: &quot;Waiting for Coach Dana&#x27;s approval&quot; — sees nothing of the coach,&lt;br/&gt;cannot book (ADR-002 d2, ADR-022 d6)
+    alt coach accepts
+        AC-&gt;&gt;DB: STUDENT#35; studentStatus = ACTIVE — only that item (ADR-021 d6)
+        DB-&gt;&gt;Bus: (stream) StudentChanged
+        Bus-&gt;&gt;SL: route
+        SL-&gt;&gt;DB: set status ACTIVE on the link item, if it exists
+        Note over F,DB: about a second later the family&#x27;s session for this coach is ACTIVE —&lt;br/&gt;schedule readable, booking allowed (ADR-025 d3)
+    else coach declines
+        AC-&gt;&gt;DB: DeleteItem STUDENT#35; — an application delete, not TTL (ADR-002 d2b)
+        DB-&gt;&gt;Bus: (stream) StudentChanged — removal, old image carries the contents
+        Bus-&gt;&gt;SL: route
+        SL-&gt;&gt;DB: delete the link item
+        SL-&gt;&gt;DB: GetItem coach profile (Reply-To)
+        SL-&gt;&gt;SES: decline email — &quot;the coach does not have availability&lt;br/&gt;to take on new students&quot; (settled 2026-10-12)
+        Note over F: the client account is kept, even with no students
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d12">
+        <figcaption>
+          <span class="num">12</span>
+          <span class="ttl">6.8 Family changes reach every coach</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant FS as consumer-family-sync λ
+    F-&gt;&gt;API: edit contact details or smsOptIn, or a skater —&lt;br/&gt;name, skatingOrg, registrationNumber (ADR-029 d3)
+    API-&gt;&gt;DB: UpdateItem own partition only — CLIENT#35;&lt;cognitoSub&gt; PROFILE&lt;br/&gt;or SKATER#35;&lt;studentId&gt; (ADR-025 d6 step 1)
+    API--&gt;&gt;F: saved
+    DB-&gt;&gt;Bus: (stream) FamilyChanged — PROFILE or SKATER#35; modified
+    Bus-&gt;&gt;FS: route (idempotent, with a dead-letter queue)
+    FS-&gt;&gt;DB: GetItem and Query the family&#x27;s partition —&lt;br/&gt;the changed item and its STUDENT#35;&lt;coachId&gt;#35;&lt;studentId&gt; links
+    loop each coach the family&#x27;s skaters are with
+        FS-&gt;&gt;DB: UpdateItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; — copy the fields
+    end
+    Note over FS,DB: lag is about a second — a reminder in that window&lt;br/&gt;uses the old phone or email (ADR-025 d6)
+    opt a new SKATER#35; item (ADR-026 d4)
+        FS-&gt;&gt;DB: put SKATERCODE#35;&lt;shareCode&gt;, attribute_not_exists(PK) so codes are unique
+        FS-&gt;&gt;DB: copy shareCode onto the SKATER#35; item
+    end
+    Note over DB,Bus: a studentName change on STUDENT#35; also raises StudentChanged —&lt;br/&gt;consumer-student-link mirrors it onto the link item (ADR-021 d6)</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant FS as consumer-family-sync λ
+    F-&gt;&gt;API: edit contact details or smsOptIn, or a skater —&lt;br/&gt;name, skatingOrg, registrationNumber (ADR-029 d3)
+    API-&gt;&gt;DB: UpdateItem own partition only — CLIENT#35;&lt;cognitoSub&gt; PROFILE&lt;br/&gt;or SKATER#35;&lt;studentId&gt; (ADR-025 d6 step 1)
+    API--&gt;&gt;F: saved
+    DB-&gt;&gt;Bus: (stream) FamilyChanged — PROFILE or SKATER#35; modified
+    Bus-&gt;&gt;FS: route (idempotent, with a dead-letter queue)
+    FS-&gt;&gt;DB: GetItem and Query the family&#x27;s partition —&lt;br/&gt;the changed item and its STUDENT#35;&lt;coachId&gt;#35;&lt;studentId&gt; links
+    loop each coach the family&#x27;s skaters are with
+        FS-&gt;&gt;DB: UpdateItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; — copy the fields
+    end
+    Note over FS,DB: lag is about a second — a reminder in that window&lt;br/&gt;uses the old phone or email (ADR-025 d6)
+    opt a new SKATER#35; item (ADR-026 d4)
+        FS-&gt;&gt;DB: put SKATERCODE#35;&lt;shareCode&gt;, attribute_not_exists(PK) so codes are unique
+        FS-&gt;&gt;DB: copy shareCode onto the SKATER#35; item
+    end
+    Note over DB,Bus: a studentName change on STUDENT#35; also raises StudentChanged —&lt;br/&gt;consumer-student-link mirrors it onto the link item (ADR-021 d6)</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d13">
+        <figcaption>
+          <span class="num">13</span>
+          <span class="ttl">6.9 Shared lesson by invitation</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant A as Family A (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Inv as consumer-invite λ
+    participant SES as SES
+    participant B as Family B (web)
+    participant AC as api-coach λ
+    A-&gt;&gt;API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; — display name only (d4)
+    API--&gt;&gt;A: &quot;Mia R.&quot; — the booking continues as a normal private booking (§6.1)
+    A-&gt;&gt;API: invite Mia
+    API-&gt;&gt;DB: put CLIENT#35;&lt;familyA&gt; / INVITE#35;&lt;inviteId&gt;, inviteStatus SENT,&lt;br/&gt;stamp invitedStudentId on each booking in the series (d5 step 1)
+    DB-&gt;&gt;Bus: (stream) InviteChanged
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: copy the invitation into CLIENT#35;&lt;familyB&gt;
+    Inv-&gt;&gt;SES: email Family B now — an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    B-&gt;&gt;API: open the link and sign in — confirm page shows Mia&#x27;s clashes (ADR-025 d5)
+    B-&gt;&gt;API: Go ahead
+    alt Mia is already the coach&#x27;s student
+        API-&gt;&gt;DB: TransactWriteItems in Family B&#x27;s session (d3) — skaterCount + 1&lt;br/&gt;if &lt; maxSkaters and booking exists + put PARTICIPANT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt;&lt;br/&gt;attribute_not_exists(SK), both or neither
+    else Mia isn&#x27;t the coach&#x27;s student yet
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING with pendingJoins (booking key, inviteId),&lt;br/&gt;the sign-up route (§6.7), after checking B holds the invitation — invite AWAITING_COACH
+        Note over AC: Coach taps Accept on the pending list
+        AC-&gt;&gt;DB: per pendingJoins entry, the join transaction with conditions — booking exists,&lt;br/&gt;startsAtUtc &gt; now, room left, invitedStudentId = Mia, no PARTICIPANT#35; yet (d5)
+        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, clear pendingJoins, record each lesson&#x27;s outcome
+        DB-&gt;&gt;Bus: (stream) StudentChanged
+        Bus-&gt;&gt;Inv: route (also to consumer-student-link, §6.7)
+        Inv-&gt;&gt;DB: update both invitations — CONFIRMED, or EXPIRED where the join failed
+        Inv-&gt;&gt;SES: tell Family B of any lesson no longer available
+    end
+    Note over Inv,A: consumer-invite copies each status change to Family A&#x27;s copy (d5 step 6) —&lt;br/&gt;A&#x27;s booking shows both skaters, never B&#x27;s participant item
+    Note over AC,B: Coach declines instead — Mia is deleted (ADR-002 d2b), invite DECLINED, Family A told,&lt;br/&gt;B gets the ordinary decline email. Lesson passes first — EXPIRED by the sweep (§6.10)</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant A as Family A (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Inv as consumer-invite λ
+    participant SES as SES
+    participant B as Family B (web)
+    participant AC as api-coach λ
+    A-&gt;&gt;API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; — display name only (d4)
+    API--&gt;&gt;A: &quot;Mia R.&quot; — the booking continues as a normal private booking (§6.1)
+    A-&gt;&gt;API: invite Mia
+    API-&gt;&gt;DB: put CLIENT#35;&lt;familyA&gt; / INVITE#35;&lt;inviteId&gt;, inviteStatus SENT,&lt;br/&gt;stamp invitedStudentId on each booking in the series (d5 step 1)
+    DB-&gt;&gt;Bus: (stream) InviteChanged
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: copy the invitation into CLIENT#35;&lt;familyB&gt;
+    Inv-&gt;&gt;SES: email Family B now — an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    B-&gt;&gt;API: open the link and sign in — confirm page shows Mia&#x27;s clashes (ADR-025 d5)
+    B-&gt;&gt;API: Go ahead
+    alt Mia is already the coach&#x27;s student
+        API-&gt;&gt;DB: TransactWriteItems in Family B&#x27;s session (d3) — skaterCount + 1&lt;br/&gt;if &lt; maxSkaters and booking exists + put PARTICIPANT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt;&lt;br/&gt;attribute_not_exists(SK), both or neither
+    else Mia isn&#x27;t the coach&#x27;s student yet
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING with pendingJoins (booking key, inviteId),&lt;br/&gt;the sign-up route (§6.7), after checking B holds the invitation — invite AWAITING_COACH
+        Note over AC: Coach taps Accept on the pending list
+        AC-&gt;&gt;DB: per pendingJoins entry, the join transaction with conditions — booking exists,&lt;br/&gt;startsAtUtc &gt; now, room left, invitedStudentId = Mia, no PARTICIPANT#35; yet (d5)
+        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, clear pendingJoins, record each lesson&#x27;s outcome
+        DB-&gt;&gt;Bus: (stream) StudentChanged
+        Bus-&gt;&gt;Inv: route (also to consumer-student-link, §6.7)
+        Inv-&gt;&gt;DB: update both invitations — CONFIRMED, or EXPIRED where the join failed
+        Inv-&gt;&gt;SES: tell Family B of any lesson no longer available
+    end
+    Note over Inv,A: consumer-invite copies each status change to Family A&#x27;s copy (d5 step 6) —&lt;br/&gt;A&#x27;s booking shows both skaters, never B&#x27;s participant item
+    Note over AC,B: Coach declines instead — Mia is deleted (ADR-002 d2b), invite DECLINED, Family A told,&lt;br/&gt;B gets the ordinary decline email. Lesson passes first — EXPIRED by the sweep (§6.10)</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d14">
+        <figcaption>
+          <span class="num">14</span>
+          <span class="ttl">6.10 Nightly invitation sweep</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant Sch as EventBridge Scheduler
+    participant Inv as consumer-invite λ
+    participant DB as DynamoDB
+    participant SES as SES
+    participant CW as CloudWatch
+    Sch-&gt;&gt;Inv: nightly, right after the 9 PM end-of-day report (§8)
+    Inv-&gt;&gt;DB: Query GSI2 by date — upcoming bookings carrying invitedStudentId
+    loop each invitation on those bookings
+        alt lesson has started, inviteStatus still SENT or AWAITING_COACH
+            Inv-&gt;&gt;DB: inviteStatus = EXPIRED
+            Inv-&gt;&gt;SES: email both families (Reply-To the coach&#x27;s businessEmail)
+            Note over Inv,SES: never-accepted skater — &quot;reach out to Coach Dana&quot;&lt;br/&gt;already a student — the &quot;no longer available&quot; email
+        else AWAITING_COACH, no warnedAt, warning due before the next run
+            Note over Inv: due = startsAtUtc − (24h + requiredNoticeHours stamped on the booking)
+            Inv-&gt;&gt;SES: warning email to Family A, Family B and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
+            Inv-&gt;&gt;DB: stamp warnedAt — each warning is sent once
+        end
+    end
+    Inv-&gt;&gt;CW: InviteSweepCompleted metric
+    Note over CW: ADR-010&#x27;s missed-run alarm watches this metric —&lt;br/&gt;event-driven runs of the same function would hide a missed sweep
+    Note over Inv: a missed night catches up the next night. A late confirmation that is already&lt;br/&gt;due gets its warning straight away from the event-driven path (ADR-026 d5a)</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant Sch as EventBridge Scheduler
+    participant Inv as consumer-invite λ
+    participant DB as DynamoDB
+    participant SES as SES
+    participant CW as CloudWatch
+    Sch-&gt;&gt;Inv: nightly, right after the 9 PM end-of-day report (§8)
+    Inv-&gt;&gt;DB: Query GSI2 by date — upcoming bookings carrying invitedStudentId
+    loop each invitation on those bookings
+        alt lesson has started, inviteStatus still SENT or AWAITING_COACH
+            Inv-&gt;&gt;DB: inviteStatus = EXPIRED
+            Inv-&gt;&gt;SES: email both families (Reply-To the coach&#x27;s businessEmail)
+            Note over Inv,SES: never-accepted skater — &quot;reach out to Coach Dana&quot;&lt;br/&gt;already a student — the &quot;no longer available&quot; email
+        else AWAITING_COACH, no warnedAt, warning due before the next run
+            Note over Inv: due = startsAtUtc − (24h + requiredNoticeHours stamped on the booking)
+            Inv-&gt;&gt;SES: warning email to Family A, Family B and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
+            Inv-&gt;&gt;DB: stamp warnedAt — each warning is sent once
+        end
+    end
+    Inv-&gt;&gt;CW: InviteSweepCompleted metric
+    Note over CW: ADR-010&#x27;s missed-run alarm watches this metric —&lt;br/&gt;event-driven runs of the same function would hide a missed sweep
+    Note over Inv: a missed night catches up the next night. A late confirmation that is already&lt;br/&gt;due gets its warning straight away from the event-driven path (ADR-026 d5a)</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d15">
+        <figcaption>
+          <span class="num">15</span>
+          <span class="ttl">6.11 Coach sign-up</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach (website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    Cog--&gt;&gt;C: one-time code to the email
+    C-&gt;&gt;Cog: confirm the code - email verified (d4)
+    Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
+    C-&gt;&gt;Cog: sign in
+    Cog--&gt;&gt;C: tokens
+    C-&gt;&gt;API: GET profile
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
+    alt profile exists
+        API--&gt;&gt;C: coach website
+    else missing - a new signup, or one that failed after step 1
+        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, smsCancellationAlerts
+        loop until the code is free (ADR-002 d2a)
+            API-&gt;&gt;API: generate a coachCode
+            API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
+        end
+        API-&gt;&gt;DB: PutItem COACH#35;&lt;coachId&gt; / PROFILE - coachCode, requiredNoticeHours 24,&lt;br/&gt;businessEmail defaults to loginEmail (d2)
+        Note over API,DB: idempotent by construction - a retry&lt;br/&gt;cannot create a second coach (d9)
+        API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+    end
+    Note over C,DB: no rollback - a failure between Cognito and the profile is finished&lt;br/&gt;by the next sign-in taking the &quot;missing&quot; branch (d9, ADR-010 d5b)</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach (website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    Cog--&gt;&gt;C: one-time code to the email
+    C-&gt;&gt;Cog: confirm the code - email verified (d4)
+    Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
+    C-&gt;&gt;Cog: sign in
+    Cog--&gt;&gt;C: tokens
+    C-&gt;&gt;API: GET profile
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
+    alt profile exists
+        API--&gt;&gt;C: coach website
+    else missing - a new signup, or one that failed after step 1
+        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, smsCancellationAlerts
+        loop until the code is free (ADR-002 d2a)
+            API-&gt;&gt;API: generate a coachCode
+            API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
+        end
+        API-&gt;&gt;DB: PutItem COACH#35;&lt;coachId&gt; / PROFILE - coachCode, requiredNoticeHours 24,&lt;br/&gt;businessEmail defaults to loginEmail (d2)
+        Note over API,DB: idempotent by construction - a retry&lt;br/&gt;cannot create a second coach (d9)
+        API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+    end
+    Note over C,DB: no rollback - a failure between Cognito and the profile is finished&lt;br/&gt;by the next sign-in taking the &quot;missing&quot; branch (d9, ADR-010 d5b)</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d16">
+        <figcaption>
+          <span class="num">16</span>
+          <span class="ttl">Client writes into a coach&#x27;s partition</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant CD as core.data (in api-client)
+    participant DB as DynamoDB
+    participant CW as CloudWatch
+    participant SNS as SNS (owner&#x27;s phone)
+    F-&gt;&gt;API: a write into the coach&#x27;s partition
+    Note over API: clientId = the verified token&#x27;s sub, never the request body (§7)
+    alt new write - book a lesson, a recurring series, edit a skater
+        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId)
+        CD-&gt;&gt;DB: read the family&#x27;s own link items, in their own tenant session
+        alt linked and ACTIVE
+            CD--&gt;&gt;API: LinkedSkater (private constructor)
+            API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
+            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
+        else linked, but removed, declined or still pending
+            CD--&gt;&gt;API: not ACTIVE - an ordinary application event
+            API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
+        else never this family&#x27;s
+            CD-&gt;&gt;CW: security event to the access-log group - identifiers only
+            API--&gt;&gt;F: 404 not found
+        end
+    else write to an existing item - cancel a lesson, change a recurrence
+        CD-&gt;&gt;DB: update or delete with condition clientId = :callerSub,&lt;br/&gt;added inside the repository method
+        alt the family&#x27;s own
+            DB--&gt;&gt;CD: written
+        else another family&#x27;s booking
+            DB--&gt;&gt;CD: ConditionalCheckFailed
+            CD-&gt;&gt;CW: security event to the access-log group - identifiers only
+            API--&gt;&gt;F: 404 not found
+        end
+    end
+    Note over CW: a metric counts security events (ADR-024 d3)
+    opt one family 3+ in 15 minutes, or everyone 10+ in a day (configurable)
+        CW-&gt;&gt;SNS: alarm pages the owner (ADR-010 d4)
+    end
+    Note over API,CD: an ArchUnit rule fails the build if anything outside core.data&lt;br/&gt;makes a LinkedSkater, or api-client reaches the coach&#x27;s partition another way</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant CD as core.data (in api-client)
+    participant DB as DynamoDB
+    participant CW as CloudWatch
+    participant SNS as SNS (owner&#x27;s phone)
+    F-&gt;&gt;API: a write into the coach&#x27;s partition
+    Note over API: clientId = the verified token&#x27;s sub, never the request body (§7)
+    alt new write - book a lesson, a recurring series, edit a skater
+        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId)
+        CD-&gt;&gt;DB: read the family&#x27;s own link items, in their own tenant session
+        alt linked and ACTIVE
+            CD--&gt;&gt;API: LinkedSkater (private constructor)
+            API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
+            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
+        else linked, but removed, declined or still pending
+            CD--&gt;&gt;API: not ACTIVE - an ordinary application event
+            API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
+        else never this family&#x27;s
+            CD-&gt;&gt;CW: security event to the access-log group - identifiers only
+            API--&gt;&gt;F: 404 not found
+        end
+    else write to an existing item - cancel a lesson, change a recurrence
+        CD-&gt;&gt;DB: update or delete with condition clientId = :callerSub,&lt;br/&gt;added inside the repository method
+        alt the family&#x27;s own
+            DB--&gt;&gt;CD: written
+        else another family&#x27;s booking
+            DB--&gt;&gt;CD: ConditionalCheckFailed
+            CD-&gt;&gt;CW: security event to the access-log group - identifiers only
+            API--&gt;&gt;F: 404 not found
+        end
+    end
+    Note over CW: a metric counts security events (ADR-024 d3)
+    opt one family 3+ in 15 minutes, or everyone 10+ in a day (configurable)
+        CW-&gt;&gt;SNS: alarm pages the owner (ADR-010 d4)
+    end
+    Note over API,CD: an ArchUnit rule fails the build if anything outside core.data&lt;br/&gt;makes a LinkedSkater, or api-client reaches the coach&#x27;s partition another way</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d17">
+        <figcaption>
+          <span class="num">17</span>
+          <span class="ttl">Lower environments</span>
+          <span class="kind">Flowchart</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+flowchart LR
+    subgraph Prod[&quot;Production account&quot;]
+        DDB[(&quot;DynamoDB&lt;br/&gt;production table&quot;)]
+        subgraph DataLoad[&quot;Data-loading stack (ADR-027 d9)&quot;]
+            SFN[&quot;Step Functions workflow&lt;br/&gt;(build-dev --masked, on request)&quot;]
+            ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, only the transform reads it,&lt;br/&gt;deleted after a day)&quot;]
+            L_Transform[&quot;λ Transform&lt;br/&gt;(subset, mask, remap to test accounts,&lt;br/&gt;asserts on its own output)&quot;]
+            MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(only dev&#x27;s import reads it,&lt;br/&gt;deleted after 24 hours)&quot;]
+            Logs[&quot;Load log and dev access logs&quot;]
+        end
+    end
+    subgraph Dev[&quot;Dev account (built on demand, ADR-027 d8)&quot;]
+        Seed[&quot;Seed data file&lt;br/&gt;(the default)&quot;]
+        DevTable[(&quot;Dev table&lt;br/&gt;created from one import (ADR-028)&quot;)]
+        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every load and daily,&lt;br/&gt;can read dev only)&quot;]
+    end
+    SFN --&gt;|starts export| DDB
+    DDB --&gt;|export, optionally --as-of within PITR| ExportB --&gt; L_Transform
+    SFN --&gt; L_Transform
+    L_Transform --&gt;|every check passes| MaskedB
+    L_Transform -.-&gt;|a check fails: stop, nothing written| SFN
+    MaskedB --&gt;|imported when dev is built| DevTable
+    Seed -.-&gt;|or, by default| DevTable
+    Scanner --&gt;|scans| DevTable</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>flowchart LR
+    subgraph Prod[&quot;Production account&quot;]
+        DDB[(&quot;DynamoDB&lt;br/&gt;production table&quot;)]
+        subgraph DataLoad[&quot;Data-loading stack (ADR-027 d9)&quot;]
+            SFN[&quot;Step Functions workflow&lt;br/&gt;(build-dev --masked, on request)&quot;]
+            ExportB[&quot;🪣 Export bucket&lt;br/&gt;(raw export, only the transform reads it,&lt;br/&gt;deleted after a day)&quot;]
+            L_Transform[&quot;λ Transform&lt;br/&gt;(subset, mask, remap to test accounts,&lt;br/&gt;asserts on its own output)&quot;]
+            MaskedB[&quot;🪣 Masked bucket&lt;br/&gt;(only dev&#x27;s import reads it,&lt;br/&gt;deleted after 24 hours)&quot;]
+            Logs[&quot;Load log and dev access logs&quot;]
+        end
+    end
+    subgraph Dev[&quot;Dev account (built on demand, ADR-027 d8)&quot;]
+        Seed[&quot;Seed data file&lt;br/&gt;(the default)&quot;]
+        DevTable[(&quot;Dev table&lt;br/&gt;created from one import (ADR-028)&quot;)]
+        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every load and daily,&lt;br/&gt;can read dev only)&quot;]
+    end
+    SFN --&gt;|starts export| DDB
+    DDB --&gt;|export, optionally --as-of within PITR| ExportB --&gt; L_Transform
+    SFN --&gt; L_Transform
+    L_Transform --&gt;|every check passes| MaskedB
+    L_Transform -.-&gt;|a check fails: stop, nothing written| SFN
+    MaskedB --&gt;|imported when dev is built| DevTable
+    Seed -.-&gt;|or, by default| DevTable
+    Scanner --&gt;|scans| DevTable</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d18">
+        <figcaption>
+          <span class="num">18</span>
+          <span class="ttl">Lower environments</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <p class="cap">Replacements are non-deliverable by construction: emails become @example.com (reserved by RFC 2606), phones become +1 555 01XX (reserved by the North American Numbering Plan). Dev additionally never leaves Simple Email Service (SES) sandbox mode and has no…</p>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant O as Owner (build-dev)
+    participant Acc as Dev account stack
+    participant SF as Step Functions (prod data-loading stack)
+    participant Prod as DynamoDB (production)
+    participant Ex as Export bucket
+    participant T as Transform λ
+    participant Mb as Masked bucket
+    participant App as Dev application stack
+    participant Sc as Scanner
+    O-&gt;&gt;Acc: 1 - build dev&#x27;s Cognito user pools and test accounts (ADR-028 d4)
+    O-&gt;&gt;SF: 2 - build-dev --masked --coaches ... [--clients ...] [--as-of ...] --reason &quot;...&quot;
+    Note over O,SF: run history and CloudTrail&#x27;s record of who started it&lt;br/&gt;cover most of the load log (ADR-027 d9)
+    SF-&gt;&gt;Prod: start the export - now, or --as-of within the PITR window
+    loop until the export is done
+        SF-&gt;&gt;Prod: check on it
+    end
+    Prod-&gt;&gt;Ex: raw export - readable only by the transform, deleted after a day
+    SF-&gt;&gt;T: run the transform
+    T-&gt;&gt;Ex: read the raw export
+    T-&gt;&gt;Acc: read the test accounts&#x27; subs by email
+    T-&gt;&gt;T: filter to the named subset, mask with a fresh salt,&lt;br/&gt;remap onto test accounts, one placeholder photo
+    T-&gt;&gt;T: self-checks - masked fields differ, reserved email and phone patterns,&lt;br/&gt;no production identifier survives, no duplicate keys (ADR-011 6a, ADR-028 d5)
+    alt any check fails
+        T--&gt;&gt;SF: failed
+        Note over SF: fail step - no masked file is written. A restart is a new run
+    else all pass
+        T-&gt;&gt;Mb: masked file and its item count - deleted after 24 hours (d6)
+    end
+    O-&gt;&gt;App: 3 - build the application stack, the table created from the masked file
+    App-&gt;&gt;Mb: import reads the file across the account boundary (d6)
+    App-&gt;&gt;App: compare the import&#x27;s item and error counts with the transform&#x27;s (d5)
+    alt any difference
+        Note over App: the build fails and the application stack is torn down
+    else counts match
+        App-&gt;&gt;Sc: 4 - scan as soon as the build finishes, before anyone signs in
+        opt finding
+            Sc-&gt;&gt;Acc: disable dev&#x27;s Cognito app clients, page the owner -&lt;br/&gt;keys and field names only, never the value (ADR-011 6c)
+        end
+    end
+    Note over Sc: also daily while dev exists, and on demand</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant O as Owner (build-dev)
+    participant Acc as Dev account stack
+    participant SF as Step Functions (prod data-loading stack)
+    participant Prod as DynamoDB (production)
+    participant Ex as Export bucket
+    participant T as Transform λ
+    participant Mb as Masked bucket
+    participant App as Dev application stack
+    participant Sc as Scanner
+    O-&gt;&gt;Acc: 1 - build dev&#x27;s Cognito user pools and test accounts (ADR-028 d4)
+    O-&gt;&gt;SF: 2 - build-dev --masked --coaches ... [--clients ...] [--as-of ...] --reason &quot;...&quot;
+    Note over O,SF: run history and CloudTrail&#x27;s record of who started it&lt;br/&gt;cover most of the load log (ADR-027 d9)
+    SF-&gt;&gt;Prod: start the export - now, or --as-of within the PITR window
+    loop until the export is done
+        SF-&gt;&gt;Prod: check on it
+    end
+    Prod-&gt;&gt;Ex: raw export - readable only by the transform, deleted after a day
+    SF-&gt;&gt;T: run the transform
+    T-&gt;&gt;Ex: read the raw export
+    T-&gt;&gt;Acc: read the test accounts&#x27; subs by email
+    T-&gt;&gt;T: filter to the named subset, mask with a fresh salt,&lt;br/&gt;remap onto test accounts, one placeholder photo
+    T-&gt;&gt;T: self-checks - masked fields differ, reserved email and phone patterns,&lt;br/&gt;no production identifier survives, no duplicate keys (ADR-011 6a, ADR-028 d5)
+    alt any check fails
+        T--&gt;&gt;SF: failed
+        Note over SF: fail step - no masked file is written. A restart is a new run
+    else all pass
+        T-&gt;&gt;Mb: masked file and its item count - deleted after 24 hours (d6)
+    end
+    O-&gt;&gt;App: 3 - build the application stack, the table created from the masked file
+    App-&gt;&gt;Mb: import reads the file across the account boundary (d6)
+    App-&gt;&gt;App: compare the import&#x27;s item and error counts with the transform&#x27;s (d5)
+    alt any difference
+        Note over App: the build fails and the application stack is torn down
+    else counts match
+        App-&gt;&gt;Sc: 4 - scan as soon as the build finishes, before anyone signs in
+        opt finding
+            Sc-&gt;&gt;Acc: disable dev&#x27;s Cognito app clients, page the owner -&lt;br/&gt;keys and field names only, never the value (ADR-011 6c)
+        end
+    end
+    Note over Sc: also daily while dev exists, and on demand</code></pre>
         </details>
       </figure>
 

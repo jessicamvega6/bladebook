@@ -3,8 +3,8 @@
 > A scheduling, student-management, and payment-reminder platform for hockey / figure-skating coaches.
 
 **Status:** Design (pre-implementation)
-**Last updated:** 2026-10-09
-**Current through:** [ADR-028](adr/ADR-028-dev-table-built-from-one-import.md)
+**Last updated:** 2026-10-13
+**Current through:** [ADR-030](adr/ADR-030-financial-page-gross-and-rink-fees.md)
 
 > This document describes the design as it currently stands. The reasoning behind each
 > decision — and every alternative rejected along the way — lives in `docs/adr/`.
@@ -53,7 +53,7 @@ A **student** may be a child *or* an adult, so "parent" is not a universal role.
 | **Auth** | **Cognito** User Pool | Managed auth; free up to tens of thousands of users. Groups for `Coach` / `Client` (an adult student or a minor's guardian). |
 | **Events** | **EventBridge** (custom bus + Scheduler) | Central event backbone + cron for scheduled jobs. |
 | **Email** | **SES** | ~$0.10 per 1,000 emails. |
-| **SMS** | **SNS** (**opt-in per phone number**) | ~$0.01–0.02/text; requires toll-free/10DLC registration. Opt-in keeps cost + compliance contained. |
+| **SMS** | **SNS** (MVP: the coach's late-cancellation text only; client texts are **Phase 2**, ADR-007; **opt-in per phone number**) | ~$0.01–0.02/text; requires toll-free/10DLC registration. Opt-in keeps cost + compliance contained. |
 | **Frontend** | **React + TypeScript** on **S3 + CloudFront** | ~$1/mo hosting; clean split from backend. Two sites: the **coach website**, which includes the rinkside check-in page at `/coach/rinkside` (ADR-023), and the **family website**. Visual theme is **Harbor** (`design/harbor/`; chosen 2026-10-01, replacing Forest, which moved to `design/DecidedAgainst/forest-theme/`). Coach-selectable alternates are Phase 2. |
 | **Edge security** | **WAF** on the API and Cognito | **In MVP** (ADR-019): one web ACL attached to the REST API's stage and the Cognito user pool, so sign-up, sign-in and every API call pass through it. CloudFront serves only the static site. ~$10/mo per environment. |
 | **IaC** | **AWS CDK (TypeScript) or Terraform** — *undecided* | ADR-001 decision 2 chose CDK, with Maven wired into `cdk.json`'s app command so `cdk deploy` cannot ship a stale JAR and `cdk-nag` in CI as the §7 checklist. **Re-opened 2026-09-04 (ADR-001 A4):** decision 2 never compared CDK to Terraform. The choice is open, judged against A4's criteria; whichever is chosen must enforce §7's least-privilege rules as a CI check. |
@@ -89,24 +89,12 @@ flowchart TB
         Stream["DynamoDB Streams"]
         Pipe["EventBridge Pipe"]
         Bus["EventBridge custom bus"]
-        Sched["EventBridge Scheduler<br/>(morning + end-of-day + weekly unpaid)"]
+        Sched["EventBridge Scheduler<br/>(day-of reminder, end-of-day report, weekly unpaid,<br/>nightly drift check, nightly invitation sweep)"]
         DLQ["☠️ Dead-letter queues<br/>one per consumer (ADR-010)"]
+        Alerts["🔔 Operator alert topic<br/>(SNS + CloudWatch metrics)"]
     end
 
-    subgraph Consumers["Event Consumers (λ)"]
-        L_Confirm["λ Booking confirmation"]
-        L_Remind["λ Day-of reminder"]
-        L_Pay["λ Payment reminder"]
-        L_Report["λ End-of-day report"]
-        L_Unpaid["λ Unpaid-lesson reminder<br/>(weekly, to the coach)"]
-        L_Drift["λ Nightly drift check<br/>(read-only, alerts)"]
-        L_Cancel["λ Schedule change<br/>(cancel + re-price)"]
-        L_Notify["λ Change notifier"]
-        L_Archive["λ TTL archiver<br/>(ADR-017)"]
-        L_Link["λ Student link sync<br/>(ADR-021)"]
-        L_Family["λ Family sync<br/>(ADR-025)"]
-        L_Invite["λ Invite<br/>(shared lessons, ADR-026)"]
-    end
+    Consumers["λ 12 event consumers<br/>(each one drawn in §3.1 Event consumers)"]
 
     subgraph Data
         DDB[("DynamoDB<br/>single table")]
@@ -114,18 +102,11 @@ flowchart TB
         Archive["🧊 S3 archive bucket<br/>(expired items → Deep Archive)"]
     end
 
-    subgraph DataLoad["Data-loading stack (production account, ADR-027 d9)"]
-        SFN["Step Functions workflow<br/>(masked dev builds, on request)"]
-        L_Transform["λ Transform<br/>(filter, mask, remap — operational)"]
-        ExportB["🪣 Export bucket<br/>(raw export, deleted after a day)"]
-        MaskedB["🪣 Masked bucket<br/>(deleted after 24 hours)"]
-    end
-
-    DevTable[("Dev table<br/>(dev account — built from one import, ADR-028)")]
+    DataLoadRef["Data-loading stack<br/>(masked dev builds, on request — §7 Lower environments)"]
 
     subgraph Notify["Delivery"]
         SES["SES (email)"]
-        SNS["SNS (SMS, opt-in)"]
+        SNS["SNS (coach SMS, opt-in)"]
     end
 
     Coach --> CF
@@ -140,41 +121,17 @@ flowchart TB
     L_Api <--> DDB
 
     DDB --> Stream --> Pipe --> Bus
-    Stream -->|TTL removals only| L_Archive --> Archive
-    Sched --> L_Remind
-    Sched --> L_Report
-    Sched --> L_Unpaid
-    Sched --> L_Drift
-    Sched --> L_Invite
-    L_Drift --> DDB
-    L_Unpaid --> SES
-    L_Unpaid <--> DDB
-    Bus --> L_Confirm
-    Bus --> L_Pay
-    Bus --> L_Cancel
-    Bus --> L_Notify
-    Bus --> L_Link
-    L_Link --> DDB
-    Bus --> L_Family
-    L_Family <--> DDB
-    Bus --> L_Invite
-    L_Invite <--> DDB
-    L_Invite --> SES & SNS
+    Bus --> Consumers
+    Sched --> Consumers
+    Stream -->|TTL removals only| Consumers
+    Consumers <--> DDB
+    Consumers --> SES & SNS
+    Consumers --> Reports
+    Consumers --> Archive
+    Consumers --> Alerts
+    Consumers -.->|on repeated failure| DLQ
 
-    L_Confirm --> SES
-    L_Remind --> SES & SNS
-    L_Pay --> SES & SNS
-    L_Notify --> SES & SNS
-    L_Report --> SES
-    L_Report --> Reports
-    L_Confirm & L_Remind & L_Report & L_Cancel & L_Notify <--> DDB
-
-    L_Confirm & L_Remind & L_Pay & L_Report & L_Cancel & L_Notify & L_Link & L_Family & L_Invite -.->|on repeated failure| DLQ
-
-    SFN -->|starts export| DDB
-    DDB -->|export| ExportB --> L_Transform --> MaskedB
-    SFN --> L_Transform
-    MaskedB -.->|imported when dev is built| DevTable
+    DDB -.->|export, on request| DataLoadRef
 ```
 
 **Key idea:** the API Lambdas only read/write DynamoDB. All notification, cancellation
@@ -182,6 +139,46 @@ and reporting logic lives in **independent event/schedule consumers** — so we 
 change, or split them (e.g. the rinkside check-in page) without touching the core API.
 Domain events are derived from committed writes via change-data-capture (§6), never
 published alongside them.
+
+### 3.1 Event consumers
+
+The twelve consumers in the box above, one by one: what starts each one, and what each one reads or writes. Events reach them through the EventBridge bus, schedules through EventBridge Scheduler, and expired items through DynamoDB Streams (§6 has the step-by-step flows).
+
+```mermaid
+flowchart LR
+    Bus["EventBridge custom bus<br/>(domain events)"]
+    Sched["EventBridge Scheduler"]
+    Stream["DynamoDB Streams"]
+
+    subgraph OnEvent["Run on an event"]
+        L_Confirm["λ Booking confirmation<br/>table read/write · email"]
+        L_Pay["λ Payment reminder<br/>table read/write · email"]
+        L_Cancel["λ Schedule change (cancel + re-price)<br/>table read/write"]
+        L_Notify["λ Change notifier<br/>table read/write · email · coach SMS"]
+        L_Link["λ Student link sync (ADR-021)<br/>table read/write · decline email"]
+        L_Family["λ Family sync (ADR-025)<br/>table read/write"]
+        L_Invite["λ Invite (shared lessons, ADR-026)<br/>table read/write · email"]
+    end
+
+    subgraph OnSchedule["Run on a schedule"]
+        L_Remind["λ Day-of reminder<br/>table read/write · email"]
+        L_Report["λ End-of-day report<br/>reads table · email · S3 reports bucket"]
+        L_Unpaid["λ Unpaid-lesson reminder (weekly, to the coach)<br/>table read/write · email"]
+        L_Drift["λ Nightly drift check<br/>reads table · operator alert topic"]
+    end
+
+    subgraph OnStream["Run on an expired item"]
+        L_Archive["λ TTL archiver (ADR-017)<br/>S3 archive bucket"]
+    end
+
+    DLQ["☠️ Dead-letter queues (ADR-010)<br/>one per consumer, except the TTL archiver<br/>(a run that keeps failing lands here)"]
+
+    Bus --> L_Confirm & L_Pay & L_Cancel & L_Notify & L_Link & L_Family & L_Invite
+    Sched --> L_Remind & L_Report & L_Unpaid & L_Drift
+    Sched -->|nightly invitation sweep| L_Invite
+    Stream -->|TTL removals only| L_Archive
+    OnEvent & OnSchedule -.-> DLQ
+```
 
 ---
 
@@ -200,6 +197,11 @@ erDiagram
     BOOKING ||--o{ PARTICIPANT : "shared with (ADR-026)"
     STUDENT ||--o{ PARTICIPANT : "joins as"
     CLIENT ||--o{ INVITATION : "sends or receives"
+    INVITATION }o--|| BOOKING : "invites to (bookingKey)"
+    CLIENT ||--o{ CLIENT_STUDENT_LINK : "sees each coach through"
+    CLIENT_STUDENT_LINK }o--|| STUDENT : "mirrors (ADR-021 d6)"
+    COACH ||--|| COACH_CODE : "is found by (ADR-022 d7)"
+    CLIENT ||--o{ RECURRENCE : "holds in its partition (ADR-022 d5)"
     COACH ||--o{ CHANGE_BATCH : "records"
     CLIENT ||--o{ STUDENT : "books and is billed for"
     STUDENT ||--o{ BOOKING : "has"
@@ -224,10 +226,13 @@ erDiagram
         string coachCode "system-generated, ADR-002 d2a"
         string profilePhotoKey "optional, S3, Phase 2"
         string paymentInstructions "always in the reminder email"
-        bool   displayPaymentTypesToClients "gates the handles only"
+        bool   acceptsCashapp "ADR-016 d7"
+        bool   acceptsVenmo "ADR-016 d7"
+        bool   acceptsPaypal "ADR-016 d7"
         string cashappHandle "optional"
         string venmoHandle "optional"
         string paypalHandle "optional"
+        bool   acceptsCash "default false; adds Cash to how-paid, ADR-016 d7"
         string themeId "Phase 2; Harbor for MVP"
     }
     SCHEDULE_DEFAULT {
@@ -239,11 +244,13 @@ erDiagram
         string scheduleName "optional label"
         date   startDate
         date   endDate
+        number expiresAt "TTL, ADR-017"
     }
     DATE_OVERRIDE {
         date   overrideDate
         string tempId "which temp expanded into this date"
         list   blocks "empty = no lessons that day"
+        number expiresAt "TTL, ADR-017"
     }
     CLIENT {
         string clientId "Cognito sub"
@@ -251,7 +258,7 @@ erDiagram
         string clientEmail
         string clientPhone
         enum   clientRelationship "SELF|GUARDIAN"
-        bool   smsOptIn
+        bool   smsOptIn "Phase 2; ADR-007"
     }
     STUDENT {
         string studentId
@@ -262,8 +269,10 @@ erDiagram
         string clientName "denormalized from CLIENT"
         string clientEmail "denormalized from CLIENT"
         string clientPhone "denormalized from CLIENT"
-        bool   smsOptIn "denormalized from CLIENT"
+        bool   smsOptIn "denormalized from CLIENT; Phase 2"
         enum   studentStatus "PENDING|ACTIVE"
+        enum   skatingOrg "copied from SKATER, ADR-029"
+        string registrationNumber "copied from SKATER, ADR-029"
         int    priceMinorOverride "optional"
         list   pendingJoins "while PENDING from an invitation; ADR-026 d5"
         list   otherCoaches "Phase 2; ADR-025 d4"
@@ -273,6 +282,8 @@ erDiagram
         string studentName
         bool   isMinor
         enum   clientRelationship "SELF|GUARDIAN"
+        enum   skatingOrg "USFS|USA_HOCKEY; ADR-029"
+        string registrationNumber "cleaned-up form; ADR-029"
         string shareCode "ADR-026 d4"
     }
     SKATER_CODE {
@@ -295,6 +306,7 @@ erDiagram
         string invitedStudentId
         string displayName
         enum   inviteStatus "SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED"
+        datetime warnedAt "pre-lesson warning sent, ADR-026 d5a"
     }
     BOOKING {
         string bookingId
@@ -323,12 +335,13 @@ erDiagram
         enum   paymentStatus "UNPAID|PAID|WAIVED"
         datetime paidAt
         string markedPaidBy
-        enum   paidVia "CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4"
+        enum   paidVia "CASH|CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4"
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent "automatic-send idempotency guard"
         int    paymentReminderCount "Phase 2; includes manual re-sends"
         datetime lastPaymentReminderAt "Phase 2"
+        number expiresAt "TTL, ADR-017"
     }
     RECURRENCE {
         string recurrenceId
@@ -340,18 +353,20 @@ erDiagram
         date   endDate "may only move earlier"
         date   startedOn
         enum   recurrenceStatus "ACTIVE|ENDED; never deleted, ADR-006 d4b"
+        number expiresAt "TTL, ADR-017"
     }
     CHANGE_BATCH {
         string batchId
         enum   cancelledBy "CLIENT|COACH|SCHEDULE_CHANGE"
         string cancelledById "the acting identity"
-        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE"
+        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE"
         date   affectedFrom
         date   affectedTo
         int    lessonCount
         int    clientCount
         enum   executionStatus "PLANNED|EXECUTED; EXECUTED fires the notifier, ADR-010 d5f"
         enum   planStatus "WRITING|COMPLETE; nothing carried out until COMPLETE, ADR-010 d5h"
+        number expiresAt "TTL, ADR-017"
     }
     CANCELLED_LESSON {
         string bookingId
@@ -377,6 +392,7 @@ erDiagram
         enum   paidVia "Phase 2"
         datetime waivedAt "Phase 2"
         string waivedBy "Phase 2"
+        number expiresAt "TTL, ADR-017"
     }
     REPRICED_LESSON {
         string bookingId
@@ -393,6 +409,23 @@ erDiagram
         enum   skippedReason "BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED"
         enum   notificationStatus "PENDING|SENT|FAILED|SUPPRESSED"
         datetime notifiedAt
+        list   channels
+        string failureReason
+        number expiresAt "TTL, ADR-017"
+    }
+    CLIENT_STUDENT_LINK {
+        string studentName "mirrored from STUDENT"
+        enum   studentStatus "mirrored from STUDENT"
+        int    priceMinorOverride "mirrored from STUDENT"
+        string coachFirstName "copied from COACH_CODE at registration"
+        string coachLastName "copied from COACH_CODE at registration"
+    }
+    COACH_CODE {
+        string coachCode "the code a family types, item key"
+        string coachId
+        string coachFirstName
+        string coachLastName
+        string profilePhotoKey
     }
 ```
 
@@ -466,19 +499,19 @@ model uses none of them. Eight attributes were renamed:
 
 | Entity | PK | SK | Notable attributes |
 |---|---|---|---|
-| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24, editable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, displayPaymentTypesToClients, cashapp/venmo/paypal handles, themeId *(Phase 2)* (ADR-016) |
+| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24, editable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, cashapp/venmo/paypal handles, **acceptsCash / acceptsCashapp / acceptsVenmo / acceptsPaypal** (one switch per payment type, ADR-016 d7, 2026-10-12), themeId *(Phase 2)* (ADR-016) |
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `scheduleName` (optional), `days` — weekday → ordered blocks |
 | Temp schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName` (optional), `startDate`, `endDate` |
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `tempId`, `blocks` — empty list means no lessons that day |
 | Student | `COACH#<coachId>` | `STUDENT#<studentId>` | studentName, isMinor, clientRelationship, clientId, studentStatus, clientName/Email/Phone, smsOptIn, priceMinorOverride, **pendingJoins** (while `PENDING` from a shared-lesson invitation: booking keys and invitation IDs for the coach's Accept to join; ADR-026 d5), **otherCoaches** (*Phase 2*; names of the skater's other `ACTIVE` coaches, kept by `consumer-student-link`; ADR-025 d4). One coach's view of a skater; the same `studentId` can appear under several coaches. |
-| Booking | `COACH#<coachId>` | `BOOKING#<date>#<startTime>` | **maxSkaters + skaterCount** (ADR-026: stamped from the block; raised as invited skaters join), **invitedStudentId** (the skater the booking family invited; a join must match it, ADR-026 d5), studentId, **clientId** (GSI1 key, ADR-022), durationMinutes, **priceMinor + currency + missedLessonFeeMinor + requiredNoticeHours** (all stamped at creation), recurrenceId, **bookedIntervalWeeks** (never updated), startsAtUtc, coachTz, bookingStatus, **confirmationSent**, **remindedOn**, **settleReminderSentOn**, **outcomeAt + recordedAt**, paymentStatus, paidAt, markedPaidBy, **paidVia** (how the client paid: a handle on the coach's profile or Other, ADR-003 d4), **waivedAt + waivedBy**, paymentReminderSent, *(Phase 2)* paymentReminderCount + lastPaymentReminderAt |
+| Booking | `COACH#<coachId>` | `BOOKING#<date>#<startTime>` | **maxSkaters + skaterCount** (ADR-026: stamped from the block and never lowered once booked; raised as invited skaters join), **invitedStudentId** (the skater the booking family invited; a join must match it, ADR-026 d5), studentId, **clientId** (GSI1 key, ADR-022), durationMinutes, **priceMinor + currency + missedLessonFeeMinor + requiredNoticeHours** (all stamped at creation), recurrenceId, **bookedIntervalWeeks** (never updated), startsAtUtc, coachTz, bookingStatus, **confirmationSent**, **remindedOn**, **settleReminderSentOn**, **outcomeAt + recordedAt**, paymentStatus, paidAt, markedPaidBy, **paidVia** (CASH\|CASHAPP\|VENMO\|PAYPAL\|OTHER; optional, editable, coach-only; none when waived, ADR-003 d4), **waivedAt + waivedBy**, paymentReminderSent, *(Phase 2)* paymentReminderCount + lastPaymentReminderAt |
 | Lesson participant | `COACH#<coachId>` | `PARTICIPANT#<date>#<startTime>#<studentId>` | An invited skater who joined a shared booking (ADR-026): studentId, clientId, durationMinutes, price stamps, paymentStatus, outcome, reminder flags, and GSI1/GSI2/GSI3 keys as a booking has. A separate prefix keeps it out of availability queries. |
 | Recurrence header | `CLIENT#<clientId>` — *moved from the coach's partition by ADR-022 d5* | `RECURRENCE#<coachId>#<recurrenceId>` | studentId, clientId, weekday, startTime, **intervalWeeks** (1–4), endDate, startedOn, **recurrenceStatus** (`ACTIVE\|ENDED` — never deleted) — read only by recurrence management, never on the booking path (ADR-009 d4c, ADR-006 d4b) |
 | Cancellation batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | **cancelledBy** (`CLIENT\|COACH\|SCHEDULE_CHANGE`), cancelledById, batchSource, affectedFrom, affectedTo, lessonCount, clientCount, **executionStatus** (`PLANNED\|EXECUTED`) |
 | Cancelled lesson | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<bookingId>` | lessonDate, startTime, durationMinutes, priceMinor, studentId, studentName, clientId, recurrenceId, **cancelledAt, noticeHours**, **executionStatus** (`PLANNED\|EXECUTED\|SKIPPED`), notificationStatus, notifiedAt, channels, failureReason, *(Phase 2, ADR-015)* paymentStatus, paidAt, markedPaidBy, paidVia, waivedAt, waivedBy |
 | Re-priced lesson | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<bookingId>` | lessonDate, startTime, studentId, clientId, **oldPriceMinor + newPriceMinor**, old and new missedLessonFeeMinor, direction (`INCREASE\|DECREASE`), **executionStatus**, notificationStatus, notifiedAt, channels, failureReason (ADR-020) |
 | Client profile | `CLIENT#<cognitoSub>` | `PROFILE` | clientName, clientEmail, clientPhone, clientRelationship, smsOptIn — copied to every coach's `STUDENT#` records by `consumer-family-sync` (ADR-025 d6) |
-| Skater | `CLIENT#<cognitoSub>` | `SKATER#<studentId>` | studentName, isMinor, clientRelationship — the source of truth for who the skater is; one `studentId` across all their coaches (ADR-025 d1) |
+| Skater | `CLIENT#<cognitoSub>` | `SKATER#<studentId>` | studentName, isMinor, clientRelationship, **skatingOrg + registrationNumber** (ADR-029; copied to each coach's `STUDENT#` by `consumer-family-sync`) — the source of truth for who the skater is; one `studentId` across all their coaches (ADR-025 d1) |
 | Client→student link | `CLIENT#<cognitoSub>` | `STUDENT#<coachId>#<studentId>` | studentName, studentStatus, priceMinorOverride — all mirrored from the `STUDENT#` item by `consumer-student-link` (ADR-021 d6, ADR-022 d6); coachFirstName, coachLastName — copied from the `CODE#` item at registration (ADR-022 d7) |
 | Coach code lookup | `CODE#<coachCode>` | `CODE` | coachId, **coachFirstName, coachLastName, profilePhotoKey** (shown on the sign-up code screen before the family has an account, and on the pending screens; ADR-022 d7) — written with `attribute_not_exists(PK)` |
 | Invitation | `CLIENT#<cognitoSub>` | `INVITE#<inviteId>` | coachId, booking key, **warnedAt** (the pre-lesson warning was sent, ADR-026 d5a), invited studentId and display name, inviteStatus (`SENT\|AWAITING_COACH\|CONFIRMED\|DECLINED\|WITHDRAWN\|EXPIRED`); one copy in each family's partition, kept in step by `consumer-invite` (ADR-026 d5) |
@@ -550,22 +583,27 @@ We publish domain events **reliably** using **DynamoDB Streams → EventBridge P
 ```mermaid
 sequenceDiagram
     participant P as Client (web)
-    participant API as API λ
+    participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Cf as Confirmation λ
     participant SES as SES
     P->>API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
-    Note over API: a recurrence expands every intervalWeeks (1–4) from the<br/>first occurrence; end date capped at 12 months
+    Note over API: a recurrence expands every intervalWeeks (1–4) from the<br/>first occurrence, end date capped at 12 months
     loop each occurrence
-        API->>DB: conditional PutItem BOOKING#<date>#<startTime><br/>attribute_not_exists(SK)
+        API->>DB: conditional PutItem BOOKING#35;<date>#35;<startTime><br/>attribute_not_exists(SK)
         alt slot free
             DB-->>API: claimed
         else already taken
-            DB-->>API: ConditionalCheckFailed — skip this date
+            DB-->>API: ConditionalCheckFailed
+            API->>DB: Query GSI1 (CLIENT#35;<clientId>) for the family's own booking at that date and time
+            Note over API: theirs → already booked for this student<br/>otherwise → unavailable (ADR-006 d3, ADR-022)
         end
     end
-    API-->>P: 201 Created — N booked, plus the dates that were skipped
+    opt recurring, and at least one date booked
+        API->>DB: put the RECURRENCE#35; header in the client's partition, last (ADR-006 d4a)
+    end
+    API-->>P: 201 Created — each date booked, already booked for this student, or unavailable
     DB->>Bus: (stream) LessonBooked — one per claimed occurrence
     Bus->>Cf: route
     Cf->>SES: confirmation email
@@ -602,13 +640,13 @@ sequenceDiagram
     participant Sch as EventBridge Scheduler (7:00am)
     participant R as Reminder λ
     participant DB as DynamoDB (GSI2)
-    participant N as SES / SNS
-    Sch->>R: cron trigger
-    R->>DB: Query GSI2PK = DATE#today
+    participant N as SES
+    Sch->>R: cron trigger, carrying its target date (ADR-010)
+    R->>DB: Query GSI2PK = DATE#35;<target date> — bookings and participants
     loop each booking
-        R->>R: skip if remindedOn == today
-        R->>N: email (always) + SMS (if smsOptIn)
-        R->>DB: set remindedOn = today
+        R->>R: skip if remindedOn == target date
+        R->>N: email (SMS is Phase 2, ADR-007)
+        R->>DB: set remindedOn = target date
     end
 ```
 
@@ -621,17 +659,19 @@ sequenceDiagram
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant Pay as Payment-reminder λ
+    participant SES as SES
     C->>API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
-    API->>DB: conditional update (status=BOOKED) → outcome,<br/>outcomeAt (device), recordedAt (server)
+    API->>DB: conditional update (bookingStatus = BOOKED) → bookingStatus,<br/>outcomeAt (device), recordedAt (server)
     alt CHECKED_IN
         DB->>Bus: (stream) CheckInRecorded
+        Bus->>Pay: route
+        Pay->>DB: read the student's client and the coach profile
+        Pay->>SES: payment reminder to the student's client (SMS is Phase 2)
+        Pay->>DB: set paymentReminderSent
     else NO_SHOW
         DB->>Bus: (stream) NoShowRecorded
+        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.<br/>The lesson stays UNPAID on the coach's dashboard (ADR-015 d4)
     end
-    Note over Bus,Pay: separate events — the reminder wording differs,<br/>and a no-show is charged from Phase 2 (ADR-015)
-    Bus->>Pay: route event
-    Pay->>DB: read client contact details + smsOptIn
-    Pay->>C: (no) — sends to the student's client via SES / SNS
 ```
 
 The email states the **specific amount owed** for that lesson, formatted from the
@@ -667,6 +707,52 @@ it says so — *"Today's lessons haven't loaded. Open the app with signal before
 the rink."* — rather than showing an empty day (ADR-014 d5a). Because the reminder is driven by that event, an offline session delays
 every reminder in it.
 
+**Offline capture and replay, step by step** (ADR-014, amended 2026-10-13):
+
+```mermaid
+sequenceDiagram
+    participant C as Coach
+    participant P as Rinkside page (browser tab)
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    Note over P: opened with signal earlier - the service worker keeps the page,<br/>and today's lessons are cached (ADR-014 d5)
+    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
+        P-->>C: says so plainly and reloads the copy
+    end
+    C->>P: open at the rink with no signal
+    alt today's lessons are cached
+        P-->>C: today's check-in list
+    else not cached, or the page was cleared
+        P-->>C: "Today's lessons haven't loaded. Open the app with signal<br/>before you leave for the rink." (d5a)
+    end
+    C->>P: tap Checked in or No-show
+    P->>P: queue student, outcome and outcomeAt (phone clock) in device storage
+    P-->>C: banner - saved on the phone, sent when signal returns,<br/>not dismissible while the queue has entries (d1)
+    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
+    Note over P: signal returns - Background Sync on Android and Chrome,<br/>on an iPhone the next time the page is opened (d1a)
+    loop each queued entry
+        P->>API: POST /bookings/{id}/attendance {outcome, outcomeAt}
+        alt outcomeAt outside the lesson window, or in the future (d2a)
+            API-->>P: rejected
+            P-->>C: "2 check-ins couldn't be sent" - Record on the website or Done,<br/>removed from the phone after 7 days (d4a)
+        else time fits the lesson
+            API->>DB: conditional update, bookingStatus = BOOKED →<br/>bookingStatus, outcomeAt (device), recordedAt (server) (d2, d3)
+            alt booking still BOOKED
+                API-->>P: recorded - drop from the queue
+                DB->>Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
+            else already recorded - a duplicate replay or a website correction
+                API-->>P: treated as success - dropped silently (d3, d8)
+            else booking gone - the family cancelled while the phone was offline
+                API-->>P: condition failed
+                P-->>C: "cancelled by the family at 3:50pm, after you recorded it" -<br/>entry cleared (d4)
+            else any other failure
+                P-->>C: stays queued and visible (d4)
+            end
+        end
+    end
+```
+
 ### 6.4 End-of-day report
 
 ```mermaid
@@ -676,8 +762,8 @@ sequenceDiagram
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
     participant SES as SES
-    Sch->>Rep: cron trigger
-    Rep->>DB: Query GSI2PK = DATE#today
+    Sch->>Rep: cron trigger, carrying its target date (ADR-010)
+    Rep->>DB: Query GSI2PK = DATE#35;<target date> — bookings and participants
     Rep->>Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
     Rep->>S3: PutObject report.json (archive)
     Rep->>SES: email coach the daily summary
@@ -721,7 +807,7 @@ s3://bladebook-reports/coach=<coachId>/date=<yyyy-mm-dd>/report.json
 ```mermaid
 sequenceDiagram
     participant C as Coach
-    participant API as API λ
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
     participant X as Schedule-change λ
@@ -729,22 +815,27 @@ sequenceDiagram
     C->>API: POST /schedule/preview
     API-->>C: "47 lessons cancelled, 14 re-priced $50→$60" — confirm?
     C->>API: PUT /schedule
+    Note over API: refused unless the coach signed in<br/>within the last 15 minutes (ADR-023)
     API->>DB: write default / date overrides
     DB->>Bus: (stream) ScheduleChanged
     Bus->>X: route — batchId derived from the stream event id (5a)
     X->>DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
-    alt claim taken
-        Note over X: fresh run
-    else claim fails
-        Note over X: resume — the plan is already on disk
+    alt claim succeeds
+        Note over X: fresh run — header planStatus = WRITING
+    else header already exists
+        Note over X: resume — write only the missing records (5h)
     end
-    X->>DB: Query bookings in affected range; shared evaluator sorts each<br/>into unchanged / cancel / re-price (ADR-020)
-    X->>DB: write the batch header and EVERY CANCELLED# and REPRICED# line first,<br/>executionStatus = PLANNED (5c — the plan survives a crash)
+    X->>DB: Query bookings and participants in affected range — shared evaluator<br/>sorts each into unchanged / cancel / re-price (ADR-020, ADR-026)
+    X->>DB: write EVERY CANCELLED#35; and REPRICED#35; line, executionStatus = PLANNED,<br/>then planStatus = COMPLETE (5c, 5h — no booking is touched before this)
     loop each line
-        alt cancellation line
+        X->>DB: re-check against the current schedule and booking (5i)
+        alt no longer applies
+            X->>DB: mark the line SKIPPED with its skippedReason
+            Note over X: a cancellation SKIPPED as LESSON_PASSED → the coach is told
+        else cancellation line
             X->>DB: TransactWriteItems — delete booking +<br/>mark its line EXECUTED, both or neither (5d)
         else re-price line
-            X->>DB: TransactWriteItems — set new price if booking still has the old one +<br/>mark EXECUTED; otherwise mark SKIPPED (ADR-020 d5)
+            X->>DB: TransactWriteItems — set new price if booking still has the old one +<br/>mark EXECUTED (ADR-020 d5)
         end
     end
     X->>DB: mark the batch header EXECUTED — last (5f)
@@ -753,7 +844,7 @@ sequenceDiagram
     Bus->>N: route (one event per batch)
     N->>DB: read the batch's EXECUTED lines, group by client
     loop each client not yet SENT
-        N->>N: SES email (+ SNS if smsOptIn)
+        N->>N: SES email (SMS is Phase 2, ADR-007)
         N->>DB: stamp notificationStatus on that client's lines
     end
 ```
@@ -852,6 +943,228 @@ beside check-in and no-show, and a cancel cannot be undone (ADR-009 d5a).
 increase, and the occurrences that fall off the new interval are cancelled as one batch.
 Recurrence management is subtractive only — it never claims a slot.
 
+**Both paths, step by step** (ADR-009, ADR-010 d5f):
+
+```mermaid
+sequenceDiagram
+    participant F as Family (web)
+    participant C as Coach (website or rinkside)
+    participant AC as api-client λ
+    participant AK as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant N as consumer-change-notifier λ
+    participant SES as SES
+    participant SNS as SNS
+    alt family cancels (ADR-009 d2, d4)
+        F->>AC: cancel one lesson, or a recurrence change —<br/>end earlier, reduce frequency, cancel all future
+        Note over F,AC: confirm first - any lesson inside requiredNoticeHours<br/>"may incur a late cancellation fee" (ADR-015 d1a)
+        AC->>DB: CHANGEBATCH#35; header cancelledBy = CLIENT, a CANCELLED#35; line per lesson<br/>(cancelledAt, noticeHours), delete each booking if clientId = caller (ADR-024 d1)
+        Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
+    else coach cancels (ADR-009 d5, d5a)
+        Note over C: rinkside with no signal - cancel is disabled,<br/>"Cancelling needs a connection" (d5a)
+        C->>AK: cancel a lesson, a day, a week, or a multi-select —<br/>release or hold asked per lesson
+        opt more than one lesson, or any cancel from the check-in list
+            AK-->>C: preview or confirmation - names the lessons,<br/>says families will be emailed (d5a, d8)
+            C->>AK: accept
+        end
+        Note over AK: skip lessons already started, CHECKED_IN or NO_SHOW (d7)
+        AK->>DB: header cancelledBy = COACH, a CANCELLED#35; line per lesson, and per booking<br/>release = delete it, hold = replace with COACH_HELD at the same key
+    end
+    Note over AC,DB: one lesson - header, line and booking change in one transaction, all EXECUTED.<br/>Several - one transaction per booking, header marked EXECUTED last (ADR-010 d5d, d5f)
+    DB->>Bus: (stream) LessonsChanged - the header reaching EXECUTED
+    Bus->>N: route (one event per batch)
+    N->>DB: read the batch header and its EXECUTED lines
+    alt cancelledBy = COACH (ADR-009 d9)
+        loop each affected client not yet SENT
+            N->>SES: one email - lessons cancelled, link to book another time,<br/>Reply-To the coach (client SMS is Phase 2)
+            N->>DB: stamp notificationStatus on that client's lines
+        end
+    else cancelledBy = CLIENT, inside requiredNoticeHours (amended 2026-10-08)
+        N->>SES: email the coach
+        opt coach ticked smsCancellationAlerts (MVP)
+            N->>SNS: one text - "BladeBook: Mia R. cancelled Tue 14 Oct 4:00pm. See email."
+        end
+        N->>DB: stamp notificationStatus
+    else cancelledBy = CLIENT, with enough notice
+        Note over N: nobody is told - the family already knows
+    end
+```
+
+### 6.7 Client registration and coach approval
+
+A family looks up one or more coach codes before it has an account, signs up through Cognito, then registers. The codes are resolved again in the family's own session, the family's partition is written, and a `PENDING` `STUDENT#` item goes to each coach. The coach accepts or declines through `api-coach`, which writes only the `STUDENT#` item; `consumer-student-link` mirrors the change onto the family's link item, and on a decline deletes it and sends the decline email (ADR-002, ADR-021 d6, ADR-022 d7, ADR-025 d2).
+
+```mermaid
+sequenceDiagram
+    participant F as Family (web)
+    participant Cog as Cognito
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant AC as api-coach λ
+    participant Bus as EventBridge
+    participant SL as consumer-student-link λ
+    participant SES as SES
+    F->>API: look up coach code, before sign-in — WAF 20 per 5 min (ADR-019)
+    API->>DB: GetItem CODE#35;<coachCode> under the code-lookup role —<br/>coachId, name and photo only (ADR-022 d7)
+    API-->>F: "Code found — you're signing up with Dana"
+    Note over F: one or more coach codes (ADR-025 d2)
+    F->>Cog: create account (email + password), verify the email
+    F->>API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
+    API->>DB: resolve every code again in the clientId-only session (ADR-022 d7)
+    API->>DB: write own partition — PROFILE, SKATER#35;<studentId> per skater,<br/>a link per skater per coach, PENDING, with the coach's name
+    loop each coach, in a session tagged with that coach
+        API->>DB: put STUDENT#35;<studentId> PENDING under COACH#35;<coachId> (ADR-002 d1)
+    end
+    API-->>F: "Waiting for Coach Dana's approval" — sees nothing of the coach,<br/>cannot book (ADR-002 d2, ADR-022 d6)
+    alt coach accepts
+        AC->>DB: STUDENT#35; studentStatus = ACTIVE — only that item (ADR-021 d6)
+        DB->>Bus: (stream) StudentChanged
+        Bus->>SL: route
+        SL->>DB: set status ACTIVE on the link item, if it exists
+        Note over F,DB: about a second later the family's session for this coach is ACTIVE —<br/>schedule readable, booking allowed (ADR-025 d3)
+    else coach declines
+        AC->>DB: DeleteItem STUDENT#35; — an application delete, not TTL (ADR-002 d2b)
+        DB->>Bus: (stream) StudentChanged — removal, old image carries the contents
+        Bus->>SL: route
+        SL->>DB: delete the link item
+        SL->>DB: GetItem coach profile (Reply-To)
+        SL->>SES: decline email — "the coach does not have availability<br/>to take on new students" (settled 2026-10-12)
+        Note over F: the client account is kept, even with no students
+    end
+```
+
+### 6.8 Family changes reach every coach
+
+A family edits its profile or a skater in its own partition only. `FamilyChanged` triggers `consumer-family-sync`, which copies the fields onto every coach's `STUDENT#` record for that family, about a second later. For a new skater it also issues the `SKATERCODE#` share code (ADR-025 d6, ADR-026 d4, ADR-029 d3).
+
+```mermaid
+sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant FS as consumer-family-sync λ
+    F->>API: edit contact details or smsOptIn, or a skater —<br/>name, skatingOrg, registrationNumber (ADR-029 d3)
+    API->>DB: UpdateItem own partition only — CLIENT#35;<cognitoSub> PROFILE<br/>or SKATER#35;<studentId> (ADR-025 d6 step 1)
+    API-->>F: saved
+    DB->>Bus: (stream) FamilyChanged — PROFILE or SKATER#35; modified
+    Bus->>FS: route (idempotent, with a dead-letter queue)
+    FS->>DB: GetItem and Query the family's partition —<br/>the changed item and its STUDENT#35;<coachId>#35;<studentId> links
+    loop each coach the family's skaters are with
+        FS->>DB: UpdateItem COACH#35;<coachId> / STUDENT#35;<studentId> — copy the fields
+    end
+    Note over FS,DB: lag is about a second — a reminder in that window<br/>uses the old phone or email (ADR-025 d6)
+    opt a new SKATER#35; item (ADR-026 d4)
+        FS->>DB: put SKATERCODE#35;<shareCode>, attribute_not_exists(PK) so codes are unique
+        FS->>DB: copy shareCode onto the SKATER#35; item
+    end
+    Note over DB,Bus: a studentName change on STUDENT#35; also raises StudentChanged —<br/>consumer-student-link mirrors it onto the link item (ADR-021 d6)
+```
+
+### 6.9 Shared lesson by invitation
+
+Family A books a shareable time and invites skater B with B's share code, which writes an `INVITE#` item and stamps `invitedStudentId` on the booking. `consumer-invite` copies the invitation to Family B and emails them. B signs in to confirm, and either joins directly (already the coach's student) or becomes `PENDING` with `pendingJoins` until the coach's Accept joins them in `api-coach` (ADR-026 §3, §5).
+
+```mermaid
+sequenceDiagram
+    participant A as Family A (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Inv as consumer-invite λ
+    participant SES as SES
+    participant B as Family B (web)
+    participant AC as api-coach λ
+    A->>API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
+    API->>DB: GetItem SKATERCODE#35;<shareCode> — display name only (d4)
+    API-->>A: "Mia R." — the booking continues as a normal private booking (§6.1)
+    A->>API: invite Mia
+    API->>DB: put CLIENT#35;<familyA> / INVITE#35;<inviteId>, inviteStatus SENT,<br/>stamp invitedStudentId on each booking in the series (d5 step 1)
+    DB->>Bus: (stream) InviteChanged
+    Bus->>Inv: route
+    Inv->>DB: copy the invitation into CLIENT#35;<familyB>
+    Inv->>SES: email Family B now — an invitation, or a consent link<br/>if Mia isn't the coach's student yet (texts are Phase 2)
+    B->>API: open the link and sign in — confirm page shows Mia's clashes (ADR-025 d5)
+    B->>API: Go ahead
+    alt Mia is already the coach's student
+        API->>DB: TransactWriteItems in Family B's session (d3) — skaterCount + 1<br/>if < maxSkaters and booking exists + put PARTICIPANT#35;<date>#35;<startTime>#35;<studentId><br/>attribute_not_exists(SK), both or neither
+    else Mia isn't the coach's student yet
+        API->>DB: put STUDENT#35;<studentId> PENDING with pendingJoins (booking key, inviteId),<br/>the sign-up route (§6.7), after checking B holds the invitation — invite AWAITING_COACH
+        Note over AC: Coach taps Accept on the pending list
+        AC->>DB: per pendingJoins entry, the join transaction with conditions — booking exists,<br/>startsAtUtc > now, room left, invitedStudentId = Mia, no PARTICIPANT#35; yet (d5)
+        AC->>DB: STUDENT#35; ACTIVE, clear pendingJoins, record each lesson's outcome
+        DB->>Bus: (stream) StudentChanged
+        Bus->>Inv: route (also to consumer-student-link, §6.7)
+        Inv->>DB: update both invitations — CONFIRMED, or EXPIRED where the join failed
+        Inv->>SES: tell Family B of any lesson no longer available
+    end
+    Note over Inv,A: consumer-invite copies each status change to Family A's copy (d5 step 6) —<br/>A's booking shows both skaters, never B's participant item
+    Note over AC,B: Coach declines instead — Mia is deleted (ADR-002 d2b), invite DECLINED, Family A told,<br/>B gets the ordinary decline email. Lesson passes first — EXPIRED by the sweep (§6.10)
+```
+
+### 6.10 Nightly invitation sweep
+
+Each night after the 9 PM report, `consumer-invite` reads upcoming bookings that carry an `invitedStudentId` through GSI2. It expires invitations whose lesson has started and emails both families, sends every pre-lesson warning due before the next run and stamps `warnedAt`, then emits `InviteSweepCompleted` for the missed-run alarm (ADR-026 §5a, §8).
+
+```mermaid
+sequenceDiagram
+    participant Sch as EventBridge Scheduler
+    participant Inv as consumer-invite λ
+    participant DB as DynamoDB
+    participant SES as SES
+    participant CW as CloudWatch
+    Sch->>Inv: nightly, right after the 9 PM end-of-day report (§8)
+    Inv->>DB: Query GSI2 by date — upcoming bookings carrying invitedStudentId
+    loop each invitation on those bookings
+        alt lesson has started, inviteStatus still SENT or AWAITING_COACH
+            Inv->>DB: inviteStatus = EXPIRED
+            Inv->>SES: email both families (Reply-To the coach's businessEmail)
+            Note over Inv,SES: never-accepted skater — "reach out to Coach Dana"<br/>already a student — the "no longer available" email
+        else AWAITING_COACH, no warnedAt, warning due before the next run
+            Note over Inv: due = startsAtUtc − (24h + requiredNoticeHours stamped on the booking)
+            Inv->>SES: warning email to Family A, Family B and the coach<br/>(the coach's email is MVP, family texts Phase 2)
+            Inv->>DB: stamp warnedAt — each warning is sent once
+        end
+    end
+    Inv->>CW: InviteSweepCompleted metric
+    Note over CW: ADR-010's missed-run alarm watches this metric —<br/>event-driven runs of the same function would hide a missed sweep
+    Note over Inv: a missed night catches up the next night. A late confirmation that is already<br/>due gets its warning straight away from the event-driven path (ADR-026 d5a)
+```
+
+### 6.11 Coach sign-up
+
+A coach signs up in two steps (ADR-016): a Cognito account with a verified email, then a profile. The profile write is safe to repeat, so a signup that fails between the two steps is finished by the coach's next sign-in rather than rolled back (ADR-016 d9).
+
+```mermaid
+sequenceDiagram
+    participant C as Coach (website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    C->>Cog: sign up - login email and password (ADR-016 d3)
+    Cog-->>C: one-time code to the email
+    C->>Cog: confirm the code - email verified (d4)
+    Note over C,Cog: step 1 done - the Cognito user is the source of truth,<br/>coachId is its sub (d9)
+    C->>Cog: sign in
+    Cog-->>C: tokens
+    C->>API: GET profile
+    API->>DB: GetItem COACH#35;<coachId> / PROFILE - tenant role tagged coachId = the token sub (§7)
+    alt profile exists
+        API-->>C: coach website
+    else missing - a new signup, or one that failed after step 1
+        C->>API: profile - name, phone, coachTimezone and currency (required, d6),<br/>payment details and switches, smsCancellationAlerts
+        loop until the code is free (ADR-002 d2a)
+            API->>API: generate a coachCode
+            API->>DB: PutItem CODE#35;<coachCode> / CODE - coachId, coachFirstName,<br/>coachLastName, attribute_not_exists(PK) (ADR-022 d7)
+        end
+        API->>DB: PutItem COACH#35;<coachId> / PROFILE - coachCode, requiredNoticeHours 24,<br/>businessEmail defaults to loginEmail (d2)
+        Note over API,DB: idempotent by construction - a retry<br/>cannot create a second coach (d9)
+        API-->>C: signup complete - the coach code is shown to hand out
+    end
+    Note over C,DB: no rollback - a failure between Cognito and the profile is finished<br/>by the next sign-in taking the "missing" branch (d9, ADR-010 d5b)
+```
+
 ### Event catalog
 
 | Event | Source | Consumers |
@@ -929,9 +1242,54 @@ Recurrence management is subtractive only — it never claims a slot.
   in their `pendingJoins`. The database confines it to that coach's partition, and each join
   writes nothing unless the booking still exists, hasn't started, has room, and names that skater
   in `invitedStudentId`.
-- A coach's phone, email and payment handles are shown to families only if the coach switches
-  each on, and **only to families the coach has confirmed** — never to a `PENDING` family,
+- A coach's phone, email and payment types (one switch per type, ADR-016 d7) are shown to
+  families only if the coach switches each on, and **only to families the coach has confirmed** — never to a `PENDING` family,
   since a coach code can be passed around or guessed (ADR-016 d7a).
+
+### Client writes into a coach's partition
+
+How `api-client` checks a family's link before it writes anything into a coach's partition, and what it does when the check fails (ADR-022 d8, ADR-024).
+
+```mermaid
+sequenceDiagram
+    participant F as Family (web)
+    participant API as api-client λ
+    participant CD as core.data (in api-client)
+    participant DB as DynamoDB
+    participant CW as CloudWatch
+    participant SNS as SNS (owner's phone)
+    F->>API: a write into the coach's partition
+    Note over API: clientId = the verified token's sub, never the request body (§7)
+    alt new write - book a lesson, a recurring series, edit a skater
+        API->>CD: ClientLinks.requireActive(caller, skaterId)
+        CD->>DB: read the family's own link items, in their own tenant session
+        alt linked and ACTIVE
+            CD-->>API: LinkedSkater (private constructor)
+            API->>CD: repository write - takes a LinkedSkater, no String overload
+            CD->>DB: write into the coach's partition - the client-tenant role<br/>confines it to that coach (ADR-022 d8)
+        else linked, but removed, declined or still pending
+            CD-->>API: not ACTIVE - an ordinary application event
+            API-->>F: 409 "Mia's lessons are no longer available to book.<br/>Contact Coach Dana."
+        else never this family's
+            CD->>CW: security event to the access-log group - identifiers only
+            API-->>F: 404 not found
+        end
+    else write to an existing item - cancel a lesson, change a recurrence
+        CD->>DB: update or delete with condition clientId = :callerSub,<br/>added inside the repository method
+        alt the family's own
+            DB-->>CD: written
+        else another family's booking
+            DB-->>CD: ConditionalCheckFailed
+            CD->>CW: security event to the access-log group - identifiers only
+            API-->>F: 404 not found
+        end
+    end
+    Note over CW: a metric counts security events (ADR-024 d3)
+    opt one family 3+ in 15 minutes, or everyone 10+ in a day (configurable)
+        CW->>SNS: alarm pages the owner (ADR-010 d4)
+    end
+    Note over API,CD: an ArchUnit rule fails the build if anything outside core.data<br/>makes a LinkedSkater, or api-client reaches the coach's partition another way
+```
 
 ### Least privilege
 - **One IAM role per Lambda**, granted only the specific actions it needs (e.g. the report λ gets `dynamodb:Query` on GSI2, `dynamodb:GetItem` for student names and the coach profile, `ses:SendEmail` and `s3:PutObject` scoped to the reports bucket/prefix — nothing else). The full per-function table is **ADR-001 amendment A6**. Only the three scheduled jobs that need it hold GSI2 (day-of reminder, end-of-day report, drift check), the one index that crosses tenants.
@@ -1020,6 +1378,79 @@ export bucket only the transform can read, deleted automatically after a day; th
 goes to a separate bucket only dev's import can read, also deleted after 24 hours (ADR-028). A restart is a fresh run, never a resume
 (ADR-027 d9, amended 2026-10-09).
 
+```mermaid
+flowchart LR
+    subgraph Prod["Production account"]
+        DDB[("DynamoDB<br/>production table")]
+        subgraph DataLoad["Data-loading stack (ADR-027 d9)"]
+            SFN["Step Functions workflow<br/>(build-dev --masked, on request)"]
+            ExportB["🪣 Export bucket<br/>(raw export, only the transform reads it,<br/>deleted after a day)"]
+            L_Transform["λ Transform<br/>(subset, mask, remap to test accounts,<br/>asserts on its own output)"]
+            MaskedB["🪣 Masked bucket<br/>(only dev's import reads it,<br/>deleted after 24 hours)"]
+            Logs["Load log and dev access logs"]
+        end
+    end
+    subgraph Dev["Dev account (built on demand, ADR-027 d8)"]
+        Seed["Seed data file<br/>(the default)"]
+        DevTable[("Dev table<br/>created from one import (ADR-028)")]
+        Scanner["λ Dev scanner<br/>(after every load and daily,<br/>can read dev only)"]
+    end
+    SFN -->|starts export| DDB
+    DDB -->|export, optionally --as-of within PITR| ExportB --> L_Transform
+    SFN --> L_Transform
+    L_Transform -->|every check passes| MaskedB
+    L_Transform -.->|a check fails: stop, nothing written| SFN
+    MaskedB -->|imported when dev is built| DevTable
+    Seed -.->|or, by default| DevTable
+    Scanner -->|scans| DevTable
+```
+
+**One masked build, step by step** (ADR-027 d9, ADR-028):
+
+```mermaid
+sequenceDiagram
+    participant O as Owner (build-dev)
+    participant Acc as Dev account stack
+    participant SF as Step Functions (prod data-loading stack)
+    participant Prod as DynamoDB (production)
+    participant Ex as Export bucket
+    participant T as Transform λ
+    participant Mb as Masked bucket
+    participant App as Dev application stack
+    participant Sc as Scanner
+    O->>Acc: 1 - build dev's Cognito user pools and test accounts (ADR-028 d4)
+    O->>SF: 2 - build-dev --masked --coaches ... [--clients ...] [--as-of ...] --reason "..."
+    Note over O,SF: run history and CloudTrail's record of who started it<br/>cover most of the load log (ADR-027 d9)
+    SF->>Prod: start the export - now, or --as-of within the PITR window
+    loop until the export is done
+        SF->>Prod: check on it
+    end
+    Prod->>Ex: raw export - readable only by the transform, deleted after a day
+    SF->>T: run the transform
+    T->>Ex: read the raw export
+    T->>Acc: read the test accounts' subs by email
+    T->>T: filter to the named subset, mask with a fresh salt,<br/>remap onto test accounts, one placeholder photo
+    T->>T: self-checks - masked fields differ, reserved email and phone patterns,<br/>no production identifier survives, no duplicate keys (ADR-011 6a, ADR-028 d5)
+    alt any check fails
+        T-->>SF: failed
+        Note over SF: fail step - no masked file is written. A restart is a new run
+    else all pass
+        T->>Mb: masked file and its item count - deleted after 24 hours (d6)
+    end
+    O->>App: 3 - build the application stack, the table created from the masked file
+    App->>Mb: import reads the file across the account boundary (d6)
+    App->>App: compare the import's item and error counts with the transform's (d5)
+    alt any difference
+        Note over App: the build fails and the application stack is torn down
+    else counts match
+        App->>Sc: 4 - scan as soon as the build finishes, before anyone signs in
+        opt finding
+            Sc->>Acc: disable dev's Cognito app clients, page the owner -<br/>keys and field names only, never the value (ADR-011 6c)
+        end
+    end
+    Note over Sc: also daily while dev exists, and on demand
+```
+
 Replacements are **non-deliverable by construction**: emails become `@example.com` (reserved
 by RFC 2606), phones become `+1 555 01XX` (reserved by the North American Numbering Plan).
 Dev additionally never leaves Simple Email Service (SES) sandbox mode and has no
@@ -1044,10 +1475,11 @@ survives. Nothing linking a real identity to a test login is stored. Profile pho
 copied: every coach gets one shared placeholder.
 
 **A separate scanner then checks dev from the outside** (ADR-011 decision 6b), applying
-the same deny-by-default rule to the dev table and reports bucket. It runs after every
-load — success *and* failure, since the failure case is what verifies the abort actually
-protected dev — on demand, and **daily while dev exists** — the only trigger that
-catches data written between loads. Its Identity and Access Management (IAM) role can
+the same deny-by-default rule to the dev table and reports bucket. It runs as soon as
+every masked build finishes, before anyone signs in (ADR-028 d4) — not after a failed build,
+which leaves no dev table to check (no masked file is written, or the stack is torn down) —
+on demand, and **daily while dev exists** — the only trigger that catches data written
+between builds. Its Identity and Access Management (IAM) role can
 read dev and nothing else; a component that scans for PII must not be able to reach the
 real thing.
 
@@ -1067,7 +1499,7 @@ by an infrastructure test.
 
 ### ⚠️ Minors' data (this is a real obligation, not a nice-to-have)
 Students may be adults or children. Where `isMinor = true`, we're storing data about a child plus their **guardian's contact info**, which triggers:
-- **Parental/guardian consent** as the lawful basis for contact; SMS especially is opt-in, per phone number (ADR-007 d8a).
+- **Parental/guardian consent** as the lawful basis for contact; SMS especially is opt-in, per phone number (ADR-007 d8a); client SMS is Phase 2 (ADR-007, amended 2026-10-12).
 - Likely **COPPA** (US) considerations and, depending on where coaches operate, state privacy laws. *Flagging for legal review before launch — not something to hand-wave.*
 
 Because a coach's roster can mix both, the safe default is to treat a student as a minor until the coach says otherwise, and to apply these controls to **all** students regardless of age:
@@ -1099,15 +1531,17 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 
 | Job | Trigger | What it does |
 |---|---|---|
-| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today`, notify each booking's client (email + opt-in SMS). |
+| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today`, notify each booking's client by email (SMS is Phase 2). |
 | End-of-day report | EventBridge Scheduler, ~9:00pm | Query `DATE#today`, split into checked-in, no-show and pending (§6.4), archive to S3, email the coach. |
 | Unpaid-lesson reminder | EventBridge Scheduler, weekly (Monday morning, proposed) | Scan GSI3 for lessons still unpaid longer than the threshold, email each coach one list asking them to mark each paid or waived, stamp `settleReminderSentOn` so each lesson is listed once. **Off until the threshold is set** (ADR-018). |
-
 | Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for bookings that don't match the current schedule. **Read-only**: pages for a batch stuck over an hour or a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
+| Shared-lesson invitation sweep | EventBridge Scheduler, nightly, right after the end-of-day report | `consumer-invite`'s second trigger (no new function). Reads upcoming bookings with an `invitedStudentId` by date (GSI2); sends every pre-lesson warning due before the next run and stamps `warnedAt`; marks invitations still `SENT` or `AWAITING_COACH` whose lesson has started `EXPIRED` and emails both families. ADR-010's missed-run alarm watches its own `InviteSweepCompleted` metric (ADR-026 d5a). |
 
-**These are the only four cron jobs.** The third exists because a lesson only expires once
+**These are the only five cron jobs.** The third exists because a lesson only expires once
 settled (ADR-017), so an unsettled one would otherwise sit forever unnoticed. The fourth
-exists because a lost event raises no error and leaves nothing retrying (ADR-010 d5k). Nothing in the
+exists because a lost event raises no error and leaves nothing retrying (ADR-010 d5k). The
+fifth exists because a warning and an expiry are due at a time, not on an event (ADR-026 d5a);
+it is a schedule on `consumer-invite`, so the function count is unchanged. Nothing in the
 schedule, booking, recurrence or cancellation design adds a scheduled job — availability is
 computed on read, recurrences are materialized at booking time, and cancellation is
 event-driven.
@@ -1125,9 +1559,10 @@ redesign.
 | Channel | Service | Cost | Notes |
 |---|---|---|---|
 | Email | SES | ~$0.10 / 1,000 | Primary channel; ~$0 at our scale. Must move SES out of sandbox before prod. |
-| SMS | SNS | ~$0.01–0.02 / msg | **Opt-in per phone number** — held on the client profile, copied to each student (ADR-007 d8a). Requires US toll-free/10DLC number registration (~$2/mo + one-time). |
+| SMS | SNS | ~$0.01–0.02 / msg | **MVP: the coach's late-cancellation text only** (`smsCancellationAlerts`, ADR-009 d9). Client texts are **Phase 2** (ADR-007, amended 2026-10-12); their opt-in is per phone number, held on the client profile and copied to each student (ADR-007 d8a). Requires US toll-free/10DLC number registration (~$2/mo + one-time). |
 
-Every client always gets **email**; SMS is layered on only where `smsOptIn = true`.
+Every client always gets **email**, and in MVP only email. Layering SMS on where `smsOptIn = true`
+is **Phase 2** (ADR-007, amended 2026-10-12).
 Delivery always targets the client contact fields, so an adult student is notified
 directly and a minor's guardian is notified on their behalf — same code path.
 
@@ -1149,6 +1584,9 @@ goes to the **coach** instead (ADR-009 decision 9, amended 2026-10-08) — by em
 
 ### SMS is one segment (ADR-007)
 
+*In MVP these rules apply to the coach's late-cancellation text; the client templates below are
+Phase 2 (ADR-007, amended 2026-10-12).*
+
 | Rule | Why |
 |---|---|
 | **160 characters, hard-enforced** before `sns:Publish` | Past one segment the carrier splits the message, bills per segment, and guarantees nothing about ordering or reassembly |
@@ -1161,8 +1599,8 @@ Every message opens **`<Coach name> via BladeBook:`** — the coach's name budge
 characters and transliterated to GSM-7 (ADR-007 d5a). Worst-case lengths: day-of reminder
 **88**, payment reminder **115**, cancellation digest **105**. As a consequence, ADR-003 decision 7's payment instructions are **email-only**.
 
-**One message is exempt: the opt-in confirmation**, sent once per phone number when a
-client enables SMS. It carries the program identity, frequency and rate disclosures, and
+**One message is exempt: the opt-in confirmation**, sent once per phone number when SMS is
+turned on: in MVP, when a coach ticks `smsCancellationAlerts` (ADR-009 d9); for clients, Phase 2. It carries the program identity, frequency and rate disclosures, and
 the HELP/STOP instructions — at most ~230 characters, two segments — so the recurring templates
 don't have to spend budget on compliance text. The GSM-7 and no-free-text rules still
 apply to it.
@@ -1196,10 +1634,10 @@ delivery confirmation needs SES event destinations and is not in MVP.
 | 10 | **Coach cancellation** — one lesson, one day, or one week, from the week view or the rinkside check-in page, choosing release-or-hold per lesson | ADR-009 |
 | 11 | Day-of email reminders | §6.2 |
 | 12 | **Attendance on the rinkside check-in page**, a mobile-first section of the coach website at `/coach/rinkside` (ADR-023) — check-in *and* no-show, recorded rinkside on a phone, capturing offline and replaying when signal returns; guardian contact details on a tap, only with signal and never cached (ADR-014 d9b); lesson cancellation. Same sign-in as the coach website; routes in `api-coach` | §6.3, ADR-014, ADR-023 |
-| 13 | **Payments surface**: price and currency stamped at booking, plus a **coach payment dashboard** — lessons in a required date range, mark as paid with **how the client paid** (the payment types on the coach's profile, plus *Other*; no free text), **mark as waived**, filter by unpaid — plus a **coach lesson list** over the same date range where attendance can be corrected to attended or no-show | ADR-003, ADR-014 |
+| 13 | **Payments surface**: price and currency stamped at booking, plus a **coach payment dashboard** — lessons in a required date range, mark as paid with **how the client paid** (the payment types on the coach's profile, including Cash if the coach turned it on, plus *Other*; no free text; optional, editable, seen only by the coach), **mark as waived**, filter by unpaid — plus a **coach lesson list** over the same date range where attendance can be corrected to attended or no-show | ADR-003, ADR-014 |
 | 14 | End-of-day report email to coach | §6.4 |
-| 15 | SMS opt-in wiring, including the one-off opt-in confirmation message | §9, ADR-007 |
-| 16 | **Financial page** for taxes: year-to-date (YTD) total gross and fees paid to the rink. How rink fees are found — calculated from the rink's terms or entered by the coach — is open (`Open-Pending.md` §3) | `FeatureDecriptions/Coach Financial Page.md` |
+| 15 | **Coach late-cancellation text** (`smsCancellationAlerts`), including its one-off opt-in confirmation message. Client SMS is Phase 2 | §9, ADR-007, ADR-009 d9 |
+| 16 | **Financial page** for taxes: year-to-date (YTD) total gross (money received: lessons marked paid plus missed-lesson fees collected; counted by lesson date; calendar year, closed once it ends) and fees paid to the rink, **calculated by BladeBook** from the rink's terms (how is open, `Q_Rink-Fees.md`), plus a **summary CSV download** for this year or last | ADR-030, `FeatureDecriptions/Coach Financial Page.md` |
 
 > **Scope warning.** This list has grown from eight features to sixteen across ADR-006,
 > ADR-008 and ADR-009. Features 3, 4, 6, 9 and 10 are all the same surface — a coach
@@ -1211,6 +1649,14 @@ delivery confirmation needs SES event destinations and is not in MVP.
 > in `design/harbor/rinkside/`.
 
 ### Phase 2+
+- **SMS to clients**: day-of and payment reminders, the cancellation digest, shared-lesson
+  invitation and price-change texts, with the client's opt-in and its confirmation (ADR-007,
+  amended 2026-10-12). MVP's only text is the coach's late-cancellation alert.
+- **Client views of their own history**: unpaid lessons (ADR-003) and cancellations (ADR-006).
+  MVP is coach-only and email-only.
+- **Skate Canada and Hockey Canada numbers** at sign-up. Phase 1 takes US Figure Skating or USA
+  Hockey only (Open-Pending §2b).
+- **Financial page: past years on screen, and a detailed per-lesson export** with skater names (a logged PII read, ADR-012). The summary export is MVP (ADR-030 d7).
 - **Rink selection** in the schedule builder, from the rinks BladeBook has ice types for. Phase 1
   is fixed to PCC.
 - **"Also coached by"** — a coach sees the names of a skater's other coaches (ADR-025 d4),
@@ -1269,11 +1715,11 @@ text — as ADR-001's A1–A5 and ADR-010's decision 5f do.
 |---|---|---|
 | [001](adr/ADR-001-backend-stack.md) | Backend stack, IaC language, repo layout, timezone handling | Accepted; amended (SnapStart withdrawn; check-in as a third frontend, A3, *superseded by 023*; **IaC re-opened, CDK or Terraform undecided, A4**; fourteen functions (A5 and later amendments); tenant roles A8–A9; **execution roles restated, A6**; **REST API, A7**) |
 | [002](adr/ADR-002-client-registration.md) | Client registration, the client↔student link, coach codes | Accepted; **d5 (one coach) superseded by 025**; amended 2026-10-07 (an invitation is a second way onto a roster, 026) and 2026-10-08 (Kim confirms the `PENDING` step stays in MVP); amended 2026-10-09 (siblings need approval too; no reminder; pending count on the Students tab) |
-| [003](adr/ADR-003-lesson-pricing-and-payment.md) | Lesson pricing and payment tracking | Partially superseded by 004; d2 amended by 020 (the stamp protects past lessons only); amended 2026-10-09 (how the client paid, d4) |
+| [003](adr/ADR-003-lesson-pricing-and-payment.md) | Lesson pricing and payment tracking | Partially superseded by 004; d2 amended by 020 (the stamp protects past lessons only); amended 2026-10-09 (how the client paid, d4); amended 2026-10-12 (Cash, how-paid optional/editable/coach-only; unpaid history to client is Phase 2) |
 | [004](adr/ADR-004-schedule-patterns.md) | Computed availability, schedule blocks, pattern-bound pricing | Partially superseded by 006 |
 | [005](adr/ADR-005-booking-horizon-and-recurring-lessons.md) | 7-day booking horizon; recurring lessons deferred | Largely superseded by 006 |
 | [006](adr/ADR-006-open-booking-recurring-lessons-and-cancellation.md) | Open booking, per-date overrides, recurring lessons in MVP, cancellation records | Accepted; amended 2026-09-29 (d4a — recurrence every 1–4 weeks, `RECURRENCE#` header written at booking; d4b — failed bookings repair themselves); extended 2026-10-06 (shared bookings, 026); amended 2026-10-08 (booking between preview and save: per-coach counter, save goes ahead, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2) |
-| [007](adr/ADR-007-sms-message-constraints.md) | SMS length, encoding, and content constraints | Accepted; amends 003 |
+| [007](adr/ADR-007-sms-message-constraints.md) | SMS length, encoding, and content constraints | Accepted; amends 003; amended 2026-10-12 (client SMS is Phase 2; only the coach's late-cancellation text is MVP) |
 | [008](adr/ADR-008-schedule-editor.md) | The schedule editor; signup defaults removed; temp headers restored | Accepted; supersedes parts of 003, amends 004 and 006; amended 2026-09-29 (missed-lesson fee field, Phase 2); extended by 026 (`maxSkaters`); amended 2026-10-08 (booking counter checked at save, "just booked" email, no slot holds); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2) |
 | [009](adr/ADR-009-cancellation.md) | Client, coach and schedule-driven cancellation; coach-held slots; rinkside app as a second cancel surface | Accepted; extends 006; amended 2026-09-22 (d5a), 2026-10-01 (d4c header in the client's partition), 2026-10-08 (coach told of a client cancellation only inside `requiredNoticeHours`) |
 | [010](adr/ADR-010-availability-and-reliability.md) | Availability and reliability tiers, dead-letter queues, idempotency, alerting, Point-in-Time Recovery | Accepted; amends 006 d5; amended 2026-09-29 (d5f — the notifier fires when a batch finishes); amended 2026-09-30 (d5g–d5l — recovery: event-derived keys, plan-complete marker, re-check before acting, reconcile command, nightly drift check, status on the coach website; d2a — dead-letter policy per consumer) |
@@ -1282,8 +1728,8 @@ text — as ADR-001's A1–A5 and ADR-010's decision 5f do.
 | [013](adr/ADR-013-testing-requirement.md) | Every feature requires automated tests, across all three packages | Accepted; **enforcement deferred to the first CI pipeline** |
 | [014](adr/ADR-014-check-in-app-and-offline-capture.md) | Attendance as an MVP surface; offline capture, device timestamps, idempotent replay, explicit no-show, `PENDING` report default | Accepted; amends 001 (A3); **d10–11 superseded by 023** (no separate app client or function) |
 | [015](adr/ADR-015-late-cancellation-and-no-show-charges.md) | Late cancellation and no-show both charged, one rule; fee per block, stamped on the booking | Accepted; **charge is Phase 2**; supersedes 009 d3 and d11 in part, amends 014 d3; amended 2026-09-29 (d1a — only the client's own late cancellation is charged, from any screen); d3 amended by 020 |
-| [016](adr/ADR-016-coach-signup.md) | Coach signup — **ungated for now**, licence gate intended; Cognito-owned credentials; the coach profile | Accepted; closes §11's oldest open thread; extends 002; amended 2026-09-29 (`requiredNoticeHours` on the profile) |
-| [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f |
+| [016](adr/ADR-016-coach-signup.md) | Coach signup — **ungated for now**, licence gate intended; Cognito-owned credentials; the coach profile | Accepted; closes §11's oldest open thread; extends 002; amended 2026-09-29 (`requiredNoticeHours` on the profile); amended 2026-10-01, 2026-10-05 (photo to Phase 2), 2026-10-12 (`acceptsCash`) |
+| [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f; amended 2026-10-12 (16-month floor for lesson and payment records; archived-history message; restores logged under 012) |
 | [018](adr/ADR-018-unpaid-lesson-reminder-to-coach.md) | A weekly email telling each coach which lessons are still unpaid after a threshold, asking them to mark each paid or waived | Accepted; **threshold to be set — off until then**; answers 017's open question |
 | [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023 |
 | [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; **large-change warning threshold undecided**; amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2) |
@@ -1292,9 +1738,11 @@ text — as ADR-001's A1–A5 and ADR-010's decision 5f do.
 | [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021 |
 | [024](adr/ADR-024-client-write-link-check.md) | The client write link check: a `LinkedSkater` type only `core.data` creates, a `clientId` ownership condition on existing items, an ArchUnit rule; failures split by reason, logged, and paged on configurable thresholds | Accepted; amends 010, 012, 013, 022 |
 | [025](adr/ADR-025-many-coaches-per-skater.md) | Skaters and coaches are many-to-many: one `studentId` per skater across coaches, a family-owned `SKATER#` item, per-coach approval and `linkStatus`, other coaches' names shown to each coach (Phase 2); no limit on coaches; clashing bookings warned about, family changes copied by a consumer | Accepted; supersedes 002 d4–5; amends 001, 011, 021, 022 |
-| [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater; the slot lock unchanged | Accepted; max 2 and approval decided by the owner; price and booker-cancels pending Kim, lapse in part; a skater not yet with the coach joins via a consent link and the coach's Accept; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP) |
+| [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater; the slot lock unchanged | Accepted; max 2 and approval decided by the owner; price and booker-cancels pending Kim, lapse in part; a skater not yet with the coach joins via a consent link and the coach's Accept; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP); 2026-10-12 (`maxSkaters` never lowered on a booked lesson) |
 | [027](adr/ADR-027-on-demand-dev-environment.md) | Production is the only long-running environment: an on-demand dev stack, built from the same code and destroyed when done, replaces staging; a masked production subset is loaded only on request; no teardown while a scanner finding is open; the scheduled canary runs against production as a test coach and family; production and dev are separate AWS accounts; masking job and surviving logs in a data-loading stack | Accepted; supersedes 011 d1, d7a, d8a (default list), d8c; amends 001, 010, 012, 013, 017, 019, 021, 023, 024, 025; amended 2026-10-09 (a Step Functions workflow runs each load); amended by 028 (dev built from one import) |
 | [028](adr/ADR-028-dev-table-built-from-one-import.md) | The dev table is created from one import file when the stack is built: seed data (default) or masked production (on request), never both; dev is two stacks, test accounts first; a build fails if the import doesn't match the file | Accepted; amends 027 d2, d3, d4, d9 |
+| [029](adr/ADR-029-skater-registration-number.md) | Every skater gives a US Figure Skating or USA Hockey registration number, per skater, required at sign-up; checked for shape only; Canada is Phase 2; never a key; the coach code is never a registration number | Accepted; extends 002, 025 d1 |
+| [030](adr/ADR-030-financial-page-gross-and-rink-fees.md) | Financial page: YTD gross is money received, counted by lesson date, calendar year; a finished year is closed; the page says figures come from lessons marked paid; BladeBook calculates rink fees from terms the developer sets; a summary CSV export in MVP | Accepted in part; how rink fees are calculated is open (`Q_Rink-Fees.md`) |
 
 **Every feature requires automated tests** (ADR-013), covering `backend/`, `infra/` **and**
 `web/`. Integration tests count — several of the tests that matter most, such as
@@ -1392,7 +1840,7 @@ pipeline.
 | SES (email) | ~$0–1 |
 | S3 + CloudFront, including the archive | ~$1 |
 | **WAF** (ADR-019) — web ACL + 5 rules | ~$10 |
-| **SMS** — the number, plus carrier registration fees; a monthly campaign fee if 10DLC is chosen (toll-free vs 10DLC is open) | ~$3–12 |
+| **SMS** — for the coach's late-cancellation text (client texts are Phase 2): the number, plus carrier registration fees; a monthly campaign fee if 10DLC is chosen (toll-free vs 10DLC is open) | ~$3–12 |
 | **CloudWatch alarms** — ADR-010's pages and dead man's switches, ~15–20 | ~$2 |
 | **Route 53 hosted zone + domain** (~$15–20/year) | ~$2 |
 | Encryption keys — **AWS-managed**, no monthly fee (§7) | ~$0 |
