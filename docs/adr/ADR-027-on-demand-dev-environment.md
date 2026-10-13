@@ -232,7 +232,9 @@ load**, in the data-loading stack. Its steps: start the production export (as of
 fail step, so the import never starts. It is started by hand with the coaches, clients,
 as-of time and reason; its run history and CloudTrail's record of who started it cover most of
 ADR-011 decision 7's load log. *Amended 2026-10-09 by ADR-028: the workflow ends at the masked
-file; the table is created from it when the dev stack is built.*
+file; the table is created from it when the dev stack is built.* *Amended 2026-10-13 by the
+owner: 6b's scan runs only after a successful masked build (ADR-028 decision 4). A failed build
+leaves no dev table to scan.*
 
 - **Two buckets.** The raw export is unmasked production data, so it lands in an **export
   bucket** readable only by the transform, with a rule that **deletes it automatically after a

@@ -62,6 +62,9 @@ built in MVP:** it existed only to choose which email to send. When the email re
 likely mechanism is for the save to recalculate the plan and compare it with the preview's,
 which needs no counter. **To be reconsidered if feedback supports that this is an issue.**
 
+**Note — 2026-09-30.** [ADR-020](ADR-020-repricing-booked-lessons.md) extends decision 8: every
+upcoming lesson follows a price edit (see the note under decision 8).
+
 ---
 
 ## Context

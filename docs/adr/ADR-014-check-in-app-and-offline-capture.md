@@ -27,6 +27,20 @@ client, and its routes run in `api-coach`. A recent sign-in guards schedule save
 Every decision about working at the rink stands: 1, 1a, 2a, 3, 4, 4a, 5 (service worker now
 scoped to `/coach/rinkside/`), 5a, 6, 7, 8 and 9b.
 
+**Amended — 2026-10-13.** *Decided by the owner.* Since ADR-023's amendment of 2026-10-12 the
+rinkside page runs in an ordinary browser tab, where Safari may remove the site's stored data
+(the service worker's offline copy, the queue of decision 1 and the day cache) after 7 days of
+Safari use without a visit. Offline capture stays (decisions 1, 1a and 5), and the gap is
+guarded rather than designed around:
+
+- Daily use keeps the storage fresh. Nothing new is stored to work around eviction.
+- If the page opens with signal and finds its offline copy gone, it says so plainly and
+  reloads the copy, so it works without signal again.
+- Queued entries are sent as soon as the page is open with signal (decision 1a; on an iPhone,
+  the next time it is opened), so they do not sit on the phone for days.
+- A cleared page cannot open with no signal at all. Decision 5a's advice to open the page with
+  signal before leaving for the rink covers this case.
+
 ---
 
 ## Context

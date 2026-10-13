@@ -33,6 +33,32 @@ data events apply to dev while it exists, and are written somewhere the teardown
 kept as long as production's, so "did anyone read it?" can still be answered after dev is
 destroyed.
 
+**Amended — 2026-10-12.** *Decided by the owner.* Decision **2**'s log line also names **which
+fields** were returned, by field name, never value (for example `guardianEmail`, `phone`,
+`studentName`). *"Coach `coa3` read `guardianEmail` of client `p4`"* then answers a parent's
+*"who saw my phone number?"*, which the record identifier alone can't. Scheduled jobs' aggregate
+lines (decision 3) list the field names once per run. The same day, the access log's own
+access logging was settled (Open), and ADR-017's archive restores were added as access-log
+entries.
+
+**Amended — 2026-10-12.** *Decided by the owner.* Interim retention, two tiers, until the legal
+review sets a window (Deferred):
+
+- **CloudWatch keeps 90 days**, for searching.
+- **Every line is also streamed** by a subscription filter through Amazon Data Firehose into an
+  S3 bucket of its own, batched into large objects. A lifecycle rule moves them to S3 Glacier
+  Deep Archive and **deletes them after 2 years**. A restore takes up to 12 hours, as with
+  ADR-017's archive.
+- **No S3 Object Lock yet.** It would make the trail tamper-proof but would also block erasure
+  and any shorter legal window; revisit after the legal review.
+
+The bucket follows the others' rules: SSE-KMS, public access blocked, object-level CloudTrail
+data events (decision 5). Adds one Firehose stream, its role and one bucket.
+
+**Note — 2026-10-12.** [ADR-030](ADR-030-financial-page-gross-and-rink-fees.md) decision 7: the
+financial page's summary export holds no personal data and is **not** a PII read; a Phase 2
+per-lesson export with skater names would be.
+
 ---
 
 ## Context
@@ -73,7 +99,8 @@ Both are adopted. Neither substitutes for the other.
 ### 2. What a log line contains — and what it must never
 
 Per read that returns PII: **actor identifier and role, the resource identifiers returned,
-the operation, timestamp, request identifier, source IP address.**
+the operation, timestamp, request identifier, source IP address** — and, *since 2026-10-12*,
+**the names of the PII fields returned.**
 
 **Never the values.** An access log containing the data it logs access to has doubled the
 problem and moved it somewhere with different retention and different access controls.
@@ -216,10 +243,19 @@ until the legal review sets a window it grows without bound.
 - ~~Offline reveals are logged late, or not at all.~~ **Closed 2026-09-30 by ADR-014 decision
   9b:** guardian contact details are no longer cached on the phone; each reveal is fetched
   with signal and logged when it happens.
-- **The interim retention value.** Deferring the legal question does not excuse leaving the
-  CloudWatch default.
-- **Does the access log itself need access logging?** The recursion has to stop somewhere;
-  where is unstated.
+- ~~**The interim retention value.**~~ Deferring the legal question does not excuse leaving the
+  CloudWatch default. **Settled 2026-10-12:** 90 days in CloudWatch, then a Deep Archive copy
+  deleted after 2 years (see the amendment above).
+- ~~**Does the access log itself need access logging?**~~ The recursion has to stop somewhere;
+  where is unstated. **Settled 2026-10-12 by the owner: it stops at AWS's own controls.**
+  Nothing in BladeBook logs reads of the access log. Only the owner's operator role can read it,
+  sign-in is through IAM Identity Center with multi-factor authentication, and CloudTrail
+  records what it can. The log holds identifiers, never values (decision 2), and turning an
+  identifier into a child's details means reading the table, which CloudTrail data events
+  already record (decision 5). Revisit when anyone else gains AWS credentials (Revisit if).
+- **To-do: Confirm what CloudTrail records for reads of a CloudWatch Logs group.** Starting a
+  Logs Insights query is believed to be recorded; plain `GetLogEvents` / `FilterLogEvents`
+  reads are believed not to be. Verify before relying on it.
 - ~~Nothing verifies that a handler returning PII actually logged it.~~ **Settled
   2026-08-30** — see decision 5a. A compiler-required `AccessContext` plus one ArchUnit rule.
   What remains uncovered, and is a different problem: a path that *does* log but logs

@@ -87,6 +87,9 @@ built in MVP:** it existed only to choose which email to send. When the email re
 likely mechanism is for the save to recalculate the plan and compare it with the preview's,
 which needs no counter. **To be reconsidered if feedback supports that this is an issue.**
 
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. The cancellation digest goes by email only in MVP;
+its SMS form (decision 6, the sequence diagram's SNS step) waits for it.
+
 ---
 
 ## Context
@@ -415,25 +418,31 @@ date generates a slot with exactly its start time and duration.**
 ```mermaid
 sequenceDiagram
     participant C as Coach
-    participant API as API λ
+    participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant X as Cancellation λ
+    participant X as Schedule-change λ
     participant N as Notifier λ
     C->>API: POST /schedule/preview
-    API-->>C: 47 lessons, 12 clients — confirm?
+    API-->>C: 47 lessons cancelled, 14 re-priced — confirm?
     C->>API: PUT /schedule
     API->>DB: write default / date overrides
     DB->>Bus: (stream) ScheduleChanged
     Bus->>X: route
     X->>DB: Query bookings in affected range
-    X->>DB: delete conflicting bookings
-    X->>DB: write CHANGEBATCH + CANCELLED lines
-    X->>Bus: one LessonsChanged per affected client
-    Bus->>N: route (per client)
-    N->>N: SES email (+ SNS if smsOptIn)
+    X->>DB: write the CHANGEBATCH header and every CANCELLED and REPRICED line, PLANNED
+    loop each line
+        X->>DB: delete the booking or set its new price, and mark the line EXECUTED (or SKIPPED)
+    end
+    X->>DB: mark the batch header EXECUTED
+    DB->>Bus: (stream) LessonsChanged — one per batch
+    Bus->>N: route
+    N->>DB: read the batch's EXECUTED lines, group by client
+    N->>N: SES email to each client (SMS is Phase 2)
     N->>DB: stamp notification state on that client's lines
 ```
+
+*Amended 2026-10-13: diagram updated to ADR-010 decision 5 (the plan is written first; one `LessonsChanged` per batch, driven by the header), ADR-020 re-pricing and the consumer rename. SMS to families is Phase 2 (ADR-007). [architecture.md §6.5](../architecture.md) has the full flow.*
 
 **Conflicting bookings are deleted, not restatused.** ADR-004 decision 6 step 3's
 reasoning is unchanged and still binding: the booking item *is* the lock, so a booking
@@ -623,15 +632,17 @@ price of the single-lookup resolution rule and it is charged to the UI.
 - **Retention of cancellation records.** They name students and carry contact-adjacent
   data, so §7's minors' obligations apply. No TTL, no archival cutoff, and no coach
   ability to clear history is specified.
-- **Does the client ever see their own cancellation history**, or only the email at the
-  time? Assumed email only.
+- ~~**Does the client ever see their own cancellation history**, or only the email at the
+  time?~~ **Settled 2026-10-12 by the owner:** yes, in **Phase 2**. MVP stays email only.
 - **Real delivery confirmation.** `SENT` currently means "accepted by SES." Bounce and
   complaint handling via SES event destinations would make the coach's "was this client
   reached" answer honest, and is not in MVP.
 - ~~Does a coach need to cancel one lesson without touching the pattern? Carried~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 5.**
-- **Timezone of the week grid.** Sunday–Saturday in the coach's timezone, per ADR-001
+- ~~**Timezone of the week grid.**~~ Sunday–Saturday in the coach's timezone, per ADR-001
   decision 4. A client in a different timezone sees the coach's week, which is correct
-  but unstated in the UI.
+  but unstated in the UI. **Settled 2026-10-12 by the owner:** every booking time is shown
+  in the coach's timezone and always labelled with it, for every family. *Phase 2:* revisit
+  for competitions, which can be in another timezone.
 
 ---
 

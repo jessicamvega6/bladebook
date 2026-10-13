@@ -41,6 +41,10 @@ of a client cancellation **only when it is inside the coach's notice period**
 (`requiredNoticeHours`, the threshold the fee uses), by email and, if opted in, by text. This
 settles the Open item below and narrows decision 9's `CLIENT` row.
 
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. Decision 9's coach text (`smsCancellationAlerts`)
+is the one SMS path that stays in MVP. The SMS forms of the client-directed rows (`COACH`,
+`SCHEDULE_CHANGE`) wait for Phase 2.
+
 ---
 
 ## Context

@@ -33,6 +33,24 @@ where a photo would appear, including the family's code-entry screen, MVP shows 
 **Note — 2026-10-09.** [ADR-003](ADR-003-lesson-pricing-and-payment.md) decision 4 (amended) uses
 decision 7's handles as the options for **how the client paid**, plus *Other*.
 
+**Amended — 2026-10-12.** *Decided by the owner.* Decision **7** gains a fourth payment type,
+**Cash** (`acceptsCash`, a yes/no the coach sets at sign-up or on the profile). Cash has no
+handle, so it's a switch rather than a field. It feeds ADR-003 decision 4's how-paid options.
+`paymentInstructions` still covers cheques, Interac e-transfer and anything else.
+
+**Amended — 2026-10-12, later.** *Decided by the owner.* **One switch per payment type.** Cash,
+Cash App, Venmo and PayPal each have their own on/off switch, set at sign-up and changed any time
+on the profile: `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal`, all off by
+default. A type that has a handle needs it filled in before it can be switched on. A type
+switched **on** is a how-paid option (ADR-003 decision 4) **and** is shown to the coach's
+confirmed families wherever decision 7a shows payment details. Switching a type off removes it
+from both. Past bookings keep their `paidVia`. This **replaces** `displayPaymentTypesToClients`
+(*Show my payment handles*) in decisions 7 and 7a. Example: a coach who signs up with Cash and
+Venmo, then adds PayPal and drops Venmo, switches PayPal on and Venmo off on the profile.
+Switching a type off keeps its handle, so switching it back on needs no retyping. **Switching
+Cash App, Venmo or PayPal back on asks the coach to verify that the kept handle is still
+correct** before it takes effect. Cash has no handle, so it switches straight back on.
+
 ---
 
 ## Context
@@ -140,8 +158,10 @@ gate question reopens immediately, because the account stops being inert.
 | `coachCode` | **System-generated**, not a form field — ADR-002 decision 2a |
 | `profilePhotoKey` | Optional S3 key — see decision 5 |
 | `paymentInstructions` | Free text, as ADR-003 |
-| `displayPaymentTypesToClients` | Boolean, gating **only** the handles below |
-| `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional |
+| ~~`displayPaymentTypesToClients`~~ | ~~Boolean, gating **only** the handles below~~ *Replaced 2026-10-12 by one switch per payment type (Status note)* |
+| `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional; required for its type to be switched on |
+| `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | Booleans, off by default. On = a how-paid option and shown to confirmed families. *Added 2026-10-12* |
+| `acceptsCash` | Boolean, off by default. Makes *Cash* a how-paid option (ADR-003 decision 4) and, since the later 2026-10-12 amendment, shows it to confirmed families. *Added 2026-10-12* |
 | `smsCancellationAlerts` | Boolean, **false until the coach ticks it** — *"Text me when a family cancels late"* on the signup form and profile *(label amended 2026-10-09: the text goes only for cancellations inside `requiredNoticeHours`, ADR-009)*. Sends the opt-in confirmation to `phone` when first ticked (ADR-009 decision 9, ADR-007 decision 8). *Added 2026-09-30* |
 | `themeId` | Phase 2; Harbor for MVP *(Amended 2026-10-09: Harbor replaced Forest on 2026-10-01)* |
 
@@ -206,8 +226,11 @@ Two mechanisms, deliberately:
   unconditionally, exactly as ADR-003 has it. It is the only option that covers Interac
   e-transfer, cash, cheque, or anything else a coach actually uses — and the only one that
   works for a `CAD` coach, since Cashapp, Venmo and PayPal are US-centric.
+  *Amended 2026-10-12:* cash now has its own switch, `acceptsCash` (see the Status note), so
+  `paymentInstructions` covers cheques, Interac e-transfer and anything else.
 - **The three handles** are structured and appear **only when
-  `displayPaymentTypesToClients` is set.**
+  `displayPaymentTypesToClients` is set.** *Amended 2026-10-12: each payment type now has its
+  own switch, which replaces this one (Status note).*
 
 The checkbox governs the handles alone. It does not suppress `paymentInstructions`, which
 would silently strip payment information out of a reminder email whose entire purpose is to
@@ -222,7 +245,7 @@ coach turns them on**:
 |---|---|
 | *Show my phone number* — `displayPhoneToClients` | `phone` |
 | *Show my email address* — `displayEmailToClients` | `businessEmail` |
-| *Show my payment handles* — `displayPaymentTypesToClients` | Cashapp, Venmo, PayPal |
+| ~~*Show my payment handles* — `displayPaymentTypesToClients`~~ | ~~Cashapp, Venmo, PayPal~~ *Replaced 2026-10-12: each payment type switched on is shown (Status note)* |
 
 **Where, when switched on:** a coach card on the client website's home page and at the top
 of the booking page, and the footer of client emails. **Never in a text** (ADR-007 forbids

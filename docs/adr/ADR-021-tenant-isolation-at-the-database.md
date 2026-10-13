@@ -320,9 +320,10 @@ by BladeBook's own code.
 ## Open
 
 - ~~**Decision 7's tests**, row 3 above all.~~ **Passed 2026-10-05.**
-- **Whether `consumer-student-link` also sends the decline email** (ADR-002 decision 2b,
-  `Open-Pending.md`). If it does, it gains `ses:SendEmail` and reads the coach profile for
-  the Reply-To.
+- ~~**Whether `consumer-student-link` also sends the decline email**~~ (ADR-002 decision 2b,
+  `Open-Pending.md`). **Settled 2026-10-12 by the owner: yes.** It gains `ses:SendEmail` and
+  a `GetItem` on the coach profile for the Reply-To. The email goes to the deleted
+  `STUDENT#` item's `clientEmail`, so a removal's `StudentChanged` event must carry it.
 - **Which IaC tool expresses the roles** waits on ADR-001 A4's choice between CDK and Terraform.
   Either way, an infrastructure test asserts that the `api-coach` and `api-checkin`
   execution roles hold no `dynamodb:` action.

@@ -18,6 +18,15 @@ phone number** (decision 8a), which resolves the per-student/per-client inconsis
 message is prefixed `<Coach name> via BladeBook:`** rather than `BladeBook:` (decision 5a),
 which changes decision 6's worst-case lengths and decision 8's template.
 
+**Amended — 2026-10-12.** *Decided by the owner.* **All SMS to clients is Phase 2**: the day-of
+reminder, the payment reminder, the cancellation digest, shared-lesson invitation texts
+(ADR-026) and the price-change texts (ADR-020). In MVP every client gets email only, and the
+client's `smsOptIn` and its opt-in confirmation (decision 8) wait for Phase 2. **The one SMS path
+in MVP is the coach's own late-cancellation text** (decision 5b; `smsCancellationAlerts`,
+ADR-009 decision 9, ADR-016). Decisions 1–4, 7 and 9 apply to it unchanged, and decision 8's
+opt-in confirmation is sent to the coach's `phone` when they first tick it. The rest of this ADR
+stands as the design for Phase 2.
+
 ---
 
 ## Context
@@ -259,10 +268,11 @@ fit, and that is the intended pressure.
 
 ## Open
 
-- **Templates for price changes** ([ADR-020](ADR-020-repricing-booked-lessons.md), 2026-09-30):
+- *Phase 2 (2026-10-12): client SMS deferred.* **Templates for price changes** ([ADR-020](ADR-020-repricing-booked-lessons.md), 2026-09-30):
   an increase, a decrease ("good news") and a batch mixing price changes with cancellations.
   Each is a pointer to the email under decisions 1–5, and needs its decision-7 length test.
-- **Does the confirmation message alone satisfy the carrier**, or does a recurring
+- *Scoped 2026-10-12: in MVP this and the next item concern the coach's opt-in only.*
+  **Does the confirmation message alone satisfy the carrier**, or does a recurring
   program also need periodic re-disclosure? Decision 8 assumes once is enough for
   transactional traffic. This is the specific question to put to the 10DLC campaign
   registration, and the answer arrives from carrier vetting rather than from a statute.
@@ -274,7 +284,7 @@ fit, and that is the intended pressure.
   the client profile, which has one phone. See decision 8a.
 - ~~Should the prefix be `BladeBook:` or the coach's name?~~ **Settled 2026-09-30:
   `<Coach name> via BladeBook:`** — see decision 5a.
-- **A client who opts into SMS but whose email bounces** currently gets nothing usable,
+- *Phase 2 (2026-10-12): client SMS deferred.* **A client who opts into SMS but whose email bounces** currently gets nothing usable,
   since the SMS only points at the email. Interacts with ADR-006's `FAILED` notification
   state, which records the bounce but triggers nothing.
 

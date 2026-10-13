@@ -36,6 +36,10 @@ signs up with **1 to 10 coaches** and adds more later as needed; the multi-coach
 designed for about 10. **Decision 4 (*"Also coached by"*) moves to Phase 2**, which takes MVP's
 only exception to keeping coaches' data apart out of MVP.
 
+**Amended — 2026-10-12.** [ADR-029](ADR-029-skater-registration-number.md) extends decision 1: the
+`SKATER#` item gains `skatingOrg` and `registrationNumber`, required for every skater and copied
+to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
+
 ---
 
 ## Context

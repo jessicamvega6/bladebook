@@ -41,6 +41,21 @@ at once — and the family is told.
 options are the payment handles on the coach's profile ([ADR-016](ADR-016-coach-signup.md)
 decision 7), plus *Other*. No free text.
 
+**Amended — 2026-10-12.** *Decided by the owner.* Decision **4**'s how-paid options gain
+**Cash**, but only for a coach who turned cash on at sign-up or on their profile (ADR-016
+decision 7, amended the same day). How-paid is **optional** when marking a lesson paid,
+**editable** afterwards, and seen **only by the coach**. Unpaid history stays coach-only;
+showing it to the client is **Phase 2** (Open).
+
+**Amended — 2026-10-12, later.** *Decided by the owner.*
+- **"Seen only by the coach" is a screen rule, not a data rule.** No client screen shows
+  `paidVia`. A family's own booking may still carry it in the client API's response, since
+  their bookings are read whole through GSI1 (ADR-022). That exposure is accepted: it is the
+  family's own payment.
+- **The how-paid options are the payment types the coach has switched on, plus *Other*.** Each
+  type has its own switch (ADR-016 decision 7, amended the same day), which settles whether
+  *Show my payment handles* affects the list: that switch is replaced.
+
 **Accepted** — 2026-07-29. Closes the gap where MVP feature #6 (payment-reminder
 email on check-in) had no amount to send: `BOOKING` carried only
 `paymentReminderSent: bool`, and no price, rate or balance existed anywhere in the
@@ -186,9 +201,21 @@ one records that we asked, the other records that they paid.
 >   only Other.
 > - **There is no free text.** A payment that matches no handle is *Other*.
 >
-> Still open (`Open-Pending.md` §3): whether *Show my payment handles*
-> (`displayPaymentTypesToClients`) affects the list, and whether cash should be a fixed option
-> (needs Kim).
+> ~~Still open (`Open-Pending.md` §3): whether *Show my payment handles*
+> (`displayPaymentTypesToClients`) affects the list.~~ **Settled 2026-10-12:** the switch is
+> replaced by one switch per payment type (ADR-016 decision 7); the list is the types switched
+> on, plus *Other*. ~~Whether cash should be a fixed option
+> (needs Kim).~~
+>
+> **Amended 2026-10-12 — cash, and the details.** *Decided by the owner.*
+>
+> - **Cash is not a fixed option.** It's a payment type the coach turns on at sign-up or on
+>   their profile (`acceptsCash`, ADR-016 decision 7). It appears in the list only when it's
+>   on. No other types are added; cheques and Interac e-transfer are *Other*.
+> - **`paidVia`** is one of `CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`, stored on the
+>   booking, so removing a payment type from the profile later doesn't change past records.
+> - It is **optional** when marking a lesson paid, **editable** afterwards, and **seen only by
+>   the coach**. A waived lesson has none.
 >
 > Source: `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
 
@@ -283,9 +310,10 @@ answer and this ADR should be revisited wholesale when it lands.
   prices and require no setting change between them. The answer did not take the shape this
   item predicted — not named lesson types on the coach profile, but duration and price moved
   onto the block, which is why decision 3a reads as superseded rather than extended.
-- **Is unpaid history shown to the client, or only to the coach?** Read as
-  coach-facing only. If clients should see their own arrears, that is a client-app
-  view plus a decision about whether the reminder email mentions prior debts.
+- ~~**Is unpaid history shown to the client, or only to the coach?**~~ **Moved to Phase 2
+  by the owner, 2026-10-12:** coach-only in MVP. If clients should see their own arrears,
+  that is a client-app view plus a decision about whether the reminder email mentions prior
+  debts.
 - ~~Is a no-show owed? `BOOKING.bookingStatus` has `NO_SHOW`, and the payment reminder~~ **Settled 2026-08-30 by [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md): yes** — charged under the same rule as a late cancellation.
 
 ---

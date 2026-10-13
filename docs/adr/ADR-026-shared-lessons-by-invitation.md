@@ -50,6 +50,15 @@ warning email and a home-screen banner before the lesson, and a nightly sweep cl
 invitation whose lesson has started (decision 5a, new). The coach's email is moved from Phase 2
 to MVP. Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.
 
+**Amended — 2026-10-12.** *Decided by the owner.* A lesson already booked can't have its
+`maxSkaters` lowered; the decision 1 stamp is the intended behaviour, so a schedule edit changes
+only lessons booked afterwards. Decision 1's "like the price" no longer holds since
+[ADR-020](ADR-020-repricing-booked-lessons.md): the price follows schedule edits, `maxSkaters`
+doesn't.
+
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. The invitation's text pointing to the email waits for
+it; in MVP the invited family gets the email only.
+
 ---
 
 ## Context
@@ -426,8 +435,10 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   lesson gets ADR-025's warning; confirm that's enough here too.~~ **Settled 2026-10-07**
   (decision 5): the confirm page shows clashes and the family chooses; they aren't re-checked at
   join time.
-- **What lowering `maxSkaters` does** to lessons already booked with more skaters. The stamp
-  (decision 1) protects booked lessons; confirm that's the intended behaviour.
+- ~~**What lowering `maxSkaters` does** to lessons already booked with more skaters.~~ **Settled
+  2026-10-12 by the owner:** a lesson already booked can't have its `maxSkaters` lowered. The
+  stamp (decision 1) is the intended behaviour, so a schedule edit changes only lessons booked
+  afterwards.
 
 ---
 

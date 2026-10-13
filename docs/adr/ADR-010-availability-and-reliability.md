@@ -538,11 +538,16 @@ worse than no alarm, because it looks like coverage.
 - **There is no restore runbook.** Decision 7 turns Point-in-Time Recovery (PITR) on, but a
   restore lands in a *new* table, so recovering means restore → verify → repoint or copy
   back. Nobody has written down which, or how the application is repointed. The moment it
-  is needed is the worst moment to be working it out.
-- **Nothing covers retention beyond 35 days.** Point-in-Time Recovery's window is a ceiling,
-  so slow corruption noticed in month two is unrecoverable. Whether that warrants scheduled
-  on-demand backups is undecided, and it interacts with the unresolved retention questions
-  for cancellation records and minors' data (§11).
+  is needed is the worst moment to be working it out. *Decided 2026-10-12 by the owner:*
+  **copy back by default**; repoint only for total loss. The runbook pauses notifications
+  during a restore and re-applies the erased-ID list. Still to be written (`Open-Pending.md`
+  §10).
+- ~~**Nothing covers retention beyond 35 days.**~~ Point-in-Time Recovery's window is a ceiling,
+  so slow corruption noticed in month two is unrecoverable. **Settled 2026-10-12 by the
+  owner:** a monthly DynamoDB export to S3, triggered by EventBridge Scheduler, stored in S3
+  Glacier Instant Retrieval and deleted after 12 months (interim, for the legal review).
+  Revisit Deep Archive for older exports if the table grows to tens of GB. Details in
+  `Open-Pending.md` §10.
 - **Alert SMS shares Simple Notification Service (SNS) with client SMS.** A suppression list or sending problem on the app
   path could silence alerts. Alerts should at minimum use a separate topic and configuration
   set. Whether operational SMS to the owner's own number needs 10DLC registration (ADR-007)

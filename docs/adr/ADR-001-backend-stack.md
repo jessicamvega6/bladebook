@@ -57,6 +57,12 @@ unchanged.
 nightly on a schedule, after the end-of-day report, and gains `Query` on GSI2. Still fourteen
 functions.
 
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. In MVP only `consumer-change-notifier` publishes
+SMS, for the coach's late-cancellation text; `sched-day-reminder` and
+`consumer-payment-reminder` need `sns:Publish` from Phase 2. A6's opt-in confirmation in MVP is
+the coach's, sent when `smsCancellationAlerts` changes from false to true on the coach profile.
+Still fourteen functions.
+
 ---
 
 ## Amendments
@@ -344,7 +350,7 @@ rows replace A6's for the functions they name. Every other A6 row stands.
 |---|---|---|---|
 | `api-coach` | `sts:AssumeRole`, `sts:TagSession`, `sts:SetSourceIdentity` on `coach-tenant`. **No DynamoDB actions** | `coach-tenant`: `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem` where `LeadingKeys = COACH#${aws:PrincipalTag/coachId}`; plus `PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem` on `CODE#*`, attributes `PK`, `SK`, `coachId`, `coachFirstName`, `coachLastName`, `profilePhotoKey` only (ADR-021 d5, ADR-022 d7) | **GSI3 only** — GSI1 is dropped; a student's unpaid lessons come from GSI3 filtered on `studentId` (ADR-021 d4) |
 | `api-checkin` | The same, on `checkin-tenant`. **No DynamoDB actions** | `checkin-tenant`: ADR-014 decision 11's actions, where `LeadingKeys = COACH#${aws:PrincipalTag/coachId}` | **None** |
-| **`consumer-student-link`** — *thirteenth function* | `UpdateItem`, `DeleteItem` | — | none. No other service. Triggered by `StudentChanged` through the bus (ADR-021 d6) |
+| **`consumer-student-link`** — *thirteenth function* | `UpdateItem`, `DeleteItem`; *added 2026-10-12:* `GetItem` on the coach profile (Reply-To) and `ses:SendEmail`, to send the decline email for a rejected `PENDING` student (ADR-002 d2b) | — | none. No other service. Triggered by `StudentChanged` through the bus (ADR-021 d6) |
 
 **Thirteen functions.** `api-coach` no longer writes the client's link item; it writes
 only the `STUDENT#` item, and `consumer-student-link` follows. Transactions are authorised

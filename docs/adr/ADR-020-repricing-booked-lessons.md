@@ -35,6 +35,9 @@ which needs no counter. **To be reconsidered if feedback supports that this is a
 Kim's answer to §1 question 4, *"Move if they are outside the notice period"*, matches this
 ADR's rule for price increases.
 
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. Decision 6's text message and the price-change
+templates in Open wait for it; in MVP families are told by email only.
+
 ---
 
 ## Context

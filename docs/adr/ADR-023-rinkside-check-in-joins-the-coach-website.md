@@ -28,6 +28,11 @@ signal and never cached (9b).
 **Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): the rinkside page's lower-environment address is
 `dev.<domain>/coach/rinkside`, on a dev stack built on demand.
 
+**Amended — 2026-10-12.** *Decided by the owner.* BladeBook's users are older and **are not
+expected to add the rinkside page to the home screen**. Decision 1's *"Add to Home Screen still
+works"* is withdrawn as a design assumption: the page is built and tested as an ordinary
+browser tab. A manifest may stay, but nothing may depend on it. The iPhone home-screen storage
+check (Open) is dropped, and a browser-tab consequence is added (Open).
 ---
 
 ## Context
@@ -86,11 +91,12 @@ on its own.
 registered with scope `/coach/rinkside/`, so it caches and serves only the rinkside page.
 The rest of the coach website and the family website still get none.
 
-**Add to Home Screen still works.** The rinkside page carries its own web app manifest
+~~**Add to Home Screen still works.** The rinkside page carries its own web app manifest
 (`start_url` and `scope` set to `/coach/rinkside/`), so the coach can put a BladeBook icon on
 the phone that opens straight to it, full-screen. *Platform note, to verify on a device:* on
 iPhones a home-screen web app keeps its own storage, separate from Safari, so the coach signs
-in once inside it even if Safari is already signed in.
+in once inside it even if Safari is already signed in.~~ *Withdrawn 2026-10-12:* coaches are
+not expected to add it to the home screen. They open it in Safari or Chrome.
 
 ### 2. One app client for the coach website
 
@@ -239,7 +245,18 @@ it, and a refreshed token keeps its original `auth_time`.
   still worth asking about.
 - ~~**The website's refresh-token lifetime.**~~ **Settled 2026-10-05, decision 6:** 60 minutes
   on the coach and family websites, 4 hours on the rinkside page, from sign-in.
-- **Confirm the iPhone home-screen storage behaviour** in decision 1 on a real device.
+- ~~**Confirm the iPhone home-screen storage behaviour** in decision 1 on a real device.~~
+  *Dropped 2026-10-12:* no home-screen use is assumed.
+- ~~**Safari may clear the rinkside page's storage.** In an ordinary Safari tab, a site's
+  stored data (the service worker's offline copy, ADR-014's offline queue, the sign-in) can be
+  removed after 7 days of Safari use without a visit to the site. A coach back from a week off
+  could reach a rink with no signal and find the page won't open offline. Decide what the page
+  says, and whether anything else is needed. *Added 2026-10-12.*~~ **Settled 2026-10-13 by the
+  owner:** offline capture stays and the gap is guarded. If the page opens with signal and its
+  offline copy is gone, it says so and reloads it; queued entries are sent as soon as there is
+  signal. See [ADR-014](ADR-014-check-in-app-and-offline-capture.md)'s amendment of 2026-10-13.
+- **How the coach gets to the rinkside page** without a home-screen icon: a link in the
+  morning email, a large link on the coach website's home page, a bookmark. *Added 2026-10-12.*
 
 ---
 

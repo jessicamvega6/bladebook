@@ -43,6 +43,11 @@ an AWS Step Functions workflow. Decision 6a's checks, its fresh-export restart a
 scan (run whether the load succeeds or fails) are its steps. Its run history and CloudTrail cover
 most of decision 7's log.
 
+*Amended 2026-10-13 by the owner: the after-load scan runs only after a successful masked build
+(ADR-028 decision 4). Since ADR-028, dev is built from the masked file, so a failed build leaves no
+dev table to check: a failed check writes no file, and a failed import count tears the stack down.
+The "on failure" case in 6b below no longer applies.*
+
 ---
 
 ## Context
@@ -229,7 +234,9 @@ alone.
 
 1. **Automatically at the end of every refresh** — on success *and* on failure. The failure
    case is the one that matters more: 6a promises an aborted refresh leaves staging on its
-   previous contents, and this is what verifies that promise held rather than trusting it.
+   previous contents, and this is what verifies that promise held rather than trusting it. *Amended 2026-10-13:
+   in dev, this trigger runs after a successful masked build only (see the 2026-10-13 note
+   above).*
 2. **Ad hoc**, by invoking the function directly. It takes no arguments and holds no state,
    so there is nothing to set up — useful after any manual poking at staging, or before
    handing the environment to anyone.
