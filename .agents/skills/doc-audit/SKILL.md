@@ -1,6 +1,6 @@
 ---
 name: doc-audit
-description: Audit BladeBook's design docs for anything that has gone stale after recent changes — ADR cross-references, counts, architecture.md and its diagrams, Open-Pending, the Kim question list, the glossary, feature notes — then propose a numbered list of exact edits and apply only the ones the owner approves. Use this whenever the owner asks to check, sync, sweep or tidy the docs, asks "does anything else need updating?", "is architecture.md still right?", "what's stale?", or after a new ADR or decision lands, even if they don't say "audit".
+description: Audit BladeBook's design docs for anything that has gone stale after recent changes — ADR cross-references, counts, architecture.md prose, Open-Pending, the Kim question list, the glossary, feature notes (diagrams and the C4 map are handled by diagram-sync) — then propose a numbered list of exact edits and apply only the ones the owner approves. Use this whenever the owner asks to check, sync, sweep or tidy the docs, asks "does anything else need updating?", "is architecture.md still right?", "what's stale?", or after a new ADR or decision lands, even if they don't say "audit".
 ---
 
 # doc-audit
@@ -45,7 +45,7 @@ edit anything.
 
 **Agent B — the overview documents**
 - `docs/architecture.md`: *Last updated* and *Current through* name the newest ADR; every ADR has
-  a row in the §11 index; the §3 system diagram shows every function; the §4 data model and §5
+  a row in the §11 index; the §3 text lists every function; the §4 data model text and §5
   table layout carry every item type and attribute the ADRs add; the event catalog matches;
   §7 security and §10 MVP/Phase 2 lists match the ADRs; §12 costs match.
 - `docs/design-rationale.md`: function counts, costs and entries match the ADRs.
@@ -53,8 +53,10 @@ edit anything.
   (functions, MVP features) match.
 - **Counts that drift**: Lambda functions, MVP features, item types. Compare across ADR-001's
   amendments, `architecture.md`, `design-rationale.md` and the glossary.
-- `design/architecture-diagrams.html` is older than the last change to a mermaid block in
-  `architecture.md` → propose regenerating with `python3 design/render-diagrams.py`.
+- **Diagrams are not checked here.** `/diagram-sync` owns every diagram (the Mermaid blocks in
+  `architecture.md` and the ADRs, `design/architecture-diagrams.html`, `design/c4-map.html`, the
+  `docs/deletion/` erasure pages). If the changes in scope touch anything a diagram shows,
+  say so in one line in the report and recommend running `/diagram-sync`.
 
 **Agent C — tracking and feature notes**
 - `docs/Open-Pending.md`: items an ADR or owner decision has settled are struck through with
@@ -116,7 +118,8 @@ Then end with: *Reply with the numbers to apply (e.g. "apply 1–4, 7"), or "all
   - mark a Kim question answered rather than deleting it, unless the owner says otherwise.
 - If applying an item reveals something new, don't fix it — add it to the closing report as a
   new proposed item.
-- Regenerate `design/architecture-diagrams.html` only if that item was approved.
+- Don't edit diagrams, regenerate `design/architecture-diagrams.html`, or republish the C4 map;
+  that's `/diagram-sync`'s job.
 - **Never commit.**
 
 Close with a short report: what changed per file, any approved item that couldn't be applied and
