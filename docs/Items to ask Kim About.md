@@ -54,8 +54,9 @@ changes, and how far ahead families book.
   owner 2026-09-30 (ADR-020): upcoming lessons follow the new price — increases only beyond
   the notice period, decreases at once — and families are told.* Kim's answer to question 4 is
   still worth hearing as a check.
-- **How large a price change should trigger the preview's "check this amount" warning**
-  (question 6). The warning exists to catch typos like $60 entered as $6; the trigger should
+- ~~**How large a price change should trigger the preview's "check this amount" warning**
+  (question 6).~~ *Decided by the owner 2026-10-13: 50% or more of the old price, up or down.
+  Kim's answer to question 6 is still a useful check that normal changes stay below it.* The warning exists to catch typos like $60 entered as $6; the trigger should
   sit above a normal price change. (ADR-020 decision 4)
 
 ---

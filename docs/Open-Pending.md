@@ -317,9 +317,10 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 - *Phase 2 since 2026-10-13 (owner): personal prices.* **Open question (Phase 2) — needs Kim: The shape of the per-student discount** — a fixed price, a
   percentage off, or a dollar amount off; whether changing it re-prices booked lessons; and
   whether `0` should mean free. (ADR-003, ADR-020, `Items to ask Kim About.md` §5)
-- **Pending decision — needs Kim: The large-price-change warning threshold** — how big a change
+- ~~**Pending decision — needs Kim: The large-price-change warning threshold** — how big a change
   triggers the preview's must-acknowledge warning. Depends on how much coaches normally change
-  prices. (ADR-020 decision 4, `Items to ask Kim About.md` §1)
+  prices.~~ *Settled 2026-10-13 by the owner:* a change of 50% or more of the old price, up or
+  down. (ADR-020 decision 4, `Items to ask Kim About.md` §1)
 - ~~**Pending decision — needs Kim, and blocks the schedule-save amendment: A booking lands
   between the coach's preview and save.** Proposed underneath every option: the preview reads
   a per-coach booking counter that every booking increments, and the save commits only if it

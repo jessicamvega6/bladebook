@@ -1201,7 +1201,7 @@ A lesson marked paid in advance and then re-priced would show the new amount, no
 paid; that case isn't designed for (ADR-031 Revisit if). Each family gets one message per batch covering cancellations and price
 changes together — a decrease framed as good news. **A large price change triggers a warning
 at the top of the preview that the coach must tick to acknowledge** before Accept enables;
-the threshold is undecided.
+it shows when a price changes by 50% or more of the old price, up or down (ADR-020, 2026-10-13).
 
 **The preview is mandatory.** Families can book only three months ahead (ADR-031 d3), but a
 series can run 12 months past its first date, and lesson times are stored about 15 months

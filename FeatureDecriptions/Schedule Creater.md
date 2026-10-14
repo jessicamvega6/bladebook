@@ -47,7 +47,7 @@ On click of Next (*"Review changes"*), user will be taken to validation / confir
   upcoming lesson whose price changes, old and new price. Families whose price goes down are told "Good news — some
   lessons are now cheaper."
   A price increase never reaches a lesson inside the coach's notice period; those are listed as not changed.
-  A big price change (e.g. a 90% cut) must be confirmed with "I've checked the new price" before continuing, because a
+  A big price change (50% or more of the old price, up or down — owner, 2026-10-13; e.g. a 90% cut) must be confirmed with "I've checked the new price" before continuing, because a
   typo means families get emailed twice.
   Buttons: Back to editing, and Accept. Afterwards the save status page follows (C_Coach Schedule Save Status.md).
 

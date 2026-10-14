@@ -429,7 +429,8 @@ plus:
 - **A statement that accepting will send cancellation emails to affected clients.**
 - *Added 2026-09-30 by [ADR-020](ADR-020-repricing-booked-lessons.md):* **every upcoming lesson
   the change will re-price**, with the old and new amount; **which lessons an increase will not
-  reach** because they fall inside the coach's notice period; and, for a large price change, a
+  reach** because they fall inside the coach's notice period; and, for a large price change
+  (50% or more of the old price, up or down, since 2026-10-13), a
   **warning at the top of the preview** that the coach must tick to acknowledge before Accept
   enables.
 

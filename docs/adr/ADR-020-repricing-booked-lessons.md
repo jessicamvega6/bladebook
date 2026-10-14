@@ -60,6 +60,11 @@ stores every bookable time as a **lesson time** (`LESSON#`) and gives each skate
 
 Every behaviour rule here still holds.
 
+**Amended — 2026-10-13 (threshold).** *Decided by the owner.* Decision 4's warning shows when a
+price changes by **50% or more** of the old price, up or down. $60 to $6 (a 90% cut) and $50 to
+$75 (a 50% rise) both warn; $50 to $60 (20%) doesn't. This settles the large-change threshold
+(Open, blocker #12).
+
 ---
 
 ## Context
@@ -157,8 +162,9 @@ once for the mistake and once for the fix. So the warning is:
 - **Acknowledged explicitly.** Accept stays disabled until the coach ticks *"I've checked the
   new price"*.
 
-**The threshold is undecided** — how large a change triggers the warning. It depends on how
-much coaches normally change prices, which is a question for a coach (see Open).
+~~**The threshold is undecided** — how large a change triggers the warning. It depends on how
+much coaches normally change prices, which is a question for a coach (see Open).~~ *Settled
+2026-10-13 by the owner:* a change of **50% or more** of the old price, up or down.
 
 ### 5. One event, one consumer, one plan
 
@@ -263,8 +269,9 @@ batch that simply contains cancellation lines only.
 - **Changing a student's price override.** Whether that re-prices the student's upcoming
   lessons under decision 2's rules, and what shape the override takes (fixed price,
   percentage off, dollar amount off). Also §5 of the list for Kim. *Phase 2 since 2026-10-13 (ADR-003).*
-- **The large-change threshold.** How much a price must change to trigger decision 4's
-  warning. Depends on how much coaches normally change prices — in *Items to Ask Kim About*.
+- ~~**The large-change threshold.** How much a price must change to trigger decision 4's
+  warning. Depends on how much coaches normally change prices — in *Items to Ask Kim About*.~~
+  *Settled 2026-10-13 by the owner: 50% or more of the old price, up or down.*
 - **Changing `requiredNoticeHours` itself.** From Phase 2 a coach can edit their notice
   period (ADR-016). Whether booked lessons follow that change too is undecided.
 - **Retention of re-price lines.** They name students like cancellation lines do, so they
