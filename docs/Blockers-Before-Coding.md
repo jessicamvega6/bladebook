@@ -65,7 +65,7 @@ These don't stop code but must be done before real families use it.
 - **The product's final name**, before SES leaves sandbox, before text registration, before launch. Keep the name and domain in configuration from the first commit. (Open-Pending §1)
 - ~~**A BladeBook domain.** The owner holds only `jessicavega.dev`. (ADR-011 Open)~~ *Moved 2026-10-09 to row 22: `dev.<domain>` is needed before any infrastructure.*
 - **Legal review:** COPPA, state privacy laws, and every retention window ADR-017 is waiting on. (Open-Pending §8)
-- **Deleting a student's data on request**, extended to the archive and Point-in-Time Recovery. *Deferred.* (architecture §7, `design/deletion/`)
+- **Deleting a student's data on request**, extended to the archive and Point-in-Time Recovery. *Deferred.* (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
 - **Restore runbook**, SES bounce and complaint handling, dev test accounts created with the stack (ADR-027), WAF in block mode. (Open-Pending §9–11)
 
 ## 6. What can start now

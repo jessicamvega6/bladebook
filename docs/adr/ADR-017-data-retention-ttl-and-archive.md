@@ -108,7 +108,7 @@ one has been left too long.
 
 **Accounts are not on TTL.** A coach, client or student record ends when an account is
 closed or a family asks for their data to be deleted — an explicit delete, and a separate
-design (`design/deletion/`). TTL's "within a few days" is not an acceptable answer to an
+design (~~`design/deletion/`~~ `docs/deletion/` *(path corrected 2026-10-13)*). TTL's "within a few days" is not an acceptable answer to an
 erasure request.
 
 ### 3. Parent records never expire before their children

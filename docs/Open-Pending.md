@@ -24,7 +24,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   Blockers-Before-Coding #3)
 - **Pending decision: How student data is deleted on request.** §7 promises it; nothing
   implements it. Two approaches drafted (erasure by constant, erasure by token), neither
-  chosen. *Deferred 2026-08-25.* (architecture §7, `design/deletion/`)
+  chosen. *Deferred 2026-08-25.* (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
 - **Pending decision: Who sends the SMS opt-in confirmation?** Required by ADR-007 decision 8,
   but no function holds `sns:Publish` where it happens. Suggested: a stream consumer on
   `smsOptIn` changing from false to true. Blocks SMS wiring, minimum viable product (MVP)
@@ -495,7 +495,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
-  days, unselectively — Point-in-Time Recovery. (ADR-017, `design/deletion/`) *Added
+  days, unselectively — Point-in-Time Recovery. (ADR-017, ~~`design/deletion/`~~ `docs/deletion/`) *Added
   2026-10-12:* and the monthly backups (12 months, §10), which also can't be edited.
 - **To-do (with the erasure design): An erased-ID list.** A small record, kept outside every
   backup, of each erased student and client ID and the date. It holds IDs only, no names. Any
