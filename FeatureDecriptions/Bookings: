@@ -8,7 +8,13 @@ instead (ADR-022 d6). *With several coaches it names each one: "Booking opens on
 Booking for: at the top of every booking page. With one approved skater it names them; with more, a switch picks which
 skater is being booked. Changing skater clears the picked times.
 
-The booking PAGE view will only show the next 3 months. This is a UI restriction only. nothing validates against it api/server level Example: its April 24th, so the months shown would be April, May, June.
+The booking PAGE view will only show the next 3 months. ~~This is a UI restriction only. nothing validates against it api/server level~~ Example: its April 24th, so the months shown would be April, May, June.
+*Changed 2026-10-13 (ADR-031 decision 3): the system now checks the 3-month window too, not just the page.*
+  Each picked time must be inside the months the page shows, in the coach's time zone.
+  A repeating booking is checked on its first date only. Its later dates can run past the window, up to the end date.
+  A pick outside the window refuses the whole request: "That date is further ahead than you can book." Nothing is
+    booked. (The page never offers such a date, so this only happens from outside the booking page.)
+  Resubmitting the same request just after a new month starts isn't refused: it gets the same result as the first time.
 The Booking Page will show a calendar view with the months available on the right hand side. Clicking each month will show the availability for that month. Availability is shown by having each square (whichrepresenting a day within that month) with the number of open lesson slots. A day that has no open lessons slots is ~~dark grey/~~disabled and cannot be clicked. On the left hand side next to the calendar view is ~~week 1-4~~ *one week link per row of the calendar ("Week 1", "Week 2", ...), with its dates; a week with nothing open says "Nothing open" and can't be clicked*. Clicking on a week link takes the client to that weekds Schedule view. Clicking on a day within the calendar takes you to that day's Schedule view.
 *Design additions:*
   Each month on the right shows how many open times it has. Previous and next arrows move between the three months.
@@ -23,7 +29,8 @@ A schedule view will ~~have time blocks starting at the coaches first lesson of 
   length and price, and its times run from its start to its end at that length. A gap between blocks shows
   "Not on the ice <from> – <to>". Longer lessons are drawn taller.
   Each time shows its start and end, length, and price. A taken time says only "Taken" (who holds it is never shown).
-  The family's own lessons are shown by the skater's name. Times already passed say "Past".
+  The family's own lessons are shown by the skater's name. Times already passed say "Past". *2026-10-13 (owner): every time that has already started says "Past",
+  booked or not, including the family's own lesson and other families' bookings.*
   A day strip across the top shows the week, with each day's open count ("No ice" or "Full" when there's nothing),
   and arrows to the previous and next week. Picks are kept while moving between days.
   A special schedule day shows a banner with its name and dates. A time-off day says the coach is away.
@@ -77,3 +84,7 @@ book-confirm-two-coaches.html, book-result-two-coaches.html, book-result-coach-f
 
 Lessons can be split: reference 'Schedule lesson split' for details
 *Design (book-share-confirm.html, book-share-no-match.html, book-share-result.html): the box is in the confirm pop-up, only when a picked time can be shared.*
+*Added 2026-10-13 (ADR-031 decisions 5 and 10):* the invited skater's place is held as soon as the family books, so no
+  one else can take it. The booking family pays the full price until the invited skater joins. One invitation covers
+  every date of a repeating booking. Sharing is offered only here, while booking, and on a freed place in My bookings
+  (see 'Schedule lesson split').

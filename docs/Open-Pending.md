@@ -87,36 +87,83 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 
 ## 2a. Shared lessons (ADR-026)
 
-- **Pending decision — needs Kim (§8):** pricing (P2), what the booking family cancelling does
-  (P4), and when an invitation the family hasn't accepted lapses (P5, in part). Max 2 and
+- ~~**Pending decision — needs Kim (§8):** pricing (P2), what the booking family cancelling does
+  (P4)~~ **Settled by the owner, 2026-10-13** (ADR-026 amendment): the price is split; a skater
+  leaving in time leaves the other family to choose full price or cancel with no charge (no
+  answer by the notice period cancels); leaving late, the leaver may be charged their share of the
+  late-cancellation fee (half, for two skaters). **Still open (Kim §8 Q6):** when an invitation the family hasn't accepted lapses (P5, in part). Max 2 and
   approval decided by the owner 2026-10-07; sharing is on. (ADR-026)
+  *Changed 2026-10-13 (ADR-031 decision 8): the staying family answers by whichever comes first,
+  the start of the notice period or 7 days after the leave. No answer by then cancels with no
+  charge. ADR-031 decisions 7–10 also settle ADR-026's gaps: how a skater leaves, the booking
+  family leaving while the invited family stays, a freed place taking a new invite, and
+  ~~re-splitting shares after a re-price~~ how a re-price reaches split shares.* *Revised 2026-10-13 (ADR-031 revision): no family's
+  action writes another family's records. The total price is stored only on the lesson time;
+  each share is worked out as `priceMinor ÷ shareCount`, and a re-price changes only the lesson
+  time's price. A leave in time is recorded as a pending leave on the lesson time; the staying
+  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.*
+- **Open question — needs Kim (§8 Q7): Is 7 days the right limit** for the staying family to
+  answer when the other skater leaves in time? The owner chose 7 days so nothing waits more
+  than a week. (ADR-031 decision 8, ADR-031 Open) *Added 2026-10-13.*
 - ~~**Open question: Recurring shared lessons** — does one invitation cover a series?~~ **Settled:
   yes** (ADR-026 d5).
-- **Open question: A series where skater B can't make some dates** — accept the dates that work,
-  or all or none? (ADR-026 Open)
+- ~~**Open question: A series where skater B can't make some dates** — accept the dates that work,
+  or all or none? (ADR-026 Open)~~ *Closed 2026-10-13 by ADR-031 decision 6:* a series joins
+  lesson by lesson. Each date succeeds or fails on its own; the invited family gets the dates
+  that work.
 - ~~**Open question: Lowering `maxSkaters`** on lessons already booked with more skaters.~~
   **Settled 2026-10-12 by the owner:** a lesson already booked can't have its `maxSkaters`
   lowered. A schedule edit changes it only for lessons booked afterwards. (ADR-026)
 - **To-do: Add the share-code rows to the gate tests** and re-run them, since `client-tenant`
   gains a read statement. (ADR-026, `runbooks/database-gate-tests.md`)
-- **To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
-  confirm or decline, shared bookings on both sides. (ADR-026)
-- **To-do: Build the nightly invitation sweep** — warnings sent early, `warnedAt`, expiry of `SENT`
-  and `AWAITING_COACH` invitations. (ADR-026 d5a)
+  *Widened 2026-10-13 (ADR-031 Consequences): the gate tests also need rows for lesson times,
+  seats, ended seats and the new deadline index (GSI4). The family's read allowlist must cover
+  lesson-time attributes for availability and the family's own seat for retry checks.*
+  *Revised 2026-10-13 (ADR-031 revision): the availability read must leave out a lesson time's pending leave. Add a row: a
+  family session can't change another family's accepted seat in any way.*
+- ~~**Open question: What amount the unpaid list and weekly reminder show for a past seat with
+  attendance not recorded.** It has no fixed `amountMinor` yet, and the unpaid index (GSI3)
+  doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
+  *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): the 9pm report job fixes
+  `amountMinor` for any of that day's seats still without one.*
+- **To-do: Write `consumer-invite`'s narrow write permission** — only `partnerName`,
+  `partnerStatus`, `invitedClientId`, its GSI1 keys and `choiceAnswerBy` on `SEAT#` items, across
+  coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*
+- ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
+  confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
+  `design/harbor` (family and coach sites).*
+- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — warnings sent early, `warnedAt`, expiry of ~~`SENT`~~ *`INVITED`*
+  and `AWAITING_COACH` invitations. (ADR-026 d5a) *Changed 2026-10-13 (ADR-031 decision 12):
+  the sweep runs every hour and also cancels unanswered staying-family choices at their
+  answer-by time. The warning waits for the 9pm run before it's due; urgent emails go at once.
+  Its missed-run alarm is part of ADR-010.*
 - **To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)
-- **Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
+- ~~**Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
   at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
   *Partly settled 2026-10-09 (ADR-026 d5a): a nightly sweep sends the warning and expires
   invitations whose lesson has started. Still open: a precise timer if Kim's P5 sets a lapse
-  before the lesson.*
+  before the lesson.*~~ *Closed 2026-10-13 by ADR-031 decision 12:* the hourly sweep, not
+  one-off timers (turned down in ADR-031). If Kim's P5 sets a lapse before the lesson, it
+  becomes one more deadline the sweep handles. The P5 answer itself still waits on Kim (§2a
+  above).
 - ~~**Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
   that overlaps their lesson with another coach? (ADR-026)~~ **Settled 2026-10-07** (ADR-026
   decision 5): the confirm page shows clashes and the family chooses.
 - **To-do: Include participants everywhere a lesson is walked** — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
   end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
-- **Note:** share-code length and alphabet follow the coach-code decision (blocker #7), and
-  `consumer-invite` brings the total to fourteen Lambda functions. (ADR-026)
+  *2026-10-13 (ADR-031 decision 2): each skater now has their own seat in the lesson, so this
+  means walking every seat, not participants hanging off a booking. The to-do stands.*
+- **Note:** share-code length and alphabet follow the coach-code decision (blocker #7)~~, and
+  `consumer-invite` brings the total to fourteen Lambda functions~~. (ADR-026) *Changed
+  2026-10-13 (ADR-031 Consequences): ~~`consumer-invite` is gone;~~ ADR-031 adds the nightly
+  `sched-lesson-roller` and makes the sweep hourly. The function count is for
+  `architecture.md` to restate. The `INVITE#` copies it kept in step are gone too (ADR-031
+  decision 6): each seat carries the other skater's name and status~~, written in the same step~~.*
+  *Revised 2026-10-13 (ADR-031 revision): `consumer-invite` stays. It sends the shared-lesson emails and writes the other
+  skater's name and status onto each seat, about a second after a seat changes. No family
+  writes them. It also keeps two more read-only copies: the invited family's view of an
+  invitation (`invitedClientId` and their GSI1 keys) and the staying family's `choiceAnswerBy`.*
 
 ## 2b. Skating membership numbers (`FeatureDecriptions/Client Sign Up`, `Coach Sign Up`)
 
@@ -231,12 +278,19 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 
 ## 4. Scheduling and booking
 
-- **Open question: Should a one-off booking have a date ceiling?** Recurrences cap at 12
+- ~~**Open question: Should a one-off booking have a date ceiling?** Recurrences cap at 12
   months; single bookings have none (the UI shows 3 months, the API doesn't enforce it).
   *Held open by the owner, 2026-09-30,* pending how often coaches change their schedules and
   prices — see `Items to ask Kim About.md` §1. *Kim, recorded 2026-10-08: the weekly schedule
   changes "not often"; how often prices change and how far ahead families book are still
-  unanswered.* (ADR-006, `FeatureDecriptions/Bookings:`)
+  unanswered.* (ADR-006, `FeatureDecriptions/Bookings:`)~~ *Closed 2026-10-13 by ADR-031
+  decision 3:* the system checks the 3-month booking window. Every picked date must fall in the
+  months the booking page shows; a series is checked on its first date only, and its later
+  dates may run past the window up to the end date. A pick outside it refuses the whole
+  request: "That date is further ahead than you can book." Kim's §1 question 5 (how far ahead
+  families book) is still worth asking as a check.
+- **Open question (Phase 2): Is a coach booking for a family held to the 3-month window?**
+  (ADR-031 decision 3, ADR-031 Open, ADR-009) *Added 2026-10-13.*
 - **Phase 3: Travel time between rinks in the clash check.** Today only lessons that overlap
   in time clash; back-to-back lessons at different rinks don't. *Decided by the owner,
   2026-10-13.* (ADR-025, amended 2026-10-13, b)
@@ -246,9 +300,9 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   effect?** Decides whether "save" and "apply" are one action or two. (ADR-008)
 - **Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
   prices.** ADR-020 would overwrite them on the next schedule save. Remove per-booking price
-  editing (the per-student override and *mark as waived* cover it), or mark hand-set prices
+  editing (*mark as waived* covers it; the per-student override is Phase 2 since 2026-10-13), or mark hand-set prices
   so they're never re-priced. (ADR-020 Open, `Items to ask Kim About.md` §5)
-- **Open question — needs Kim: The shape of the per-student discount** — a fixed price, a
+- *Phase 2 since 2026-10-13 (owner): personal prices.* **Open question (Phase 2) — needs Kim: The shape of the per-student discount** — a fixed price, a
   percentage off, or a dollar amount off; whether changing it re-prices booked lessons; and
   whether `0` should mean free. (ADR-003, ADR-020, `Items to ask Kim About.md` §5)
 - **Pending decision — needs Kim: The large-price-change warning threshold** — how big a change
@@ -263,7 +317,7 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   (D) hide the affected times while the coach previews. Owner leans A + B. Record in an
   amendment to ADR-006/008/020 once answered. (`Items to ask Kim About.md` §7)~~ **Settled 2026-10-08 from Kim's answer: B** — the save goes ahead; bookings made since the preview are cancelled with the "just booked" email. Recorded in ADR-006, ADR-008 and ADR-020.
 - ~~**To-do: Write the "just booked, then cancelled" email** (`FeatureDecriptions/Email templates Needed:`).~~ **Moved to Phase 2 by the owner, 2026-10-09**, with the booking counter it needed (ADR-006, ADR-008, ADR-020). To be reconsidered if feedback supports that this is an issue.
-- *Deferred to Phase 2 by the owner, 2026-10-12:* **Pending decision: Bookings don't check the
+- ~~*Deferred to Phase 2 by the owner, 2026-10-12:* **Pending decision: Bookings don't check the
   schedule atomically.** MVP relies on the after-the-fact cleanup described here. Revisit if
   families report a booking cancelled moments after they made it. *Confirmed 2026-10-04.*
   Each occurrence is checked against the schedule in code, then written with a conditional
@@ -274,7 +328,11 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   Proposed fix: write each occurrence as its own two-item `TransactWriteItems`, with a
   `ConditionCheck` on a per-coach schedule version that every schedule, temp or override write
   bumps. That keeps ADR-006's partial success, at twice the write cost. Independent of Kim's
-  answer above. (ADR-004 d2, ADR-006, ADR-010 d5k)
+  answer above. (ADR-004 d2, ADR-006, ADR-010 d5k)~~ *Closed 2026-10-13 by ADR-031 decision 11:*
+  lesson times are stored, and a booking and a schedule save both change the same lesson-time
+  record, so a booking can no longer land on a time the new schedule removed. The Phase 2
+  schedule-version fix isn't needed. A time booked after the coach's preview is cancelled in
+  the same save, with the ordinary cancellation email.
 - **Open question (Phase 2): Do booked lessons follow a change to `requiredNoticeHours`?**
   (ADR-020)
 - ~~**Open question: Timezone of the week grid for a client in another zone**~~ — correct, but
@@ -293,7 +351,9 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   PCC in Phase 1 (below). BladeBook calculates rink fees (§3, settled 2026-10-12), so also
   stamp the ice type onto each booking, the way price and currency are, so a later
   schedule change doesn't change last month's fees. (ADR-008, ADR-003,
-  `FeatureDecriptions/Schedule Creater.md`)
+  `FeatureDecriptions/Schedule Creater.md`) *2026-10-13 (ADR-031 decision 1): the ice type now
+  sits on each stored lesson time with the price and currency. The ADR-008 amendment is still
+  to do.*
 - **Open question (Phase 2): What a coach at a rink with no ice type list does.** *Decided by
   the owner, 2026-10-07:* the rink is chosen per tab in the schedule builder; in Phase 1 it is
   fixed to Pelham Civic Center (PCC) and not selectable. Once rinks are selectable, ice type is
@@ -426,7 +486,8 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   Going forward or retroactive? Can the client still book? What does the client see? Also
   covers what happens to a client account left empty by a rejection. *Deferred by the
   owner, 2026-09-30.* *Narrowed 2026-10-13 by the owner:* removal is per coach, and a coach
-  removing a skater doesn't affect the skater's lessons with other coaches (ADR-025 g).
+  removing a skater doesn't affect the skater's lessons with other coaches (ADR-025 g). *2026-10-13:* the family
+  profile has no Remove button until this is decided.
   (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
@@ -638,6 +699,16 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 
 ## 12. Feature descriptions — gaps to fill
 
+- **To-do: Write the two shared-lesson emails to the family who stays** — "the other skater can't
+  make it: keep at full price or cancel" and "cancelled, no answer". Both always sent.
+  *Added by the owner 2026-10-13.* (ADR-026, amended 2026-10-13; `FeatureDecriptions/Email templates Needed:`)
+  *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time in both is whichever comes
+  first, the start of the notice period or 7 days after the leave.*
+- **To-do: Write the shared-lesson emails ADR-031 adds** — "Shared lesson dates cancelled" (one
+  email listing the dates, after *Cancel all remaining dates*) and the one-date invitation for
+  a freed place. Also decide whether keeping a freed date sends a confirmation (listed under
+  "Mentioned but not decided"). *Added 2026-10-13.* (ADR-031 decisions 9 and 10;
+  `FeatureDecriptions/Email templates Needed:`)
 - **To-do: Write the pending-student decline email.**
   (`FeatureDecriptions/Coach Dashboard on website.md`)
 - **To-do: Fill in the empty Non-Functional Requirements sections** (durability,
@@ -663,7 +734,4 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 - ~~**To-do: Retire or merge `Follow Up.md`** into this document so there is one list.~~
   **Done 2026-10-05:** every item was already here or settled in an ADR, so the file was
   deleted by the owner.
-- **To-do: Commit the untracked work** — `terraform/`, `docs/Blockers-Before-Coding.md`,
-  `docs/design-rationale.md`, `docs/Talking with Kim:.md.md`, `docs/deletion/`, `.claude/skills/`,
-  `docs/Q_Rink-Fees.md`, the 15 new `FeatureDecriptions/C_*.md` notes and
-  `design/.backup-preforest/`, plus uncommitted edits to 31 tracked files.
+- **To-do: Commit the untracked work** — Commit `terraform/` and the uncommitted edits.

@@ -47,14 +47,32 @@ decision 7, amended the same day). How-paid is **optional** when marking a lesso
 **editable** afterwards, and seen **only by the coach**. Unpaid history stays coach-only;
 showing it to the client is **Phase 2** (Open).
 
+**Amended — 2026-10-13.** *Decided by the owner.* **Personal prices move to Phase 2.** In MVP every
+skater pays the schedule's price; `priceMinorOverride` (decision 2) isn't set or shown, and the
+coach's Students list has no price column. The shape of a personal price or discount (Kim's list
+§5) is decided with Phase 2.
+
 **Amended — 2026-10-12, later.** *Decided by the owner.*
 - **"Seen only by the coach" is a screen rule, not a data rule.** No client screen shows
   `paidVia`. A family's own booking may still carry it in the client API's response, since
   their bookings are read whole through GSI1 (ADR-022). That exposure is accepted: it is the
-  family's own payment.
+  family's own payment. *Note 2026-10-13: under ADR-031 it is the family's own **seat** that is
+  read through GSI1 and carries `paidVia`; the rule is unchanged.*
 - **The how-paid options are the payment types the coach has switched on, plus *Other*.** Each
   type has its own switch (ADR-016 decision 7, amended the same day), which settles whether
   *Show my payment handles* affects the list: that switch is replaced.
+
+**Superseded in part — 2026-10-13.** *Decided by the owner.*
+[ADR-031](ADR-031-lessons-and-seats.md) replaces the booking item with a **lesson time** (the
+coach's) and a **seat** for each skater in it. The price stamps (`priceMinor`, `currency`,
+`missedLessonFeeMinor`) now live on the lesson time, which is created from the schedule, so they
+are stamped by existing (ADR-031 decision 1). Payment status, how-paid, paid and waived are now
+**per seat** (decisions 2 and 14). A shared lesson's one price is split evenly among its booked
+seats, with odd cents going one each to the earliest-joined seats (decision 7). Every behaviour
+rule still holds unless ADR-031 says otherwise. *Revised 2026-10-13 (ADR-031 revision): the
+total price is stored only on the lesson time (`priceMinor`). A share is worked out as
+`priceMinor ÷ shareCount` (a lesson-time attribute), not stored on the seat. A seat gets a
+fixed `amountMinor` only at check-in, at a no-show, or when marked paid or waived.*
 
 **Accepted** — 2026-07-29. Closes the gap where MVP feature #6 (payment-reminder
 email on check-in) had no amount to send: `BOOKING` carried only
@@ -89,7 +107,7 @@ Format to a decimal string only at the edge, when rendering the email or the UI.
 
 ### 2. Price is stamped on the booking at creation
 
-`BOOKING` gains `priceMinor`, resolved once when the booking is created:
+~~`BOOKING` gains `priceMinor`, resolved once when the booking is created:~~
 
 ```
 booking.priceMinor  ←  student.priceMinorOverride   (if set)
@@ -106,6 +124,14 @@ retroactively change what a client owes for a lesson booked in February. A desig
 that resolved price lazily would silently rewrite history every time a coach
 adjusted their rate — and the client would have already received an email quoting
 the old number.
+
+*Replaced by ADR-031 decision 1 (2026-10-13): `priceMinor` and `currency` are stamped on the
+**lesson time** (`LESSON#`), which exists before anyone books it, not on a booking. ~~Each skater's
+**seat** carries `shareMinor`, its part of that price:~~ Each skater's share is the full price for
+a private lesson, an even split for a shared one (decision 7). The stamping principle is
+unchanged.* *Revised 2026-10-13 (ADR-031 revision): the share is worked out from the lesson
+time (`priceMinor ÷ shareCount`), not stored. The seat's `amountMinor` is fixed only at check-in,
+at a no-show, or when marked paid or waived. Once fixed, it never changes.*
 
 ### 3. Price is flat per lesson, independent of duration
 
@@ -151,9 +177,16 @@ their calendar.
 
 ### 4. Payment is tracked per booking, with no ledger
 
-`BOOKING` gains `paymentStatus` (`UNPAID` | `PAID`), `paidAt`, and `markedPaidBy`.
+~~`BOOKING` gains `paymentStatus` (`UNPAID` | `PAID`), `paidAt`, and `markedPaidBy`.~~
 Every booking is independently owed, and there is no running balance, no account
 credit, and no partial payment.
+
+*Replaced by ADR-031 decisions 2 and 14 (2026-10-13): payment is tracked **per seat**. Each
+skater's seat carries `paymentStatus`, `paidAt`, `markedPaidBy`, `paidVia`, `waivedAt`,
+`waivedBy` and `paymentReminderSent`, and is owed its own ~~`shareMinor`~~ share. In a shared
+lesson each family's seat is marked paid or waived on its own. No ledger, as before.* *Revised
+2026-10-13 (ADR-031 revision): the share is worked out from the lesson time until it is fixed
+on the seat as `amountMinor` — at check-in, at a no-show, or when marked paid or waived.*
 
 The coach website gets a **mark as paid** action. This is the only way a booking becomes
 `PAID` — nothing else in the system can set it, because nothing else observes money
@@ -228,6 +261,10 @@ the index entirely.
 
 `GSI3PK = COACH#<coachId>`, `GSI3SK = UNPAID#<date>#<studentId>`
 
+*Note — 2026-10-13: under ADR-031 decision 2 these keys are written on the **seat** while it is
+`UNPAID`, one entry per skater.* *Revised 2026-10-13 (ADR-031 revision): the unpaid list shows
+each seat's `amountMinor`.*
+
 That gives "every outstanding lesson for this coach, oldest first" as a single
 query over an index containing *only* unpaid bookings — which stays small
 permanently, because paid bookings leave it. Filtering the main table instead would
@@ -256,8 +293,12 @@ outbound email:
 ### 7. The reminder email states the amount
 
 Per §6.3, the payment reminder fires on `CheckInRecorded` and now contains the
-specific amount owed for that lesson — formatted from `priceMinor` and `currency` —
+specific amount owed for that lesson — formatted from ~~`priceMinor`~~ and `currency` —
 plus the coach's `paymentInstructions`. Not "payment is due"; a number.
+
+*Replaced by ADR-031 decisions 2 and 7 (2026-10-13): the amount is the seat's ~~`shareMinor`~~
+share — the full price for a private lesson, the skater's even share for a shared one.* *Revised
+2026-10-13 (ADR-031 revision): the amount is the seat's `amountMinor`, fixed at check-in.*
 
 Consistent with ADR-002 §7, this is **one email per lesson**. A client with two
 children checked in on the same day receives two reminders, each with its own

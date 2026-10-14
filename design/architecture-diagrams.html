@@ -160,7 +160,7 @@ pre.src{
 <div class="wrap">
   <p class="eyebrow">BladeBook · generated from docs/architecture.md</p>
   <h1>Architecture Diagrams</h1>
-  <p class="lede">All 18 mermaid diagrams from <code>architecture.md</code>, rendered.
+  <p class="lede">All 23 mermaid diagrams from <code>architecture.md</code>, rendered.
   <strong>Nothing here is hand-drawn</strong> — each one is lifted verbatim from the document,
   so re-running <code>design/render-diagrams.py</code> after an edit regenerates this page
   rather than letting it drift. Every diagram keeps its source one click away.</p>
@@ -169,21 +169,26 @@ pre.src{
         <a href="#d1"><span class="i">01</span>3. System Architecture</a>
         <a href="#d2"><span class="i">02</span>3.1 Event consumers</a>
         <a href="#d3"><span class="i">03</span>4. Domain Model</a>
-        <a href="#d4"><span class="i">04</span>6.1 Booking a lesson</a>
-        <a href="#d5"><span class="i">05</span>6.2 Day-of reminders</a>
-        <a href="#d6"><span class="i">06</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
+        <a href="#d4"><span class="i">04</span>4. Domain Model</a>
+        <a href="#d5"><span class="i">05</span>6.1 Booking a lesson</a>
+        <a href="#d6"><span class="i">06</span>6.2 Day-of reminders</a>
         <a href="#d7"><span class="i">07</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
-        <a href="#d8"><span class="i">08</span>6.4 End-of-day report</a>
-        <a href="#d9"><span class="i">09</span>6.5 Schedule change → cancellation and re-pricing → notification</a>
-        <a href="#d10"><span class="i">10</span>6.6 Direct cancellation</a>
-        <a href="#d11"><span class="i">11</span>6.7 Client registration and coach approval</a>
-        <a href="#d12"><span class="i">12</span>6.8 Family changes reach every coach</a>
-        <a href="#d13"><span class="i">13</span>6.9 Shared lesson by invitation</a>
-        <a href="#d14"><span class="i">14</span>6.10 Nightly invitation sweep</a>
-        <a href="#d15"><span class="i">15</span>6.11 Coach sign-up</a>
-        <a href="#d16"><span class="i">16</span>Client writes into a coach&#x27;s partition</a>
-        <a href="#d17"><span class="i">17</span>Lower environments</a>
-        <a href="#d18"><span class="i">18</span>Lower environments</a>
+        <a href="#d8"><span class="i">08</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
+        <a href="#d9"><span class="i">09</span>6.4 End-of-day report</a>
+        <a href="#d10"><span class="i">10</span>6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</a>
+        <a href="#d11"><span class="i">11</span>6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</a>
+        <a href="#d12"><span class="i">12</span>6.6 Direct cancellation</a>
+        <a href="#d13"><span class="i">13</span>6.7 Client registration and coach approval</a>
+        <a href="#d14"><span class="i">14</span>6.8 Family changes reach every coach</a>
+        <a href="#d15"><span class="i">15</span>6.9 Shared lesson by invitation</a>
+        <a href="#d16"><span class="i">16</span>6.9 Shared lesson by invitation</a>
+        <a href="#d17"><span class="i">17</span>6.10 Hourly deadline sweep</a>
+        <a href="#d18"><span class="i">18</span>6.11 Coach sign-up</a>
+        <a href="#d19"><span class="i">19</span>Authorization (data isolation)</a>
+        <a href="#d20"><span class="i">20</span>Client writes into a coach&#x27;s partition</a>
+        <a href="#d21"><span class="i">21</span>Data protection</a>
+        <a href="#d22"><span class="i">22</span>Lower environments</a>
+        <a href="#d23"><span class="i">23</span>Lower environments</a>
   </nav>
 
   <div class="zoom" role="group" aria-label="Diagram size">
@@ -229,12 +234,12 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly invitation sweep)&quot;]
-        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
+        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
-    Consumers[&quot;λ 12 event consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
+    Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
@@ -301,12 +306,12 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly invitation sweep)&quot;]
-        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer (ADR-010)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
+        DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
-    Consumers[&quot;λ 12 event consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
+    Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
@@ -363,31 +368,35 @@ flowchart LR
     subgraph OnEvent[&quot;Run on an event&quot;]
         L_Confirm[&quot;λ Booking confirmation&lt;br/&gt;table read/write · email&quot;]
         L_Pay[&quot;λ Payment reminder&lt;br/&gt;table read/write · email&quot;]
-        L_Cancel[&quot;λ Schedule change (cancel + re-price)&lt;br/&gt;table read/write&quot;]
+        L_Cancel[&quot;λ Schedule change (add, remove, cancel, re-price lesson times)&lt;br/&gt;table read/write&quot;]
         L_Notify[&quot;λ Change notifier&lt;br/&gt;table read/write · email · coach SMS&quot;]
         L_Link[&quot;λ Student link sync (ADR-021)&lt;br/&gt;table read/write · decline email&quot;]
-        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write&quot;]
-        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;table read/write · email&quot;]
+        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write · seat names (ADR-031)&quot;]
+        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;on seat changes · table read/write&lt;br/&gt;read-only copies on seats (ADR-031) · email&quot;]
     end
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
         L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
-        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
+        L_Report[&quot;λ End-of-day report&lt;br/&gt;table read/write (fixes amountMinor, ADR-031)&lt;br/&gt;email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
+        L_Roller[&quot;λ Lesson roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
+        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · email · DeadlineSweepCompleted&quot;]
     end
 
     subgraph OnStream[&quot;Run on an expired item&quot;]
         L_Archive[&quot;λ TTL archiver (ADR-017)&lt;br/&gt;S3 archive bucket&quot;]
     end
 
-    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;(a run that keeps failing lands here)&quot;]
+    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs&lt;br/&gt;(a run that keeps failing lands here)&quot;]
 
     Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
     Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
-    Sched --&gt;|nightly invitation sweep| L_Invite
+    Sched --&gt;|nightly| L_Roller
+    Sched --&gt;|every hour| L_Sweep
     Stream --&gt;|TTL removals only| L_Archive
-    OnEvent &amp; OnSchedule -.-&gt; DLQ</pre>
+    OnEvent -.-&gt; DLQ
+    L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -399,31 +408,35 @@ flowchart LR
     subgraph OnEvent[&quot;Run on an event&quot;]
         L_Confirm[&quot;λ Booking confirmation&lt;br/&gt;table read/write · email&quot;]
         L_Pay[&quot;λ Payment reminder&lt;br/&gt;table read/write · email&quot;]
-        L_Cancel[&quot;λ Schedule change (cancel + re-price)&lt;br/&gt;table read/write&quot;]
+        L_Cancel[&quot;λ Schedule change (add, remove, cancel, re-price lesson times)&lt;br/&gt;table read/write&quot;]
         L_Notify[&quot;λ Change notifier&lt;br/&gt;table read/write · email · coach SMS&quot;]
         L_Link[&quot;λ Student link sync (ADR-021)&lt;br/&gt;table read/write · decline email&quot;]
-        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write&quot;]
-        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;table read/write · email&quot;]
+        L_Family[&quot;λ Family sync (ADR-025)&lt;br/&gt;table read/write · seat names (ADR-031)&quot;]
+        L_Invite[&quot;λ Invite (shared lessons, ADR-026)&lt;br/&gt;on seat changes · table read/write&lt;br/&gt;read-only copies on seats (ADR-031) · email&quot;]
     end
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
         L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
-        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
+        L_Report[&quot;λ End-of-day report&lt;br/&gt;table read/write (fixes amountMinor, ADR-031)&lt;br/&gt;email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
+        L_Roller[&quot;λ Lesson roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
+        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · email · DeadlineSweepCompleted&quot;]
     end
 
     subgraph OnStream[&quot;Run on an expired item&quot;]
         L_Archive[&quot;λ TTL archiver (ADR-017)&lt;br/&gt;S3 archive bucket&quot;]
     end
 
-    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;(a run that keeps failing lands here)&quot;]
+    DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs&lt;br/&gt;(a run that keeps failing lands here)&quot;]
 
     Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
     Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
-    Sched --&gt;|nightly invitation sweep| L_Invite
+    Sched --&gt;|nightly| L_Roller
+    Sched --&gt;|every hour| L_Sweep
     Stream --&gt;|TTL removals only| L_Archive
-    OnEvent &amp; OnSchedule -.-&gt; DLQ</code></pre>
+    OnEvent -.-&gt; DLQ
+    L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</code></pre>
         </details>
       </figure>
 
@@ -444,21 +457,24 @@ erDiagram
     CLIENT ||--o{ SKATER : &quot;registers&quot;
     SKATER ||--o{ STUDENT : &quot;one per coach (ADR-025)&quot;
     SKATER ||--|| SKATER_CODE : &quot;shared by&quot;
-    BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
-    STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
-    CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
-    INVITATION }o--|| BOOKING : &quot;invites to (bookingKey)&quot;
     CLIENT ||--o{ CLIENT_STUDENT_LINK : &quot;sees each coach through&quot;
     CLIENT_STUDENT_LINK }o--|| STUDENT : &quot;mirrors (ADR-021 d6)&quot;
     COACH ||--|| COACH_CODE : &quot;is found by (ADR-022 d7)&quot;
     CLIENT ||--o{ RECURRENCE : &quot;holds in its partition (ADR-022 d5)&quot;
     COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
-    STUDENT ||--o{ BOOKING : &quot;has&quot;
+    COACH ||--o{ LESSON_TIME : &quot;stores, made from the schedule (ADR-031 d1)&quot;
+    LESSON_TIME ||--o{ SEAT : &quot;has one per skater; none when HELD&quot;
+    STUDENT ||--o{ SEAT : &quot;holds&quot;
+    CLIENT ||--o{ SEAT : &quot;books, or is invited to (GSI1)&quot;
+    CLIENT ||--o{ SEAT : &quot;invites, owning it until accepted (invitedByClientId)&quot;
     STUDENT ||--o{ RECURRENCE : &quot;may hold&quot;
-    RECURRENCE ||--o{ BOOKING : &quot;describes (via recurrenceId)&quot;
+    RECURRENCE ||--o{ SEAT : &quot;describes (via recurrenceId)&quot;
+    SEAT ||--o| CANCELLED_LESSON : &quot;moves to when cancelled&quot;
+    SEAT ||--o| SEAT_END : &quot;moves to when declined, withdrawn or expired&quot;
     CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
     CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
+    CHANGE_BATCH }o--o{ LESSON_TIME : &quot;adds, removes, cancels, re-prices&quot;
 
     COACH {
         string coachId &quot;Cognito sub&quot;
@@ -488,6 +504,7 @@ erDiagram
     SCHEDULE_DEFAULT {
         string scheduleName &quot;optional label&quot;
         map days &quot;weekday -&gt; ordered blocks&quot;
+        int    scheduleVersion &quot;goes up on every save, default or temporary; ADR-031 d14&quot;
     }
     SCHEDULE_TEMP {
         string tempId
@@ -523,8 +540,7 @@ erDiagram
         enum   studentStatus &quot;PENDING|ACTIVE&quot;
         enum   skatingOrg &quot;copied from SKATER, ADR-029&quot;
         string registrationNumber &quot;copied from SKATER, ADR-029&quot;
-        int    priceMinorOverride &quot;optional&quot;
-        list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
+        int    priceMinorOverride &quot;optional; Phase 2&quot;
         list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
     }
     SKATER {
@@ -534,49 +550,57 @@ erDiagram
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
         string registrationNumber &quot;cleaned-up form; ADR-029&quot;
-        string shareCode &quot;ADR-026 d4&quot;
+        string shareCode &quot;never changes, ADR-026 d4 (amended 2026-10-13)&quot;
     }
     SKATER_CODE {
         string code
         string studentId
         string displayName &quot;first name, last initial&quot;
     }
-    PARTICIPANT {
-        string studentId
-        string clientId
-        int    durationMinutes
-        string priceStamps &quot;pricing pending Kim, ADR-026 P2&quot;
-        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
-        enum   outcome &quot;CHECKED_IN|NO_SHOW&quot;
-    }
-    INVITATION {
-        string inviteId
-        string coachId
-        string bookingKey
-        string invitedStudentId
-        string displayName
-        enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
-        datetime warnedAt &quot;pre-lesson warning sent, ADR-026 d5a&quot;
-    }
-    BOOKING {
-        string bookingId
-        string studentId
-        string clientId &quot;GSI1 key, ADR-022&quot;
+    LESSON_TIME {
         date   lessonDate
         time   startTime
-        int    durationMinutes
+        enum   lessonStatus &quot;OPEN|BOOKED|HELD&quot;
         datetime startsAtUtc
         string coachTz
-        int    priceMinor &quot;stamped at creation&quot;
-        string currency &quot;stamped at creation&quot;
-        int    missedLessonFeeMinor &quot;stamped at creation; 0 = no charge&quot;
-        int    requiredNoticeHours &quot;stamped at creation&quot;
-        int    maxSkaters &quot;stamped from the block; ADR-026&quot;
-        int    skaterCount &quot;raised as invited skaters join&quot;
-        string invitedStudentId &quot;a join must match it; ADR-026 d5&quot;
+        int    durationMinutes
+        int    priceMinor &quot;the whole lesson&#x27;s price, stored only here; ADR-031 d7&quot;
+        string currency
+        int    missedLessonFeeMinor &quot;0 = no charge&quot;
+        int    requiredNoticeHours
+        int    maxSkaters &quot;from the block; never lowered once BOOKED&quot;
+        int    seatsTaken
+        int    shareCount &quot;how many ways priceMinor is split; ADR-031 d7&quot;
+        list   joinOrder &quot;skater IDs sharing the price, earliest first; joiner appended; odd cents; ADR-031 d1, d7&quot;
+        int    blockSeq
+        string iceType
+        int    scheduleVersion &quot;the schedule save that made it; ADR-031 d11&quot;
+        map    pendingLeave &quot;leaveId, leftStudentId, leftAt, stayingStudentId, answerBy; ADR-031 d8&quot;
+        datetime dueAt &quot;the pending leave&#x27;s answerBy; GSI4 while set&quot;
+        enum   dueKind &quot;ANSWER&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
+    }
+    SEAT {
+        string studentId
+        string clientId &quot;GSI1 key, ADR-022; none on an invited seat until accepted&quot;
+        string studentName &quot;display form, Mia R.&quot;
+        enum   seatStatus &quot;INVITED|AWAITING_COACH|BOOKED|CHECKED_IN|NO_SHOW&quot;
+        datetime startsAtUtc &quot;copied from the lesson time&quot;
+        string coachTz &quot;copied from the lesson time&quot;
+        int    durationMinutes &quot;copied from the lesson time&quot;
+        string idempotencyKey &quot;the request that created it; ADR-031 d4&quot;
+        datetime joinedAt
+        int    amountMinor &quot;what this skater owes, fixed at check-in, no-show, paid or waived; ADR-031 d7&quot;
         string recurrenceId &quot;optional&quot;
         int    bookedIntervalWeeks &quot;interval when booked; never updated, ADR-006 d4b&quot;
-        enum   bookingStatus &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        string inviteId &quot;shared lessons&quot;
+        string invitedByClientId &quot;shared lessons; owns the seat until accepted&quot;
+        string invitedClientId &quot;read-only copy by consumer-invite; GSI1 key before accepting&quot;
+        string partnerName &quot;the other skater&#x27;s display name; written by consumer-invite&quot;
+        enum   partnerStatus &quot;the other skater&#x27;s seatStatus; written by consumer-invite&quot;
+        datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
+        datetime dueAt &quot;next deadline; GSI4 while set&quot;
+        enum   dueKind &quot;WARN|EXPIRE&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -593,6 +617,16 @@ erDiagram
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
         number expiresAt &quot;TTL, ADR-017&quot;
     }
+    SEAT_END {
+        enum   seatOutcome &quot;DECLINED|WITHDRAWN|EXPIRED&quot;
+        datetime endedAt
+        string endedBy &quot;the family, the coach or SWEEP&quot;
+        string studentId
+        string studentName
+        string clientId
+        string inviteId
+        number expiresAt &quot;TTL, same window as cancellation lines&quot;
+    }
     RECURRENCE {
         string recurrenceId
         string studentId
@@ -607,7 +641,7 @@ erDiagram
     }
     CHANGE_BATCH {
         string batchId
-        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable&quot;
         string cancelledById &quot;the acting identity&quot;
         enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
@@ -619,7 +653,7 @@ erDiagram
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     CANCELLED_LESSON {
-        string bookingId
+        string seatKey &quot;the seat it replaced; ADR-031 d2&quot;
         string studentId
         string studentName &quot;denormalized&quot;
         string clientId
@@ -628,6 +662,7 @@ erDiagram
         time   startTime
         int    durationMinutes
         int    priceMinor
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; ADR-031 d2, d14&quot;
         datetime cancelledAt
         int    noticeHours &quot;gap to the lesson start&quot;
         enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED, ADR-010 d5f&quot;
@@ -645,7 +680,7 @@ erDiagram
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     REPRICED_LESSON {
-        string bookingId
+        string seatKey &quot;one line per seat; ADR-031 d11&quot;
         string studentId
         string clientId
         date   lessonDate
@@ -666,7 +701,7 @@ erDiagram
     CLIENT_STUDENT_LINK {
         string studentName &quot;mirrored from STUDENT&quot;
         enum   studentStatus &quot;mirrored from STUDENT&quot;
-        int    priceMinorOverride &quot;mirrored from STUDENT&quot;
+        int    priceMinorOverride &quot;mirrored from STUDENT; Phase 2&quot;
         string coachFirstName &quot;copied from COACH_CODE at registration&quot;
         string coachLastName &quot;copied from COACH_CODE at registration&quot;
     }
@@ -689,21 +724,24 @@ erDiagram
     CLIENT ||--o{ SKATER : &quot;registers&quot;
     SKATER ||--o{ STUDENT : &quot;one per coach (ADR-025)&quot;
     SKATER ||--|| SKATER_CODE : &quot;shared by&quot;
-    BOOKING ||--o{ PARTICIPANT : &quot;shared with (ADR-026)&quot;
-    STUDENT ||--o{ PARTICIPANT : &quot;joins as&quot;
-    CLIENT ||--o{ INVITATION : &quot;sends or receives&quot;
-    INVITATION }o--|| BOOKING : &quot;invites to (bookingKey)&quot;
     CLIENT ||--o{ CLIENT_STUDENT_LINK : &quot;sees each coach through&quot;
     CLIENT_STUDENT_LINK }o--|| STUDENT : &quot;mirrors (ADR-021 d6)&quot;
     COACH ||--|| COACH_CODE : &quot;is found by (ADR-022 d7)&quot;
     CLIENT ||--o{ RECURRENCE : &quot;holds in its partition (ADR-022 d5)&quot;
     COACH ||--o{ CHANGE_BATCH : &quot;records&quot;
     CLIENT ||--o{ STUDENT : &quot;books and is billed for&quot;
-    STUDENT ||--o{ BOOKING : &quot;has&quot;
+    COACH ||--o{ LESSON_TIME : &quot;stores, made from the schedule (ADR-031 d1)&quot;
+    LESSON_TIME ||--o{ SEAT : &quot;has one per skater; none when HELD&quot;
+    STUDENT ||--o{ SEAT : &quot;holds&quot;
+    CLIENT ||--o{ SEAT : &quot;books, or is invited to (GSI1)&quot;
+    CLIENT ||--o{ SEAT : &quot;invites, owning it until accepted (invitedByClientId)&quot;
     STUDENT ||--o{ RECURRENCE : &quot;may hold&quot;
-    RECURRENCE ||--o{ BOOKING : &quot;describes (via recurrenceId)&quot;
+    RECURRENCE ||--o{ SEAT : &quot;describes (via recurrenceId)&quot;
+    SEAT ||--o| CANCELLED_LESSON : &quot;moves to when cancelled&quot;
+    SEAT ||--o| SEAT_END : &quot;moves to when declined, withdrawn or expired&quot;
     CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
     CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
+    CHANGE_BATCH }o--o{ LESSON_TIME : &quot;adds, removes, cancels, re-prices&quot;
 
     COACH {
         string coachId &quot;Cognito sub&quot;
@@ -733,6 +771,7 @@ erDiagram
     SCHEDULE_DEFAULT {
         string scheduleName &quot;optional label&quot;
         map days &quot;weekday -&gt; ordered blocks&quot;
+        int    scheduleVersion &quot;goes up on every save, default or temporary; ADR-031 d14&quot;
     }
     SCHEDULE_TEMP {
         string tempId
@@ -768,8 +807,7 @@ erDiagram
         enum   studentStatus &quot;PENDING|ACTIVE&quot;
         enum   skatingOrg &quot;copied from SKATER, ADR-029&quot;
         string registrationNumber &quot;copied from SKATER, ADR-029&quot;
-        int    priceMinorOverride &quot;optional&quot;
-        list   pendingJoins &quot;while PENDING from an invitation; ADR-026 d5&quot;
+        int    priceMinorOverride &quot;optional; Phase 2&quot;
         list   otherCoaches &quot;Phase 2; ADR-025 d4&quot;
     }
     SKATER {
@@ -779,49 +817,57 @@ erDiagram
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
         enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
         string registrationNumber &quot;cleaned-up form; ADR-029&quot;
-        string shareCode &quot;ADR-026 d4&quot;
+        string shareCode &quot;never changes, ADR-026 d4 (amended 2026-10-13)&quot;
     }
     SKATER_CODE {
         string code
         string studentId
         string displayName &quot;first name, last initial&quot;
     }
-    PARTICIPANT {
-        string studentId
-        string clientId
-        int    durationMinutes
-        string priceStamps &quot;pricing pending Kim, ADR-026 P2&quot;
-        enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
-        enum   outcome &quot;CHECKED_IN|NO_SHOW&quot;
-    }
-    INVITATION {
-        string inviteId
-        string coachId
-        string bookingKey
-        string invitedStudentId
-        string displayName
-        enum   inviteStatus &quot;SENT|AWAITING_COACH|CONFIRMED|DECLINED|WITHDRAWN|EXPIRED&quot;
-        datetime warnedAt &quot;pre-lesson warning sent, ADR-026 d5a&quot;
-    }
-    BOOKING {
-        string bookingId
-        string studentId
-        string clientId &quot;GSI1 key, ADR-022&quot;
+    LESSON_TIME {
         date   lessonDate
         time   startTime
-        int    durationMinutes
+        enum   lessonStatus &quot;OPEN|BOOKED|HELD&quot;
         datetime startsAtUtc
         string coachTz
-        int    priceMinor &quot;stamped at creation&quot;
-        string currency &quot;stamped at creation&quot;
-        int    missedLessonFeeMinor &quot;stamped at creation; 0 = no charge&quot;
-        int    requiredNoticeHours &quot;stamped at creation&quot;
-        int    maxSkaters &quot;stamped from the block; ADR-026&quot;
-        int    skaterCount &quot;raised as invited skaters join&quot;
-        string invitedStudentId &quot;a join must match it; ADR-026 d5&quot;
+        int    durationMinutes
+        int    priceMinor &quot;the whole lesson&#x27;s price, stored only here; ADR-031 d7&quot;
+        string currency
+        int    missedLessonFeeMinor &quot;0 = no charge&quot;
+        int    requiredNoticeHours
+        int    maxSkaters &quot;from the block; never lowered once BOOKED&quot;
+        int    seatsTaken
+        int    shareCount &quot;how many ways priceMinor is split; ADR-031 d7&quot;
+        list   joinOrder &quot;skater IDs sharing the price, earliest first; joiner appended; odd cents; ADR-031 d1, d7&quot;
+        int    blockSeq
+        string iceType
+        int    scheduleVersion &quot;the schedule save that made it; ADR-031 d11&quot;
+        map    pendingLeave &quot;leaveId, leftStudentId, leftAt, stayingStudentId, answerBy; ADR-031 d8&quot;
+        datetime dueAt &quot;the pending leave&#x27;s answerBy; GSI4 while set&quot;
+        enum   dueKind &quot;ANSWER&quot;
+        number expiresAt &quot;TTL, ADR-017&quot;
+    }
+    SEAT {
+        string studentId
+        string clientId &quot;GSI1 key, ADR-022; none on an invited seat until accepted&quot;
+        string studentName &quot;display form, Mia R.&quot;
+        enum   seatStatus &quot;INVITED|AWAITING_COACH|BOOKED|CHECKED_IN|NO_SHOW&quot;
+        datetime startsAtUtc &quot;copied from the lesson time&quot;
+        string coachTz &quot;copied from the lesson time&quot;
+        int    durationMinutes &quot;copied from the lesson time&quot;
+        string idempotencyKey &quot;the request that created it; ADR-031 d4&quot;
+        datetime joinedAt
+        int    amountMinor &quot;what this skater owes, fixed at check-in, no-show, paid or waived; ADR-031 d7&quot;
         string recurrenceId &quot;optional&quot;
         int    bookedIntervalWeeks &quot;interval when booked; never updated, ADR-006 d4b&quot;
-        enum   bookingStatus &quot;BOOKED|CHECKED_IN|NO_SHOW|COACH_HELD&quot;
+        string inviteId &quot;shared lessons&quot;
+        string invitedByClientId &quot;shared lessons; owns the seat until accepted&quot;
+        string invitedClientId &quot;read-only copy by consumer-invite; GSI1 key before accepting&quot;
+        string partnerName &quot;the other skater&#x27;s display name; written by consumer-invite&quot;
+        enum   partnerStatus &quot;the other skater&#x27;s seatStatus; written by consumer-invite&quot;
+        datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
+        datetime dueAt &quot;next deadline; GSI4 while set&quot;
+        enum   dueKind &quot;WARN|EXPIRE&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -838,6 +884,16 @@ erDiagram
         datetime lastPaymentReminderAt &quot;Phase 2&quot;
         number expiresAt &quot;TTL, ADR-017&quot;
     }
+    SEAT_END {
+        enum   seatOutcome &quot;DECLINED|WITHDRAWN|EXPIRED&quot;
+        datetime endedAt
+        string endedBy &quot;the family, the coach or SWEEP&quot;
+        string studentId
+        string studentName
+        string clientId
+        string inviteId
+        number expiresAt &quot;TTL, same window as cancellation lines&quot;
+    }
     RECURRENCE {
         string recurrenceId
         string studentId
@@ -852,7 +908,7 @@ erDiagram
     }
     CHANGE_BATCH {
         string batchId
-        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE&quot;
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable&quot;
         string cancelledById &quot;the acting identity&quot;
         enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
@@ -864,7 +920,7 @@ erDiagram
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     CANCELLED_LESSON {
-        string bookingId
+        string seatKey &quot;the seat it replaced; ADR-031 d2&quot;
         string studentId
         string studentName &quot;denormalized&quot;
         string clientId
@@ -873,6 +929,7 @@ erDiagram
         time   startTime
         int    durationMinutes
         int    priceMinor
+        enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; ADR-031 d2, d14&quot;
         datetime cancelledAt
         int    noticeHours &quot;gap to the lesson start&quot;
         enum   executionStatus &quot;PLANNED|EXECUTED|SKIPPED, ADR-010 d5f&quot;
@@ -890,7 +947,7 @@ erDiagram
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     REPRICED_LESSON {
-        string bookingId
+        string seatKey &quot;one line per seat; ADR-031 d11&quot;
         string studentId
         string clientId
         date   lessonDate
@@ -911,7 +968,7 @@ erDiagram
     CLIENT_STUDENT_LINK {
         string studentName &quot;mirrored from STUDENT&quot;
         enum   studentStatus &quot;mirrored from STUDENT&quot;
-        int    priceMinorOverride &quot;mirrored from STUDENT&quot;
+        int    priceMinorOverride &quot;mirrored from STUDENT; Phase 2&quot;
         string coachFirstName &quot;copied from COACH_CODE at registration&quot;
         string coachLastName &quot;copied from COACH_CODE at registration&quot;
     }
@@ -928,6 +985,46 @@ erDiagram
       <figure id="d4">
         <figcaption>
           <span class="num">04</span>
+          <span class="ttl">4. Domain Model</span>
+          <span class="kind">Diagram</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+stateDiagram-v2
+    [*] --&gt; BOOKED: family books
+    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place
+    INVITED --&gt; BOOKED: accepts, already a student
+    INVITED --&gt; AWAITING_COACH: accepts, new to the coach
+    AWAITING_COACH --&gt; BOOKED: coach accepts
+    INVITED --&gt; SEATEND: declined, withdrawn, or lesson starts
+    AWAITING_COACH --&gt; SEATEND: coach declines, or lesson starts
+    BOOKED --&gt; BOOKED: other skater left in time - the lesson time asks keep or cancel, kept at full price
+    BOOKED --&gt; CANCELLED: cancel after the other skater left, or no answer by answerBy
+    BOOKED --&gt; CANCELLED: family or coach cancels
+    BOOKED --&gt; CHECKED_IN: rinkside
+    BOOKED --&gt; NO_SHOW: rinkside</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>stateDiagram-v2
+    [*] --&gt; BOOKED: family books
+    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place
+    INVITED --&gt; BOOKED: accepts, already a student
+    INVITED --&gt; AWAITING_COACH: accepts, new to the coach
+    AWAITING_COACH --&gt; BOOKED: coach accepts
+    INVITED --&gt; SEATEND: declined, withdrawn, or lesson starts
+    AWAITING_COACH --&gt; SEATEND: coach declines, or lesson starts
+    BOOKED --&gt; BOOKED: other skater left in time - the lesson time asks keep or cancel, kept at full price
+    BOOKED --&gt; CANCELLED: cancel after the other skater left, or no answer by answerBy
+    BOOKED --&gt; CANCELLED: family or coach cancels
+    BOOKED --&gt; CHECKED_IN: rinkside
+    BOOKED --&gt; NO_SHOW: rinkside</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d5">
+        <figcaption>
+          <span class="num">05</span>
           <span class="ttl">6.1 Booking a lesson</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -938,27 +1035,34 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant Cf as Confirmation λ
+    participant Cf as Booking confirmation λ
     participant SES as SES
-    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
-    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence, end date capped at 12 months
-    loop each occurrence
-        API-&gt;&gt;DB: conditional PutItem BOOKING#35;&lt;date&gt;#35;&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
-        alt slot free
-            DB--&gt;&gt;API: claimed
-        else already taken
-            DB--&gt;&gt;API: ConditionalCheckFailed
-            API-&gt;&gt;DB: Query GSI1 (CLIENT#35;&lt;clientId&gt;) for the family&#x27;s own booking at that date and time
-            Note over API: theirs → already booked for this student&lt;br/&gt;otherwise → unavailable (ADR-006 d3, ADR-022)
+    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, picked times, recurring?,&lt;br/&gt;intervalWeeks?, endDate?, shareCode?)
+    Note over API: checked before anything is written (ADR-031 d3) -&lt;br/&gt;skater linked and ACTIVE (ADR-024), each picked time inside the booking window,&lt;br/&gt;end date no more than 12 months after the first pick.&lt;br/&gt;A series is checked on its first date only
+    alt a picked time is outside the window
+        API--&gt;&gt;P: whole request refused - &quot;That date is further ahead than you can book.&quot;&lt;br/&gt;Nothing is booked
+    else checks pass
+        opt a share code was given (§6.9)
+            API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;code&gt; - studentId and display name (ADR-026 d4)
         end
-    end
-    opt recurring, and at least one date booked
-        API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
-    end
-    API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
-    DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
-    Bus-&gt;&gt;Cf: route
-    Cf-&gt;&gt;SES: confirmation email</pre>
+        Note over API: a recurrence expands every intervalWeeks (1–4) from the first date
+        loop each date - one transaction per date
+            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation), shareCount 1, joinOrder = this skater&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)
+            alt transaction succeeds
+                DB--&gt;&gt;API: booked
+            else transaction cancelled
+                API-&gt;&gt;DB: GetItem the family&#x27;s own SEAT#35; key for this skater - strongly consistent
+                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4)
+            end
+        end
+        opt recurring, and at least one date booked
+            API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
+        end
+        API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
+        DB-&gt;&gt;Bus: (stream) LessonBooked — one per seat that becomes BOOKED
+        Bus-&gt;&gt;Cf: route
+        Cf-&gt;&gt;SES: confirmation email
+    end</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -967,64 +1071,33 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant Cf as Confirmation λ
+    participant Cf as Booking confirmation λ
     participant SES as SES
-    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, slots, recurring?, intervalWeeks?, endDate?)
-    Note over API: a recurrence expands every intervalWeeks (1–4) from the&lt;br/&gt;first occurrence, end date capped at 12 months
-    loop each occurrence
-        API-&gt;&gt;DB: conditional PutItem BOOKING#35;&lt;date&gt;#35;&lt;startTime&gt;&lt;br/&gt;attribute_not_exists(SK)
-        alt slot free
-            DB--&gt;&gt;API: claimed
-        else already taken
-            DB--&gt;&gt;API: ConditionalCheckFailed
-            API-&gt;&gt;DB: Query GSI1 (CLIENT#35;&lt;clientId&gt;) for the family&#x27;s own booking at that date and time
-            Note over API: theirs → already booked for this student&lt;br/&gt;otherwise → unavailable (ADR-006 d3, ADR-022)
+    P-&gt;&gt;API: POST /bookings (idempotencyKey, studentId, picked times, recurring?,&lt;br/&gt;intervalWeeks?, endDate?, shareCode?)
+    Note over API: checked before anything is written (ADR-031 d3) -&lt;br/&gt;skater linked and ACTIVE (ADR-024), each picked time inside the booking window,&lt;br/&gt;end date no more than 12 months after the first pick.&lt;br/&gt;A series is checked on its first date only
+    alt a picked time is outside the window
+        API--&gt;&gt;P: whole request refused - &quot;That date is further ahead than you can book.&quot;&lt;br/&gt;Nothing is booked
+    else checks pass
+        opt a share code was given (§6.9)
+            API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;code&gt; - studentId and display name (ADR-026 d4)
         end
-    end
-    opt recurring, and at least one date booked
-        API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
-    end
-    API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
-    DB-&gt;&gt;Bus: (stream) LessonBooked — one per claimed occurrence
-    Bus-&gt;&gt;Cf: route
-    Cf-&gt;&gt;SES: confirmation email</code></pre>
-        </details>
-      </figure>
-
-      <figure id="d5">
-        <figcaption>
-          <span class="num">05</span>
-          <span class="ttl">6.2 Day-of reminders</span>
-          <span class="kind">Sequence</span>
-        </figcaption>
-        <div class="plate">
-          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
-sequenceDiagram
-    participant Sch as EventBridge Scheduler (7:00am)
-    participant R as Reminder λ
-    participant DB as DynamoDB (GSI2)
-    participant N as SES
-    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
-    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
-    loop each booking
-        R-&gt;&gt;R: skip if remindedOn == target date
-        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
-        R-&gt;&gt;DB: set remindedOn = target date
-    end</pre>
-        </div>
-        <details>
-          <summary>Source</summary>
-          <pre class="src"><code>sequenceDiagram
-    participant Sch as EventBridge Scheduler (7:00am)
-    participant R as Reminder λ
-    participant DB as DynamoDB (GSI2)
-    participant N as SES
-    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
-    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
-    loop each booking
-        R-&gt;&gt;R: skip if remindedOn == target date
-        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
-        R-&gt;&gt;DB: set remindedOn = target date
+        Note over API: a recurrence expands every intervalWeeks (1–4) from the first date
+        loop each date - one transaction per date
+            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation), shareCount 1, joinOrder = this skater&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)
+            alt transaction succeeds
+                DB--&gt;&gt;API: booked
+            else transaction cancelled
+                API-&gt;&gt;DB: GetItem the family&#x27;s own SEAT#35; key for this skater - strongly consistent
+                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4)
+            end
+        end
+        opt recurring, and at least one date booked
+            API-&gt;&gt;DB: put the RECURRENCE#35; header in the client&#x27;s partition, last (ADR-006 d4a)
+        end
+        API--&gt;&gt;P: 201 Created — each date booked, already booked for this student, or unavailable
+        DB-&gt;&gt;Bus: (stream) LessonBooked — one per seat that becomes BOOKED
+        Bus-&gt;&gt;Cf: route
+        Cf-&gt;&gt;SES: confirmation email
     end</code></pre>
         </details>
       </figure>
@@ -1032,52 +1105,38 @@ sequenceDiagram
       <figure id="d6">
         <figcaption>
           <span class="num">06</span>
-          <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
+          <span class="ttl">6.2 Day-of reminders</span>
           <span class="kind">Sequence</span>
         </figcaption>
-        <p class="cap">The email states the specific amount owed for that lesson, formatted from the booking&#x27;s stamped priceMinor, plus the coach&#x27;s paymentInstructions (HTML-escaped).</p>
+        <p class="cap">Only BOOKED, CHECKED_IN and NO_SHOW seats are on GSI2: a seat gets its GSI2 keys only when it becomes BOOKED (ADR-031 d14). A pending leave on the lesson time is always settled before the lesson day, because its answer-by is no later than the start of the…</p>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
-    participant C as Coach (rinkside page)
-    participant API as api-coach λ
-    participant DB as DynamoDB
-    participant Bus as EventBridge
-    participant Pay as Payment-reminder λ
-    participant SES as SES
-    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
-    API-&gt;&gt;DB: conditional update (bookingStatus = BOOKED) → bookingStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server)
-    alt CHECKED_IN
-        DB-&gt;&gt;Bus: (stream) CheckInRecorded
-        Bus-&gt;&gt;Pay: route
-        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
-        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
-        Pay-&gt;&gt;DB: set paymentReminderSent
-    else NO_SHOW
-        DB-&gt;&gt;Bus: (stream) NoShowRecorded
-        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
+    participant Sch as EventBridge Scheduler (7:00am)
+    participant R as Day-of reminder λ
+    participant DB as DynamoDB (GSI2)
+    participant N as SES
+    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
+    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — BOOKED, CHECKED_IN and NO_SHOW seats
+    loop each seat
+        R-&gt;&gt;R: skip if remindedOn == target date
+        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
+        R-&gt;&gt;DB: set remindedOn = target date on the seat
     end</pre>
         </div>
         <details>
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
-    participant C as Coach (rinkside page)
-    participant API as api-coach λ
-    participant DB as DynamoDB
-    participant Bus as EventBridge
-    participant Pay as Payment-reminder λ
-    participant SES as SES
-    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
-    API-&gt;&gt;DB: conditional update (bookingStatus = BOOKED) → bookingStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server)
-    alt CHECKED_IN
-        DB-&gt;&gt;Bus: (stream) CheckInRecorded
-        Bus-&gt;&gt;Pay: route
-        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
-        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
-        Pay-&gt;&gt;DB: set paymentReminderSent
-    else NO_SHOW
-        DB-&gt;&gt;Bus: (stream) NoShowRecorded
-        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
+    participant Sch as EventBridge Scheduler (7:00am)
+    participant R as Day-of reminder λ
+    participant DB as DynamoDB (GSI2)
+    participant N as SES
+    Sch-&gt;&gt;R: cron trigger, carrying its target date (ADR-010)
+    R-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — BOOKED, CHECKED_IN and NO_SHOW seats
+    loop each seat
+        R-&gt;&gt;R: skip if remindedOn == target date
+        R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
+        R-&gt;&gt;DB: set remindedOn = target date on the seat
     end</code></pre>
         </details>
       </figure>
@@ -1088,92 +1147,51 @@ sequenceDiagram
           <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
           <span class="kind">Sequence</span>
         </figcaption>
+        <p class="cap">The email states the specific amount owed for that lesson, formatted from the seat&#x27;s amountMinor — the full price for a private lesson, the skater&#x27;s share of a shared one (ADR-031 d7) — plus the coach&#x27;s paymentInstructions (HTML-escaped). The amount is fixed…</p>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
-    participant C as Coach
-    participant P as Rinkside page (browser tab)
+    participant C as Coach (rinkside page)
     participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
-    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
-        P--&gt;&gt;C: says so plainly and reloads the copy
-    end
-    C-&gt;&gt;P: open at the rink with no signal
-    alt today&#x27;s lessons are cached
-        P--&gt;&gt;C: today&#x27;s check-in list
-    else not cached, or the page was cleared
-        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
-    end
-    C-&gt;&gt;P: tap Checked in or No-show
-    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
-    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
-    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
-    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
-    loop each queued entry
-        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
-        alt outcomeAt outside the lesson window, or in the future (d2a)
-            API--&gt;&gt;P: rejected
-            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
-        else time fits the lesson
-            API-&gt;&gt;DB: conditional update, bookingStatus = BOOKED →&lt;br/&gt;bookingStatus, outcomeAt (device), recordedAt (server) (d2, d3)
-            alt booking still BOOKED
-                API--&gt;&gt;P: recorded - drop from the queue
-                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
-            else already recorded - a duplicate replay or a website correction
-                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
-            else booking gone - the family cancelled while the phone was offline
-                API--&gt;&gt;P: condition failed
-                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
-            else any other failure
-                P--&gt;&gt;C: stays queued and visible (d4)
-            end
-        end
+    participant Pay as Payment reminder λ
+    participant SES as SES
+    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
+    API-&gt;&gt;DB: read the lesson time - priceMinor and shareCount
+    API-&gt;&gt;DB: conditional update on the seat (seatStatus = BOOKED) → seatStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server), amountMinor fixed&lt;br/&gt;from priceMinor ÷ shareCount unless already fixed (ADR-031 d7)
+    alt CHECKED_IN
+        DB-&gt;&gt;Bus: (stream) CheckInRecorded
+        Bus-&gt;&gt;Pay: route
+        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
+        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
+        Pay-&gt;&gt;DB: set paymentReminderSent
+    else NO_SHOW
+        DB-&gt;&gt;Bus: (stream) NoShowRecorded
+        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
     end</pre>
         </div>
         <details>
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
-    participant C as Coach
-    participant P as Rinkside page (browser tab)
+    participant C as Coach (rinkside page)
     participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
-    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
-        P--&gt;&gt;C: says so plainly and reloads the copy
-    end
-    C-&gt;&gt;P: open at the rink with no signal
-    alt today&#x27;s lessons are cached
-        P--&gt;&gt;C: today&#x27;s check-in list
-    else not cached, or the page was cleared
-        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
-    end
-    C-&gt;&gt;P: tap Checked in or No-show
-    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
-    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
-    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
-    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
-    loop each queued entry
-        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
-        alt outcomeAt outside the lesson window, or in the future (d2a)
-            API--&gt;&gt;P: rejected
-            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
-        else time fits the lesson
-            API-&gt;&gt;DB: conditional update, bookingStatus = BOOKED →&lt;br/&gt;bookingStatus, outcomeAt (device), recordedAt (server) (d2, d3)
-            alt booking still BOOKED
-                API--&gt;&gt;P: recorded - drop from the queue
-                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
-            else already recorded - a duplicate replay or a website correction
-                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
-            else booking gone - the family cancelled while the phone was offline
-                API--&gt;&gt;P: condition failed
-                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
-            else any other failure
-                P--&gt;&gt;C: stays queued and visible (d4)
-            end
-        end
+    participant Pay as Payment reminder λ
+    participant SES as SES
+    C-&gt;&gt;API: POST /bookings/{id}/attendance {CHECKED_IN | NO_SHOW}
+    API-&gt;&gt;DB: read the lesson time - priceMinor and shareCount
+    API-&gt;&gt;DB: conditional update on the seat (seatStatus = BOOKED) → seatStatus,&lt;br/&gt;outcomeAt (device), recordedAt (server), amountMinor fixed&lt;br/&gt;from priceMinor ÷ shareCount unless already fixed (ADR-031 d7)
+    alt CHECKED_IN
+        DB-&gt;&gt;Bus: (stream) CheckInRecorded
+        Bus-&gt;&gt;Pay: route
+        Pay-&gt;&gt;DB: read the student&#x27;s client and the coach profile
+        Pay-&gt;&gt;SES: payment reminder to the student&#x27;s client (SMS is Phase 2)
+        Pay-&gt;&gt;DB: set paymentReminderSent
+    else NO_SHOW
+        DB-&gt;&gt;Bus: (stream) NoShowRecorded
+        Note over Bus,Pay: no consumer in MVP — the fee is 0 and no reminder is sent.&lt;br/&gt;The lesson stays UNPAID on the coach&#x27;s dashboard (ADR-015 d4)
     end</code></pre>
         </details>
       </figure>
@@ -1181,6 +1199,104 @@ sequenceDiagram
       <figure id="d8">
         <figcaption>
           <span class="num">08</span>
+          <span class="ttl">6.3 Attendance (check-in / no-show) → payment reminder</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach
+    participant P as Rinkside page (browser tab)
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
+    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
+        P--&gt;&gt;C: says so plainly and reloads the copy
+    end
+    C-&gt;&gt;P: open at the rink with no signal
+    alt today&#x27;s lessons are cached
+        P--&gt;&gt;C: today&#x27;s check-in list
+    else not cached
+        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
+    end
+    Note over C,P: a page Safari has cleared cannot open at all with no signal -&lt;br/&gt;the d5a advice to open it with signal before leaving covers this
+    C-&gt;&gt;P: tap Checked in or No-show
+    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
+    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
+    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
+    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
+    loop each queued entry
+        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
+        alt outcomeAt outside the lesson window, or in the future (d2a)
+            API--&gt;&gt;P: rejected
+            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
+        else time fits the lesson
+            API-&gt;&gt;DB: conditional update on the seat, seatStatus = BOOKED →&lt;br/&gt;seatStatus, outcomeAt (device), recordedAt (server),&lt;br/&gt;amountMinor fixed (d2, d3, ADR-031 d7)
+            alt seat still BOOKED
+                API--&gt;&gt;P: recorded - drop from the queue
+                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
+            else already recorded - a duplicate replay or a website correction
+                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
+            else seat gone - the family cancelled while the phone was offline
+                API--&gt;&gt;P: condition failed
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+            else any other failure
+                P--&gt;&gt;C: stays queued and visible (d4)
+            end
+        end
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach
+    participant P as Rinkside page (browser tab)
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    participant Bus as EventBridge
+    Note over P: opened with signal earlier - the service worker keeps the page,&lt;br/&gt;and today&#x27;s lessons are cached (ADR-014 d5)
+    opt opened with signal and Safari has cleared the offline copy (amended 2026-10-13)
+        P--&gt;&gt;C: says so plainly and reloads the copy
+    end
+    C-&gt;&gt;P: open at the rink with no signal
+    alt today&#x27;s lessons are cached
+        P--&gt;&gt;C: today&#x27;s check-in list
+    else not cached
+        P--&gt;&gt;C: &quot;Today&#x27;s lessons haven&#x27;t loaded. Open the app with signal&lt;br/&gt;before you leave for the rink.&quot; (d5a)
+    end
+    Note over C,P: a page Safari has cleared cannot open at all with no signal -&lt;br/&gt;the d5a advice to open it with signal before leaving covers this
+    C-&gt;&gt;P: tap Checked in or No-show
+    P-&gt;&gt;P: queue student, outcome and outcomeAt (phone clock) in device storage
+    P--&gt;&gt;C: banner - saved on the phone, sent when signal returns,&lt;br/&gt;not dismissible while the queue has entries (d1)
+    Note over C,P: cancelling is disabled offline (ADR-009 d5a)
+    Note over P: signal returns - Background Sync on Android and Chrome,&lt;br/&gt;on an iPhone the next time the page is opened (d1a)
+    loop each queued entry
+        P-&gt;&gt;API: POST /bookings/{id}/attendance {outcome, outcomeAt}
+        alt outcomeAt outside the lesson window, or in the future (d2a)
+            API--&gt;&gt;P: rejected
+            P--&gt;&gt;C: &quot;2 check-ins couldn&#x27;t be sent&quot; - Record on the website or Done,&lt;br/&gt;removed from the phone after 7 days (d4a)
+        else time fits the lesson
+            API-&gt;&gt;DB: conditional update on the seat, seatStatus = BOOKED →&lt;br/&gt;seatStatus, outcomeAt (device), recordedAt (server),&lt;br/&gt;amountMinor fixed (d2, d3, ADR-031 d7)
+            alt seat still BOOKED
+                API--&gt;&gt;P: recorded - drop from the queue
+                DB-&gt;&gt;Bus: (stream) CheckInRecorded or NoShowRecorded (§6.3)
+            else already recorded - a duplicate replay or a website correction
+                API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
+            else seat gone - the family cancelled while the phone was offline
+                API--&gt;&gt;P: condition failed
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+            else any other failure
+                P--&gt;&gt;C: stays queued and visible (d4)
+            end
+        end
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d9">
+        <figcaption>
+          <span class="num">09</span>
           <span class="ttl">6.4 End-of-day report</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1188,13 +1304,14 @@ sequenceDiagram
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
     participant Sch as EventBridge Scheduler (9:00pm)
-    participant Rep as Report λ
+    participant Rep as End-of-day report λ
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
     participant SES as SES
     Sch-&gt;&gt;Rep: cron trigger, carrying its target date (ADR-010)
-    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — BOOKED, CHECKED_IN and NO_SHOW seats
     Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
+    Rep-&gt;&gt;DB: fix amountMinor on each of the day&#x27;s seats still without one -&lt;br/&gt;priceMinor ÷ shareCount from its lesson time (ADR-031 d7)
     Rep-&gt;&gt;S3: PutObject report.json (archive)
     Rep-&gt;&gt;SES: email coach the daily summary</pre>
         </div>
@@ -1202,22 +1319,71 @@ sequenceDiagram
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
     participant Sch as EventBridge Scheduler (9:00pm)
-    participant Rep as Report λ
+    participant Rep as End-of-day report λ
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
     participant SES as SES
     Sch-&gt;&gt;Rep: cron trigger, carrying its target date (ADR-010)
-    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — bookings and participants
+    Rep-&gt;&gt;DB: Query GSI2PK = DATE#35;&lt;target date&gt; — BOOKED, CHECKED_IN and NO_SHOW seats
     Rep-&gt;&gt;Rep: partition CHECKED_IN / NO_SHOW / PENDING(still BOOKED)
+    Rep-&gt;&gt;DB: fix amountMinor on each of the day&#x27;s seats still without one -&lt;br/&gt;priceMinor ÷ shareCount from its lesson time (ADR-031 d7)
     Rep-&gt;&gt;S3: PutObject report.json (archive)
     Rep-&gt;&gt;SES: email coach the daily summary</code></pre>
         </details>
       </figure>
 
-      <figure id="d9">
+      <figure id="d10">
         <figcaption>
-          <span class="num">09</span>
-          <span class="ttl">6.5 Schedule change → cancellation and re-pricing → notification</span>
+          <span class="num">10</span>
+          <span class="ttl">6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach (website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    C-&gt;&gt;API: preview a schedule change (ADR-008)
+    API--&gt;&gt;C: the impact preview - not guarded
+    C-&gt;&gt;API: save the change
+    API-&gt;&gt;API: check auth_time in the token -&lt;br/&gt;when the coach last typed their password, not reset by a token refresh
+    alt signed in within the last 15 minutes (configurable)
+        API-&gt;&gt;API: carry on with the save
+    else older
+        API--&gt;&gt;C: refused - recent sign-in needed (ADR-023 d4)
+        C-&gt;&gt;Cog: enter the password, plus the MFA (multi-factor authentication) code if it&#x27;s on
+        Cog--&gt;&gt;C: fresh tokens - new auth_time
+        C-&gt;&gt;API: the website retries the save
+        API-&gt;&gt;API: carry on with the save
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach (website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    C-&gt;&gt;API: preview a schedule change (ADR-008)
+    API--&gt;&gt;C: the impact preview - not guarded
+    C-&gt;&gt;API: save the change
+    API-&gt;&gt;API: check auth_time in the token -&lt;br/&gt;when the coach last typed their password, not reset by a token refresh
+    alt signed in within the last 15 minutes (configurable)
+        API-&gt;&gt;API: carry on with the save
+    else older
+        API--&gt;&gt;C: refused - recent sign-in needed (ADR-023 d4)
+        C-&gt;&gt;Cog: enter the password, plus the MFA (multi-factor authentication) code if it&#x27;s on
+        Cog--&gt;&gt;C: fresh tokens - new auth_time
+        C-&gt;&gt;API: the website retries the save
+        API-&gt;&gt;API: carry on with the save
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d11">
+        <figcaption>
+          <span class="num">11</span>
+          <span class="ttl">6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</span>
           <span class="kind">Sequence</span>
         </figcaption>
         <div class="plate">
@@ -1227,13 +1393,14 @@ sequenceDiagram
     participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant X as Schedule-change λ
-    participant N as Notifier λ
+    participant X as Schedule change λ
+    participant N as Change notifier λ
     C-&gt;&gt;API: POST /schedule/preview
+    Note over API: one shared evaluator compares the lesson times the old schedule makes&lt;br/&gt;with the new ones - add, remove, cancel or re-price (ADR-031 d11)
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
     Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
-    API-&gt;&gt;DB: write default / date overrides
+    API-&gt;&gt;DB: write default / date overrides - scheduleVersion + 1 on SCHEDULE#35;DEFAULT
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
     X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
@@ -1242,17 +1409,22 @@ sequenceDiagram
     else header already exists
         Note over X: resume — write only the missing records (5h)
     end
-    X-&gt;&gt;DB: Query bookings and participants in affected range — shared evaluator&lt;br/&gt;sorts each into unchanged / cancel / re-price (ADR-020, ADR-026)
-    X-&gt;&gt;DB: write EVERY CANCELLED#35; and REPRICED#35; line, executionStatus = PLANNED,&lt;br/&gt;then planStatus = COMPLETE (5c, 5h — no booking is touched before this)
-    loop each line
-        X-&gt;&gt;DB: re-check against the current schedule and booking (5i)
+    X-&gt;&gt;DB: Query LESSON#35; and SEAT#35; in the affected range — the same evaluator&lt;br/&gt;sorts each lesson time into unchanged / add / remove / cancel / re-price
+    X-&gt;&gt;DB: write the whole plan - a CANCELLED#35; line per seat, a REPRICED#35; line per seat whose share changes,&lt;br/&gt;executionStatus = PLANNED, then planStatus = COMPLETE (5c, 5h — no lesson time or seat is touched before this).&lt;br/&gt;Adding or removing an open lesson time is part of the save, not a batch line (ADR-031 d14)
+    loop each step - batch lines, plus the save&#x27;s adds and removes
+        X-&gt;&gt;DB: re-check against the current schedule, lesson time and seats (5i)
         alt no longer applies
-            X-&gt;&gt;DB: mark the line SKIPPED with its skippedReason
+            X-&gt;&gt;DB: mark it SKIPPED with its skippedReason
             Note over X: a cancellation SKIPPED as LESSON_PASSED → the coach is told
-        else cancellation line
-            X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
-        else re-price line
-            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED (ADR-020 d5)
+        else add
+            X-&gt;&gt;DB: put LESSON#35; OPEN, stamped with the new scheduleVersion
+        else remove
+            X-&gt;&gt;DB: delete LESSON#35; only if lessonStatus is still OPEN,&lt;br/&gt;or a HELD time the new schedule no longer makes
+            Note over X: booked since the preview - the step becomes a cancel&lt;br/&gt;in the same batch, and the family gets the ordinary cancellation email
+        else cancel
+            X-&gt;&gt;DB: TransactWriteItems — each seat moves to its CANCELLED#35; line, EXECUTED,&lt;br/&gt;and the lesson time is deleted, all or nothing (5d)
+        else re-price
+            X-&gt;&gt;DB: set the lesson time&#x27;s priceMinor under ADR-020&#x27;s rules, mark EXECUTED -&lt;br/&gt;shares not yet fixed follow it, a seat with a fixed amountMinor keeps it (ADR-031 d7)
         end
     end
     X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
@@ -1272,13 +1444,14 @@ sequenceDiagram
     participant API as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant X as Schedule-change λ
-    participant N as Notifier λ
+    participant X as Schedule change λ
+    participant N as Change notifier λ
     C-&gt;&gt;API: POST /schedule/preview
+    Note over API: one shared evaluator compares the lesson times the old schedule makes&lt;br/&gt;with the new ones - add, remove, cancel or re-price (ADR-031 d11)
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
     C-&gt;&gt;API: PUT /schedule
     Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
-    API-&gt;&gt;DB: write default / date overrides
+    API-&gt;&gt;DB: write default / date overrides - scheduleVersion + 1 on SCHEDULE#35;DEFAULT
     DB-&gt;&gt;Bus: (stream) ScheduleChanged
     Bus-&gt;&gt;X: route — batchId derived from the stream event id (5a)
     X-&gt;&gt;DB: claim CHANGEBATCH, attribute_not_exists(SK) (5b)
@@ -1287,17 +1460,22 @@ sequenceDiagram
     else header already exists
         Note over X: resume — write only the missing records (5h)
     end
-    X-&gt;&gt;DB: Query bookings and participants in affected range — shared evaluator&lt;br/&gt;sorts each into unchanged / cancel / re-price (ADR-020, ADR-026)
-    X-&gt;&gt;DB: write EVERY CANCELLED#35; and REPRICED#35; line, executionStatus = PLANNED,&lt;br/&gt;then planStatus = COMPLETE (5c, 5h — no booking is touched before this)
-    loop each line
-        X-&gt;&gt;DB: re-check against the current schedule and booking (5i)
+    X-&gt;&gt;DB: Query LESSON#35; and SEAT#35; in the affected range — the same evaluator&lt;br/&gt;sorts each lesson time into unchanged / add / remove / cancel / re-price
+    X-&gt;&gt;DB: write the whole plan - a CANCELLED#35; line per seat, a REPRICED#35; line per seat whose share changes,&lt;br/&gt;executionStatus = PLANNED, then planStatus = COMPLETE (5c, 5h — no lesson time or seat is touched before this).&lt;br/&gt;Adding or removing an open lesson time is part of the save, not a batch line (ADR-031 d14)
+    loop each step - batch lines, plus the save&#x27;s adds and removes
+        X-&gt;&gt;DB: re-check against the current schedule, lesson time and seats (5i)
         alt no longer applies
-            X-&gt;&gt;DB: mark the line SKIPPED with its skippedReason
+            X-&gt;&gt;DB: mark it SKIPPED with its skippedReason
             Note over X: a cancellation SKIPPED as LESSON_PASSED → the coach is told
-        else cancellation line
-            X-&gt;&gt;DB: TransactWriteItems — delete booking +&lt;br/&gt;mark its line EXECUTED, both or neither (5d)
-        else re-price line
-            X-&gt;&gt;DB: TransactWriteItems — set new price if booking still has the old one +&lt;br/&gt;mark EXECUTED (ADR-020 d5)
+        else add
+            X-&gt;&gt;DB: put LESSON#35; OPEN, stamped with the new scheduleVersion
+        else remove
+            X-&gt;&gt;DB: delete LESSON#35; only if lessonStatus is still OPEN,&lt;br/&gt;or a HELD time the new schedule no longer makes
+            Note over X: booked since the preview - the step becomes a cancel&lt;br/&gt;in the same batch, and the family gets the ordinary cancellation email
+        else cancel
+            X-&gt;&gt;DB: TransactWriteItems — each seat moves to its CANCELLED#35; line, EXECUTED,&lt;br/&gt;and the lesson time is deleted, all or nothing (5d)
+        else re-price
+            X-&gt;&gt;DB: set the lesson time&#x27;s priceMinor under ADR-020&#x27;s rules, mark EXECUTED -&lt;br/&gt;shares not yet fixed follow it, a seat with a fixed amountMinor keeps it (ADR-031 d7)
         end
     end
     X-&gt;&gt;DB: mark the batch header EXECUTED — last (5f)
@@ -1312,9 +1490,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d10">
+      <figure id="d12">
         <figcaption>
-          <span class="num">10</span>
+          <span class="num">12</span>
           <span class="ttl">6.6 Direct cancellation</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1327,25 +1505,26 @@ sequenceDiagram
     participant AK as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant N as consumer-change-notifier λ
+    participant N as Change notifier λ
     participant SES as SES
     participant SNS as SNS
     alt family cancels (ADR-009 d2, d4)
         F-&gt;&gt;AC: cancel one lesson, or a recurrence change —&lt;br/&gt;end earlier, reduce frequency, cancel all future
-        Note over F,AC: confirm first - any lesson inside requiredNoticeHours&lt;br/&gt;&quot;may incur a late cancellation fee&quot; (ADR-015 d1a)
-        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, a CANCELLED#35; line per lesson&lt;br/&gt;(cancelledAt, noticeHours), delete each booking if clientId = caller (ADR-024 d1)
+        Note over F,AC: confirm first - MVP wording &quot;Bookings cancelled within 24 hours may incur&lt;br/&gt;a late cancellation fee&quot; (ADR-009 d2). A recurrence change also names&lt;br/&gt;each occurrence inside requiredNoticeHours (d4)
+        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, each SEAT#35; moved to a CANCELLED#35; line&lt;br/&gt;(cancelledBy, cancelledAt, noticeHours) if clientId = caller (ADR-024 d1),&lt;br/&gt;seatsTaken drops, lesson time OPEN when its last seat goes (ADR-031 d2, d8)
+        Note over AC,DB: a shared lesson - in time, the lesson time records a pending leave&lt;br/&gt;(keep or cancel?) - late, nothing is asked. The other seat is never touched (§6.9)
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
-        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold asked per lesson
+        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold - asked once for a day or week,&lt;br/&gt;per lesson for a multi-select (d5, d5a)
         opt more than one lesson, or any cancel from the check-in list
             AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
             C-&gt;&gt;AK: accept
         end
         Note over AK: skip lessons already started, CHECKED_IN or NO_SHOW (d7)
-        AK-&gt;&gt;DB: header cancelledBy = COACH, a CANCELLED#35; line per lesson, and per booking&lt;br/&gt;release = delete it, hold = replace with COACH_HELD at the same key
+        AK-&gt;&gt;DB: header cancelledBy = COACH, every seat moved to a CANCELLED#35; line, and per lesson time&lt;br/&gt;release = back to OPEN, hold = lessonStatus HELD with no seats (ADR-031 d1)
     end
-    Note over AC,DB: one lesson - header, line and booking change in one transaction, all EXECUTED.&lt;br/&gt;Several - one transaction per booking, header marked EXECUTED last (ADR-010 d5d, d5f)
+    Note over AC,DB: one lesson - header, lines, seat deletes and lesson-time update in one transaction,&lt;br/&gt;all EXECUTED. Several - one transaction per lesson time, header marked EXECUTED last (ADR-010 d5d, d5f)
     DB-&gt;&gt;Bus: (stream) LessonsChanged - the header reaching EXECUTED
     Bus-&gt;&gt;N: route (one event per batch)
     N-&gt;&gt;DB: read the batch header and its EXECUTED lines
@@ -1373,25 +1552,26 @@ sequenceDiagram
     participant AK as api-coach λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant N as consumer-change-notifier λ
+    participant N as Change notifier λ
     participant SES as SES
     participant SNS as SNS
     alt family cancels (ADR-009 d2, d4)
         F-&gt;&gt;AC: cancel one lesson, or a recurrence change —&lt;br/&gt;end earlier, reduce frequency, cancel all future
-        Note over F,AC: confirm first - any lesson inside requiredNoticeHours&lt;br/&gt;&quot;may incur a late cancellation fee&quot; (ADR-015 d1a)
-        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, a CANCELLED#35; line per lesson&lt;br/&gt;(cancelledAt, noticeHours), delete each booking if clientId = caller (ADR-024 d1)
+        Note over F,AC: confirm first - MVP wording &quot;Bookings cancelled within 24 hours may incur&lt;br/&gt;a late cancellation fee&quot; (ADR-009 d2). A recurrence change also names&lt;br/&gt;each occurrence inside requiredNoticeHours (d4)
+        AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, each SEAT#35; moved to a CANCELLED#35; line&lt;br/&gt;(cancelledBy, cancelledAt, noticeHours) if clientId = caller (ADR-024 d1),&lt;br/&gt;seatsTaken drops, lesson time OPEN when its last seat goes (ADR-031 d2, d8)
+        Note over AC,DB: a shared lesson - in time, the lesson time records a pending leave&lt;br/&gt;(keep or cancel?) - late, nothing is asked. The other seat is never touched (§6.9)
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
-        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold asked per lesson
+        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold - asked once for a day or week,&lt;br/&gt;per lesson for a multi-select (d5, d5a)
         opt more than one lesson, or any cancel from the check-in list
             AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
             C-&gt;&gt;AK: accept
         end
         Note over AK: skip lessons already started, CHECKED_IN or NO_SHOW (d7)
-        AK-&gt;&gt;DB: header cancelledBy = COACH, a CANCELLED#35; line per lesson, and per booking&lt;br/&gt;release = delete it, hold = replace with COACH_HELD at the same key
+        AK-&gt;&gt;DB: header cancelledBy = COACH, every seat moved to a CANCELLED#35; line, and per lesson time&lt;br/&gt;release = back to OPEN, hold = lessonStatus HELD with no seats (ADR-031 d1)
     end
-    Note over AC,DB: one lesson - header, line and booking change in one transaction, all EXECUTED.&lt;br/&gt;Several - one transaction per booking, header marked EXECUTED last (ADR-010 d5d, d5f)
+    Note over AC,DB: one lesson - header, lines, seat deletes and lesson-time update in one transaction,&lt;br/&gt;all EXECUTED. Several - one transaction per lesson time, header marked EXECUTED last (ADR-010 d5d, d5f)
     DB-&gt;&gt;Bus: (stream) LessonsChanged - the header reaching EXECUTED
     Bus-&gt;&gt;N: route (one event per batch)
     N-&gt;&gt;DB: read the batch header and its EXECUTED lines
@@ -1412,9 +1592,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d11">
+      <figure id="d13">
         <figcaption>
-          <span class="num">11</span>
+          <span class="num">13</span>
           <span class="ttl">6.7 Client registration and coach approval</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1427,7 +1607,7 @@ sequenceDiagram
     participant DB as DynamoDB
     participant AC as api-coach λ
     participant Bus as EventBridge
-    participant SL as consumer-student-link λ
+    participant SL as Student link sync λ
     participant SES as SES
     F-&gt;&gt;API: look up coach code, before sign-in — WAF 20 per 5 min (ADR-019)
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
@@ -1466,7 +1646,7 @@ sequenceDiagram
     participant DB as DynamoDB
     participant AC as api-coach λ
     participant Bus as EventBridge
-    participant SL as consumer-student-link λ
+    participant SL as Student link sync λ
     participant SES as SES
     F-&gt;&gt;API: look up coach code, before sign-in — WAF 20 per 5 min (ADR-019)
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
@@ -1498,9 +1678,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d12">
+      <figure id="d14">
         <figcaption>
-          <span class="num">12</span>
+          <span class="num">14</span>
           <span class="ttl">6.8 Family changes reach every coach</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1511,7 +1691,7 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant FS as consumer-family-sync λ
+    participant FS as Family sync λ
     F-&gt;&gt;API: edit contact details or smsOptIn, or a skater —&lt;br/&gt;name, skatingOrg, registrationNumber (ADR-029 d3)
     API-&gt;&gt;DB: UpdateItem own partition only — CLIENT#35;&lt;cognitoSub&gt; PROFILE&lt;br/&gt;or SKATER#35;&lt;studentId&gt; (ADR-025 d6 step 1)
     API--&gt;&gt;F: saved
@@ -1520,6 +1700,10 @@ sequenceDiagram
     FS-&gt;&gt;DB: GetItem and Query the family&#x27;s partition —&lt;br/&gt;the changed item and its STUDENT#35;&lt;coachId&gt;#35;&lt;studentId&gt; links
     loop each coach the family&#x27;s skaters are with
         FS-&gt;&gt;DB: UpdateItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; — copy the fields
+        opt the skater&#x27;s name changed (ADR-031 d14)
+            FS-&gt;&gt;DB: update studentName on the skater&#x27;s upcoming SEAT#35; items
+            Note over FS,DB: consumer-invite reacts to those seat changes and refreshes&lt;br/&gt;partnerName on the seats sharing a lesson with them (ADR-031 d6)
+        end
     end
     Note over FS,DB: lag is about a second — a reminder in that window&lt;br/&gt;uses the old phone or email (ADR-025 d6)
     opt a new SKATER#35; item (ADR-026 d4)
@@ -1535,7 +1719,7 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant FS as consumer-family-sync λ
+    participant FS as Family sync λ
     F-&gt;&gt;API: edit contact details or smsOptIn, or a skater —&lt;br/&gt;name, skatingOrg, registrationNumber (ADR-029 d3)
     API-&gt;&gt;DB: UpdateItem own partition only — CLIENT#35;&lt;cognitoSub&gt; PROFILE&lt;br/&gt;or SKATER#35;&lt;studentId&gt; (ADR-025 d6 step 1)
     API--&gt;&gt;F: saved
@@ -1544,6 +1728,10 @@ sequenceDiagram
     FS-&gt;&gt;DB: GetItem and Query the family&#x27;s partition —&lt;br/&gt;the changed item and its STUDENT#35;&lt;coachId&gt;#35;&lt;studentId&gt; links
     loop each coach the family&#x27;s skaters are with
         FS-&gt;&gt;DB: UpdateItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; — copy the fields
+        opt the skater&#x27;s name changed (ADR-031 d14)
+            FS-&gt;&gt;DB: update studentName on the skater&#x27;s upcoming SEAT#35; items
+            Note over FS,DB: consumer-invite reacts to those seat changes and refreshes&lt;br/&gt;partnerName on the seats sharing a lesson with them (ADR-031 d6)
+        end
     end
     Note over FS,DB: lag is about a second — a reminder in that window&lt;br/&gt;uses the old phone or email (ADR-025 d6)
     opt a new SKATER#35; item (ADR-026 d4)
@@ -1554,9 +1742,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d13">
+      <figure id="d15">
         <figcaption>
-          <span class="num">13</span>
+          <span class="num">15</span>
           <span class="ttl">6.9 Shared lesson by invitation</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1567,35 +1755,46 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant Inv as consumer-invite λ
+    participant Inv as Invite λ
     participant SES as SES
     participant B as Family B (web)
     participant AC as api-coach λ
     A-&gt;&gt;API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
-    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; — display name only (d4)
-    API--&gt;&gt;A: &quot;Mia R.&quot; — the booking continues as a normal private booking (§6.1)
-    A-&gt;&gt;API: invite Mia
-    API-&gt;&gt;DB: put CLIENT#35;&lt;familyA&gt; / INVITE#35;&lt;inviteId&gt;, inviteStatus SENT,&lt;br/&gt;stamp invitedStudentId on each booking in the series (d5 step 1)
-    DB-&gt;&gt;Bus: (stream) InviteChanged
-    Bus-&gt;&gt;Inv: route
-    Inv-&gt;&gt;DB: copy the invitation into CLIENT#35;&lt;familyB&gt;
-    Inv-&gt;&gt;SES: email Family B now — an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
-    B-&gt;&gt;API: open the link and sign in — confirm page shows Mia&#x27;s clashes (ADR-025 d5)
-    B-&gt;&gt;API: Go ahead
-    alt Mia is already the coach&#x27;s student
-        API-&gt;&gt;DB: TransactWriteItems in Family B&#x27;s session (d3) — skaterCount + 1&lt;br/&gt;if &lt; maxSkaters and booking exists + put PARTICIPANT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt;&lt;br/&gt;attribute_not_exists(SK), both or neither
-    else Mia isn&#x27;t the coach&#x27;s student yet
-        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING with pendingJoins (booking key, inviteId),&lt;br/&gt;the sign-up route (§6.7), after checking B holds the invitation — invite AWAITING_COACH
-        Note over AC: Coach taps Accept on the pending list
-        AC-&gt;&gt;DB: per pendingJoins entry, the join transaction with conditions — booking exists,&lt;br/&gt;startsAtUtc &gt; now, room left, invitedStudentId = Mia, no PARTICIPANT#35; yet (d5)
-        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, clear pendingJoins, record each lesson&#x27;s outcome
-        DB-&gt;&gt;Bus: (stream) StudentChanged
-        Bus-&gt;&gt;Inv: route (also to consumer-student-link, §6.7)
-        Inv-&gt;&gt;DB: update both invitations — CONFIRMED, or EXPIRED where the join failed
-        Inv-&gt;&gt;SES: tell Family B of any lesson no longer available
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId and display name
+    API--&gt;&gt;A: &quot;Mia R.&quot; - the display name only (ADR-026 d4)
+    A-&gt;&gt;API: book with the share code (§6.1)
+    loop each date - one transaction per date
+        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)
     end
-    Note over Inv,A: consumer-invite copies each status change to Family A&#x27;s copy (d5 step 6) —&lt;br/&gt;A&#x27;s booking shows both skaters, never B&#x27;s participant item
-    Note over AC,B: Coach declines instead — Mia is deleted (ADR-002 d2b), invite DECLINED, Family A told,&lt;br/&gt;B gets the ordinary decline email. Lesson passes first — EXPIRED by the sweep (§6.10)</pre>
+    DB-&gt;&gt;Bus: (stream) a seat written INVITED (event name to be set)
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: read-only copies (ADR-031 d6) - partnerName and partnerStatus on both seats,&lt;br/&gt;invitedClientId + Family B&#x27;s GSI1 keys on Mia&#x27;s seat (shows on their Home and My bookings)
+    Inv-&gt;&gt;SES: email Family B - an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    B-&gt;&gt;API: open the link, Home or My bookings, signed in - confirm page shows Mia&#x27;s clashes (ADR-025 d5)
+    B-&gt;&gt;API: Go ahead
+    Note over API: ADR-024&#x27;s link check on Mia (or, new to the coach, Mia is in Family B) -&lt;br/&gt;accepting is Family B&#x27;s own write, conditioned on no clientId, INVITED, studentId = Mia
+    loop each date - lesson by lesson
+        alt Mia is already the coach&#x27;s student
+            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
+        else Mia isn&#x27;t the coach&#x27;s student yet
+            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → AWAITING_COACH, clientId = Family B
+        end
+    end
+    opt Mia isn&#x27;t the coach&#x27;s student yet
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING - the sign-up route (§6.7)
+        Note over AC: Coach taps Accept on the pending list
+        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, and in the same request every one of Mia&#x27;s&lt;br/&gt;AWAITING_COACH seats → BOOKED, each if its lesson hasn&#x27;t started,&lt;br/&gt;shareCount + 1 and Mia added to joinOrder on each lesson time - the coach&#x27;s own write
+    end
+    DB-&gt;&gt;Bus: (stream) the seat changes
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
+    opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
+        Inv-&gt;&gt;DB: Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
+        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
+    end
+    Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
+    Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price.&lt;br/&gt;A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
+    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;no longer available after the coach&#x27;s Accept (ADR-031 d14)</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -1604,99 +1803,222 @@ sequenceDiagram
     participant API as api-client λ
     participant DB as DynamoDB
     participant Bus as EventBridge
-    participant Inv as consumer-invite λ
+    participant Inv as Invite λ
     participant SES as SES
     participant B as Family B (web)
     participant AC as api-coach λ
     A-&gt;&gt;API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
-    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; — display name only (d4)
-    API--&gt;&gt;A: &quot;Mia R.&quot; — the booking continues as a normal private booking (§6.1)
-    A-&gt;&gt;API: invite Mia
-    API-&gt;&gt;DB: put CLIENT#35;&lt;familyA&gt; / INVITE#35;&lt;inviteId&gt;, inviteStatus SENT,&lt;br/&gt;stamp invitedStudentId on each booking in the series (d5 step 1)
-    DB-&gt;&gt;Bus: (stream) InviteChanged
-    Bus-&gt;&gt;Inv: route
-    Inv-&gt;&gt;DB: copy the invitation into CLIENT#35;&lt;familyB&gt;
-    Inv-&gt;&gt;SES: email Family B now — an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
-    B-&gt;&gt;API: open the link and sign in — confirm page shows Mia&#x27;s clashes (ADR-025 d5)
-    B-&gt;&gt;API: Go ahead
-    alt Mia is already the coach&#x27;s student
-        API-&gt;&gt;DB: TransactWriteItems in Family B&#x27;s session (d3) — skaterCount + 1&lt;br/&gt;if &lt; maxSkaters and booking exists + put PARTICIPANT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt;&lt;br/&gt;attribute_not_exists(SK), both or neither
-    else Mia isn&#x27;t the coach&#x27;s student yet
-        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING with pendingJoins (booking key, inviteId),&lt;br/&gt;the sign-up route (§6.7), after checking B holds the invitation — invite AWAITING_COACH
-        Note over AC: Coach taps Accept on the pending list
-        AC-&gt;&gt;DB: per pendingJoins entry, the join transaction with conditions — booking exists,&lt;br/&gt;startsAtUtc &gt; now, room left, invitedStudentId = Mia, no PARTICIPANT#35; yet (d5)
-        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, clear pendingJoins, record each lesson&#x27;s outcome
-        DB-&gt;&gt;Bus: (stream) StudentChanged
-        Bus-&gt;&gt;Inv: route (also to consumer-student-link, §6.7)
-        Inv-&gt;&gt;DB: update both invitations — CONFIRMED, or EXPIRED where the join failed
-        Inv-&gt;&gt;SES: tell Family B of any lesson no longer available
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId and display name
+    API--&gt;&gt;A: &quot;Mia R.&quot; - the display name only (ADR-026 d4)
+    A-&gt;&gt;API: book with the share code (§6.1)
+    loop each date - one transaction per date
+        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)
     end
-    Note over Inv,A: consumer-invite copies each status change to Family A&#x27;s copy (d5 step 6) —&lt;br/&gt;A&#x27;s booking shows both skaters, never B&#x27;s participant item
-    Note over AC,B: Coach declines instead — Mia is deleted (ADR-002 d2b), invite DECLINED, Family A told,&lt;br/&gt;B gets the ordinary decline email. Lesson passes first — EXPIRED by the sweep (§6.10)</code></pre>
+    DB-&gt;&gt;Bus: (stream) a seat written INVITED (event name to be set)
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: read-only copies (ADR-031 d6) - partnerName and partnerStatus on both seats,&lt;br/&gt;invitedClientId + Family B&#x27;s GSI1 keys on Mia&#x27;s seat (shows on their Home and My bookings)
+    Inv-&gt;&gt;SES: email Family B - an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    B-&gt;&gt;API: open the link, Home or My bookings, signed in - confirm page shows Mia&#x27;s clashes (ADR-025 d5)
+    B-&gt;&gt;API: Go ahead
+    Note over API: ADR-024&#x27;s link check on Mia (or, new to the coach, Mia is in Family B) -&lt;br/&gt;accepting is Family B&#x27;s own write, conditioned on no clientId, INVITED, studentId = Mia
+    loop each date - lesson by lesson
+        alt Mia is already the coach&#x27;s student
+            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
+        else Mia isn&#x27;t the coach&#x27;s student yet
+            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → AWAITING_COACH, clientId = Family B
+        end
+    end
+    opt Mia isn&#x27;t the coach&#x27;s student yet
+        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING - the sign-up route (§6.7)
+        Note over AC: Coach taps Accept on the pending list
+        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, and in the same request every one of Mia&#x27;s&lt;br/&gt;AWAITING_COACH seats → BOOKED, each if its lesson hasn&#x27;t started,&lt;br/&gt;shareCount + 1 and Mia added to joinOrder on each lesson time - the coach&#x27;s own write
+    end
+    DB-&gt;&gt;Bus: (stream) the seat changes
+    Bus-&gt;&gt;Inv: route
+    Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
+    opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
+        Inv-&gt;&gt;DB: Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
+        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
+    end
+    Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
+    Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price.&lt;br/&gt;A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
+    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;no longer available after the coach&#x27;s Accept (ADR-031 d14)</code></pre>
         </details>
       </figure>
 
-      <figure id="d14">
+      <figure id="d16">
         <figcaption>
-          <span class="num">14</span>
-          <span class="ttl">6.10 Nightly invitation sweep</span>
+          <span class="num">16</span>
+          <span class="ttl">6.9 Shared lesson by invitation</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant L as Leaving family (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant S as Staying family (web)
+    participant Sw as Deadline sweep λ
+    participant Inv as Invite λ
+    participant N as Change notifier λ
+    L-&gt;&gt;API: cancel one lesson, or cancel the series
+    loop each date - one transaction per date
+        alt in time - outside the notice period
+            API-&gt;&gt;DB: leaver&#x27;s seat → CANCELLED#35; line, seatsTaken drops&lt;br/&gt;+ the lesson time records a pending leave (leaveId, leftStudentId, leftAt,&lt;br/&gt;stayingStudentId, answerBy) and an ANSWER deadline (GSI4).&lt;br/&gt;joinOrder unchanged until the answer - the staying seat is not touched
+            Note over API,DB: answerBy = the start of the notice period,&lt;br/&gt;or 7 days after the leave, whichever comes first
+            Inv-&gt;&gt;DB: (stream - the lesson time&#x27;s pendingLeave changed) copy answerBy&lt;br/&gt;onto the staying seat as choiceAnswerBy
+            Inv-&gt;&gt;S: &quot;the other skater can&#x27;t make it - keep or cancel&quot; email
+        else late - inside the notice period
+            API-&gt;&gt;DB: leaver&#x27;s seat → CANCELLED#35; line with their share of the fee (Phase 2),&lt;br/&gt;seatsTaken drops - shareCount and joinOrder unchanged, the staying skater keeps their share, not asked
+        end
+    end
+    Note over DB,Inv: consumer-invite refreshes the staying seat&#x27;s partner fields (ADR-031 d6)&lt;br/&gt;and clears choiceAnswerBy once the pending leave is answered or cancelled
+    S-&gt;&gt;API: open the card - one date, or the series card with the remaining dates
+    alt keep - one date, per date, or Keep all remaining dates
+        API-&gt;&gt;DB: per date, re-checked first - the staying family&#x27;s own write to the lesson time:&lt;br/&gt;pending leave and ANSWER deadline cleared, shareCount = 1,&lt;br/&gt;joinOrder = the remaining skaters - now a freed place
+    else cancel - one date, per date, or Cancel all after &quot;No charge. This can&#x27;t be undone.&quot;
+        API-&gt;&gt;DB: per date, re-checked first - their own seat → CANCELLED#35; line, no charge,&lt;br/&gt;pending leave and ANSWER deadline cleared, lesson time OPEN when its last seat goes
+        N-&gt;&gt;S: cancel all - one email listing the dates, the coach isn&#x27;t emailed
+    else no answer by answerBy
+        Sw-&gt;&gt;DB: the hourly sweep, a system function, cancels with no charge&lt;br/&gt;in its own change batch, cancelledBy = NO_ANSWER (§6.10)
+        N-&gt;&gt;S: &quot;cancelled, no answer&quot; email, once the batch is EXECUTED
+    end
+    Note over API,DB: a date that has started, or was already answered or cancelled,&lt;br/&gt;is skipped and listed as no longer available
+    opt kept - Invite a skater on My bookings (a freed place, ADR-031 d10)
+        S-&gt;&gt;API: share code, for that one lesson only
+        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant L as Leaving family (web)
+    participant API as api-client λ
+    participant DB as DynamoDB
+    participant S as Staying family (web)
+    participant Sw as Deadline sweep λ
+    participant Inv as Invite λ
+    participant N as Change notifier λ
+    L-&gt;&gt;API: cancel one lesson, or cancel the series
+    loop each date - one transaction per date
+        alt in time - outside the notice period
+            API-&gt;&gt;DB: leaver&#x27;s seat → CANCELLED#35; line, seatsTaken drops&lt;br/&gt;+ the lesson time records a pending leave (leaveId, leftStudentId, leftAt,&lt;br/&gt;stayingStudentId, answerBy) and an ANSWER deadline (GSI4).&lt;br/&gt;joinOrder unchanged until the answer - the staying seat is not touched
+            Note over API,DB: answerBy = the start of the notice period,&lt;br/&gt;or 7 days after the leave, whichever comes first
+            Inv-&gt;&gt;DB: (stream - the lesson time&#x27;s pendingLeave changed) copy answerBy&lt;br/&gt;onto the staying seat as choiceAnswerBy
+            Inv-&gt;&gt;S: &quot;the other skater can&#x27;t make it - keep or cancel&quot; email
+        else late - inside the notice period
+            API-&gt;&gt;DB: leaver&#x27;s seat → CANCELLED#35; line with their share of the fee (Phase 2),&lt;br/&gt;seatsTaken drops - shareCount and joinOrder unchanged, the staying skater keeps their share, not asked
+        end
+    end
+    Note over DB,Inv: consumer-invite refreshes the staying seat&#x27;s partner fields (ADR-031 d6)&lt;br/&gt;and clears choiceAnswerBy once the pending leave is answered or cancelled
+    S-&gt;&gt;API: open the card - one date, or the series card with the remaining dates
+    alt keep - one date, per date, or Keep all remaining dates
+        API-&gt;&gt;DB: per date, re-checked first - the staying family&#x27;s own write to the lesson time:&lt;br/&gt;pending leave and ANSWER deadline cleared, shareCount = 1,&lt;br/&gt;joinOrder = the remaining skaters - now a freed place
+    else cancel - one date, per date, or Cancel all after &quot;No charge. This can&#x27;t be undone.&quot;
+        API-&gt;&gt;DB: per date, re-checked first - their own seat → CANCELLED#35; line, no charge,&lt;br/&gt;pending leave and ANSWER deadline cleared, lesson time OPEN when its last seat goes
+        N-&gt;&gt;S: cancel all - one email listing the dates, the coach isn&#x27;t emailed
+    else no answer by answerBy
+        Sw-&gt;&gt;DB: the hourly sweep, a system function, cancels with no charge&lt;br/&gt;in its own change batch, cancelledBy = NO_ANSWER (§6.10)
+        N-&gt;&gt;S: &quot;cancelled, no answer&quot; email, once the batch is EXECUTED
+    end
+    Note over API,DB: a date that has started, or was already answered or cancelled,&lt;br/&gt;is skipped and listed as no longer available
+    opt kept - Invite a skater on My bookings (a freed place, ADR-031 d10)
+        S-&gt;&gt;API: share code, for that one lesson only
+        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d17">
+        <figcaption>
+          <span class="num">17</span>
+          <span class="ttl">6.10 Hourly deadline sweep</span>
           <span class="kind">Sequence</span>
         </figcaption>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
     participant Sch as EventBridge Scheduler
-    participant Inv as consumer-invite λ
+    participant Sw as Deadline sweep λ
     participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Inv as Invite λ
+    participant N as Change notifier λ
     participant SES as SES
     participant CW as CloudWatch
-    Sch-&gt;&gt;Inv: nightly, right after the 9 PM end-of-day report (§8)
-    Inv-&gt;&gt;DB: Query GSI2 by date — upcoming bookings carrying invitedStudentId
-    loop each invitation on those bookings
-        alt lesson has started, inviteStatus still SENT or AWAITING_COACH
-            Inv-&gt;&gt;DB: inviteStatus = EXPIRED
-            Inv-&gt;&gt;SES: email both families (Reply-To the coach&#x27;s businessEmail)
-            Note over Inv,SES: never-accepted skater — &quot;reach out to Coach Dana&quot;&lt;br/&gt;already a student — the &quot;no longer available&quot; email
-        else AWAITING_COACH, no warnedAt, warning due before the next run
-            Note over Inv: due = startsAtUtc − (24h + requiredNoticeHours stamped on the booking)
-            Inv-&gt;&gt;SES: warning email to Family A, Family B and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
-            Inv-&gt;&gt;DB: stamp warnedAt — each warning is sent once
+    Sch-&gt;&gt;Sw: every hour (§8)
+    Sw-&gt;&gt;DB: Query GSI4 - GSI4PK = DUE, everything due up to now
+    loop each due record - an invited seat, or a lesson time with a pending leave
+        Sw-&gt;&gt;DB: re-read the record, and the lesson time and its seats
+        alt the deadline no longer applies
+            Note over Sw: skipped - answered, joined, cancelled or moved since
+        else WARN - the shared-lesson warning
+            alt this is the 9pm run before it&#x27;s due
+                Sw-&gt;&gt;SES: warning email to both families and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
+            else any other hour
+                Note over Sw: held for the 9pm run - never late, never at night
+            end
+        else EXPIRE - still INVITED or AWAITING_COACH at the lesson&#x27;s start
+            Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome EXPIRED, endedBy SWEEP,&lt;br/&gt;seatsTaken drops, the lesson stays private at the full price
+            DB-&gt;&gt;Bus: (stream) the seat change
+            Bus-&gt;&gt;Inv: route
+            Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
+        else ANSWER - no answer by answerBy
+            Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
+            DB-&gt;&gt;Bus: (stream) LessonsChanged
+            Bus-&gt;&gt;N: route
+            N-&gt;&gt;SES: &quot;cancelled, no answer&quot; email at once
         end
+        Sw-&gt;&gt;DB: set the record&#x27;s next deadline (dueAt, dueKind, GSI4 key), or remove it
     end
-    Inv-&gt;&gt;CW: InviteSweepCompleted metric
-    Note over CW: ADR-010&#x27;s missed-run alarm watches this metric —&lt;br/&gt;event-driven runs of the same function would hide a missed sweep
-    Note over Inv: a missed night catches up the next night. A late confirmation that is already&lt;br/&gt;due gets its warning straight away from the event-driven path (ADR-026 d5a)</pre>
+    Sw-&gt;&gt;CW: DeadlineSweepCompleted metric
+    Note over CW: ADR-010&#x27;s missed-run alarm pages after 2 hours with no completed run.&lt;br/&gt;A missed hour catches up on the next run</pre>
         </div>
         <details>
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
     participant Sch as EventBridge Scheduler
-    participant Inv as consumer-invite λ
+    participant Sw as Deadline sweep λ
     participant DB as DynamoDB
+    participant Bus as EventBridge
+    participant Inv as Invite λ
+    participant N as Change notifier λ
     participant SES as SES
     participant CW as CloudWatch
-    Sch-&gt;&gt;Inv: nightly, right after the 9 PM end-of-day report (§8)
-    Inv-&gt;&gt;DB: Query GSI2 by date — upcoming bookings carrying invitedStudentId
-    loop each invitation on those bookings
-        alt lesson has started, inviteStatus still SENT or AWAITING_COACH
-            Inv-&gt;&gt;DB: inviteStatus = EXPIRED
-            Inv-&gt;&gt;SES: email both families (Reply-To the coach&#x27;s businessEmail)
-            Note over Inv,SES: never-accepted skater — &quot;reach out to Coach Dana&quot;&lt;br/&gt;already a student — the &quot;no longer available&quot; email
-        else AWAITING_COACH, no warnedAt, warning due before the next run
-            Note over Inv: due = startsAtUtc − (24h + requiredNoticeHours stamped on the booking)
-            Inv-&gt;&gt;SES: warning email to Family A, Family B and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
-            Inv-&gt;&gt;DB: stamp warnedAt — each warning is sent once
+    Sch-&gt;&gt;Sw: every hour (§8)
+    Sw-&gt;&gt;DB: Query GSI4 - GSI4PK = DUE, everything due up to now
+    loop each due record - an invited seat, or a lesson time with a pending leave
+        Sw-&gt;&gt;DB: re-read the record, and the lesson time and its seats
+        alt the deadline no longer applies
+            Note over Sw: skipped - answered, joined, cancelled or moved since
+        else WARN - the shared-lesson warning
+            alt this is the 9pm run before it&#x27;s due
+                Sw-&gt;&gt;SES: warning email to both families and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
+            else any other hour
+                Note over Sw: held for the 9pm run - never late, never at night
+            end
+        else EXPIRE - still INVITED or AWAITING_COACH at the lesson&#x27;s start
+            Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome EXPIRED, endedBy SWEEP,&lt;br/&gt;seatsTaken drops, the lesson stays private at the full price
+            DB-&gt;&gt;Bus: (stream) the seat change
+            Bus-&gt;&gt;Inv: route
+            Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
+        else ANSWER - no answer by answerBy
+            Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
+            DB-&gt;&gt;Bus: (stream) LessonsChanged
+            Bus-&gt;&gt;N: route
+            N-&gt;&gt;SES: &quot;cancelled, no answer&quot; email at once
         end
+        Sw-&gt;&gt;DB: set the record&#x27;s next deadline (dueAt, dueKind, GSI4 key), or remove it
     end
-    Inv-&gt;&gt;CW: InviteSweepCompleted metric
-    Note over CW: ADR-010&#x27;s missed-run alarm watches this metric —&lt;br/&gt;event-driven runs of the same function would hide a missed sweep
-    Note over Inv: a missed night catches up the next night. A late confirmation that is already&lt;br/&gt;due gets its warning straight away from the event-driven path (ADR-026 d5a)</code></pre>
+    Sw-&gt;&gt;CW: DeadlineSweepCompleted metric
+    Note over CW: ADR-010&#x27;s missed-run alarm pages after 2 hours with no completed run.&lt;br/&gt;A missed hour catches up on the next run</code></pre>
         </details>
       </figure>
 
-      <figure id="d15">
+      <figure id="d18">
         <figcaption>
-          <span class="num">15</span>
+          <span class="num">18</span>
           <span class="ttl">6.11 Coach sign-up</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1760,9 +2082,75 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d16">
+      <figure id="d19">
         <figcaption>
-          <span class="num">16</span>
+          <span class="num">19</span>
+          <span class="ttl">Authorization (data isolation)</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant U as Coach or family (web)
+    participant GW as API Gateway
+    participant F as api-coach λ&lt;br/&gt;or api-client λ
+    participant STS as AWS STS (Security Token Service)
+    participant DB as DynamoDB
+    U-&gt;&gt;GW: request with Cognito token
+    GW-&gt;&gt;F: authorizer passed
+    Note over F: the function&#x27;s own role has no DynamoDB actions at all (ADR-021 d2, ADR-022 d1)
+    F-&gt;&gt;F: verify the token - the caller is its sub, never the request body
+    alt api-coach
+        F-&gt;&gt;STS: AssumeRole coach-tenant - tag coachId = sub,&lt;br/&gt;source identity sub, session name coach-sub
+        STS--&gt;&gt;F: credentials for that coach only (cached per container)
+    else api-client
+        F-&gt;&gt;STS: session 1 - AssumeRole client-tenant tagged clientId = sub
+        F-&gt;&gt;DB: read the family&#x27;s own link items (CLIENT#35;sub)
+        DB--&gt;&gt;F: coachId and linkStatus (ACTIVE or PENDING)
+        F-&gt;&gt;STS: session 2 - tagged clientId, coachId, linkStatus (ADR-022 d2)
+        STS--&gt;&gt;F: credentials (cached per tag set)
+    end
+    F-&gt;&gt;DB: read or write with those credentials
+    alt key inside the tagged partition
+        DB--&gt;&gt;F: done
+    else any other partition
+        DB--&gt;&gt;F: AccessDenied - refused by the database,&lt;br/&gt;whatever the code asked for (LeadingKeys condition)
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant U as Coach or family (web)
+    participant GW as API Gateway
+    participant F as api-coach λ&lt;br/&gt;or api-client λ
+    participant STS as AWS STS (Security Token Service)
+    participant DB as DynamoDB
+    U-&gt;&gt;GW: request with Cognito token
+    GW-&gt;&gt;F: authorizer passed
+    Note over F: the function&#x27;s own role has no DynamoDB actions at all (ADR-021 d2, ADR-022 d1)
+    F-&gt;&gt;F: verify the token - the caller is its sub, never the request body
+    alt api-coach
+        F-&gt;&gt;STS: AssumeRole coach-tenant - tag coachId = sub,&lt;br/&gt;source identity sub, session name coach-sub
+        STS--&gt;&gt;F: credentials for that coach only (cached per container)
+    else api-client
+        F-&gt;&gt;STS: session 1 - AssumeRole client-tenant tagged clientId = sub
+        F-&gt;&gt;DB: read the family&#x27;s own link items (CLIENT#35;sub)
+        DB--&gt;&gt;F: coachId and linkStatus (ACTIVE or PENDING)
+        F-&gt;&gt;STS: session 2 - tagged clientId, coachId, linkStatus (ADR-022 d2)
+        STS--&gt;&gt;F: credentials (cached per tag set)
+    end
+    F-&gt;&gt;DB: read or write with those credentials
+    alt key inside the tagged partition
+        DB--&gt;&gt;F: done
+    else any other partition
+        DB--&gt;&gt;F: AccessDenied - refused by the database,&lt;br/&gt;whatever the code asked for (LeadingKeys condition)
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d20">
+        <figcaption>
+          <span class="num">20</span>
           <span class="ttl">Client writes into a coach&#x27;s partition</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -1795,12 +2183,13 @@ sequenceDiagram
         CD-&gt;&gt;DB: update or delete with condition clientId = :callerSub,&lt;br/&gt;added inside the repository method
         alt the family&#x27;s own
             DB--&gt;&gt;CD: written
-        else another family&#x27;s booking
+        else another family&#x27;s seat
             DB--&gt;&gt;CD: ConditionalCheckFailed
             CD-&gt;&gt;CW: security event to the access-log group - identifiers only
             API--&gt;&gt;F: 404 not found
         end
     end
+    Note over API,DB: an invited seat has no clientId until accepted (ADR-031 d5) - withdrawing it is&lt;br/&gt;conditioned on invitedByClientId = :callerSub and INVITED - accepting takes a LinkedSkater
     Note over CW: a metric counts security events (ADR-024 d3)
     opt one family 3+ in 15 minutes, or everyone 10+ in a day (configurable)
         CW-&gt;&gt;SNS: alarm pages the owner (ADR-010 d4)
@@ -1836,12 +2225,13 @@ sequenceDiagram
         CD-&gt;&gt;DB: update or delete with condition clientId = :callerSub,&lt;br/&gt;added inside the repository method
         alt the family&#x27;s own
             DB--&gt;&gt;CD: written
-        else another family&#x27;s booking
+        else another family&#x27;s seat
             DB--&gt;&gt;CD: ConditionalCheckFailed
             CD-&gt;&gt;CW: security event to the access-log group - identifiers only
             API--&gt;&gt;F: 404 not found
         end
     end
+    Note over API,DB: an invited seat has no clientId until accepted (ADR-031 d5) - withdrawing it is&lt;br/&gt;conditioned on invitedByClientId = :callerSub and INVITED - accepting takes a LinkedSkater
     Note over CW: a metric counts security events (ADR-024 d3)
     opt one family 3+ in 15 minutes, or everyone 10+ in a day (configurable)
         CW-&gt;&gt;SNS: alarm pages the owner (ADR-010 d4)
@@ -1850,9 +2240,59 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d17">
+      <figure id="d21">
         <figcaption>
-          <span class="num">17</span>
+          <span class="num">21</span>
+          <span class="ttl">Data protection</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant DB as DynamoDB
+    participant St as DynamoDB Streams
+    participant P as EventBridge Pipe
+    participant A as TTL archiver λ
+    participant S3 as S3 archive bucket
+    DB-&gt;&gt;DB: TTL deletes an item past its expiresAt (typically within a few days)
+    DB-&gt;&gt;St: REMOVE record with the item&#x27;s old image
+    St-&gt;&gt;P: read by the notification pipe
+    Note over P: drops TTL removals on purpose - nothing reacts to an expiry (ADR-017 d4)
+    St-&gt;&gt;A: second reader - its filter matches only REMOVEs made by DynamoDB itself
+    Note over St,A: deletes the app makes (a cancelled seat) are not archived -&lt;br/&gt;they already leave a CANCELLED#35; record
+    A-&gt;&gt;S3: PutObject the old image, key derived from the item&#x27;s key
+    Note over A,S3: a redelivered event rewrites the same object - idempotent.&lt;br/&gt;No table access at all.
+    Note over S3: moves to Glacier Deep Archive after 30 days
+    opt the archiver keeps failing
+        Note over St,A: no dead-letter queue - the stream-age alarm (ADR-010 d6) raises it,&lt;br/&gt;PITR (point-in-time recovery, 35 days) is the fallback (ADR-010)
+    end</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant DB as DynamoDB
+    participant St as DynamoDB Streams
+    participant P as EventBridge Pipe
+    participant A as TTL archiver λ
+    participant S3 as S3 archive bucket
+    DB-&gt;&gt;DB: TTL deletes an item past its expiresAt (typically within a few days)
+    DB-&gt;&gt;St: REMOVE record with the item&#x27;s old image
+    St-&gt;&gt;P: read by the notification pipe
+    Note over P: drops TTL removals on purpose - nothing reacts to an expiry (ADR-017 d4)
+    St-&gt;&gt;A: second reader - its filter matches only REMOVEs made by DynamoDB itself
+    Note over St,A: deletes the app makes (a cancelled seat) are not archived -&lt;br/&gt;they already leave a CANCELLED#35; record
+    A-&gt;&gt;S3: PutObject the old image, key derived from the item&#x27;s key
+    Note over A,S3: a redelivered event rewrites the same object - idempotent.&lt;br/&gt;No table access at all.
+    Note over S3: moves to Glacier Deep Archive after 30 days
+    opt the archiver keeps failing
+        Note over St,A: no dead-letter queue - the stream-age alarm (ADR-010 d6) raises it,&lt;br/&gt;PITR (point-in-time recovery, 35 days) is the fallback (ADR-010)
+    end</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d22">
+        <figcaption>
+          <span class="num">22</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Flowchart</span>
         </figcaption>
@@ -1872,7 +2312,8 @@ flowchart LR
     subgraph Dev[&quot;Dev account (built on demand, ADR-027 d8)&quot;]
         Seed[&quot;Seed data file&lt;br/&gt;(the default)&quot;]
         DevTable[(&quot;Dev table&lt;br/&gt;created from one import (ADR-028)&quot;)]
-        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every load and daily,&lt;br/&gt;can read dev only)&quot;]
+        DevReports[&quot;🪣 Dev reports bucket&quot;]
+        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every masked build,&lt;br/&gt;daily, and on demand -&lt;br/&gt;can read dev only)&quot;]
     end
     SFN --&gt;|starts export| DDB
     DDB --&gt;|export, optionally --as-of within PITR| ExportB --&gt; L_Transform
@@ -1881,7 +2322,8 @@ flowchart LR
     L_Transform -.-&gt;|a check fails: stop, nothing written| SFN
     MaskedB --&gt;|imported when dev is built| DevTable
     Seed -.-&gt;|or, by default| DevTable
-    Scanner --&gt;|scans| DevTable</pre>
+    Scanner --&gt;|scans| DevTable
+    Scanner --&gt;|scans| DevReports</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -1899,7 +2341,8 @@ flowchart LR
     subgraph Dev[&quot;Dev account (built on demand, ADR-027 d8)&quot;]
         Seed[&quot;Seed data file&lt;br/&gt;(the default)&quot;]
         DevTable[(&quot;Dev table&lt;br/&gt;created from one import (ADR-028)&quot;)]
-        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every load and daily,&lt;br/&gt;can read dev only)&quot;]
+        DevReports[&quot;🪣 Dev reports bucket&quot;]
+        Scanner[&quot;λ Dev scanner&lt;br/&gt;(after every masked build,&lt;br/&gt;daily, and on demand -&lt;br/&gt;can read dev only)&quot;]
     end
     SFN --&gt;|starts export| DDB
     DDB --&gt;|export, optionally --as-of within PITR| ExportB --&gt; L_Transform
@@ -1908,13 +2351,14 @@ flowchart LR
     L_Transform -.-&gt;|a check fails: stop, nothing written| SFN
     MaskedB --&gt;|imported when dev is built| DevTable
     Seed -.-&gt;|or, by default| DevTable
-    Scanner --&gt;|scans| DevTable</code></pre>
+    Scanner --&gt;|scans| DevTable
+    Scanner --&gt;|scans| DevReports</code></pre>
         </details>
       </figure>
 
-      <figure id="d18">
+      <figure id="d23">
         <figcaption>
-          <span class="num">18</span>
+          <span class="num">23</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Sequence</span>
         </figcaption>

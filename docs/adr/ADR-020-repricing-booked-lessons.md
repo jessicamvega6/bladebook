@@ -38,6 +38,28 @@ ADR's rule for price increases.
 **Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. Decision 6's text message and the price-change
 templates in Open wait for it; in MVP families are told by email only.
 
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+stores every bookable time as a **lesson time** (`LESSON#`) and gives each skater a **seat**
+(`SEAT#`). This ADR's rules now apply **per seat** (ADR-031 decision 11):
+
+- **The schedule save compares lesson times**, old against new, and sorts each into **add,
+  remove, cancel or re-price**, with one evaluator for preview and execution.
+- **Re-price** changes the lesson time's price, ~~then each seat follows decision 2:~~
+  increases only beyond the notice period, decreases at once, **paid and waived seats never**.
+  ~~Then the **shares are re-split** among the booked seats (ADR-031 decision 7).~~
+  *Revised 2026-10-13 (ADR-031 revision): a re-price changes **only** the lesson time's
+  `priceMinor`. No seat is written. A share is worked out as `priceMinor ÷ shareCount`, so every
+  share not yet fixed follows the new price. A seat with a fixed `amountMinor` (checked in, no-show,
+  paid or waived) keeps it. So the amounts can add up to a little more or less than the new
+  price, and that's accepted (ADR-031 decision 7).*
+- **Remove** deletes an `OPEN` lesson time **only if it is still `OPEN`**. If a family booked it
+  after the preview, that line becomes **cancel** in the same batch, and the family gets the
+  ordinary cancellation email. This is how the 2026-10-08 and 2026-10-09 amendments' "booking
+  that lands between preview and save" is now handled, and a booking can no longer land on a
+  time the new schedule removed.
+
+Every behaviour rule here still holds.
+
 ---
 
 ## Context
@@ -70,11 +92,18 @@ upcoming booking that block produces is re-priced to the new amount, subject to 
 - **Which bookings:** those whose time slot the new schedule still produces — same start
   time, same length — where the producing block's price differs from the booking's stamped
   `priceMinor`. A booking the new schedule no longer produces is cancelled, as before; one
-  booking is never both.
+  booking is never both. *Replaced by ADR-031 decision 11 (2026-10-13): the comparison is of
+  **lesson times**. A lesson time whose price differs is re-priced; ~~each of its seats follows
+  decision 2, and the shares are re-split among the booked seats~~.* *Revised 2026-10-13
+  (ADR-031 revision): only the lesson time's `priceMinor` changes; shares not yet fixed follow
+  it.*
 - **Past lessons never change.** Neither does any lesson already marked paid or waived, even
-  if it is in the future: its money question is settled.
+  if it is in the future: its money question is settled. *Since ADR-031 (2026-10-13) this is
+  judged per seat: a paid or waived seat never changes, even when the other seat in a shared
+  lesson is re-priced.* *Revised 2026-10-13 (ADR-031 revision): such a seat has a fixed
+  `amountMinor`, which a re-price never touches.*
 - **A student's personal price override** (`priceMinorOverride`) is left alone. The coach set
-  it deliberately, and a block's price change does not reach it.
+  it deliberately, and a block's price change does not reach it. *(Phase 2 since 2026-10-13, ADR-003.)*
 - **Dates covered by a temporary schedule** follow that temporary schedule's blocks, so a
   change to the default does not re-price them, and a change to the temporary schedule does.
 
@@ -136,16 +165,26 @@ Re-pricing runs through the existing schedule-change path; nothing listens separ
 1. The coach saves; `api-coach` writes the schedule and nothing else.
 2. The change stream produces `ScheduleChanged`, delivered to **one** consumer,
    `consumer-schedule-change`.
-3. The consumer re-reads the upcoming bookings and runs **the shared evaluator in `core/`**,
-   which sorts each booking into exactly one of: *unchanged*, *cancel*, or *re-price*.
-4. The consumer writes the whole plan first, all `PLANNED` (ADR-010 decision 5c): a
-   cancellation line per booking to cancel, a **re-price line** per booking to re-price.
+3. ~~The consumer re-reads the upcoming bookings and runs **the shared evaluator in `core/`**,
+   which sorts each booking into exactly one of: *unchanged*, *cancel*, or *re-price*.~~
+4. The consumer writes the whole plan first, all `PLANNED` (ADR-010 decision 5c): ~~a
+   cancellation line per booking to cancel, a **re-price line** per booking to re-price.~~
 5. The consumer carries out each line in its own transaction:
-   - a cancellation line deletes its booking, as before;
-   - a re-price line sets the booking's price (and fee) to the new values **only if the
-     booking still exists and still carries the old values**, marking the line `EXECUTED`; if
-     the booking changed in the meantime — the family cancelled it a second ago — the line is
+   - ~~a cancellation line deletes its booking, as before;~~
+   - a re-price line sets the ~~booking's~~ price (and fee) to the new values **only if the
+     ~~booking~~ still exists and still carries the old values**, marking the line `EXECUTED`; if
+     the ~~booking~~ changed in the meantime — the family cancelled it a second ago — the line is
      marked `SKIPPED`.
+
+   *Replaced by ADR-031 decision 11 (2026-10-13): the evaluator compares the **lesson times**
+   the old and new schedules produce and sorts each into *add*, *remove*, *cancel* or
+   *re-price*. **Remove** deletes an `OPEN` lesson time only if it is still `OPEN`; otherwise the
+   line becomes *cancel* in the same batch. **Cancel** moves every seat to a `CANCELLED#` line
+   and deletes the lesson time. **Re-price** updates the lesson time ~~and each seat that decision
+   2 allows~~, re-checked first~~, then re-splits the shares~~. ADR-010 decision 5's batch — claim,
+   write the whole plan, re-check each line, mark executed last, notify after — is unchanged.*
+   *Revised 2026-10-13 (ADR-031 revision): a re-price writes only the lesson time's `priceMinor`.
+   A `REPRICED#` line is still written per seat whose share changes, for the email.*
 6. The consumer marks the batch header `EXECUTED`, and the notifier sends **one message per
    family** covering everything in the batch (ADR-010 decision 5f).
 
@@ -158,8 +197,8 @@ and apply the same rules with no control over which runs first. One could re-pri
 the other is about to delete, and the family would be told both "your lesson is now $60" and
 "your lesson is cancelled". One consumer classifies each booking once.
 
-**The re-price line** (`REPRICED#<isoTs>#<batchId>#<bookingId>`) records the booking, the
-student, the client, the date and time, the old and new price, the old and new fee, the
+**The re-price line** (`REPRICED#<isoTs>#<batchId>#<bookingId>`) records the ~~booking~~ *seat
+(ADR-031, 2026-10-13)*, the student, the client, the date and time, the old and new price, the old and new fee, the
 direction, `executionStatus` and `notificationStatus` — the same notification fields a
 cancellation line carries, so "was this family told" has the same answer for both.
 
@@ -221,7 +260,7 @@ batch that simply contains cancellation lines only.
   **Must be settled before re-pricing is built.**
 - **Changing a student's price override.** Whether that re-prices the student's upcoming
   lessons under decision 2's rules, and what shape the override takes (fixed price,
-  percentage off, dollar amount off). Also §5 of the list for Kim.
+  percentage off, dollar amount off). Also §5 of the list for Kim. *Phase 2 since 2026-10-13 (ADR-003).*
 - **The large-change threshold.** How much a price must change to trigger decision 4's
   warning. Depends on how much coaches normally change prices — in *Items to Ask Kim About*.
 - **Changing `requiredNoticeHours` itself.** From Phase 2 a coach can edit their notice

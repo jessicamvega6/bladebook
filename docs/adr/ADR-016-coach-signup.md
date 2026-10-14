@@ -51,6 +51,26 @@ Switching a type off keeps its handle, so switching it back on needs no retyping
 Cash App, Venmo or PayPal back on asks the coach to verify that the kept handle is still
 correct** before it takes effect. Cash has no handle, so it switches straight back on.
 
+**Amended — 2026-10-13.** *Decided by the owner through the Harbor design, which is the source of
+truth (`design/harbor/coach`, sign-up step 4 and Profile → Business email).* **A business email
+that differs from the login email must be confirmed by a link before it is used.** Until then,
+families' replies go to the address already in use: the login email at sign-up, or the current
+business email when the coach changes it on the profile. The aim is that a typo can't send
+every family's replies to a stranger. Decision 8 is unchanged: `Reply-To` is always
+`businessEmail`. But `businessEmail` only ever holds a **confirmed** address (or the login email,
+which decision 4 already verifies).
+- **At sign-up**, step 3 offers *Use my login email* or *Use a different email*. A different
+  address gets a link on step 4, with *Resend link*, *Change address* and *Use my login email
+  instead*.
+- **On the profile**, the coach keeps a list of addresses and picks one. *Use a new address*
+  sends a link, and the address can't be picked until it's confirmed. Any address except the
+  current one and the login email can be removed.
+- **BladeBook sends the link**, not Cognito, because Cognito verifies only the login email.
+  It is a new email template (`FeatureDecriptions/Email templates Needed:`).
+- *Open:* how the link is built and how long it lasts. Like ADR-026's invitation link, opening
+  it should lead to a page the coach confirms on, so a mail scanner that follows links can't
+  confirm the address by itself.
+
 ---
 
 ## Context
@@ -148,7 +168,7 @@ gate question reopens immediately, because the account stops being inert.
 |---|---|
 | `firstName`, `lastName` | Replaces the single `name` field |
 | `loginEmail` | The Cognito username; replaces `email` |
-| `businessEmail` | Optional. **Defaults to `loginEmail` when blank** — stored resolved, not blank, so no consumer has to know the rule |
+| `businessEmail` | Optional. **Defaults to `loginEmail` when blank** — stored resolved, not blank, so no consumer has to know the rule *Amended 2026-10-13: a different address must be confirmed by a link first; see the Status section.* |
 | `phone` | New on the coach |
 | `displayPhoneToClients` | Boolean, off by default — see decision 7a |
 | `displayEmailToClients` | Boolean, off by default — shows `businessEmail` to families. *Added 2026-09-30*, decision 7a |

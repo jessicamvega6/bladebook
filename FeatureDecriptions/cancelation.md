@@ -7,6 +7,30 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
   "Inside the N-hour notice period. <coach> may charge a late cancellation fee."
   It says the time goes back on the coach's calendar and the coach will be told, and, for a repeating lesson, that other
   lessons in the series aren't affected. Buttons: "Keep lesson" and "Cancel lesson".
+*Shared lessons (owner, 2026-10-13; ADR-026; bookings-cancel-shared.html, home-share-left.html):* either family can cancel
+  their skater's place, with the same rules whichever family booked it. The pop-up shows their share of the price.
+  In time: the other family is asked to keep it as a private lesson at the full price, or cancel with no charge.
+    They see a card on Home and My bookings; no answer by ~~the start of the notice period~~ *the answer-by time* cancels it, no charge.
+    *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time is whichever comes first, the start of the notice
+    period or 7 days after the other skater left. An unanswered lesson is cancelled with no charge by the hourly check.
+    Both emails ("keep at full price or cancel", "cancelled, no answer") are always sent.*
+  Late: the one cancelling may be charged their share of the late-cancellation fee (half, for two skaters); the other skater keeps their share of the price.
+  *Added 2026-10-13 (ADR-031):*
+  The time goes back on the coach's calendar only when the last skater in it has gone.
+  The staying family's card:
+    Remaining dates are the dates this leave freed that the staying family hasn't answered yet and that are still
+      waiting: not started, answer-by not passed, not cancelled by the coach. Only dates left in time count.
+    One date: the ordinary card. Keep it private at the full price, or cancel with no charge.
+    More than one date: one card for the series. It lists each date with its answer-by time and the totals, and has
+      "Keep all remaining dates", "Cancel all remaining dates" and a keep-or-cancel choice per date.
+      "Cancel all remaining dates" asks for confirmation first: "No charge. This can't be undone."
+    Cards are merged per series: dates still waiting from earlier one-off cancels by the same skater join the series
+      card, each keeping its own answer-by time.
+    Keep all and cancel all check each date again first. A date that has started, or was already answered or
+      cancelled, is skipped and listed as no longer available.
+    Cancelling all sends the family one email listing the cancelled dates. The coach isn't emailed, because none of
+      these cancellations is late.
+    A lesson the family keeps becomes a freed place, and can take a new skater (see 'Schedule lesson split').
 
 
 
@@ -24,6 +48,11 @@ There will also be a button the change the reoccuring frequency, you can change 
   for other families and switching back won't get them back.
   The button reads "Cancel N lessons" and is disabled until the choice is valid and cancels at least one lesson.
   To add lessons, the family books again.
+*Shared series (added 2026-10-13, ADR-031 decision 9):* while a series is shared, only "Cancel one lesson" and "Cancel
+  all future lessons" are offered. "End it earlier" and "Make it less frequent" are hidden. A series is shared while any
+  future lesson in it has another skater, joined or invited. Once none does, both choices come back. Filling a freed
+  date makes it shared again until that lesson is over.
+  Either family cancelling follows the shared-lesson rules above, for each date.
 
 
 
@@ -48,7 +77,7 @@ In week view there will be multiple ways to cancel.
 2) cancel ~~entire week~~ *the rest of the week* (ex emergency came up). *Design: "Cancel rest of week" button.*
 3) cancel per lesson (ex forgotten appts). *Design: click a booked lesson.*
 *Design: day cancel is the "Cancel day" button under each day.*
-each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) is assigned to the coach. The default/temp schedule is not changed. 
+each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) ~~is assigned to the coach~~ *becomes a held lesson time: closed to families, with no skater in it (changed 2026-10-13, ADR-031 decision 1)*. The default/temp schedule is not changed. 
 *Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed", with a
 "Release all" link. A held time stays closed to families.
 

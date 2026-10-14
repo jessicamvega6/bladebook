@@ -40,6 +40,31 @@ against a real table run in the on-demand dev stack (read "staging" as dev).
 [ADR-026](ADR-026-shared-lessons-by-invitation.md): `StudentChanged` also triggers
 `consumer-invite`.
 
+**Note — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+rebuilds booking as **lesson times** and **seats**. What it means here:
+
+- **New item prefixes, all in the coach's partition:** `LESSON#` (a stored lesson time),
+  `SEAT#` (one skater's place in it) and `SEATEND#` (an invitation that ended). Cancelled seats
+  become the existing `CANCELLED#` lines. All sit under `PK = COACH#<coachId>`, so
+  `coach-tenant`'s `LeadingKeys` condition already covers them.
+- **A new sparse index, GSI4**, keyed `GSI4PK = DUE` across every coach, holds seats with a
+  pending deadline. It is cross-tenant, like GSI2. It is read by the hourly scheduled job
+  `sched-deadline-sweep`, never by `coach-tenant`. *Revised 2026-10-13 (ADR-031 revision): it
+  holds seats (`WARN`, `EXPIRE`) and lesson times with a pending leave (`ANSWER`).*
+- **The coach's Accept** now turns every one of the accepted skater's `AWAITING_COACH` seats
+  into `BOOKED`, in the coach's own partition and session, as ADR-026's automatic join did.
+- **Decision 7's gate tests need new rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4
+  (ADR-031 Consequences). They are not written yet.
+- *Added 2026-10-13 (ADR-031 revision):* **`consumer-invite` writes read-only copies on
+  seats**, in whichever coach's partition the lesson is: `partnerName`, `partnerStatus`,
+  `invitedClientId` with the invited family's GSI1 keys, and `choiceAnswerBy`. It is a system
+  function, like `consumer-student-link`, so its writes cross coaches. Its role should allow
+  updating only those attributes on `SEAT#` items (ADR-031 decision 14, Open). It also ends an
+  invited seat as `WITHDRAWN` when the inviting family cancels (ADR-031 decision 5). The role
+  isn't written yet.
+
+Decisions 1–9 are otherwise unchanged.
+
 ---
 
 ## Context
@@ -66,7 +91,8 @@ that way out.
 
 The data model already fits. Every coach entity — profile, default and temporary schedules,
 date overrides, students, bookings, holds, recurrence headers, change batches and their
-lines — lives under `PK = COACH#<coachId>` (§5). GSI3 is keyed `GSI3PK = COACH#<coachId>`.
+lines — lives under `PK = COACH#<coachId>` (§5). *Since ADR-031 (2026-10-13), bookings and
+holds are lesson times (`LESSON#`) and seats (`SEAT#`, `SEATEND#`), also in that partition.* GSI3 is keyed `GSI3PK = COACH#<coachId>`.
 Only three things the coach API touches sit outside that partition: GSI1 (keyed by student),
 the `CODE#` item, and the client's link item. Decisions 4–6 deal with each.
 
@@ -200,7 +226,7 @@ step:
 
 - **`consumer-student-link`** — triggered by a new `StudentChanged` event, which the Pipe
   derives from a `STUDENT#` item under `COACH#` being modified (when `studentStatus`,
-  `studentName` or — *added by ADR-022 decision 6* — `priceMinorOverride` changes) or removed.
+  `studentName` or — *added by ADR-022 decision 6* — `priceMinorOverride` changes *(Phase 2 since 2026-10-13)*) or removed.
 - On modify it sets the changed fields on the link item, conditional on the link existing.
   On removal it deletes the link item. Both are idempotent by construction — setting a value
   twice or deleting twice has one effect — and ADR-010 decision 2's dead-letter queue applies.
@@ -235,6 +261,11 @@ cannot test any of it. Before any coach-path code is written, tests against a re
 | 6 | `PutItem` under `CLIENT#…`; `Query` on GSI1 or GSI2; `Scan` | denied |
 | 7 | `AssumeRole` without the `coachId` tag, or with an extra tag key | refused by the trust policy |
 | 8 | Any DynamoDB call with the execution role's own credentials | denied |
+
+*Note — 2026-10-13: [ADR-031](ADR-031-lessons-and-seats.md) adds `LESSON#`, `SEAT#` and
+`SEATEND#` items to the coach's partition and a cross-tenant index, GSI4. The table above needs
+rows for them — at least that coach A's session reaches its own lesson times and seats but not
+coach B's, and cannot query GSI4. They are to be written and run before building on ADR-031.*
 
 **Row 3 is the open one:** whether `LeadingKeys` on an index query is evaluated against the
 index's partition key. If it is not, GSI3 comes off `coach-tenant` and pattern 11 (the unpaid

@@ -28,6 +28,23 @@ supersedes ADR-009 decision 11 in part — see 1a.
 stamped fee follows a change to the block's fee on upcoming lessons, by the same rules as the
 price: increases only beyond the notice period, decreases at once.
 
+**Amended by [ADR-026](ADR-026-shared-lessons-by-invitation.md)** — 2026-10-13. *Decided by the
+owner.* In a **shared lesson**, a skater who cancels late or doesn't show may be charged **their share
+of the late-cancellation fee** (half, for two skaters). The skater who stays isn't charged any fee
+and keeps their share of the price.
+
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+replaces the booking with a **lesson time** (the coach's) and a **seat** for each skater in it.
+Decision **3**'s stamps (`missedLessonFeeMinor`, `requiredNoticeHours`) now live on the lesson
+time, which is created from the schedule (ADR-031 decision 1). Decision **4**'s charge for a late
+cancellation lives on **the seat's `CANCELLED#` line**: a cancelled seat is moved to that line
+in one transaction with its delete (decision 2). A no-show keeps its **seat**. In a shared
+lesson, a skater who leaves late has **their share of the fee** recorded on their own line (half,
+for two); the skater who stays keeps their share and isn't asked anything (decision 8). Every
+behaviour rule here still holds. *Revised 2026-10-13 (ADR-031 revision): the staying skater's
+seat isn't touched, and the lesson time's `shareCount` doesn't change, so their worked-out share
+stays the same. A no-show's share is fixed on its seat as `amountMinor` when it is recorded.*
+
 ---
 
 ## Context
@@ -126,7 +143,7 @@ and the client-facing wording drops away.
 
 ### 3. The fee and the threshold are both stamped on the booking at creation
 
-The booking gains `missedLessonFeeMinor` and `requiredNoticeHours`, stamped at creation exactly
+~~The booking gains `missedLessonFeeMinor` and `requiredNoticeHours`, stamped at creation~~ exactly
 as ADR-003 stamps `priceMinor` and `currency`, and for the identical reason: a coach who
 changes their policy must not silently rewrite what was agreed on bookings already made.
 
@@ -140,6 +157,10 @@ was late at the time.
 With both stamped, `noticeHours < requiredNoticeHours` is decidable from the record alone,
 permanently, without reference to current settings.
 
+*Replaced by ADR-031 decision 1 (2026-10-13): both are stamped on the **lesson time**
+(`LESSON#`), which exists before anyone books it, so they are stamped by existing. The reason for
+stamping both halves is unchanged.*
+
 The threshold is a coach-level policy ("I need a day's notice") and is set on the coach
 profile, not per block; the amount is per block. They are stamped together onto the booking
 regardless of where they were configured.
@@ -149,9 +170,12 @@ regardless of where they were configured.
 This follows from the existing model rather than changing it, and the two halves are not
 symmetric:
 
-- **A no-show keeps its booking.** The item survives with `bookingStatus = NO_SHOW` and already
+- **A no-show keeps its ~~booking~~ seat.** The item survives with ~~`bookingStatus`~~
+  `seatStatus = NO_SHOW` and already
   carries `paymentStatus`, `paidAt`, `markedPaidBy`, and already appears in GSI3 while
-  unpaid. Nothing new is required to bill it.
+  unpaid. Nothing new is required to bill it. *Replaced by ADR-031 decisions 2 and 14
+  (2026-10-13): it is the skater's **seat** that is kept, with its own payment fields and GSI3
+  entry.*
 
   **In MVP, a recorded no-show stays `UNPAID` until the coach marks it paid or waived.**
   *Decided by the owner, 2026-09-30.* Its `missedLessonFeeMinor` is `0` in MVP, so nothing is
@@ -161,14 +185,21 @@ symmetric:
   charge.
 
   **For now, the dashboard shows a no-show at its full lesson price** — the booking's stamped
-  `priceMinor`, labelled as a no-show. *Decided by the owner, 2026-09-30.* It is the amount
+  `priceMinor`, labelled as a no-show. *Note — 2026-10-13: under ADR-031 the amount a seat owes
+  is its ~~`shareMinor`~~ share (decision 7), which for a private lesson is the full price.*
+  *Revised 2026-10-13 (ADR-031 revision): the share is fixed on the seat as `amountMinor` when
+  the no-show is recorded. The dashboard shows `amountMinor`.* *Decided by the owner, 2026-09-30.* It is the amount
   the booking already carries, and the no-show label tells the coach what they are looking
   at before they decide to mark it paid or waive it. ADR-018's reminder lists it the same
   way. Showing the `missedLessonFeeMinor` instead is part of the open question below, and is
   decided with the Phase-2 charge.
-- **A late cancellation deletes its booking** (ADR-009 decision 5, which requires a
+- **A late cancellation deletes its ~~booking~~** (ADR-009 decision 5, which requires a
   released time to stop existing). The charge therefore has to live on the `CANCELLED#`
   record, which today has `priceMinor` but **no payment fields and no GSI3 membership**.
+  *Replaced by ADR-031 decision 2 (2026-10-13): a late cancellation moves the skater's **seat**
+  to its `CANCELLED#` line, carrying `cancelledBy`, `cancelledAt`, `noticeHours` and, in Phase 2,
+  the fee and its payment. In a shared lesson the line records the leaver's share of the fee
+  (decision 8).*
 
 So the `CANCELLED#` record gains `paymentStatus`, `paidAt`, `markedPaidBy` and is written
 into GSI3 while unpaid. *Amended 2026-10-09: and `paidVia`, how the client paid

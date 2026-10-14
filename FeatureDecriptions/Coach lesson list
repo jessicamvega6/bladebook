@@ -16,3 +16,4 @@ to Change the status of a student's lesson to either attended or no showed.
   The heading gives the count attended, no-show and not recorded.
   This is where mistakes made at the rink are fixed; the rinkside app can't change a recorded lesson.
   Switching a lesson to No-show doesn't change its price; it stays unpaid until marked paid or waived on Payments.
+  *Added 2026-10-13 (ADR-031 decision 15):* in a shared lesson each skater has their own row and their own attendance.

@@ -93,6 +93,13 @@ to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
   skater filter, "All coaches" by default, listing only coaches with upcoming lessons. The two
   filters combine.
 
+**Note — 2026-10-13.** [ADR-031](ADR-031-lessons-and-seats.md) rebuilds booking as **lesson
+times** (the coach's) and a **seat** for each skater. **Nothing in this ADR's multi-coach rules
+changes**; only the storage words do. "A booking" is now the skater's seat, the "booking lock" is
+the lesson time in each coach's partition, the clash check (decision 5) reads the family's seats
+through GSI1, and item e's "already booked" is found by reading the family's own seat key
+(ADR-031 decision 4).
+
 ---
 
 ## Context
@@ -110,7 +117,8 @@ them, and three things a single coach never raised:
 1. **Can a coach see the skater's other coaches?** Tenant isolation (ADR-021) keeps every
    coach's data apart, and the 2026-10-05 gate tests proved it holds.
 2. **Two coaches can book the same skater at the same time.** Each coach's booking lock sees
-   only their own calendar.
+   only their own calendar. *(Since ADR-031, 2026-10-13, the lock is each coach's stored lesson
+   time.)*
 3. **A family's contact change has to reach every coach.** ADR-002 decision 4 copies contact
    details onto each skater's record in one transaction. ADR-022 decision 8 confines each
    family session's writes to one coach's partition, so one transaction can't reach two
@@ -126,8 +134,8 @@ them, and three things a single coach never raised:
 coaches, and a family's skaters can have different coaches.
 
 **A skater keeps one `studentId` for life**, whichever coaches they join. Each coach still
-holds their own `STUDENT#<studentId>` record in their own partition, with their own status and
-price override. Two coaches' records of the same skater share the ID and nothing else.
+holds their own `STUDENT#<studentId>` record in their own partition, with their own status (and,
+from Phase 2, price override). Two coaches' records of the same skater share the ID and nothing else.
 
 **The family owns the skater's details.** A new item in the family's partition is the source
 of truth for who the skater is:
@@ -214,7 +222,8 @@ The family can book anyway, for example back-to-back lessons at the same rink. F
 booking, the warning lists every clashing date before the family confirms.
 
 **How:** the family's own bookings, across every coach, are already one query on GSI1, which
-is keyed by family (ADR-022 decision 4). The check is a read in the family's own partition,
+is keyed by family (ADR-022 decision 4). *(Since ADR-031, 2026-10-13, GSI1 indexes the family's
+**seats**, `GSI1SK = SEAT#<date>#<startTime>`.)* The check is a read in the family's own partition,
 filtered on `studentId` and the time range. No lock and no new item. GSI1 is eventually
 consistent, so a booking made a second earlier with another coach may not be seen. For a
 warning that is acceptable.
@@ -242,7 +251,7 @@ That's acceptable for a contact change; it doesn't widen anyone's access.
 |---|---|
 | Booking, calendar, coach profile | About **one coach at a time**, chosen from a coach switcher. |
 | My lessons | **All coaches**, each lesson labelled with its coach. |
-| Payments owed | **Grouped by coach, never totalled across them.** Coaches may use different currencies (USD and CAD), and each family pays each coach directly. |
+| Payments owed (*Phase 2*) | **Grouped by coach, never totalled across them.** Coaches may use different currencies (USD and CAD), and each family pays each coach directly. |
 | Skaters | Each skater lists their coaches and the status with each (*Approved*, *Waiting for Coach Sam*). |
 
 *2026-10-13:* booking (the coach switcher), sign-up with several codes, Home's coach cards,
@@ -278,7 +287,7 @@ lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 
   when they add the coach. *Phase 2 since 2026-10-07* (decision 4).
 - **Double-booking a skater across coaches is possible**, and warned about.
 - **New screens on both sites**: adding a coach, the coach switcher, cross-coach lessons and
-  payments, and *"Also coached by"* on the coach's skater record (*Phase 2*).
+  payments (payments Phase 2, item m), and *"Also coached by"* on the coach's skater record (*Phase 2*).
 - **Knock-ons recorded elsewhere:** "remove a student" (blocker #17) is now per coach; erasure
   on request must reach every coach a skater had; staging's subset brings in all of a family's
   coaches (ADR-011 decision 8a).

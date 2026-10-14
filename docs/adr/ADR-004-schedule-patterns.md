@@ -35,6 +35,13 @@ This ADR's open question *"can a coach edit or cancel a single lesson without to
 pattern?"* is answered by [ADR-009](ADR-009-cancellation.md): yes, and cancelling never
 changes the schedule.
 
+**Superseded in part — 2026-10-13.** *Decided by the owner.*
+[ADR-031](ADR-031-lessons-and-seats.md) replaces decisions **1** and **2**. Open times are now
+**stored** as lesson-time records (`LESSON#<date>#<startTime>`) made from the schedule, and a
+booking is one transaction per date on that lesson time plus a seat for each skater. Decisions
+**3**, **4** and **5** still describe the schedule and how it expands into lesson times. Every
+behaviour rule still holds unless ADR-031 says otherwise.
+
 ---
 
 ## Context
@@ -63,39 +70,47 @@ touching a booked slot. Nothing about that regeneration is safe or necessary.
 
 ### 1. Availability is computed, not stored
 
-There are no `AVAILABILITY_SLOT` items. Open availability for a date range is
-derived at read time:
+~~There are no `AVAILABILITY_SLOT` items. Open availability for a date range is
+derived at read time:~~ *Replaced by ADR-031 decision 1 (2026-10-13): open times are stored as
+`LESSON#` lesson-time items, and availability is one range query on them.*
 
 ```
 candidate slots  =  pattern in effect on each date, expanded into start times
 open slots       =  candidate slots  −  bookings that already exist in that range
 ```
 
-One in-memory expansion plus one `Query` for the coach's bookings over the range
-(`PK = COACH#<coachId>`, `SK between BOOKING#<from> and BOOKING#<to>`).
+~~One in-memory expansion plus one `Query` for the coach's bookings over the range
+(`PK = COACH#<coachId>`, `SK between BOOKING#<from> and BOOKING#<to>`).~~ *Replaced by ADR-031
+decision 1 (2026-10-13): one `Query` on `SK between LESSON#<from> and LESSON#<to>`.*
 
 **Consequences that fall out for free:**
 
-- A schedule change writes **one item**. There is nothing to regenerate, no stale
-  open slots, and no possibility of deleting a booked one by accident.
+- ~~A schedule change writes **one item**. There is nothing to regenerate, no stale
+  open slots, and no possibility of deleting a booked one by accident.~~ *Replaced by ADR-031
+  decision 11 (2026-10-13): a schedule save also rewrites the stored lesson times in the
+  background; a booked one is cancelled only through the preview.*
 - "A change only affects lessons that are not already booked" is true by
   construction. Bookings are independent records that carry their own time,
   duration and price; nothing recomputes them.
-- Switching to a temporary pattern and back is two writes, not ~240.
+- ~~Switching to a temporary pattern and back is two writes, not ~240.~~ *Replaced by ADR-031
+  decision 11 (2026-10-13): it is two schedule writes plus the lesson-time rewrites they cause.*
 
 ### 2. A booking is claimed by a conditional write on the booking itself
 
 `PK = COACH#<coachId>`, `SK = BOOKING#<date>#<startTime>`, written with
 `attribute_not_exists(SK)`.
 
-The booking item **is** the lock. Two clients racing for the same start time both
+~~The booking item **is** the lock. Two clients racing for the same start time both
 attempt the same key; one succeeds, the other gets a condition failure and is shown
 refreshed availability. This replaces §6.1's `TransactWriteItems` — which existed
 only to flip a slot record to `BOOKED` — with a single conditional `PutItem`. It is
-simpler, cheaper, and equally concurrency-safe.
+simpler, cheaper, and equally concurrency-safe.~~ *Replaced by ADR-031 decision 4 (2026-10-13):
+the lesson time is the lock. One transaction per date updates it from `OPEN` to `BOOKED` and
+puts the skater's `SEAT#` item; of two racing families, one succeeds.*
 
 `slotId` is removed from the model. A slot's identity is `(date, startTime)`, which
-is exactly what the sort key encodes.
+is exactly what the sort key encodes. *Still true under ADR-031 (2026-10-13): the key is now
+`LESSON#<date>#<startTime>`.*
 
 ### 3. A schedule is a per-weekday list of blocks
 
@@ -183,7 +198,8 @@ time would quote whichever pattern happened to be active *when the reminder sent
 not when the lesson was booked. Stamping at creation is what makes the amount
 stable.
 
-`STUDENT.priceMinorOverride` survives from ADR-003 and still wins over the pattern.
+`STUDENT.priceMinorOverride` survives from ADR-003 and still wins over the pattern. *Phase 2 since
+2026-10-13 (ADR-003): MVP sets no override.*
 
 ### 5. Slot generation, per block
 
@@ -242,9 +258,11 @@ owner's requirement — which the event-driven design gives for free, since
 **Added:** `SCHEDULE#DEFAULT` and `SCHEDULE#TEMP#<startDate>` items;
 `ScheduleChanged` event and its consumer; `NEEDS_REBOOKING` handling.
 
-**Changed:** access pattern 4 ("list a coach's availability for a date range") is no
+**Changed:** ~~access pattern 4 ("list a coach's availability for a date range") is no
 longer a table query — it is a bookings query plus pattern expansion. Booking sort
-key becomes `BOOKING#<date>#<startTime>`.
+key becomes `BOOKING#<date>#<startTime>`.~~ *Replaced by ADR-031 decisions 1 and 2 (2026-10-13):
+access pattern 4 is a range query on stored `LESSON#` items; each skater's place is a
+`SEAT#<date>#<startTime>#<studentId>` item.*
 
 ---
 
@@ -252,11 +270,13 @@ key becomes `BOOKING#<date>#<startTime>`.
 
 **Easier.** Schedule changes are one write. Temporary patterns cost nothing to apply
 or expire — an override simply stops matching dates once past its `endDate`, with no
-cleanup job. Booking gets simpler than the original design (conditional put versus
-transaction). No slot table to keep consistent with anything.
+cleanup job. ~~Booking gets simpler than the original design (conditional put versus
+transaction). No slot table to keep consistent with anything.~~ *Replaced by ADR-031 decision 1
+(2026-10-13): lesson times are stored again and kept about 15 months ahead by the nightly
+`sched-lesson-roller` job; booking is a transaction on the lesson time.*
 
-**Harder.** Availability becomes application logic rather than a stored fact, so
-block expansion needs real unit tests: DST boundaries, a block that does not divide
+**Harder.** ~~Availability becomes application logic rather than a stored fact, so~~
+*ADR-031 (2026-10-13): availability is a stored fact again, but* block expansion needs real unit tests: DST boundaries, a block that does not divide
 evenly by `lessonMinutes`, abutting blocks, an override starting mid-week. There is
 now a seventh Lambda (the `ScheduleChanged` consumer) and a booking status that only
 it produces.
@@ -287,7 +307,9 @@ be re-estimated accordingly.
 
 - A coach needs recurring exceptions richer than blocks express — "first Monday of
   the month," alternating weeks — which blocks and bounded overrides cannot state.
-- Availability computation shows up as a latency or cost problem, which would mean
-  materializing a short rolling window of slots as a cache. Unlikely at this scale.
+- ~~Availability computation shows up as a latency or cost problem, which would mean
+  materializing a short rolling window of slots as a cache. Unlikely at this scale.~~ *Done
+  differently by ADR-031 decision 1 (2026-10-13): lesson times are stored, for locking rather
+  than speed.*
 - Recurring or package bookings arrive (§10 Phase 2) — a standing weekly booking
   interacts with pattern changes in ways decision 6 does not cover.

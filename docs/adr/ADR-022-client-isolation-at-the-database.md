@@ -39,6 +39,46 @@ coach the request is about, chosen from the family's links, and `linkStatus` is 
 
 **Amended — 2026-10-06.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) adds one read statement to `client-tenant`: `GetItem` on
 `SKATERCODE#*`, limited to a skater's display name. Decision 9's gate tests gain rows for it.
+
+**Superseded in part — 2026-10-13.** *Decided by the owner.*
+[ADR-031](ADR-031-lessons-and-seats.md) replaces decision **8**'s retry attribution through GSI1
+with **a direct read of the family's own seat key** (`SEAT#<date>#<startTime>#<studentId>`),
+strongly consistent: present means *already booked*, absent means *unavailable* (ADR-031 decision
+4). The family only ever reads its own skater's key. Booking is rebuilt as **lesson times** and
+**seats**, which brings these consequences here:
+
+- **New item prefixes** in the coach's partition: `LESSON#` (stored lesson times), `SEAT#` (each
+  skater's place) and `SEATEND#` (ended invitations). GSI1 now indexes seats:
+  `GSI1SK = SEAT#<date>#<startTime>`.
+- **Availability reads `LESSON#` items.** They hold nothing about who booked — no family data —
+  so reading them reveals nothing (ADR-031 decision 1). *Revised 2026-10-13 (ADR-031 revision):
+  a lesson time may carry a **pending leave** (random skater IDs and a time), `shareCount` and
+  `joinOrder`. The availability allowlist must leave the pending leave out. No family needs to
+  read it: `consumer-invite` copies its `answerBy` onto the staying family's own seat as
+  `choiceAnswerBy`, so their *Keep or cancel?* screens read only their own seat.*
+- **The invited seat is a reservation.** A family's booking with a share code writes a seat for
+  another family's skater, holding only the display name and status (ADR-031 decision 5; ADR-024).
+  ~~The share-code record now also holds the invited family's `clientId`, never returned to the
+  caller, so the share-code read statement (amendment 2026-10-06) must keep it off its
+  attribute list.~~ *Revised 2026-10-13 (ADR-031 revision): the invited seat is the inviting
+  family's record until accepted, with no `clientId`. `consumer-invite` adds `invitedClientId`
+  and the invited family's GSI1 (global secondary index 1, by client) keys to it, so the
+  invitation shows on their Home and My bookings before they accept. Accepting is the invited
+  family's own write, after the link check: it sets `clientId`. So the share-code record no
+  longer needs `clientId`, and the share-code read statement is unchanged from the 2026-10-06
+  amendment.*
+- **The read allowlist (decision 6) must cover `LESSON#` attributes for availability, and the
+  family's own `SEAT#` read for retry attribution** (ADR-031 Consequences). The new list isn't
+  written yet.
+- **Decision 9's gate tests need rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4.
+- **Decision 8's residual is unchanged:** a family's writes land in the coach's partition, and
+  only the code check keeps one family off another family's seat with the same coach.
+  *Revised 2026-10-13 (ADR-031 revision): no family's action writes another family's seat, so the
+  `clientId = :caller` condition (ADR-024) needs no exception for shared lessons. A family does
+  write the coach's lesson time (booking, joining, leaving, keep or cancel), as before.*
+
+Every behaviour rule still holds unless ADR-031 says otherwise.
+
 ---
 
 ## Context
@@ -124,8 +164,11 @@ partition can be named.
 
 ### 4. GSI1 is re-keyed by client
 
-`GSI1PK = CLIENT#<clientId>`, `GSI1SK = BOOKING#<date>#<startTime>`. Bookings gain a
-`clientId` attribute, written with the rest of the booking. The client's GSI1 statement has
+`GSI1PK = CLIENT#<clientId>`, ~~`GSI1SK = BOOKING#<date>#<startTime>`~~. ~~Bookings~~ gain a
+`clientId` attribute, written with the rest of the booking. *Replaced by ADR-031 decision 2
+(2026-10-13): GSI1 indexes **seats**, `GSI1SK = SEAT#<date>#<startTime>`, and each seat carries
+its family's `clientId`. An invited seat carries the invited family's `clientId`, so the
+invitation shows in their My bookings (decision 5).* The client's GSI1 statement has
 the same `LeadingKeys` condition as decision 3, on the index ARN.
 
 - **The one non-structural check in §7 becomes structural for reads.** A client can no
@@ -135,7 +178,8 @@ the same `LeadingKeys` condition as decision 3, on the index ARN.
   on `studentId` where they need one student. ADR-002's *"query links, then GSI1 per
   student"* goes away.
 - Nothing else reads GSI1. ADR-021 decision 4 removed it from `api-coach`, and no consumer or
-  scheduled job holds it. `COACH_HELD` bookings write no GSI keys, as before.
+  scheduled job holds it. ~~`COACH_HELD` bookings write no GSI keys, as before.~~ *Since ADR-031
+  (2026-10-13) a held time is a `HELD` lesson time with no seats, so it writes no GSI1 key.*
 
 ### 5. Recurrence headers move to the client's partition
 
@@ -179,12 +223,19 @@ registration writes it onto the link item.
                       "aws:PrincipalTag/linkStatus": "ACTIVE" } } }
 ```
 
+*Note — 2026-10-13: under [ADR-031](ADR-031-lessons-and-seats.md) availability is one range
+query on `LESSON#` items, so this list must cover the lesson-time attributes availability needs
+(in place of `bookingStatus`), and allow the family's own `SEAT#` read used for retry attribution
+(decision 8). The revised list is not written yet; it fails closed until it is.*
+
 What this gives, and why it meets **requirement 2**:
 
 - **Availability works.** The schedule items, date overrides and the time and length of every
   taken slot are readable. A booking's `studentId`, `clientId`, price and payment fields are
   not, so a taken slot reveals nothing about who holds it — §7's rule, now enforced by the
-  database rather than by what the code chooses to return.
+  database rather than by what the code chooses to return. *Since ADR-031 (2026-10-13) a taken
+  time is a `LESSON#` item, which holds no family data at all; who holds it is on the `SEAT#`
+  items, which availability doesn't read.*
 - **Another family's students are unreadable.** A `STUDENT#` item has no attribute on the
   list except its keys. Nothing a client-path bug can ask for returns a name, contact detail
   or price override belonging to someone else.
@@ -199,7 +250,8 @@ What this gives, and why it meets **requirement 2**:
 The client still needs one per-student value from the coach's side, the
 `priceMinorOverride`, to price a booking. It is not on the list. ADR-021 decision 6's
 `consumer-student-link` **also mirrors `priceMinorOverride` onto the link item**, and the
-client's booking path reads it there.
+client's booking path reads it there. *2026-10-13: personal prices are Phase 2 (ADR-003), so MVP's
+booking path doesn't need it.*
 
 ### 7. Coach codes: lookup only — before sign-in and after
 
@@ -283,10 +335,12 @@ family's booking — and there is no IAM condition key for it. *Corrected 2026-1
 `AccessDeniedException`, so the database blocks this leak. See the note at the end of this
 decision.* ADR-006 used this to tell a
 client's own earlier booking from a real conflict (decisions 3 and 4). **The client path now
-sends `NONE`**, enforced by an ArchUnit rule on `api-client`, and attributes a failed date by
+sends `NONE`**, enforced by an ArchUnit rule on `api-client`, ~~and attributes a failed date by
 looking for its own booking at that date and time on GSI1. GSI1 is eventually consistent; a
 date not found there is checked once more after a short pause before being reported as
-unavailable.
+unavailable.~~ *Replaced by ADR-031 decision 4 (2026-10-13): a failed date is attributed by
+reading the family's own seat key for that skater, strongly consistent. Present means already
+booked; absent means unavailable. No pause and no re-check.*
 
 *Amended 2026-10-05.* **The database refuses `ALL_OLD` on a failed client write.** Tested on a
 real table: the same conditional put on another family's taken slot fails its condition when
@@ -317,6 +371,13 @@ Runs against a real table, alongside ADR-021 decision 7:
 | 9 | A failing conditional put with `ReturnValuesOnConditionCheckFailure = ALL_OLD` | **record what comes back** — if non-allowlisted attributes are returned, the ArchUnit rule in decision 8 is the only guard |
 | 10 | The first session (no `coachId` tag) reading `COACH#X` | denied |
 | 11 | The `code-lookup` role: `GetItem CODE#K` with the decision 7 attributes; then with any other attribute, no projection, a `Query`, or any read of `COACH#` or `CLIENT#` | allowed; then all denied |
+
+*Note — 2026-10-13: [ADR-031](ADR-031-lessons-and-seats.md) needs rows here for `LESSON#`,
+`SEAT#`, `SEATEND#` and GSI4 — at least: `LESSON#` items readable with the allowlisted
+projection and nothing more; the family's own `SEAT#` key readable for retry attribution;
+another family's seat details unreadable; GSI4 not queryable. Rows 3, 4 and 7, which name
+`BOOKING#` items, are re-run against `LESSON#` and `SEAT#`. To be written before building on
+ADR-031.*
 
 **Rows 1 (on GSI1) and 9 are the open ones.** Row 1 is ADR-021's row 3 again — whether
 `LeadingKeys` on an index query checks the index's partition key. If it does not, the
@@ -369,7 +430,9 @@ transaction as the booking.
 - Every client-path read of the coach's partition must name its attributes. That is a
   discipline the code must follow, and the database fails any read that forgets.
 - An attribute allowlist to maintain, with a test keeping it in step with §5.
-- Retry attribution moves from a same-response comparison to a GSI1 lookup that can lag.
+- ~~Retry attribution moves from a same-response comparison to a GSI1 lookup that can lag.~~
+  *Replaced by ADR-031 decision 4 (2026-10-13): a strongly consistent read of the family's own
+  seat key, which doesn't lag.*
 - A key change to GSI1 and the recurrence header. Nothing is built yet, so there is no
   migration.
 

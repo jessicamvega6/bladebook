@@ -13,6 +13,11 @@ Shows their lesson(s) for that day.
     *More than one coach (2026-10-13, ADR-025 j):* "Your coaches", one card per coach with their sport and skaters.
     A coach who hasn't approved any of the family's skaters shows "Waiting" and no contact details.
   Lessons show which coach they're with when the family has more than one coach.
+  *Shared lessons (added 2026-10-13, ADR-031 decisions 8, 9 and 12; home-share-left.html):* when the other skater
+    leaves a shared lesson in time, the staying family's card shows here: keep it private at the full price, or cancel
+    with no charge, with the answer-by time. Several dates in one series share one card (see cancelation.md).
+    A lesson whose answer-by time has passed, or an invitation whose lesson has started, shows as cancelled or
+    expired straight away, even before the hourly check has run.
   If past lessons aren't marked paid yet, a line under the buttons gives how many and the total. *Phase 2 (ADR-003, 2026-10-12): unpaid history is coach-only in MVP.*
 
 Button that routes to Monthly Client Booking View ("Book a lesson")
@@ -29,6 +34,7 @@ Waiting for approval (no coach has approved any skater yet, ADR-022 d6; ADR-025 
     (home-pending-two-coaches.html).
   The family sees only Home and Profile: no schedule, open times or coach contact details.
   Home says they're waiting for the coach to approve, and that the coach checks they know each family who signs up.
-  Lists their skaters as waiting, with a link to edit or remove them.
+  Lists their skaters as waiting, with a link to the profile. ~~edit or remove them~~ *(no Remove, 2026-10-13)*
   "What happens next": the coach approves each skater, the family is emailed, then booking opens.
-  Signed up by mistake or with the wrong coach? Remove the skaters from the profile.
+  ~~Signed up by mistake or with the wrong coach? Remove the skaters from the profile.~~ *Removed 2026-10-13 with the
+    profile's Remove button.*

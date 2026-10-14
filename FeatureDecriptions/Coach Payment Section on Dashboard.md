@@ -29,4 +29,6 @@ How the client paid:
   A no-show shows the full lesson price until it's marked paid or waived. Upcoming lessons aren't listed until they've
   happened. Amounts are in the coach's currency.
   "Send reminders" button, disabled and tagged Phase 2.
+  *Added 2026-10-13 (ADR-031 decisions 7 and 14):* in a shared lesson each skater has their own row, with their own
+  share of the price, attendance and payment status. Marking one skater paid or waived doesn't change the other.
  

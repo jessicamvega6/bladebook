@@ -198,10 +198,14 @@ The coach's Accept (decision 6) is the coach's own write in their own partition.
 - **Withdrawing** is allowed only while the seat is `INVITED`. Once the invited family has
   accepted (`AWAITING_COACH`), the seat is theirs and only they, the coach or the deadline sweep
   can end it.
-- **If the inviting family cancels their own seat** while the invited seat is still `INVITED` or
-  `AWAITING_COACH`, nobody is paying for the lesson yet. `consumer-invite` ends the invited seat
-  as `WITHDRAWN` and emails the invited family that the lesson was cancelled. (For an `INVITED`
-  seat the inviting family could do it themselves; the system does both cases the same way.)
+- **If the inviting family cancels their own seat** while the invited seat is still unanswered or
+  waiting for the coach, nobody is paying for the lesson yet, so the invitation ends (*owner,
+  2026-10-13, option B*):
+  - still `INVITED` — it is the inviting family's own record, so **their cancel ends it** as
+    `WITHDRAWN` in the same transaction;
+  - already `AWAITING_COACH` — it is the invited family's, so the cancel only sets a deadline on
+    it, `dueKind = INVITER_LEFT`, due at once. **The hourly sweep ends it** as `WITHDRAWN` and
+    the invited family is emailed that the lesson was cancelled, up to an hour later.
 
 ### 6. Joining
 
@@ -355,7 +359,9 @@ ADR-026 d5a's **nightly** sweep becomes **`sched-deadline-sweep`, every hour** (
     invited seat;
   - `EXPIRE` — an invitation still `INVITED` or `AWAITING_COACH` at the lesson's start, on the
     invited seat;
-  - `ANSWER` — the staying family's `answerBy`, on the **lesson time's** pending leave.
+  - `ANSWER` — the staying family's `answerBy`, on the **lesson time's** pending leave;
+  - `INVITER_LEFT` — an accepted invitation whose inviting family cancelled first, due at once,
+    on the invited seat (decision 5).
 - Each hour the sweep queries what's due, **re-checks each record**, acts, and sets the next
   deadline or removes it. A deadline that no longer applies is skipped. The sweep is a system
   function, so its writes are no family's.
@@ -408,8 +414,7 @@ the price or the skaters-per-lesson changes, and the coach can still save (*owne
   copies a skater's changes to every coach's record; it now also updates `studentName` on their
   upcoming seats; `consumer-invite` then refreshes `partnerName` on the seats sharing a lesson
   with them.
-- *Open:* the IAM roles of the two new jobs, and `consumer-invite`'s narrower write permission
-  (only `partnerName`, `partnerStatus`, `invitedClientId`, its GSI1 keys and `choiceAnswerBy`). Like GSI2 and GSI3, GSI4 is read across coaches, so
+- *Open:* the IAM roles of the two new jobs. (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
   only `sched-deadline-sweep` should be able to read it.
 
 ### 15. Unchanged
@@ -498,7 +503,13 @@ stateDiagram-v2
   The price is stored once, on the lesson time.
 - **`consumer-invite` stays, for emails and the read-only copies** (decision 6): the partner
   fields, the invited family's view of an invitation, and the staying family's `choiceAnswerBy`.
-  It needs write access to just those attributes on `SEAT#` items, across coaches (see Open).
+  **It only ever copies.** Its role allows reads, and `UpdateItem` limited by the
+  `dynamodb:Attributes` condition to the key fields plus `partnerName`, `partnerStatus`,
+  `invitedClientId`, `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem`
+  (*owner, 2026-10-13*). The condition can't limit it to `SEAT#` items, but a lesson time has
+  none of those fields, so a stray write could only add a meaningless copy. Ending seats is left
+  to the families' own writes and the sweep, the one function that can delete records in every
+  coach's area.
   It reacts to seat changes and sends the shared-lesson emails that aren't deadlines: the
   invitation to the invited family, and the outcome emails (joined, declined, withdrawn, no longer
   available, the other skater left). Its nightly run is replaced by `sched-deadline-sweep`. With

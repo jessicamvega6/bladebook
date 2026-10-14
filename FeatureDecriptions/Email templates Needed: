@@ -7,7 +7,21 @@ Phase 2: "Just booked" — a family booked just as the coach's schedule change c
 Pending student declined by the coach (ADR-002 decision 2b).
 Shared lesson not yet accepted — to both families (ADR-026 d5a).
 Shared lesson waiting on your acceptance — to the coach (ADR-026 d5a).
+  *Changed 2026-10-13 (ADR-031 decision 12): these two warnings are sent by the hourly check, at the 9pm run before
+  they're due, so they're never late and never sent at night.*
 Shared lesson expired, skater not yet accepted — to the invited family (ADR-026 d5a).
+  *Changed 2026-10-13 (ADR-031 decision 12): sent at once by the hourly check when the lesson starts.*
+Shared lesson — the other skater can't make it — to the family who stays, when the other skater leaves before the
+  notice period: keep it as a private lesson at the full price, or cancel with no charge, and the answer-by time
+  ~~(the start of the notice period)~~. Always sent. (ADR-026, amended 2026-10-13)
+  *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time is whichever comes first, the start of the notice
+  period or 7 days after the other skater left.*
+Shared lesson cancelled, no answer — to the family who stays, when they didn't answer by ~~the start of the notice
+  period~~ *the answer-by time*: the lesson is cancelled with no charge. Always sent. (ADR-026, amended 2026-10-13)
+  *Changed 2026-10-13 (ADR-031 decisions 8 and 12): sent at once by the hourly check.*
+Shared lesson dates cancelled — to the family who stays, when they choose "Cancel all remaining dates": one email
+  listing every cancelled date, with no charge. The coach isn't emailed, because none of these cancellations is late.
+  *Added 2026-10-13 (ADR-031 decision 9).*
 
 *In the Harbor design's email list (C_Coach Email Templates.md) and not above:*
 Booking confirmation — to the family, when they book.
@@ -17,6 +31,79 @@ Schedule change — to the family, when a schedule save cancels or re-prices the
 Daily report — to the coach, every evening at 9 PM.
 Unpaid lessons — to the coach, weekly on Monday morning.
 *Confirmed by the owner 2026-10-12: the coach's "A family cancelled" email is sent only inside the notice period. The design matches.*
+
+*Added 2026-10-13: every other email the docs, ADRs and Harbor design mention.*
+
+To families:
+Skater approved — to the family, when the coach approves their skater: booking is open. With several coaches, one per coach. (Client Sign Up, ClientHomeView, Harbor client sign-up pages)
+Skater removed by the coach — to the family, when the coach removes their skater, listing the upcoming lessons that were
+  cancelled. Sent only if lessons were cancelled. (Harbor coach Students page. This is the design's reading of the open
+  "delete a student" decision in Open-Pending.md.)
+Price change — part of the Schedule change email above, when a schedule save re-prices booked lessons. Three versions:
+  a price increase (applies only beyond the notice period, lists the lessons and the new price), a decrease
+  ("Good news: 3 of your lessons are now $50.") and a mix. One email per family per save; a save that also cancels
+  lessons sends one combined email. (ADR-020)
+Invitation to share a lesson — to Family B, when Family A enters their skater's share code while booking. Two versions:
+  the skater is already the coach's student (accept or decline), or isn't yet ("Coach Dana needs to accept you first.
+  By following the link below you agree to be added to Coach Dana's roster..."). The link only opens a page that needs
+  signing in; it does nothing on its own, because mail scanners open links. Always sent. (ADR-026 d5)
+  *Added 2026-10-13 (ADR-031 decision 10): the same invitation is sent when the staying family uses "Invite a skater"
+  on a freed place, for that one date only.*
+Shared lesson invitation declined — to Family A, when Family B declines. The lesson goes ahead as a private lesson. (ADR-026)
+Shared lesson invitation withdrawn — to Family B, when Family A withdraws the invitation. (Harbor client My bookings)
+Shared lesson, invited skater not accepted — to Family A, when the coach declines the invited skater or doesn't act
+  before the lesson. The lesson goes ahead as a private lesson; the email says whose "no" it was. Family B gets the
+  "Pending student declined" email above. (ADR-026)
+Shared lesson no longer available — to Family B, when the coach accepts their skater but the lesson was cancelled, has
+  started ~~or is full~~. A skater who was already the coach's student gets this one instead of "Shared lesson expired".
+  *Changed 2026-10-13 (ADR-031 decision 5): the invited place is held from booking, so the lesson can't be full.*
+  (ADR-026)
+
+To the coach:
+Lessons that passed before they could be cancelled — to the coach, when a stuck schedule change finishes after some of
+  its lessons' times: "These lessons were due to be cancelled, but their time passed before the cancellation could be
+  applied." The coach can waive them and contact the families. (ADR-010)
+
+Sent by Cognito (Amazon's sign-in service); its wording can be customised but these aren't BladeBook templates:
+Sign-up verification code — to a family (sign-up step 3) or a coach (sign-up step 2). 6-digit code; a family's expires
+  in 24 hours. (ADR-016, Client Sign Up, Coach Sign Up)
+Forgot-password code — to a family or a coach, to the login email. 6-digit code, expires in 1 hour. (ADR-016,
+  C_Client Forgot Password.md, C_Coach Forgot Password.md)
+Change-email code — to a family's new address when they change their email on Profile. The old address stays the
+  login until the code is entered. (Open-Pending.md, ClientProfileView)
+Business-email confirmation link — to the coach's new business email, at sign-up step 4 (when it differs from the login
+  email) or from Profile ("Use a new address"). The address can't be used until it's confirmed. Sent by BladeBook,
+  not Cognito, since it isn't the login email. (Coach Sign Up, C_Coach Profile.md)
+  *ADR-016 amended 2026-10-13 to match the design.*
+
+Phase 2:
+Missed-lesson fee reminder — to the family, after a no-show or late cancellation is recorded, once ADR-015's fee
+  switches on. Worded differently from the ordinary payment reminder. MVP sends nothing, because the fee is $0.
+  (ADR-015, architecture.md)
+Cancellation reasons — separate "Cancelled by the coach" versions the coach picks from: sick, emergency or vacation.
+  (ADR-009, cancelation.md)
+
+Mentioned but not decided:
+Morning email to the coach with a link to the rinkside app. ADR-023 asks whether this is how a coach reaches rinkside;
+  no morning email is defined anywhere else.
+A daily email to the coach listing the lessons scheduled, which the coach can switch on and off. Kim's idea
+  (Talking with Kim), not picked up by any ADR. It may be the same as the morning email.
+*Added 2026-10-13 (ADR-031):*
+Kept at full price — a confirmation to the family who stays when they keep one date, or choose "Keep all remaining
+  dates". ADR-031 names an email only for "Cancel all remaining dates", so whether keeping sends one is undecided.
+Cancelled one freed date — whether choosing "cancel" on a single date (the ordinary card, or one date on the series
+  card) sends a confirmation. ADR-031 doesn't say.
+Several freed dates at once — whether "the other skater can't make it" goes once per date or once per series when the
+  other skater cancels a shared series. ADR-031 gives one card per series but doesn't say how many emails.
+
+Not emails, or decided against (listed so they aren't added by mistake):
+Alerts to the owner (alarms, failed jobs, email bounce rates) go by text message, not email, so they still arrive
+  when email is the problem. (ADR-010)
+Reminder to the coach about skaters waiting for approval — decided against 2026-10-09; the Students tab shows the
+  count instead. (ADR-002)
+"Email me when times appear" — removed 2026-10-13. (Bookings:)
+Rebooking email, and a weekly digest of auto-booked repeating lessons — replaced by the cancellation email when
+  ADR-006 superseded ADR-004 and ADR-005.
 
 
 Notes:

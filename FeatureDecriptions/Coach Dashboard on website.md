@@ -23,9 +23,10 @@ The student List page shows a list of students names and their guardians contact
 cancelled and the family is emailed, the student can no longer book with the coach, and past lessons and payments stay
 in the coach's records.
 *Design (students.html):* a search box (name, family, email or phone). Each row: skater (minor or adult), family contact
-(email, phone, texts on or email only), price, next lesson, and Edit contact and Remove buttons. *Phase 2 (2026-10-12): all client SMS deferred.*
+(email, phone, texts on or email only), ~~price,~~ next lesson, and Edit contact and Remove buttons. *Phase 2 (2026-10-12): all client SMS deferred.*
   Contact details belong to the family, so an edit applies to every skater in it.
-  Price: "Schedule price" or a personal price. "Set price" (or "Change") chooses the schedule's price or one personal
+  ~~Price: "Schedule price" or a personal price.~~ *Phase 2 (owner, 2026-10-13): personal prices move to Phase 2, and the
+  Students list has no price column in MVP (students-price.html is in the Phase 2 group).* "Set price" (or "Change") chooses the schedule's price or one personal
   price per lesson for every lesson length (priceMinorOverride, ADR-003 d2). It applies to lessons booked from now on;
   lessons already booked keep their price. *Both rules are the design's reading of open questions (Kim's list §5, ADR-020).*
   The page has two tabs: Students, and Waiting for approval, each with a count.

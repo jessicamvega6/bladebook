@@ -21,8 +21,10 @@ changes, and how far ahead families book.
 - **A lesson keeps the price it was booked at.** Raising the price only affects lessons booked
   after the change. A family with a weekly recurring booking made in September pays the
   September price for every lesson up to 12 months ahead.
-- The booking page shows three months ahead. Recurring bookings can run up to 12 months. A
-  single lesson has no limit at all behind the scenes.
+- The booking page shows three months ahead. Recurring bookings can run up to 12 months. ~~A
+  single lesson has no limit at all behind the scenes.~~ *Changed 2026-10-13 (ADR-031): the
+  system now checks the three months too. A single lesson can't be booked further ahead; a
+  recurring booking must start inside the three months and can run past them.*
 
 **Questions:**
 
@@ -42,9 +44,11 @@ changes, and how far ahead families book.
 
 **What the answers decide:**
 
-- Whether single bookings get a date ceiling, and what it is — none, 12 months, or the booking
+- ~~Whether single bookings get a date ceiling, and what it is — none, 12 months, or the booking
   page's three months. (ADR-006 Open; `Open-Pending.md` §4) *Kim: schedules change "not often"
-  (question 3). Questions 1 and 5 are still unanswered, so the ceiling is still open.*
+  (question 3). Questions 1 and 5 are still unanswered, so the ceiling is still open.*~~
+  *Decided by the owner 2026-10-13 (ADR-031 decision 3): the booking page's three months. Kim's
+  answer to question 5 is still worth hearing as a check.*
 - ~~Whether a price change should ever re-price lessons already booked.~~ *Decided by the
   owner 2026-09-30 (ADR-020): upcoming lessons follow the new price — increases only beyond
   the notice period, decreases at once — and families are told.* Kim's answer to question 4 is
@@ -59,6 +63,8 @@ changes, and how far ahead families book.
 
 **The scenario.** A family falls on hard times and the coach wants to charge them less for a
 while. Today BladeBook offers two ways, and they don't fit together well:
+
+*Personal prices moved to Phase 2 by the owner, 2026-10-13: this section is for Phase 2.*
 
 - **A per-student price** (`priceMinorOverride`): one fixed amount that replaces the normal
   price on every lesson that student books — whatever the lesson's length, and unaffected by
@@ -219,11 +225,14 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
 1. ~~What's the most skaters you'd ever put in one lesson? 2? 3? More?~~ **Answered by the owner,
    2026-10-07: 2**, as a setting that may be raised later.
     2
-2. How do you charge for a shared lesson?
-   - Each skater pays their normal private price?
-   - The lesson price is split between them (e.g. $60 lesson, two skaters, $30 each)?
-   - A set "shared lesson" price per skater (e.g. $40 each)?
-3. If a second skater drops out, should the first skater's price change?
+2. ~~How do you charge for a shared lesson?~~ **Answered by the owner, 2026-10-13:** the lesson
+   price is split between them ($50 lesson, two skaters, $25 each).
+3. ~~If a second skater drops out, should the first skater's price change?~~ **Answered by the
+   owner, 2026-10-13:** in time, the staying family chooses the full price or to cancel with no
+   charge (no answer by ~~the start of the notice period~~ *the start of the notice period or 7
+   days after the other skater left, whichever comes first (ADR-031, 2026-10-13)* cancels it); late, the one who drops out
+   may be charged their share of the late-cancellation fee (half, for two skaters) and the other
+   keeps their share of the price.
 4. ~~Should you have to know and approve a skater before another family can invite them into a
    lesson with you?~~ **Answered by the owner, 2026-10-07:** a skater can be invited before you've
    accepted them, but no lesson is booked for them until you do. If you don't, the lesson goes
@@ -232,28 +241,39 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    emailed straight away. If the skater isn't yet your student, the email asks the family to
    agree to join your roster; they sign in and confirm, and the skater appears in your pending
    list like any new family. Once you accept them, they join the lesson automatically, as long
-   as it's still there, hasn't started and has room. If you don't accept them, the lesson goes
+   as it's still there ~~, hasn't started and has room~~ *and hasn't started. Their place is held
+   from the moment the lesson is booked, so there is always room (ADR-031, 2026-10-13).* If you don't accept them, the lesson goes
    ahead private. (ADR-026 decision 5)
-5. If the family who booked the lesson cancels, what should happen to the skater they invited?
-   Keep the lesson for them, cancel it for everyone, or ask the invited family?
+5. ~~If the family who booked the lesson cancels, what should happen to the skater they invited?~~
+   **Answered by the owner, 2026-10-13:** the same as anyone dropping out (question 3).
 6. If the invited family hasn't said yes by the day before, should the invitation lapse and the
    lesson go ahead private?
+7. When one skater drops out in time, the other family chooses: keep the lesson at the full
+   price, or cancel with no charge. They have until your notice period starts or 7 days after
+   the other skater dropped out, whichever comes first. Is 7 days the right limit, or should it
+   be shorter or longer? *Added 2026-10-13 (ADR-031 decision 8).*
 
 **The owner's leaning, to test rather than assume:** for question 5, ask the invited family
 whether to continue; for question 6, the invitation lapses at your notice period (24 hours by
-default) and the booking family is told. Both depend on the pricing answer.
+default) and the booking family is told. Both depend on the pricing answer. *2026-10-13: pricing and question 5 are settled (question 5
+differently: no special case for the booking family). Only question 6 remains.* *2026-10-13:
+question 7 added (ADR-031).*
 
 **What the answers decide:**
 
 - ~~**The highest "skaters per lesson" a coach can set** (question 1).~~ **Answered by the owner,
   2026-10-07: 2.** (ADR-026 P1)
-- **How each skater's price is stamped**, and whether anyone is re-priced when a skater joins or
-  leaves (questions 2 and 3). (ADR-026 P2, ADR-003, ADR-020)
+- ~~**How each skater's price is stamped**, and whether anyone is re-priced when a skater joins or
+  leaves (questions 2 and 3).~~ **Answered by the owner, 2026-10-13:** the set price split evenly;
+  both skaters re-stamped when the second joins (ADR-026). (ADR-026 P2, ADR-003, ADR-020)
 - ~~**Whether an invited skater must be approved first** (question 4).~~ **Answered by the owner,
   2026-10-07:** invited first, accepted by the coach before joining. (ADR-026 P3, ADR-024)
-- **What the booking family cancelling does** (question 5), and **when invitations lapse**
+- ~~**What the booking family cancelling does** (question 5)~~ *answered 2026-10-13: same as anyone
+  leaving;* and **when invitations lapse**
   (question 6). (ADR-026 P4, P5) *P5 is partly answered: if the coach doesn't accept the skater,
   the lesson goes ahead private.*
+- **How long the staying family has to answer** (question 7). The owner chose 7 days; Kim's
+  answer can change it. (ADR-031 decision 8, `Open-Pending.md` §2a) *Added 2026-10-13.*
 
 ---
 
