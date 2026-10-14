@@ -246,8 +246,9 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    ahead private. (ADR-026 decision 5)
 5. ~~If the family who booked the lesson cancels, what should happen to the skater they invited?~~
    **Answered by the owner, 2026-10-13:** the same as anyone dropping out (question 3).
-6. If the invited family hasn't said yes by the day before, should the invitation lapse and the
-   lesson go ahead private?
+6. ~~If the invited family hasn't said yes by the day before, should the invitation lapse and the
+   lesson go ahead private?~~ **Answered by the owner, 2026-10-13:** no cutoff. The invitation stays
+   open until the lesson starts, then expires, and the lesson goes ahead private.
 7. When one skater drops out in time, the other family chooses: keep the lesson at the full
    price, or cancel with no charge. They have until your notice period starts or 7 days after
    the other skater dropped out, whichever comes first. Is 7 days the right limit, or should it
@@ -256,7 +257,7 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
 **The owner's leaning, to test rather than assume:** for question 5, ask the invited family
 whether to continue; for question 6, the invitation lapses at your notice period (24 hours by
 default) and the booking family is told. Both depend on the pricing answer. *2026-10-13: pricing and question 5 are settled (question 5
-differently: no special case for the booking family). Only question 6 remains.* *2026-10-13:
+differently: no special case for the booking family). Only question 6 remains.* *2026-10-13: question 6 answered by the owner too: no cutoff.* *2026-10-13:
 question 7 added (ADR-031).*
 
 **What the answers decide:**
@@ -269,8 +270,8 @@ question 7 added (ADR-031).*
 - ~~**Whether an invited skater must be approved first** (question 4).~~ **Answered by the owner,
   2026-10-07:** invited first, accepted by the coach before joining. (ADR-026 P3, ADR-024)
 - ~~**What the booking family cancelling does** (question 5)~~ *answered 2026-10-13: same as anyone
-  leaving;* and **when invitations lapse**
-  (question 6). (ADR-026 P4, P5) *P5 is partly answered: if the coach doesn't accept the skater,
+  leaving;* ~~and **when invitations lapse**
+  (question 6)~~ *answered 2026-10-13: no cutoff; an invitation expires when the lesson starts.* (ADR-026 P4, P5) *P5 is partly answered: if the coach doesn't accept the skater,
   the lesson goes ahead private.*
 - **How long the staying family has to answer** (question 7). The owner chose 7 days; Kim's
   answer can change it. (ADR-031 decision 8, `Open-Pending.md` §2a) *Added 2026-10-13.*

@@ -531,8 +531,9 @@ stateDiagram-v2
 
 - Whether a coach booking for a family (Phase 2) is held to the 3-month window (decision 3).
 - Whether the 7 days in the answer-by rule should be a question for Kim (decision 8).
-- ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
-  it becomes one more `dueKind`.
+- ~~ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
+  it becomes one more `dueKind`.~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson;
+  an unanswered invitation expires at the lesson start (`EXPIRE`, decision 12). No new `dueKind`.
 
 ## Revisit if
 

@@ -4,7 +4,8 @@
 
 **Accepted** — 2026-10-06. *Decided by the owner, after talking with an end user.*
 ~~**P2 and P4 wait on Kim, and P5 in part**~~ **P2 and P4 answered by the owner, 2026-10-13**
-(see the amendment below); P5 still waits on Kim in part. P1 and P3 were answered 2026-10-07.
+(see the amendment below), and ~~P5 in part~~ **P5 answered by the owner, 2026-10-13**: no cutoff before
+the lesson. P1 and P3 were answered 2026-10-07.
 None of them blocks private booking.
 
 **Extends** [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md) (a booking
@@ -51,7 +52,8 @@ is also triggered by `StudentChanged` (ADR-021 decision 6, ADR-001).
 **Amended — 2026-10-09.** *Decided by the owner.* An invitation still waiting on the coach gets a
 warning email and a home-screen banner before the lesson, and a nightly sweep closes any
 invitation whose lesson has started (decision 5a, new). The coach's email is moved from Phase 2
-to MVP. Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.
+to MVP. ~~Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.~~ *Settled by the
+owner 2026-10-13: it doesn't; see P5.*
 
 **Amended — 2026-10-13.** *Decided by the owner.* **How a shared lesson is priced, and what
 happens when a skater leaves** (P2 and P4; Kim's list §8 questions 2, 3 and 5):
@@ -94,6 +96,11 @@ doesn't.
 **Amended — 2026-10-13.** *Decided by the owner.* **Share codes can't be refreshed.** Decision 4's
 "a family can issue a new code" is withdrawn: a skater keeps one share code for good, and the
 family profile shows it with Copy only.
+
+**Amended — 2026-10-13.** *Decided by the owner.* **P5: no cutoff before the lesson.** An invitation
+the family hasn't answered stays open until the lesson starts, and then expires (decision 5a, ADR-031
+decision 12's `EXPIRE`); the lesson goes ahead private. Nothing lapses earlier, so P5 needs no
+new deadline in the sweep and no longer waits on Kim.
 
 **Amended — 2026-10-13.** *Decided by the owner.* **The share code's shape** (decision 4). The
 first **3 letters of the skater's first name**, a dash, then **5 random characters** from the
@@ -415,7 +422,8 @@ waits forever:
 For a recurring series, these apply lesson by lesson; what the invitation's single status shows
 when some lessons join and others don't is part of the open partial-series question (Open).
 *Settled by ADR-031 decision 6 (2026-10-13): each date has its own seat and status, and a
-series joins lesson by lesson.* When an unanswered `SENT` invitation lapses is still Kim's P5.
+series joins lesson by lesson.* ~~When an unanswered `SENT` invitation lapses is still Kim's P5.~~ *P5, 2026-10-13: it expires when the
+lesson starts, with no earlier cutoff.*
 
 **A recurring booking shares every lesson in the series.** One invitation covers them all, and one
 confirmation joins skater B to each lesson in it.
@@ -522,7 +530,7 @@ cancels every skater in it, and each family is told (ADR-009).
 ## Pending Kim
 
 Each is a question in `Items to ask Kim About.md` §8. **None of them blocks private booking**,
-which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.* *Since 2026-10-13 P2 and P4 are answered too.*
+which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.* *Since 2026-10-13 P2, P4 and P5 are answered too.*
 
 | # | Question | The owner's leaning |
 |---|---|---|
@@ -530,7 +538,7 @@ which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P
 | **P2** | ~~**How a shared lesson is priced**~~ | **Answered by the owner, 2026-10-13:** the lesson's set price is split between the skaters; a skater leaving in time leaves the other family to choose full price or cancel; leaving late, the other keeps their share (amendment 2026-10-13) |
 | **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval |
 | **P4** | ~~If the **booking family cancels**, what happens to the invited skaters?~~ | **Answered by the owner, 2026-10-13:** the same as either skater leaving (amendment 2026-10-13) |
-| **P5** | If an invitation **isn't confirmed in time** | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. Still open: when an invitation the family hasn't accepted lapses; leaning towards the coach's notice period (24 hours by default), once pricing is known *(pricing settled 2026-10-13)* |
+| **P5** | ~~If an invitation **isn't confirmed in time**~~ | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. **Answered by the owner, 2026-10-13:** an invitation the family hasn't accepted has no cutoff before the lesson; it expires when the lesson starts, and the lesson goes ahead private. ~~Leaning towards the coach's notice period (24 hours by default)~~ |
 
 **P3's answer is what ADR-024 already does.** `requireActive` only issues a `LinkedSkater` for a
 skater `ACTIVE` with that coach, so a skater can't join until the coach has accepted them.
@@ -590,7 +598,8 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   *Amended 2026-10-09: the nightly sweep (decision 5a) covers the warning and the expiry. P5's
   lapse before the lesson may still need a precise timer.* *Replaced by ADR-031 (2026-10-13): P5,
   when decided, becomes one more `dueKind` for the hourly sweep. Nothing needs better than an
-  hour.*
+  hour.* *P5 decided 2026-10-13: no cutoff before the lesson, so no new `dueKind`; the existing
+  `EXPIRE` at the lesson start is the only lapse.*
 - **New screens:** the share code on a skater's profile; "add a skater to share" on booking;
   invitations to confirm or decline; both skaters on a shared booking; every skater in a slot on
   the coach's views. None is in the Harbor designs. *2026-10-13: designed in `design/harbor` (family and coach

@@ -56,7 +56,7 @@ Other work can go ahead while these wait. Each blocks only the feature named.
 | ~~18~~ | **Settled 2026-10-08 from Kim (§6): the coach approves each family; the pending step stays.** ~~Whether the coach approves new families at all (Kim §6). If approval goes, the pending flow and ADR-022's "pending sees nothing" rule go with it.~~ | The pending queue, approve/decline, the pending family's home | Kim, §6 | ADR-002 d2, ADR-022 d6 |
 | 19 | *Phase 2 (2026-10-12): all client SMS deferred.* **Text-message templates for price changes**, each length-tested. | Re-pricing notifications by text | Owner | ADR-007, ADR-020 |
 | 20 | **Unpaid-lesson reminder:** threshold, cadence, repeat. The job is built switched off until set, so this blocks turning it on, not building it. | The weekly unpaid email to the coach | Coach | ADR-018 |
-| 21 | **Shared lessons (ADR-026):** ~~pricing, what the booking family cancelling does,~~ *settled by the owner 2026-10-13 (ADR-026);* and when unaccepted invitations lapse. *2026-10-13 (ADR-031 decision 12): how it's timed is settled, since a lapse before the lesson becomes one more deadline in the hourly sweep. Only Kim's answer is still needed.* | Lapsing unaccepted invitations | Kim, §8 | ADR-026, ADR-031 |
+| ~~21~~ | **Done 2026-10-13 (owner):** no cutoff before the lesson; an invitation the family hasn't accepted expires when the lesson starts (ADR-026 P5, ADR-031 d12). ~~**Shared lessons (ADR-026):** when unaccepted invitations lapse.~~ Pricing and the booking family cancelling were settled the same day. | Lapsing unaccepted invitations | Kim, §8 | ADR-026, ADR-031 |
 
 ## 5. Before launch, not before coding
 

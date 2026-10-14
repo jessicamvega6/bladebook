@@ -92,7 +92,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   (P4)~~ **Settled by the owner, 2026-10-13** (ADR-026 amendment): the price is split; a skater
   leaving in time leaves the other family to choose full price or cancel with no charge (no
   answer by the notice period cancels); leaving late, the leaver may be charged their share of the
-  late-cancellation fee (half, for two skaters). **Still open (Kim §8 Q6):** when an invitation the family hasn't accepted lapses (P5, in part). Max 2 and
+  late-cancellation fee (half, for two skaters). ~~**Still open (Kim §8 Q6):** when an invitation the family hasn't accepted lapses (P5, in part).~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson; it expires when the lesson starts (ADR-026 P5). Max 2 and
   approval decided by the owner 2026-10-07; sharing is on. (ADR-026)
   *Changed 2026-10-13 (ADR-031 decision 8): the staying family answers by whichever comes first,
   the start of the notice period or 7 days after the leave. No answer by then cancels with no
@@ -147,9 +147,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   *Partly settled 2026-10-09 (ADR-026 d5a): a nightly sweep sends the warning and expires
   invitations whose lesson has started. Still open: a precise timer if Kim's P5 sets a lapse
   before the lesson.*~~ *Closed 2026-10-13 by ADR-031 decision 12:* the hourly sweep, not
-  one-off timers (turned down in ADR-031). If Kim's P5 sets a lapse before the lesson, it
+  one-off timers (turned down in ADR-031). ~~If Kim's P5 sets a lapse before the lesson, it
   becomes one more deadline the sweep handles. The P5 answer itself still waits on Kim (§2a
-  above).
+  above).~~ *P5 settled by the owner 2026-10-13: no lapse before the lesson, so no new deadline.*
 - ~~**Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
   that overlaps their lesson with another coach? (ADR-026)~~ **Settled 2026-10-07** (ADR-026
   decision 5): the confirm page shows clashes and the family chooses.
