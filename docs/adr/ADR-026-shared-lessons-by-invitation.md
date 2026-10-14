@@ -373,8 +373,12 @@ Family B can **decline**, which closes the invitation and tells Family A. Family
 **withdraw** an invitation Family B hasn't confirmed. *Revised 2026-10-13 (ADR-031 revision,
 decision 5): withdrawing is allowed only while the seat is `INVITED`. If Family A cancels their
 own seat while skater B's seat is still `INVITED` or `AWAITING_COACH`, nobody is paying for the
-lesson yet, so `consumer-invite` ends skater B's seat as `WITHDRAWN` and emails Family B that the
-lesson was cancelled. Declining is Family B's answer to an invitation addressed to their skater,
+lesson yet, so ~~`consumer-invite` ends skater B's seat as `WITHDRAWN` and emails Family B that the
+lesson was cancelled~~ the invitation ends.* *Revised 2026-10-13 (option B, ADR-031 decisions 5
+and 12): still `INVITED`, skater B's seat is Family A's own record, so their cancel ends it as
+`WITHDRAWN` in the same transaction. Already `AWAITING_COACH`, it is Family B's, so the cancel
+only sets an `INVITER_LEFT` deadline on it, due at once; the hourly sweep ends it as `WITHDRAWN`
+and Family B is emailed that the lesson was cancelled, up to an hour later.* *Declining is Family B's answer to an invitation addressed to their skater,
 under the same condition as accepting (no `clientId`, `INVITED`, their skater): the seat moves to
 `SEATEND#` as `DECLINED`.*
 

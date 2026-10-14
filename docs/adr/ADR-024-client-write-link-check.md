@@ -53,7 +53,11 @@ rule holds for shared lessons as written. The points below say how.*
   family can withdraw it, and only while it is still `INVITED` and `invitedByClientId` is the
   caller. Once accepted (`AWAITING_COACH`), only the invited family, the coach or the deadline
   sweep can end it. If the inviting family cancels their own seat while the invited seat is
-  `INVITED` or `AWAITING_COACH`, `consumer-invite` ends it as `WITHDRAWN`. So the invited family
+  `INVITED` or `AWAITING_COACH`, ~~`consumer-invite` ends it as `WITHDRAWN`~~ *Revised
+  2026-10-13 (option B): still `INVITED`, it is the inviting family's own record, so their
+  cancel ends it as `WITHDRAWN` in the same transaction; already `AWAITING_COACH`, the cancel
+  only sets an `INVITER_LEFT` deadline on it, due at once, and the hourly sweep ends it as
+  `WITHDRAWN` (ADR-031 decisions 5 and 12). `consumer-invite` never ends a seat.* So the invited family
   can see it before accepting, `consumer-invite` adds `invitedClientId` and their GSI1 (global
   secondary index 1, by client) keys to it — a read-only copy, not a family's write. The invited family may
   also **decline**, under the same condition as accepting (no `clientId`, `INVITED`, their own

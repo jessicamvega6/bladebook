@@ -74,13 +74,19 @@ function list that means:
   reacting to seat changes, about a second later. No family writes them. It also writes two more
   read-only copies: `invitedClientId` with GSI1 keys, so the invited family sees the invitation,
   and `choiceAnswerBy` on the staying family's seat. So `consumer-invite` now needs a narrow write
-  permission on `SEAT#` items across coaches — only those attributes. Its role isn't written yet
-  (ADR-031 decision 14, Open).*
+  permission on `SEAT#` items across coaches — only those attributes. ~~Its role isn't written yet
+  (ADR-031 decision 14, Open).~~* *Revised 2026-10-13 (option B): its role is settled (ADR-031
+  Consequences) — reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the
+  key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and
+  `choiceAnswerBy`; no `PutItem` or `DeleteItem`. It only ever copies.*
 - **Its nightly run is replaced** by **`sched-deadline-sweep`**, a new scheduled function that
   runs **every hour**. It queries the new deadline index, **GSI4**, re-checks each ~~seat~~
   record, sends the warning (at the 9pm run before it's due), expires invitations and cancels
   unanswered ~~seats~~ lessons (ADR-031 decision 12). *Revised 2026-10-13 (ADR-031 revision): the
-  `ANSWER` deadline sits on the lesson time's pending leave, not on a seat.*
+  `ANSWER` deadline sits on the lesson time's pending leave, not on a seat.* *Revised 2026-10-13
+  (option B): it also ends an accepted invitation as `WITHDRAWN` when the inviting family
+  cancelled first (`INVITER_LEFT`, ADR-031 decisions 5 and 12), and is the one function that can
+  delete records across coaches.*
 - **`sched-lesson-roller`** is a new **nightly** scheduled function. It keeps lesson times stored
   to the end of the booking window plus 12 months, about 15 months ahead (ADR-031 decision 1).
 - **What else `consumer-invite` did is not reassigned by ADR-031:** emailing Family B straight
@@ -91,8 +97,10 @@ function list that means:
   only~~. With the two new scheduled functions that makes **sixteen functions**.* *Revised
   2026-10-13 (ADR-031 revision): it stays for emails **and the read-only copies** — the partner
   fields, the invited family's view of an invitation and `choiceAnswerBy` (ADR-031 decision 6 and
-  Consequences). It also ends an invited seat as `WITHDRAWN` when the inviting family cancels
-  (decision 5).*
+  Consequences). ~~It also ends an invited seat as `WITHDRAWN` when the inviting family cancels
+  (decision 5).~~* *Revised 2026-10-13 (option B): it never ends a seat. The inviting family's own
+  cancel ends one still `INVITED`; the hourly sweep ends one already `AWAITING_COACH`
+  (`INVITER_LEFT`, ADR-031 decisions 5 and 12).*
 - **Neither new function's role is written yet.** GSI4 is keyed `DUE` across every coach, so, like
   GSI2 and GSI3, it is a cross-tenant index that only a scheduled job should hold.
 

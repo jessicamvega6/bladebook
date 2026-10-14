@@ -50,7 +50,9 @@ rebuilds booking as **lesson times** and **seats**. What it means here:
 - **A new sparse index, GSI4**, keyed `GSI4PK = DUE` across every coach, holds seats with a
   pending deadline. It is cross-tenant, like GSI2. It is read by the hourly scheduled job
   `sched-deadline-sweep`, never by `coach-tenant`. *Revised 2026-10-13 (ADR-031 revision): it
-  holds seats (`WARN`, `EXPIRE`) and lesson times with a pending leave (`ANSWER`).*
+  holds seats (`WARN`, `EXPIRE`) and lesson times with a pending leave (`ANSWER`).* *Revised
+  2026-10-13 (option B): seats also carry `INVITER_LEFT` (ADR-031 decision 12). The sweep is the
+  one function that can delete records in every coach's area.*
 - **The coach's Accept** now turns every one of the accepted skater's `AWAITING_COACH` seats
   into `BOOKED`, in the coach's own partition and session, as ADR-026's automatic join did.
 - **Decision 7's gate tests need new rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4
@@ -59,9 +61,15 @@ rebuilds booking as **lesson times** and **seats**. What it means here:
   seats**, in whichever coach's partition the lesson is: `partnerName`, `partnerStatus`,
   `invitedClientId` with the invited family's GSI1 keys, and `choiceAnswerBy`. It is a system
   function, like `consumer-student-link`, so its writes cross coaches. Its role should allow
-  updating only those attributes on `SEAT#` items (ADR-031 decision 14, Open). It also ends an
+  updating only those attributes on `SEAT#` items (ADR-031 decision 14, Open). ~~It also ends an
   invited seat as `WITHDRAWN` when the inviting family cancels (ADR-031 decision 5). The role
-  isn't written yet.
+  isn't written yet.~~ *Revised 2026-10-13 (option B): the role is settled (ADR-031
+  Consequences) — reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the
+  key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and
+  `choiceAnswerBy`; no `PutItem` or `DeleteItem`. The condition can't limit it to `SEAT#` items,
+  but a lesson time has none of those fields. It never ends a seat: the inviting family's own
+  cancel ends one still `INVITED`, and `sched-deadline-sweep` ends one already `AWAITING_COACH`
+  (`INVITER_LEFT`, ADR-031 decision 5).*
 
 Decisions 1–9 are otherwise unchanged.
 

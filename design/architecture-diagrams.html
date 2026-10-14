@@ -600,7 +600,7 @@ erDiagram
         enum   partnerStatus &quot;the other skater&#x27;s seatStatus; written by consumer-invite&quot;
         datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
         datetime dueAt &quot;next deadline; GSI4 while set&quot;
-        enum   dueKind &quot;WARN|EXPIRE&quot;
+        enum   dueKind &quot;WARN|EXPIRE|INVITER_LEFT&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -867,7 +867,7 @@ erDiagram
         enum   partnerStatus &quot;the other skater&#x27;s seatStatus; written by consumer-invite&quot;
         datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
         datetime dueAt &quot;next deadline; GSI4 while set&quot;
-        enum   dueKind &quot;WARN|EXPIRE&quot;
+        enum   dueKind &quot;WARN|EXPIRE|INVITER_LEFT&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -1789,8 +1789,13 @@ sequenceDiagram
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
     opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
-        Inv-&gt;&gt;DB: Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
-        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
+        alt Mia&#x27;s seat still INVITED - Family A&#x27;s own record
+            API-&gt;&gt;DB: in the same transaction, Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
+        else Mia&#x27;s seat already AWAITING_COACH - Family B&#x27;s record
+            API-&gt;&gt;DB: in the same transaction, set dueKind INVITER_LEFT on Mia&#x27;s seat, due at once (GSI4)
+            Note over DB: the hourly sweep ends it as WITHDRAWN, up to an hour later (§6.10)
+        end
+        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled, once the seat is WITHDRAWN
     end
     Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
     Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price.&lt;br/&gt;A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
@@ -1837,8 +1842,13 @@ sequenceDiagram
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
     opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
-        Inv-&gt;&gt;DB: Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
-        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
+        alt Mia&#x27;s seat still INVITED - Family A&#x27;s own record
+            API-&gt;&gt;DB: in the same transaction, Mia&#x27;s seat moves to SEATEND#35; - WITHDRAWN (ADR-031 d5)
+        else Mia&#x27;s seat already AWAITING_COACH - Family B&#x27;s record
+            API-&gt;&gt;DB: in the same transaction, set dueKind INVITER_LEFT on Mia&#x27;s seat, due at once (GSI4)
+            Note over DB: the hourly sweep ends it as WITHDRAWN, up to an hour later (§6.10)
+        end
+        Inv-&gt;&gt;SES: email Family B - the lesson was cancelled, once the seat is WITHDRAWN
     end
     Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
     Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price.&lt;br/&gt;A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
@@ -1964,6 +1974,11 @@ sequenceDiagram
             DB-&gt;&gt;Bus: (stream) the seat change
             Bus-&gt;&gt;Inv: route
             Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
+        else INVITER_LEFT - the inviting family cancelled after Mia&#x27;s family accepted
+            Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome WITHDRAWN, endedBy SWEEP,&lt;br/&gt;seatsTaken drops
+            DB-&gt;&gt;Bus: (stream) the seat change
+            Bus-&gt;&gt;Inv: route
+            Inv-&gt;&gt;SES: email the invited family - the lesson was cancelled
         else ANSWER - no answer by answerBy
             Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
             DB-&gt;&gt;Bus: (stream) LessonsChanged
@@ -2003,6 +2018,11 @@ sequenceDiagram
             DB-&gt;&gt;Bus: (stream) the seat change
             Bus-&gt;&gt;Inv: route
             Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
+        else INVITER_LEFT - the inviting family cancelled after Mia&#x27;s family accepted
+            Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome WITHDRAWN, endedBy SWEEP,&lt;br/&gt;seatsTaken drops
+            DB-&gt;&gt;Bus: (stream) the seat change
+            Bus-&gt;&gt;Inv: route
+            Inv-&gt;&gt;SES: email the invited family - the lesson was cancelled
         else ANSWER - no answer by answerBy
             Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
             DB-&gt;&gt;Bus: (stream) LessonsChanged

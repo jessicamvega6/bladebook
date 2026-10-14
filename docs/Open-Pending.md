@@ -126,9 +126,12 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
   *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): the 9pm report job fixes
   `amountMinor` for any of that day's seats still without one.*
-- **To-do: Write `consumer-invite`'s narrow write permission** — only `partnerName`,
+- ~~**To-do: Write `consumer-invite`'s narrow write permission** — only `partnerName`,
   `partnerStatus`, `invitedClientId`, its GSI1 keys and `choiceAnswerBy` on `SEAT#` items, across
-  coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*
+  coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031, option
+  B): reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields
+  and those attributes; no `PutItem` or `DeleteItem`. It no longer ends seats — the inviting
+  family's own cancel or the sweep's `INVITER_LEFT` does.*
 - ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
   `design/harbor` (family and coach sites).*
