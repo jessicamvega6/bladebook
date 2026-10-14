@@ -69,9 +69,10 @@ while. Today BladeBook offers two ways, and they don't fit together well:
 - **A per-student price** (`priceMinorOverride`): one fixed amount that replaces the normal
   price on every lesson that student books — whatever the lesson's length, and unaffected by
   the coach's later price changes.
-- **Editing one booking's price by hand** (ADR-003 decision 2). This one causes a problem:
+- ~~**Editing one booking's price by hand** (ADR-003 decision 2). This one causes a problem:
   since ADR-020, upcoming lessons follow the coach's current price, and nothing can tell a
-  hand-edited price from an out-of-date one — so the next schedule save would put it back.
+  hand-edited price from an out-of-date one — so the next schedule save would put it back.~~
+  *Answered by the owner, 2026-10-13: removed (ADR-031). No need to ask Kim.*
 
 A lesson can also be **marked waived** — free — which already covers a one-off.
 
@@ -98,7 +99,7 @@ A lesson can also be **marked waived** — free — which already covers a one-o
 - **The shape of the per-student discount**: a fixed price, a percentage off, or a dollar
   amount off. A percentage or dollar amount off would follow the coach's price changes; a
   fixed price would not. (ADR-003, ADR-004 decision 4)
-- **Whether hand-editing one booking's price stays.** If it goes, re-pricing needs no
+- ~~**Whether hand-editing one booking's price stays.** If it goes, re-pricing needs no
   exceptions. If it stays, ADR-020 needs a way to mark hand-set prices so they are never
   re-priced. (ADR-003 decision 2, ADR-020)
 - **Whether changing a family's discount re-prices lessons they have already booked**, under

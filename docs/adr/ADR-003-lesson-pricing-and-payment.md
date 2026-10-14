@@ -115,8 +115,10 @@ booking.priceMinor  ←  student.priceMinorOverride   (if set)
 ```
 
 `STUDENT` gains an optional `priceMinorOverride`, which is how a coach gives one
-student a standing rate different from everyone else. A coach may also edit
-`priceMinor` on an individual booking after the fact, for a one-off adjustment.
+student a standing rate different from everyone else. ~~A coach may also edit
+`priceMinor` on an individual booking after the fact, for a one-off adjustment.~~ *Removed
+2026-10-13 by the owner (ADR-031): no booking stores its own price any more; a one-off is
+covered by marking the lesson waived.*
 
 **Stamping is the load-bearing part.** Because the price is copied onto the booking
 rather than looked up at send time, raising the default rate in March cannot

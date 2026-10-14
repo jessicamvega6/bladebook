@@ -45,7 +45,7 @@ Other work can go ahead while these wait. Each blocks only the feature named.
 
 | # | Blocker | Blocks | Needs | Source |
 |---|---|---|---|---|
-| 10 | **Hand-edited booking prices.** Re-pricing would overwrite them. Remove per-booking price editing, or mark hand-set prices so they're never re-priced. | Re-pricing on schedule save (MVP feature 6), and per-lesson price editing | Kim, §5 | ADR-020 Open |
+| 10 | ~~**Hand-edited booking prices.** Re-pricing would overwrite them. Remove per-booking price editing, or mark hand-set prices so they're never re-priced.~~ *Settled 2026-10-13 by the owner: per-lesson price editing is removed (ADR-031).* | Re-pricing on schedule save (MVP feature 6), and per-lesson price editing | Kim, §5 | ADR-020 Open |
 | 11 | ~~**Shape of the per-student price.** A fixed price (today it replaces every lesson length, so 60 minutes costs the same as 30), a percentage, or an amount off. Does changing it re-price booked lessons? Can `0` mean free?~~ *Phase 2 since 2026-10-13 (ADR-003); no longer blocks MVP.* | The student price dialog, price resolution at booking, re-pricing | Kim, §5 | ADR-003, ADR-020 |
 | 12 | **Large-price-change warning threshold.** | The schedule review's must-acknowledge warning | Kim, §1 | ADR-020 d4 |
 | 13 | **Who sends the SMS opt-in confirmation.** No function holds `sns:Publish` where it happens; a stream consumer is suggested. | the coach's late-cancellation text (client SMS is Phase 2) | Owner | ADR-007 d8, ADR-001 A6 |

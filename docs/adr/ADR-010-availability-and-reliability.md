@@ -425,7 +425,8 @@ a delivery outage longer than that drops `ScheduleChanged` with nothing left to 
 
 *Dependency:* stage 2's re-pricing waits on the same question as ADR-020 itself — whether a
 coach can hand-edit one booking's price. Until that is settled, a reconcile could overwrite a
-hand-edited price. Cancellations do not depend on it.
+hand-edited price. Cancellations do not depend on it.~~ *Settled 2026-10-13 (owner, ADR-031):
+per-lesson price editing is removed, so a reconcile has no hand-set price to overwrite.*
 
 **5k. A nightly drift check alerts, and fixes nothing.** A new scheduled function,
 **`sched-drift-check`**, runs the reconcile's checks in dry-run form every night — **read-only**,

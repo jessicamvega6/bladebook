@@ -302,10 +302,10 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   For now only the family is warned. *Decided by the owner, 2026-10-13.* (ADR-025 f)
 - **Open question (Phase 2): Is a saved schedule a third item type or a header not in
   effect?** Decides whether "save" and "apply" are one action or two. (ADR-008)
-- **Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
+- ~~**Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
   prices.** ADR-020 would overwrite them on the next schedule save. Remove per-booking price
   editing (*mark as waived* covers it; the per-student override is Phase 2 since 2026-10-13), or mark hand-set prices
-  so they're never re-priced. (ADR-020 Open, `Items to ask Kim About.md` §5)
+  so they're never re-priced. (ADR-020 Open, `Items to ask Kim About.md` §5)~~ *Settled 2026-10-13 by the owner (ADR-031): per-lesson price editing is removed. Under ADR-031 no booking stores its own price — the price lives only on the lesson time and each skater's share is worked out from it. A one-off is covered by *mark as waived*. Personal prices (already Phase 2) will be a per-skater override applied when the share is worked out.*
 - *Phase 2 since 2026-10-13 (owner): personal prices.* **Open question (Phase 2) — needs Kim: The shape of the per-student discount** — a fixed price, a
   percentage off, or a dollar amount off; whether changing it re-prices booked lessons; and
   whether `0` should mean free. (ADR-003, ADR-020, `Items to ask Kim About.md` §5)

@@ -251,13 +251,13 @@ batch that simply contains cancellation lines only.
 
 ## Open
 
-- **Hand-edited booking prices would be overwritten.** ADR-003 decision 2 lets a coach edit one
+- ~~**Hand-edited booking prices would be overwritten.** ADR-003 decision 2 lets a coach edit one
   booking's price by hand. Decision 1 re-prices any upcoming booking whose price differs from
   its block's, so the next schedule save — even an unrelated one — would put a hand-edited
   price back and tell the family. Either per-booking editing goes (the per-student price
   override and *mark as waived* cover the cases), or hand-set prices are marked and never
   re-priced. *Raised 2026-09-30; waiting on coach input — `Items to ask Kim About.md` §5.*
-  **Must be settled before re-pricing is built.**
+  **Must be settled before re-pricing is built.**~~ *Settled 2026-10-13 by the owner (ADR-031): per-lesson price editing is removed. Under ADR-031 no booking stores its own price — the price lives only on the lesson time and each skater's share is worked out from it. A one-off is covered by *mark as waived*. Personal prices (already Phase 2) will be a per-skater override applied when the share is worked out.*
 - **Changing a student's price override.** Whether that re-prices the student's upcoming
   lessons under decision 2's rules, and what shape the override takes (fixed price,
   percentage off, dollar amount off). Also §5 of the list for Kim. *Phase 2 since 2026-10-13 (ADR-003).*
