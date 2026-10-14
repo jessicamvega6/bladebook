@@ -50,11 +50,11 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub) |
 | Calendar | Month — new; week — redesigned; day — new; day with a shared-lesson invitation — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
-| Students | Student list, edit contact, personal price, remove, pending list (an invited skater joins their shared lesson on approval), decline, nobody waiting, after approving an invited skater — new |
+| Students | Student list, edit contact, remove, pending list (an invited skater joins their shared lesson on approval), decline, nobody waiting, after approving an invited skater — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
 | Profile | Details and coach code, business email, visibility and texts — redesigned; payments, account — new |
-| Phase 2 | Email templates, with the shared-lesson emails — new |
+| Phase 2 | Email templates, with the shared-lesson emails — new; personal price (moved to Phase 2, 2026-10-13) |
 
 ### What the demo does not do
 
@@ -86,8 +86,8 @@ section per coach, including one where Coach Ben's booking didn't go through. Th
 (`DANA-7K2Q`, `BENO-4R8T`, `LAUR-3J9W`, `MARC-6P2D`). Home has one card per coach, and a family is "waiting" only
 until any coach approves a skater.
 
-Removing an approved skater from the profile cancels their upcoming lessons, which is one
-reading of the open "delete a student" decision.
+The family profile has no Remove button and share codes can't be refreshed (owner, 2026-10-13). What removing a
+skater means is still the open "delete a student" decision.
 
 ## Rinkside app — `rinkside/`
 

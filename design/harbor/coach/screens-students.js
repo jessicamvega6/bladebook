@@ -19,7 +19,7 @@ function stuApproveOne(s) {
   const joined = [];
   for (const j of stuJoins(s)) {
     const inv = state.invites.find(i => i.id === j.invite);
-    if (j.ok) { (j.lesson.with ??= []).push({ sid: s.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: j.lesson.price }); delete j.lesson.invited; joined.push(j.lesson); if (inv) inv.status = 'CONFIRMED'; }
+    if (j.ok) { (j.lesson.with ??= []).push({ sid: s.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: j.lesson.price }); splitPrice(j.lesson); delete j.lesson.invited; joined.push(j.lesson); if (inv) inv.status = 'CONFIRMED'; }
     else if (inv) inv.status = 'EXPIRED';
   }
   delete s.pendingJoins;
@@ -36,14 +36,13 @@ SCREENS.students = () => {
     return `<tr>
       <td><span class="cellname">${avatar(initials(s.name), 'sm')}<span><b>${esc(s.name)}</b><span class="stu-sub">${s.minor ? 'Minor' : 'Adult'}</span></span></span></td>
       <td><b>${esc(s.client)}</b><span class="stu-sub">${s.rel === 'Self' ? 'Books for themselves' : s.rel}</span>${stuContact(s)}</td>
-      <td>${s.override ? `${badge(money(s.override) + ' per lesson', 'primary')}<span class="stu-sub">Personal price</span>` : `<span class="muted">Schedule price</span>`}<span class="stu-sub">${B(s.override ? 'Change' : 'Set price', 'ghost', 'stuPriceOpen', { sm: true, icon: 'card', args: [s.id] })}</span></td>
       <td class="num">${n ? `${dDow(n.iso)}<span class="stu-sub">${fmtT(n.t)} · ${n.len} min</span>` : '<span class="muted">Nothing booked</span>'}</td>
       <td class="r"><span class="cellbtns">${B('Edit contact', 'ghost', 'stuEditOpen', { sm: true, icon: 'pencil', args: [s.id] })}${B('Remove', 'ghost', 'stuRemoveOpen', { sm: true, args: [s.id] })}</span></td></tr>`;
   }).join('');
   return shell(`
     ${pageHead('Students', 'Everyone you coach, and how to reach their family.', stuTabs(0))}
     <div class="stu-search">${INP('stu-search', 'Search', 'ui.stu.search', { live: true, placeholder: 'Name, family, email or phone' })}</div>
-    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Family contact</th><th>Price</th><th>Next lesson</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Family contact</th><th>Next lesson</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
       <div class="card__note">${ic('info', 14)} Contact details are the family’s. Changing them here changes them for every skater in that family.</div>`
       : `<div class="pempty"><span class="pempty__icon">${ic('users', 22)}</span><b>No students match “${esc(u.search)}”</b><span class="muted">Try a first name, a family name or a phone number.</span></div>`,
       { pad: false, title: plural(list.length, 'student'), sub: q ? `Matching “${esc(u.search)}”` : `${plural(families(active()).length, 'family', 'families')}` })}`, { width: 'wide' });
@@ -103,7 +102,7 @@ MODALS.stuPrice = m => {
   const amt = Number(d.amount), bad = d.mode === 1 && !(amt > 0);
   const blocks = BLOCKS.map(b => `${esc(b.name)} · ${b.len} min · ${money(b.price)}`).join('<br>');
   return `<div class="dialog__icon">${ic('card', 22)}</div>
-    <h2 class="h2">Price for ${esc(s.name)}</h2>
+    <h2 class="h2">Price for ${esc(s.name)} ${badge('Phase 2', 'neutral')}</h2>
     <p class="fine">Families see the price when they book, and it’s on every payment reminder.</p>
     ${SEG(['Your schedule’s price', 'A personal price'], d.mode, 'stuPriceMode', [], { block: true })}
     ${d.mode === 0 ? `<div class="stu-blocks"><div class="label">${esc(s.name)} pays what each block costs</div><div class="fine">${blocks}</div></div>` : `
@@ -157,9 +156,9 @@ Object.assign(ACTIONS, {
 
 /* ---------- presets ---------- */
 PRESETS.push(
-  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their family’s contact details, price and next lesson, searchable. Set price changes one skater’s price.', setup: st => { st.screen = 'students'; } },
+  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their family’s contact details and next lesson, searchable. Everyone pays the schedule’s prices; personal prices are Phase 2 (owner, 2026-10-13).', setup: st => { st.screen = 'students'; } },
   { id: 'CoachStudentsEdit', file: 'students-edit', group: 'Students', title: 'Student list — edit contact', note: 'New. Contact details belong to the family, so an edit applies to every skater in it.', setup: st => { st.screen = 'students'; const e = st.students.find(x => x.id === 's3'); st.ui.stu = { search: '', draft: { client: e.client, email: e.email, phone: e.phone } }; st.modal = { kind: 'stuEdit', id: 's3' }; } },
-  { id: 'CoachStudentsPrice', file: 'students-price', group: 'Students', title: 'Student list — personal price', note: 'New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
+  { id: 'CoachStudentsPrice', file: 'students-price', group: 'Phase 2', title: 'Student list — personal price', note: 'Phase 2 (moved by the owner, 2026-10-13: every skater pays the schedule’s prices in MVP). New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
   { id: 'CoachStudentsRemove', file: 'students-remove', group: 'Students', title: 'Student list — remove', note: 'New. One reading of an open decision (Open-Pending.md): upcoming lessons cancelled, no more booking, history kept.', setup: st => { st.screen = 'students'; st.modal = { kind: 'stuRemove', id: 's7' }; } },
   { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, approve per skater or all at once; pending families see only their own account (ADR-022 d6). Zoe Okafor was invited by Grace Chen to share Mia’s Friday lesson and joins it automatically when approved, if it still exists, hasn’t started and has room (ADR-026 d5).', setup: st => { st.screen = 'pending'; } },
   { id: 'CoachPendingApproved', file: 'pending-approved-shared', group: 'Students', title: 'Waiting for approval — invited skater approved', note: 'New state. Approving Zoe joins her to Mia’s Fri, Oct 16 8:30 lesson in the same step (ADR-026 d5).', setup: st => { st.screen = 'pending'; ACTIONS.stuApprove('p4'); } },

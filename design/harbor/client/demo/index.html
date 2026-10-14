@@ -1179,7 +1179,7 @@ add('Family · My bookings', 'ClientCancelConfirm', '2 · Cancel a lesson', 1280
     <h2 class="h2">Cancel Mia’s lesson?</h2>
     <div class="dialog__what"><b>Tue, Oct 13 · 4:00 PM</b><span>30 min · $50</span></div>
     ${banner('warning', 'Inside the 24-hour notice period', 'Dana may charge a late cancellation fee.')}
-    <p class="fine">The time goes back on Dana’s calendar and Dana will be told. Other lessons in this series aren’t affected.</p>
+    <p class="fine">The time goes back on Dana’s calendar and Dana will be told, because it’s a late cancellation. Other lessons in this series aren’t affected.</p>
     <div class="dialog__actions">${btn('Keep lesson', 'secondary')}${btn('Cancel lesson', 'danger')}</div></div>`
 }), 'A real modal over the list, keeping context. “Keep” is the safe default; the fee warning is promoted to a banner.');
 
@@ -1547,7 +1547,7 @@ function freshStudents() {
     { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
     { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
     { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45, shareCode: 'SAM-6RZB' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZB' },
     { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
     { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
     { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
@@ -1603,12 +1603,21 @@ function freshLessons(students) {
   out.push({ id: 'h1', sid: null, iso: TODAY, t: 660, len: 30, price: 0, status: 'COACH_HELD', pay: null });
   // Shared lessons (ADR-026). Sam's Wednesday 6:00 series is shared with Leo: each skater has their own attendance and payment.
   for (const l of out.filter(x => x.sid === 's4' && dowOf(x.iso) === 3 && x.t === 360 && x.iso >= '2026-10-07'))
-    l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }];
+    { l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }]; splitPrice(l); }
   // Grace invited Zoe Okafor to share Mia's Friday 8:30; Zoe waits for Coach Dana's approval (invite i2).
   const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 'p4';
   // Not recorded: Ella's lesson last Friday has no attendance.
   const ella = out.find(l => l.sid === 's3' && l.iso === '2026-10-09' && l.t === 540); if (ella) { ella.status = 'BOOKED'; ella.pay = 'UNPAID'; }
   return out.sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
+}
+
+/** A shared lesson has one set price, the block's price when it was booked, split evenly between its skaters (owner,
+    2026-10-13; ADR-026 P2). `full` keeps the lesson's own price; each skater's `price` is their share. Personal prices are
+    Phase 2, so the split is always of the schedule's price. */
+function splitPrice(l) {
+  l.full = l.full ?? l.price;
+  const per = Math.round(l.full / (1 + (l.with || []).length) * 100) / 100;
+  l.price = per; for (const w of l.with || []) w.price = per;
 }
 
 /* Shared-lesson invitations (ADR-026 d5). inviteStatus: SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
@@ -1898,8 +1907,10 @@ function openSlotsFor(cid, iso) {
 }
 /** A family's own lesson with a coach at a date and time, if any. */
 const myLessonAt = (cid, iso, t) => myLessons().find(l => lcoach(l) === cid && l.iso === iso && l.t === t);
-/** A personal price override is Coach Dana's; other coaches charge their schedule's price in the demo. */
-const priceAt = (cid, sid, slot) => (cid === DANA && student(sid).override) || slot.price;
+/** Every skater pays the schedule's price. Personal prices are Phase 2 (owner, 2026-10-13). */
+const priceAt = (cid, sid, slot) => slot.price;
+/** The price this family pays for a lesson: the whole price, or their share of a shared lesson (owner, 2026-10-13). */
+const myPrice = l => myKids().some(k => k.id === l.sid) ? l.price : ((l.with || []).find(w => myKids().some(k => k.id === w.sid)) || {}).price;
 
 /* ---------- shared-lesson invitations (ADR-026 d5, d5a) ---------- */
 /** The booking family's lessons an invitation covers: one lesson, or every lesson in the series. */
@@ -1979,7 +1990,7 @@ const skaterOrgFields = (base, orgKey, numKey, idp, act) => { const u = getPath(
   <div class="fieldset"><div class="label">Skating organization</div>${SEG(SKATE_ORGS.map(o => o.name), u[orgKey], act, [], { block: true })}</div>
   ${INP(idp, org.num, `${base}.${numKey}`, { live: true, mono: true, placeholder: org.eg, error: acNumError(u[orgKey], u[numKey]), hint: `From the skater’s ${org.name} membership for this season${org.fmt}. It changes every season.` })}`; };
 /* Share codes (ADR-026 d4): every skater has one, issued when the skater is created. A family gives it to a family they
-   want to share a lesson with. A new code retires the old one. Length and alphabet wait on the coach-code decision (#7). */
+   want to share a lesson with. A skater's code never changes (owner, 2026-10-13). Length and alphabet wait on the coach-code decision (#7). */
 const SHARE_ALPHABET = 'ABCDEFGHJKMNPQRTVWXYZ2346789';
 const acShareCode = (name, seed) => { let h = hash(name + seed), c = ''; for (let i = 0; i < 4; i++) { c += SHARE_ALPHABET[h % SHARE_ALPHABET.length]; h = Math.floor(h / SHARE_ALPHABET.length) + 7919 * (i + 1); } return `${firstName(name).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5)}-${c}`; };
 /* Texts to families are Phase 2 (owner, 2026-10-12): until then every reminder and cancellation goes by email. */
@@ -2103,7 +2114,7 @@ SCREENS.signup = () => {
     <div class="listbox">${kids.map(k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `with ${coachOr(k.coaches, 'and')}`)}`, `<span class="ac-kc__list">${k.coaches.map(id => badge(multi ? `Waiting for Coach ${esc(coachById(id).first)}` : 'Waiting for approval', 'warning', 'clock')).join('')}</span>`)).join('')}</div>
     <p class="fine">We’ll email you as soon as ${multi ? 'each coach approves' : `${who} approves`}. Booking with a coach opens once they approve.</p>
     ${B('Go to my account', 'primary', 'acSuToHome', { block: true, lg: true })}`),
-    help('While you wait', 'Your account shows your profile and your skaters. You can’t see your coach’s times until a skater is approved. Added the wrong skater? Edit or remove them from your profile.'),
+    help('While you wait', 'Your account shows your profile and your skaters. You can’t see your coach’s times until a skater is approved.'),
     { steps: 4, ctx: 'Family sign up', right: '' });
 };
 
@@ -2159,9 +2170,8 @@ function acHomePending() {
       : `${multi ? 'Until a coach approves, you won’t see their times and can’t book with them.' : `Until then you won’t see Coach ${esc(waits[0].c.first)}’s times and can’t book.`} Each coach checks that they know each family who signs up with their code.`}</div></div></div>${multi ? `<div class="listbox ac-waitlist">${waits.map(w => row(`${avatar(initials(cName(w.c)), 'sm')}${rowTitle(`Coach ${esc(cName(w.c))}`, `Waiting to approve ${names(w.kids)}`)}`, badge('Waiting', 'warning', 'clock'))).join('')}</div>` : ''}</div>` : ''}
     ${acInviteCard()}
     ${card(kids.map(k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `${k.minor ? 'Under 18' : 'Adult'} · ${acKidCoaches(k).length ? `signed up ${dShort(k.since)}` : 'invited to share a lesson'}`)}`, acKidCoaches(k).length ? `<span class="ac-kc__list">${acKidCoaches(k).map(id => badge(multiCoach() ? `Waiting for Coach ${esc(coachById(id).first)}` : 'Waiting for approval', 'warning', 'clock')).join('')}</span>` : badge(`Not Coach ${esc(icn || coachFirst())}’s student yet`, 'neutral'))).join(''),
-      { title: 'Your skaters', pad: false, action: A_('profile', 'Edit or remove') })}
-    ${card(`<ol class="ac-steps"><li><b>${multi ? 'Each coach approves' : `Coach ${esc((waits[0] || { c: coachById(DANA) }).c.first)} approves`} each skater.</b> Usually within a day.</li><li><b>We email you</b> at ${esc(state.me.email)}${multi ? ' as each coach approves' : ''}.</li>${invited.length && inv ? `<li><b>${esc(firstName(invited[0].name))} joins the shared lesson</b> on ${invWhen(inv)}, as long as it hasn’t started.</li>` : ''}<li><b>Booking opens${multi ? ' with each coach as they approve' : ''}.</b> You’ll see open times and can book single or weekly lessons.</li></ol>`, { title: 'What happens next' })}
-    <p class="fine">Signed up by mistake, or with the wrong coach? Remove your skaters from your ${A_('profile', 'profile')}.</p>`);
+      { title: 'Your skaters', pad: false, action: A_('profile', 'Profile') })}
+    ${card(`<ol class="ac-steps"><li><b>${multi ? 'Each coach approves' : `Coach ${esc((waits[0] || { c: coachById(DANA) }).c.first)} approves`} each skater.</b> Usually within a day.</li><li><b>We email you</b> at ${esc(state.me.email)}${multi ? ' as each coach approves' : ''}.</li>${invited.length && inv ? `<li><b>${esc(firstName(invited[0].name))} joins the shared lesson</b> on ${invWhen(inv)}, as long as it hasn’t started.</li>` : ''}<li><b>Booking opens${multi ? ' with each coach as they approve' : ''}.</b> You’ll see open times and can book single or weekly lessons.</li></ol>`, { title: 'What happens next' })}`);
 }
 
 SCREENS.home = () => {
@@ -2172,6 +2182,7 @@ SCREENS.home = () => {
   return shell(`
     ${pageHead(`Good morning, ${esc(firstName(state.me.name))}`, dLong(TODAY), B('Book a lesson', 'primary', '', { href: href('book'), icon: 'calendar' }))}
     ${acShareBanners()}
+    ${bkAskFullCards()}
     ${waits.map(w => banner('warning', `${w.kids.map(k => esc(firstName(k.name))).join(' and ')} ${w.kids.length === 1 ? 'is' : 'are'} waiting for Coach ${esc(w.c.first)}’s approval`, `You can book with Coach ${esc(w.c.first)} once they approve.`)).join('')}
     ${acInviteCard()}
     <div class="split split--today">
@@ -2231,9 +2242,9 @@ SCREENS.profile = () => {
   const u = acUi(), kids = myKids(), self = state.me.rel === 'Self', multi = multiCoach();
   const status = k => multi ? '' : k.status === 'ACTIVE' ? badge('Approved', 'success', 'check') : k.status === 'PENDING' ? badge('Waiting for approval', 'warning', 'clock') : badge('Not Coach ' + esc(coachFirst()) + '’s student yet', 'neutral');
   const skaterRow = k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `${k.minor ? 'Under 18' : 'Adult'}${k.orgNum ? ` · ${orgLine({ org: k.org, num: k.orgNum })}` : ''}`)}`,
-    `${status(k)}${B('Remove', 'ghost', 'acRemoveOpen', { sm: true, args: [k.id] })}`)
+    status(k))
     + (multi ? `<div class="ac-code ac-kc"><span class="ac-code__label">Coaches</span><span class="ac-kc__list">${acCoachBadges(k) || '<span class="muted">None yet</span>'}</span></div>` : '')
-    + (k.shareCode ? `<div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">${esc(k.shareCode)}</span><span class="ac-code__btns">${B('Copy', 'ghost', 'acCopyCode', { sm: true, icon: 'copy', args: [k.id] })}${B('New code', 'ghost', 'acNewCodeOpen', { sm: true, icon: 'refresh', args: [k.id] })}</span></div>` : '');
+    + (k.shareCode ? `<div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">${esc(k.shareCode)}</span><span class="ac-code__btns">${B('Copy', 'ghost', 'acCopyCode', { sm: true, icon: 'copy', args: [k.id] })}</span></div>` : '');
   return shell(`
     ${pageHead('Profile', multi ? 'How your coaches and BladeBook reach you.' : 'How Coach ' + esc(coachFirst()) + ' and BladeBook reach you.')}
     ${card(`
@@ -2261,7 +2272,8 @@ SCREENS.profile = () => {
    Opened from the invitation email. It's inside the signed-in shell: opening the link does nothing on its own, and signing
    in proves it's Family B. Shows who invited, the lesson or series, which skater, and clashes with that skater's other
    lessons (ADR-025 d5); Family B goes ahead or declines. A skater who isn't the coach's student yet goes to the coach first,
-   exactly like a coach-code sign-up, and joins when the coach accepts. No price: shared pricing is still open (Kim P2). */
+   exactly like a coach-code sign-up, and joins when the coach accepts. The lesson's price is split between the two skaters
+   (owner, 2026-10-13; ADR-026 P2). */
 const invUi = () => (state.ui.inv ??= { id: null });
 const invCur = () => { const mine = invsToMe(); return mine.find(i => i.id === invUi().id) || mine.find(i => i.status === 'SENT') || mine[0]; };
 SCREENS.invite = () => {
@@ -2275,7 +2287,7 @@ SCREENS.invite = () => {
     ${inv.series ? kv('Dates', invDates(inv)) : ''}
     ${kv('Coach', `Coach ${esc(cName(ic_))} · ${RINK_SHORT}`)}
     ${kv('Skater', esc(kid.name))}
-    ${kv('Price', `Set by Coach ${coach}. You pay ${coach} directly.`)}`, { title: inv.series ? 'The lessons' : 'The lesson' });
+    ${(() => { const l0 = ls[0], full = l0 ? (l0.full ?? l0.price) : 0; return kv('Price', full ? `${money(full / 2)} for ${kf}${inv.series ? ' per lesson' : ''}: the lesson’s ${money(full)}, split between the two skaters. You pay Coach ${coach} directly.` : `You pay Coach ${coach} directly.`); })()}`, { title: inv.series ? 'The lessons' : 'The lesson' });
   const aside = `<div class="stack">${help('Shared lessons', `Two skaters share one lesson with Coach ${coach}. Each skater’s attendance and payment are kept separately.`)}${inv.series ? help('A repeating lesson', `Going ahead joins ${kf} to every lesson in the series.`) : ''}</div>`;
   const page = (top, body = '') => shell(`${top}${acShareBanners(inv)}<div class="split split--today"><div class="stack">${details}${body}</div>${aside}</div>`, { width: 'wide' });
   const hero = (cls, icon, title, sub) => `<div class="crumb">${crumb('home', 'Home')}</div><div class="hero ${cls}"><span class="hero__icon">${ic(icon, 26)}</span><div><h1 class="h1">${title}</h1><p class="lede">${sub}</p></div></div>`;
@@ -2310,23 +2322,6 @@ SCREENS.payments = () => {
 };
 
 /* ================= modals ================= */
-MODALS.acRemove = m => {
-  const k = student(m.id), up = state.lessons.filter(l => l.sid === k.id && !isStarted(l)).length;
-  return `<div class="dialog__icon dialog__icon--danger">${ic('trash', 22)}</div>
-    <h2 class="h2">Remove ${esc(k.name)}?</h2>
-    <p class="fine">${k.status === 'PENDING' ? `Coach ${esc(coachFirst())} won’t see this sign-up any more.` : up ? `${plural(up, 'upcoming lesson')} ${up === 1 ? 'is' : 'are'} cancelled. Coach ${esc(coachFirst())} is told about any inside the notice period, and those may be charged.` : `Nothing is booked for ${esc(firstName(k.name))}.`}</p>
-    <div class="dialog__actions">${B('Keep skater', 'secondary', 'closeModal')}${B('Remove skater', 'danger', 'acRemove')}</div>`;
-};
-
-MODALS.acNewCode = m => {
-  const k = student(m.id);
-  return `<div class="dialog__icon">${ic('refresh', 22)}</div>
-    <h2 class="h2">New share code for ${esc(firstName(k.name))}?</h2>
-    <div class="dialog__what"><b class="mono">${esc(k.shareCode)}</b><span>Current code</span></div>
-    <p class="fine">The current code stops working straight away. Give the new one to any family you still want to share lessons with.</p>
-    <div class="dialog__actions">${B('Keep this code', 'secondary', 'closeModal')}${B('Make a new code', 'primary', 'acNewCode')}</div>`;
-};
-
 /* ================= actions ================= */
 Object.assign(ACTIONS, {
   acLogin() { state.auth.notice = ''; state.authed = true; go('home'); },
@@ -2395,26 +2390,17 @@ Object.assign(ACTIONS, {
     state.flash = `Sent to Coach ${cName(c)}. ${kids.map(k => firstName(k.name)).join(' and ')} can book with Coach ${c.first} once they approve. We’ll email you.`;
   },
   acCopyCode(id) { const c = student(id).shareCode; try { navigator.clipboard.writeText(c); } catch (e) { /* static build: no clipboard */ } state.flash = `Copied ${c}.`; },
-  acNewCodeOpen(id) { state.modal = { kind: 'acNewCode', id }; },
-  acNewCode() { const k = student(state.modal.id), old = k.shareCode; k.shareCode = acShareCode(k.name, old); state.modal = null; state.flash = `${firstName(k.name)}’s new share code is ${k.shareCode}. ${old} no longer works.`; },
   invOpen(id) { invUi().id = id; go('invite'); },
   /** Go ahead: a skater who is the coach's student joins now; one who isn't becomes PENDING with pendingJoins (ADR-026 d5). */
   invGo() {
     const inv = invCur(), kid = student(inv.skater), ls = invLessons(inv);
-    if (kid.status === 'ACTIVE') { for (const l of ls) l.with = [...(l.with || []), { sid: kid.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; inv.status = 'CONFIRMED'; }
+    if (kid.status === 'ACTIVE') { for (const l of ls) { l.with = [...(l.with || []), { sid: kid.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; splitPrice(l); } inv.status = 'CONFIRMED'; }
     else { Object.assign(kid, { status: 'PENDING', since: TODAY, invitedBy: inv.from, pendingJoins: ls.map(l => ({ iso: l.iso, t: l.t, invite: inv.id })) }); inv.status = 'AWAITING_COACH'; inv.confirmed = TODAY;
       // A late confirmation whose warning falls due before tonight's sweep gets the warning straight away (ADR-026 d5a).
       if (inv.iso && bkMinutesUntil(inv.iso, inv.t) - (24 + NOTICE_H) * 60 <= 21 * 60 - NOW_MIN) inv.warnedAt = TODAY; }
     state._scrollTop = true;
   },
   invDecline() { invCur().status = 'DECLINED'; state._scrollTop = true; },
-  acRemoveOpen(id) { state.modal = { kind: 'acRemove', id }; },
-  acRemove() {
-    const k = student(state.modal.id);
-    state.lessons = state.lessons.filter(l => !(l.sid === k.id && !isStarted(l)));
-    state.students = state.students.filter(s => s.id !== k.id);
-    state.modal = null; state.flash = `${k.name} removed.`;
-  },
 });
 
 /* ================= presets ================= */
@@ -2444,12 +2430,10 @@ PRESETS.push(
   { id: 'ClientHomePending', file: 'home-pending', group: 'Home', title: 'Home — waiting for approval', note: 'New. A family with no approved skater sees only their own account: no schedule, open times or coach contact details (ADR-022 d6).', setup: st => { acAsSarah(st); st.screen = 'home'; } },
   { id: 'ClientHomePendingTwo', file: 'home-pending-two-coaches', group: 'Home', title: 'Home — waiting for two coaches', note: 'New (owner, 2026-10-13). Sarah signed up with Coach Dana and Coach Ben; neither has approved yet, so she still sees only Home and Profile. Each waiting coach is named with the skaters they’re approving, and each coach’s card has no contact details until they approve.', setup: st => { acAsSarah(st); st.students.find(x => x.id === 'p1').links = { ben: 'PENDING' }; st.screen = 'home'; } },
   { id: 'ClientHomeTom', file: 'home-invited', group: 'Home', title: 'Home — Tom, invited family waiting for coach', note: 'New (ADR-026 d5a). Tom accepted Grace’s invitation, so Zoe waits for Coach Dana like any sign-up and Tom sees only Home and Profile. The red banner says Zoe won’t join the Friday lesson unless Coach Dana accepts her first.', setup: st => { acAsTom(st); st.screen = 'home'; } },
-  { id: 'ClientProfile', file: 'profile', group: 'Profile', title: 'Profile', note: 'New (ClientProfileView). Contact details, SMS opt-in, skaters with add and remove; adding Lily asks which coaches she joins (ticked: Coach Dana and Coach Ben; owner, 2026-10-13); a new skater needs their U.S. Figure Skating or USA Hockey number (shape checked) and waits for approval. Each skater shows their share code with Copy and New code (ADR-026 d4).', setup: st => { st.screen = 'profile'; st.ui.ac = { fp: 0, newName: 'Lily Chen', newMinor: 0, newOrg: 0, newNum: '3407715', adding: true, newCoaches: [DANA, 'ben'], coachAdding: false, coachCode: '', coachKids: [] }; } },
+  { id: 'ClientProfile', file: 'profile', group: 'Profile', title: 'Profile', note: 'New (ClientProfileView). Contact details, SMS opt-in, skaters and adding one (no Remove: owner, 2026-10-13); adding Lily asks which coaches she joins (ticked: Coach Dana and Coach Ben; owner, 2026-10-13); a new skater needs their U.S. Figure Skating or USA Hockey number (shape checked) and waits for approval. Each skater shows their share code with Copy; a skater’s code never changes (owner, 2026-10-13).', setup: st => { st.screen = 'profile'; st.ui.ac = { fp: 0, newName: 'Lily Chen', newMinor: 0, newOrg: 0, newNum: '3407715', adding: true, newCoaches: [DANA, 'ben'], coachAdding: false, coachCode: '', coachKids: [] }; } },
   { id: 'ClientProfileAddCoach', file: 'profile-add-coach', group: 'Profile', title: 'Profile — add a coach', note: 'New (ADR-025 d2). Grace’s skaters already have three coaches between them: each skater lists theirs (approved, or waiting for that coach). Your coaches lists each coach with which skaters are theirs. Add a coach: MARC-6P2D finds Coach Marcus Lee, and Grace ticks Mia. Noah stays unticked.', setup: st => { st.screen = 'profile'; Object.assign(acUi(), { coachAdding: true, coachCode: 'MARC-6P2D', coachKids: ['s1'] }); } },
   { id: 'ClientProfileCoachSent', file: 'profile-coach-sent', group: 'Profile', title: 'Profile — coach added, waiting', note: 'New. After Send to Coach Marcus: Mia waits for Coach Marcus alone. She stays approved with Coach Dana and Coach Ben, and Grace can keep booking with them.', setup: st => { st.screen = 'profile'; Object.assign(acUi(), { coachAdding: true, coachCode: 'MARC-6P2D', coachKids: ['s1'] }); ACTIONS.acCoachSend(); } },
   { id: 'ClientProfilePending', file: 'profile-pending', group: 'Profile', title: 'Profile — waiting for approval', note: 'New. The same profile for a family still waiting; this is most of what they can see.', setup: st => { acAsSarah(st); st.screen = 'profile'; } },
-  { id: 'ClientProfileRemove', file: 'profile-remove-skater', group: 'Profile', title: 'Profile — remove a skater', note: 'New. Removing an approved skater cancels their upcoming lessons. One reading of the open “delete a student” decision (Open-Pending.md).', setup: st => { st.screen = 'profile'; st.modal = { kind: 'acRemove', id: 's2' }; } },
-  { id: 'ClientProfileNewCode', file: 'profile-new-share-code', group: 'Profile', title: 'Profile — new share code', note: 'New (ADR-026 d4). A new share code retires the old one straight away, so it asks first.', setup: st => { st.screen = 'profile'; st.modal = { kind: 'acNewCode', id: 's1' }; } },
   { id: 'ClientPayments', file: 'payments', group: 'Phase 2', title: 'Payments', note: 'New, Phase 2. Lessons the coach hasn’t marked paid, with the coach’s payment instructions; BladeBook doesn’t take payments.', setup: st => { st.screen = 'payments'; } },
 );
 
@@ -2478,6 +2462,8 @@ const bkHasSchedule = iso => !bkUi().noSchedule && slotsFor(bkCid(), iso).length
 const bkMinutesUntil = (iso, t) => Math.round((parseIso(iso) - parseIso(TODAY)) / 864e5) * 1440 + t - NOW_MIN;
 /** Each coach sets their own notice period (Coach Ben's is 48 hours). */
 const bkNotice = l => coachById(lcoach(l)).notice || NOTICE_H;
+/** After a family cancels: the coach is told only when a lesson was inside the notice period (ADR-009 d9, owner 2026-10-12). */
+const bkToldLate = (lessons, coach) => lessons.some(l => bkInsideNotice(l)) ? ` Coach ${coachById(coach).first} has been told, because it’s a late cancellation.` : '';
 /** The selected coach's cancellation notice period, shown on both booking pages (owner, 2026-10-13). */
 const bkNoticeHelp = c => help(`Cancelling with Coach ${esc(c.first)}`, `Coach ${esc(c.first)} asks for ${c.notice || NOTICE_H} hours’ notice. Cancelling later than that may be charged.`);
 const bkInsideNotice = l => { const m = bkMinutesUntil(l.iso, l.t); return m > 0 && m < bkNotice(l) * 60; };
@@ -2565,10 +2551,11 @@ SCREENS.book = () => {
 /* ================= 2 · Pick your times ================= */
 function bkSlotState(cid, iso, s, k) {
   const u = bkUi();
+  // Every time that has already started says "Past", booked or not (owner, 2026-10-13).
+  if (iso < TODAY || (iso === TODAY && s.t <= NOW_MIN)) return { st: 'past' };
   const own = myLessonAt(cid, iso, s.t);
   if (own) return { st: 'yours', who: student(own.sid) };
   if (lessonsFor(cid, iso).some(l => l.t === s.t)) return { st: 'taken' };
-  if (iso < TODAY || (iso === TODAY && s.t <= NOW_MIN)) return { st: 'past' };
   if (u.sel.some(x => x.coach === cid && x.iso === iso && x.t === s.t)) return { st: 'sel' };
   return { st: 'open' };
 }
@@ -2679,7 +2666,7 @@ function bkShareBox(u, k, picks) {
   const which = can.length < picks.length ? ` Only ${can.map(x => `${DOW[dowOf(x.iso)]} ${fmtT(x.t)}`).join(' and ')} can be shared.` : '';
   const found = sh.st !== 'found' ? '' : `<div class="found">${avatar(initials(s.name), 'sm')}<div><div class="found__name">${esc(sh.name)}</div><div class="found__sub">${!sh.sibling ? 'Their family gets an email to accept.' : s.status === 'ACTIVE' ? `In your family, so ${fn} is added directly. No invitation.` : `In your family, so there’s no invitation. Coach ${coach} accepts ${fn} first, then ${fn} joins.`}</div></div>${badge('Code found', 'success', 'check')}</div>`;
   return `<div class="bk-share"><div class="bk-share__head">${ic('users', 16)}<b>Share this lesson</b><span class="label__opt">Optional</span></div>
-    <p class="fine">Enter another skater’s share code. Their family must accept before their skater joins. If the skater isn’t Coach ${coach}’s student yet, Coach ${coach} accepts them first.${u.repeat ? ' Every lesson in the series is shared.' : ''}${which}</p>
+    <p class="fine">Enter another skater’s share code. Their family must accept before their skater joins. If the skater isn’t Coach ${coach}’s student yet, Coach ${coach} accepts them first. Once they join, the lesson’s price is split: each skater pays ${money(can[0].price / 2)} instead of ${money(can[0].price)}.${u.repeat ? ' Every lesson in the series is shared.' : ''}${which}</p>
     ${INP('bk-share', 'Skater’s share code', 'ui.book.share', { live: true, mono: true, placeholder: 'e.g. LILY-6T2N', error: err })}
     ${found}</div>`;
 }
@@ -2757,6 +2744,22 @@ SCREENS['book-result'] = () => {
     <div class="actions"><div>${B('Book more', 'secondary', '', { href: href('book') })}</div><div class="actions__r">${B('View my bookings', 'primary', '', { href: href('bookings') })}</div></div>`);
 };
 
+/* ================= Leaving a shared lesson (owner, 2026-10-13; ADR-026 P2, P4) ================= */
+/** When the staying family must answer by: the start of the coach's notice period before the lesson. */
+function bkAnswerBy(l) { const m = l.t - bkNotice(l) * 60, d = Math.floor(m / 1440); return `${dDow(addDays(l.iso, d))} at ${fmtT(m - d * 1440)}`; }
+/** One skater leaves a shared lesson. Late: the one staying keeps their share. In time: the one staying is asked (askFull). */
+function bkLeaveShared(l, sid, late) {
+  if (l.sid === sid) { const w = l.with.shift(); Object.assign(l, { sid: w.sid, status: w.status, pay: w.pay, paidBy: w.paidBy, price: w.price }); }
+  else l.with = l.with.filter(w => w.sid !== sid);
+  if (!l.with.length) delete l.with;
+  if (!late) l.askFull = { left: sid };
+}
+/** The staying family's choice, on Home and My bookings: keep it private at the full price, or cancel with no charge. */
+function bkAskFullCards() {
+  return myLessons().filter(l => l.askFull && !isStarted(l)).map(l => { const k = esc(firstName(student(l.sid).name)), who = esc(shortName(student(l.askFull.left).name));
+    return card(`<div class="decide"><div>${rowTitle(`${who} can’t make ${k}’s shared lesson on ${dDow(l.iso)} at ${fmtT(l.t)}`, `Keep it as a private lesson for ${k} at the full ${money(l.full)} (${k}’s share was ${money(l.price)}), or cancel it with no charge. If you don’t answer by ${bkAnswerBy(l)}, it’s cancelled with no charge.`)}</div><div class="decide__btns">${B('Cancel, no charge', 'secondary', 'bkFullCancel', { args: [l.id] })}${B(`Keep at ${money(l.full)}`, 'primary', 'bkFullKeep', { args: [l.id] })}</div></div>`, { cls: 'card--attn' }); }).join('');
+}
+
 /* ================= My bookings ================= */
 const bkKey = l => l.recurrenceId || (l.recurring ? `${lcoach(l)}-${l.sid}-${dowOf(l.iso)}-${l.t}` : null);
 function bkArrangements() {
@@ -2769,8 +2772,11 @@ function bkArrangements() {
   }).filter(a => a.up.length && !a.ended).sort((a, b) => (a.sid + a.dow + a.t).localeCompare(b.sid + b.dow + b.t));
 }
 /* Shared lessons (ADR-026 d5 step 6). Family A sees the invited skater's display name and the invitation's status, nothing
-   else. Family B sees the lesson they joined, without a price (shared pricing is still open, Kim P2) and without Cancel:
-   leaving a shared lesson isn't designed yet. */
+   else. Family B sees the lesson they joined, with their share of the price, and can cancel it like Family A.
+   Pricing and leaving (owner, 2026-10-13; ADR-026 P2, P4): the lesson's set price is split between the skaters. Whoever
+   leaves, booker or invited, the same rules apply. Late (inside the notice period): the one leaving may be charged their
+   share of the late-cancellation fee (half, for two skaters); the one staying keeps their share of the price. In time: the one staying is asked to keep it as a private
+   lesson at the full price, or cancel with no charge; no answer by the start of the notice period cancels it, no charge. */
 const bkInviteOf = l => l.inviteId ? state.invites.find(i => i.id === l.inviteId)
   : state.invites.find(i => i.fromSkater === l.sid && i.skater === l.invited && i.t === l.t && (i.series ? i.dow === dowOf(l.iso) && l.iso >= i.first && l.iso <= i.last : i.iso === l.iso));
 const bkJoined = () => state.lessons.filter(l => l.with && !myKids().some(k => k.id === l.sid) && l.with.some(w => myKids().some(k => k.id === w.sid)));
@@ -2803,11 +2809,12 @@ SCREENS.bookings = () => {
   const filtered = who || cf;
   const lrow = l => { const mine = myKids().some(k => k.id === l.sid), k = student(bkSkaterOf(l)), rec = mine && bkKey(l) ? bkArrangements().find(a => a.key === bkKey(l)) : null;
     const share = bkShareLine(l), inv = mine && l.invited ? bkInviteOf(l) : null;
-    return row(`<span class="dateblock"><b>${parseIso(l.iso).getDate()}</b><small>${MON[parseIso(l.iso).getMonth()]}</small></span>${rowTitle(`${DOW[dowOf(l.iso)]} · ${fmtT(l.t)}${l.iso === TODAY ? ' ' + badge('Today', 'primary') : ''}`, `${esc(firstName(k.name))}${coachTag(l)} · ${l.len} min${mine ? ` · ${money(l.price)}` : ''}${share ? `<span class="bk-shared">${share}</span>` : ''}`)}`,
-      !mine ? badge('Shared lesson', 'neutral', 'users')
+    return row(`<span class="dateblock"><b>${parseIso(l.iso).getDate()}</b><small>${MON[parseIso(l.iso).getMonth()]}</small></span>${rowTitle(`${DOW[dowOf(l.iso)]} · ${fmtT(l.t)}${l.iso === TODAY ? ' ' + badge('Today', 'primary') : ''}`, `${esc(firstName(k.name))}${coachTag(l)} · ${l.len} min · ${money(myPrice(l))}${l.askFull ? ` ${badge('Needs your answer', 'warning', 'alert')}` : ''}${share ? `<span class="bk-shared">${share}</span>` : ''}`)}`,
+      !mine ? `${badge('Shared lesson', 'neutral', 'users')}${B('Cancel', 'ghost', 'bkCancelOpen', { sm: true, args: [l.id] })}`
       : `${rec ? badge(rec.interval === 1 ? 'Repeats weekly' : `Every ${rec.interval} weeks`, 'neutral', 'repeat') : ''}${inv && inv.status === 'SENT' ? B('Withdraw invitation', 'ghost', 'bkWithdrawOpen', { sm: true, args: [inv.id] }) : ''}${B('Cancel', 'ghost', 'bkCancelOpen', { sm: true, args: [l.id] })}`); };
   return shell(`
     ${pageHead('My bookings', multiCoach() ? `Lessons with all your coaches` : `Lessons with Coach ${esc(coachName())}`, B('Book a lesson', 'primary', '', { href: href('book'), icon: 'plus' }))}
+    ${bkAskFullCards()}
     ${kids.length > 1 || coachSel ? `<div class="bk-filter">${kids.length > 1 ? SEG(['Everyone', ...kids.map(k => esc(firstName(k.name)))], whoIdx, 'bkWho') : ''}${coachSel}</div>` : ''}
     ${card(up.length ? up.map(lrow).join('') + (upAll.length > 10 ? `<div class="card__foot">${B(b.all ? 'Show fewer' : `Show all ${upAll.length}`, 'secondary', 'bkShowAll', { sm: true })}</div>` : '')
       : filtered ? `<div class="pempty"><span class="pempty__icon">${ic('calendar', 22)}</span><b>Nothing booked${who ? ` for ${who}` : ''}${cf ? ` with Coach ${cf}` : ''}</b><span class="muted">Try another skater or coach, or book a lesson.</span>${B('Show everything', 'secondary', 'bkFilterClear')}</div>`
@@ -2819,12 +2826,13 @@ SCREENS.bookings = () => {
 };
 
 MODALS.bkCancel = m => {
-  const l = state.lessons.find(x => x.id === m.id), k = student(l.sid), late = bkInsideNotice(l), rec = bkKey(l), cf = esc(coachById(lcoach(l)).first), h = bkNotice(l);
+  const l = state.lessons.find(x => x.id === m.id), sid = bkSkaterOf(l), k = student(sid), late = bkInsideNotice(l), rec = bkKey(l), cf = esc(coachById(lcoach(l)).first), h = bkNotice(l);
+  const others = [l.sid, ...(l.with || []).map(w => w.sid)].filter(x => x && x !== sid), other = others.length ? esc(shortName(student(others[0]).name)) : '', mp = myPrice(l);
   return `<div class="dialog__icon dialog__icon--danger">${ic('calOff', 22)}</div>
     <h2 class="h2">Cancel ${esc(firstName(k.name))}’s lesson${multiCoach() ? ` with Coach ${cf}` : ''}?</h2>
-    <div class="dialog__what"><b>${dDow(l.iso)} · ${fmtT(l.t)}</b><span>${l.len} min · ${money(l.price)}</span></div>
-    ${late ? banner('warning', `Inside the ${h}-hour notice period`, `${cf} may charge a late cancellation fee.`) : `<p class="fine">Cancelling within ${h} hours of a lesson may incur a late cancellation fee.</p>`}
-    <p class="fine">The time goes back on ${cf}’s calendar${late ? ` and ${cf} will be told, because it’s a late cancellation` : ''}.${rec ? ' Other lessons in this series aren’t affected.' : ''}</p>
+    <div class="dialog__what"><b>${dDow(l.iso)} · ${fmtT(l.t)}</b><span>${l.len} min · ${money(mp)}${others.length ? ' · shared' : ''}</span></div>
+    ${late ? banner('warning', `Inside the ${h}-hour notice period`, `${cf} may charge a late cancellation fee${others.length ? `. The lesson is shared, so ${esc(firstName(k.name))}’s share is half of it` : ''}.`) : `<p class="fine">Cancelling within ${h} hours of a lesson may incur a late cancellation fee.</p>`}
+    ${others.length ? `<p class="fine">${late ? `${other} keeps the lesson at their share, ${money(mp)}.` : `${other}’s family is asked whether to keep it as a private lesson at the full ${money(l.full ?? mp * 2)}, or cancel it with no charge.`}</p>` : `<p class="fine">The time goes back on ${cf}’s calendar${late ? ` and ${cf} will be told, because it’s a late cancellation` : ''}.${rec ? ' Other lessons in this series aren’t affected.' : ''}</p>`}
     <div class="dialog__actions">${B('Keep lesson', 'secondary', 'closeModal')}${B('Cancel lesson', 'danger', 'bkCancel')}</div>`;
 };
 
@@ -2938,7 +2946,7 @@ Object.assign(ACTIONS, {
     let share = null;
     if (shared.length) {
       const b = sh.s, direct = sh.sibling && b.status === 'ACTIVE';
-      for (const l of shared) if (direct) l.with = [{ sid: b.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; else l.invited = b.id;
+      for (const l of shared) if (direct) { l.with = [{ sid: b.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; splitPrice(l); } else l.invited = b.id;
       if (sh.sibling && !direct) b.pendingJoins = [...(b.pendingJoins || []), ...shared.map(l => ({ iso: l.iso, t: l.t }))];
       if (!sh.sibling) for (const key of [...new Set(shared.map(l => l.recurrenceId || l.id))]) {
         const ls = shared.filter(l => (l.recurrenceId || l.id) === key), f = ls[0], id = 'i' + (state.invites.length + 1);
@@ -2962,21 +2970,26 @@ Object.assign(ACTIONS, {
   bkDroppedKeep(key) { const r = bkUi().result; r.dropped = r.dropped.filter(d => d.key !== key); state.flash = 'Kept. Those lessons stay booked.'; },
   bkDroppedCancel(key) {
     const r = bkUi().result, d = r.dropped.find(x => x.key === key);
-    const cut = myLessons().filter(l => l.recurrenceId === key && l.iso > TODAY);
+    const cut = myLessons().filter(l => l.recurrenceId === key && l.iso > TODAY), told = bkToldLate(cut, d.coach || DANA);
     state.lessons = state.lessons.filter(l => !cut.includes(l));
     bkState().arr[key] = { ...(bkState().arr[key] || {}), ended: true };
     r.dropped = r.dropped.filter(x => x.key !== key);
-    state.flash = `${plural(cut.length, 'lesson')} on ${DOW_LONG[d.dow]}s at ${fmtT(d.t)} cancelled. Coach ${coachById(d.coach || DANA).first} has been told.`;
+    state.flash = `${plural(cut.length, 'lesson')} on ${DOW_LONG[d.dow]}s at ${fmtT(d.t)} cancelled.${told}`;
   },
   bkFilterClear() { const b = bkState(); b.who = 'all'; b.coach = 'all'; b.all = false; },
   bkWho(i) { const b = bkState(); b.who = i === 0 ? 'all' : myActiveKids()[i - 1].id; b.all = false; },
   bkShowAll() { const b = bkState(); b.all = !b.all; },
   bkCancelOpen(id) { state.modal = { kind: 'bkCancel', id }; },
   bkCancel() {
-    const l = state.lessons.find(x => x.id === state.modal.id), k = student(l.sid);
-    state.lessons = state.lessons.filter(x => x !== l);
-    state.modal = null; state.flash = `${firstName(k.name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is cancelled. Coach ${coachById(lcoach(l)).first} has been told.`;
+    const l = state.lessons.find(x => x.id === state.modal.id), sid = bkSkaterOf(l), k = student(sid), told = bkToldLate([l], lcoach(l));
+    if (l.with && l.with.length) bkLeaveShared(l, sid, bkInsideNotice(l));
+    else state.lessons = state.lessons.filter(x => x !== l);
+    state.modal = null; state.flash = `${firstName(k.name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is cancelled.${told}`;
   },
+  /** The staying family keeps the lesson as a private one at the full price. */
+  bkFullKeep(id) { const l = state.lessons.find(x => x.id === id); l.price = l.full; delete l.full; delete l.askFull; state.flash = `${firstName(student(l.sid).name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is now private, at ${money(l.price)}.`; },
+  /** The staying family cancels with no charge. */
+  bkFullCancel(id) { const l = state.lessons.find(x => x.id === id); state.lessons = state.lessons.filter(x => x !== l); state.flash = `${firstName(student(l.sid).name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is cancelled, with no charge.`; },
   bkWithdrawOpen(id) { state.modal = { kind: 'bkWithdraw', id }; },
   bkWithdraw() {
     const inv = state.invites.find(i => i.id === state.modal.id), b = student(inv.skater);
@@ -2989,14 +3002,14 @@ Object.assign(ACTIONS, {
   bkRecApply() {
     const b = bkState(), r = b.rec, a = bkArrangements().find(x => x.key === r.key);
     if (!a || bkRecError(a, r)) return;
-    const cut = bkRecPlan(a, r).filter(p => p.cut).map(p => p.l), k = student(a.sid);
+    const cut = bkRecPlan(a, r).filter(p => p.cut).map(p => p.l), k = student(a.sid), told = bkToldLate(cut, a.coach);
     state.lessons = state.lessons.filter(l => !cut.includes(l));
     const meta = b.arr[r.key] ||= {};
     if (r.mode === 0) meta.end = r.end; else if (r.mode === 1) meta.interval = r.interval; else meta.ended = true;
     if (r.mode !== 0 && !meta.end) meta.end = a.end;
     b.rec = null;
     go('bookings');
-    state.flash = `${firstName(k.name)}’s ${DOW_LONG[a.dow]} lessons: ${plural(cut.length, 'lesson')} cancelled. ${r.mode === 2 ? 'The series has stopped.' : r.mode === 1 ? `Now every ${r.interval} weeks.` : `Last lesson ${dShort(r.end)}.`} Coach ${coachById(a.coach).first} has been told.`;
+    state.flash = `${firstName(k.name)}’s ${DOW_LONG[a.dow]} lessons: ${plural(cut.length, 'lesson')} cancelled. ${r.mode === 2 ? 'The series has stopped.' : r.mode === 1 ? `Now every ${r.interval} weeks.` : `Last lesson ${dShort(r.end)}.`}${told}`;
   },
 });
 
@@ -3005,6 +3018,8 @@ Object.assign(ACTIONS, {
 const bkSel = (st, sid, list) => { const u = bkUi(); Object.assign(u, { sid, coach: DANA, month: list[0][0].slice(0, 7), day: list[0][0], week: false, sel: [], repeat: false, every: 1, until: '' }); for (const [iso, t, cid] of list) ACTIONS.bkToggle(iso, t, cid || DANA); };
 /** Stage a request directly, the way a resubmitted request arrives: times already held by this skater included. */
 const bkStage = (sid, list) => { const u = bkUi(); u.sid = sid; u.sel = list.map(([iso, t]) => { const s = slotsOn(iso).find(x => x.t === t); return { coach: DANA, iso, t, len: s.len, price: priceAt(DANA, sid, s) }; }); };
+/** Mia's Monday, Oct 19 at 6:00 shared with another family's skater (Ella by default), price split. */
+const bkShareDemo = (st, sid = 's3') => { const l = st.lessons.find(x => x.sid === 's1' && x.iso === '2026-10-19' && x.t === 360); l.with = [{ sid, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; splitPrice(l); return l; };
 /* Mia's picks across two coaches: Mon 19 9:30 and Wed 21 8:00 with Coach Dana, Tue 20 5:00 PM with Coach Ben. */
 const bkTwoCoaches = st => { bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-21', 480], ['2026-10-20', 1020, 'ben']]); Object.assign(st.ui.book, { coach: 'ben', day: '2026-10-21' }); };
 PRESETS.push(
@@ -3026,12 +3041,14 @@ PRESETS.push(
     bkStage('s1', [['2026-10-19', 570], ['2026-10-16', 510]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-12-14' }); ACTIONS.bkBook(); } },
   { id: 'ClientBookings', file: 'bookings', group: 'My bookings', title: 'My bookings', note: 'Redesigned from Forest ClientMyBookings: upcoming lessons by date with Cancel on each, a filter per skater, the repeating series with Change, and recent attendance. Mia’s Friday 8:30 is shared with Zoe O., waiting for Coach Dana (ADR-026): Grace sees only Zoe’s display name and the status.', setup: st => { st.screen = 'bookings'; } },
   { id: 'ClientBookingsCancel', file: 'bookings-cancel', group: 'My bookings', title: 'Cancel a lesson', note: 'Redesigned from Forest ClientCancelConfirm. None of the sample lessons falls inside 24 hours, so Grace has booked Mia at 10:30 this morning to show the “may incur a fee” warning.', setup: st => { st.screen = 'bookings'; st.lessons.push({ id: 'k-today', sid: 's1', iso: TODAY, t: 630, len: 30, price: 50, status: 'BOOKED', pay: 'UNPAID', recurring: false }); st.modal = { kind: 'bkCancel', id: 'k-today' }; } },
+  { id: 'ClientShareCancel', file: 'bookings-cancel-shared', group: 'Shared lessons', title: 'Cancel a shared lesson — in time', note: 'New (owner, 2026-10-13). Mia shares Monday, Oct 19 at 6:00 with Ella A.: the $50 lesson is split, $25 each. Cancelling before the 24-hour notice period means Ella’s family is asked to keep it as a private lesson at the full $50, or cancel with no charge. Inside the notice period the pop-up says instead that Mia may be charged her share of the late-cancellation fee (half, for two skaters) and Ella keeps her $25 share of the price.', setup: st => { st.screen = 'bookings'; const l = bkShareDemo(st); st.modal = { kind: 'bkCancel', id: l.id }; } },
+  { id: 'ClientShareLeft', file: 'home-share-left', group: 'Shared lessons', title: 'Home — the other skater cancelled', note: 'New (owner, 2026-10-13). Mia shared Monday, Oct 19 at 6:00 with Owen B., and Owen cancelled in time. Grace chooses: keep it private at the full $50, or cancel with no charge. With no answer by Sunday at 6:00 AM (the start of the notice period), it’s cancelled with no charge. The same card shows on My bookings.', setup: st => { st.screen = 'home'; const l = bkShareDemo(st, 's7'); bkLeaveShared(l, 's7', false); } },
   { id: 'ClientShareConfirm', file: 'book-share-confirm', group: 'Shared lessons', title: 'Confirm — share this lesson', note: 'New (ADR-026 d5). Mia’s Monday 9:30 is on morning ice, which can be shared, so the pop-up shows the share box; the 4:00 PM power hour is private, so the box says only 9:30 can be shared. ELLA-3HTV checks out as “Ella A.”, the only thing the lookup returns.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); st.ui.book.share = 'ELLA-3HTV'; st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientShareWrong', file: 'book-share-no-match', group: 'Shared lessons', title: 'Confirm — share code doesn’t match', note: 'New. A repeating booking shares every lesson in the series. The code matches no skater, so Book stays disabled until it’s fixed or cleared.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTX' }); st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientShareResult', file: 'book-share-result', group: 'Shared lessons', title: 'Result — invitation sent', note: 'New. Mondays at 9:30 booked for Mia as normal, private until Ella’s family accepts; their invitation email has gone.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); } },
   { id: 'ClientShareBookings', file: 'bookings-shared', group: 'Shared lessons', title: 'My bookings — shared lessons', note: 'New (ADR-026 d5 step 6). Mia’s Mondays wait for Ella’s family, with Withdraw invitation; her Friday 8:30 waits for Coach Dana to accept Zoe, so it can no longer be withdrawn.', setup: st => { bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); go('bookings'); } },
   { id: 'ClientShareWithdraw', file: 'bookings-withdraw-invite', group: 'Shared lessons', title: 'Withdraw an invitation', note: 'New. Family A can withdraw an invitation Family B hasn’t answered. Mia’s lessons stay booked as private lessons.', setup: st => { bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELLA-3HTV' }); ACTIONS.bkBook(); go('bookings'); st.modal = { kind: 'bkWithdraw', id: st.invites[st.invites.length - 1].id }; } },
-  { id: 'ClientInvite', file: 'invite', group: 'Shared lessons', title: 'Invitation — skater already a student', note: 'New (ADR-026 d5 steps 3–4). From the invitation email, after signing in. Owen Brooks invited Noah to share his Wednesday 8:30 series; one clash with Noah’s lesson with another coach is shown, and Go ahead joins Noah to every lesson now. No price is stated: shared pricing is still open (Kim P2).', setup: st => { st.screen = 'invite'; st.ui.inv = { id: 'i1' }; } },
+  { id: 'ClientInvite', file: 'invite', group: 'Shared lessons', title: 'Invitation — skater already a student', note: 'New (ADR-026 d5 steps 3–4). From the invitation email, after signing in. Owen Brooks invited Noah to share his Wednesday 8:30 series; one clash with Noah’s lesson with another coach is shown, and Go ahead joins Noah to every lesson now. The price is Noah’s share: the lesson’s price split between the two skaters (owner, 2026-10-13).', setup: st => { st.screen = 'invite'; st.ui.inv = { id: 'i1' }; } },
   { id: 'ClientInviteNew', file: 'invite-new-student', group: 'Shared lessons', title: 'Invitation — skater not yet the coach’s student', note: 'New (ADR-026 d5 step 5). Tom opens Grace’s invitation for Zoe, who skates with another coach. Going ahead agrees to Zoe joining Coach Dana’s roster; Zoe joins once Coach Dana accepts.', setup: st => { acTomBefore(st); st.screen = 'invite'; st.ui.inv = { id: 'i2' }; } },
   { id: 'ClientInviteWaiting', file: 'invite-waiting', group: 'Shared lessons', title: 'Invitation — waiting for the coach', note: 'New. After Tom’s Go ahead: Zoe is pending with Coach Dana and the invitation is awaiting the coach. Inside the warning time, so the red banner shows here too.', setup: st => { acTomBefore(st); st.ui.inv = { id: 'i2' }; ACTIONS.invGo(); st.screen = 'invite'; } },
   { id: 'ClientBookingsCoach', file: 'bookings-coach-filter', group: 'My bookings', title: 'My bookings — filter by coach', note: 'New (owner, 2026-10-13). A Coach dropdown beside the skater filter, “All coaches” by default, listing only coaches with upcoming lessons. The two combine: Mia with Coach Ben shows only her Tuesday power-skating lessons, and her repeating series with Ben.', setup: st => { st.screen = 'bookings'; Object.assign(bkState(), { who: 's1', coach: 'ben' }); } },

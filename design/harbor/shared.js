@@ -73,7 +73,7 @@ function freshStudents() {
     { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
     { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
     { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', override: 45, shareCode: 'SAM-6RZB' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZB' },
     { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
     { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
     { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
@@ -129,12 +129,21 @@ function freshLessons(students) {
   out.push({ id: 'h1', sid: null, iso: TODAY, t: 660, len: 30, price: 0, status: 'COACH_HELD', pay: null });
   // Shared lessons (ADR-026). Sam's Wednesday 6:00 series is shared with Leo: each skater has their own attendance and payment.
   for (const l of out.filter(x => x.sid === 's4' && dowOf(x.iso) === 3 && x.t === 360 && x.iso >= '2026-10-07'))
-    l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }];
+    { l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }]; splitPrice(l); }
   // Grace invited Zoe Okafor to share Mia's Friday 8:30; Zoe waits for Coach Dana's approval (invite i2).
   const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 'p4';
   // Not recorded: Ella's lesson last Friday has no attendance.
   const ella = out.find(l => l.sid === 's3' && l.iso === '2026-10-09' && l.t === 540); if (ella) { ella.status = 'BOOKED'; ella.pay = 'UNPAID'; }
   return out.sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
+}
+
+/** A shared lesson has one set price, the block's price when it was booked, split evenly between its skaters (owner,
+    2026-10-13; ADR-026 P2). `full` keeps the lesson's own price; each skater's `price` is their share. Personal prices are
+    Phase 2, so the split is always of the schedule's price. */
+function splitPrice(l) {
+  l.full = l.full ?? l.price;
+  const per = Math.round(l.full / (1 + (l.with || []).length) * 100) / 100;
+  l.price = per; for (const w of l.with || []) w.price = per;
 }
 
 /* Shared-lesson invitations (ADR-026 d5). inviteStatus: SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.

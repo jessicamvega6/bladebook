@@ -325,7 +325,7 @@ add('Family · My bookings', 'ClientCancelConfirm', '2 · Cancel a lesson', 1280
     <h2 class="h2">Cancel Mia’s lesson?</h2>
     <div class="dialog__what"><b>Tue, Oct 13 · 4:00 PM</b><span>30 min · $50</span></div>
     ${banner('warning', 'Inside the 24-hour notice period', 'Dana may charge a late cancellation fee.')}
-    <p class="fine">The time goes back on Dana’s calendar and Dana will be told. Other lessons in this series aren’t affected.</p>
+    <p class="fine">The time goes back on Dana’s calendar and Dana will be told, because it’s a late cancellation. Other lessons in this series aren’t affected.</p>
     <div class="dialog__actions">${btn('Keep lesson', 'secondary')}${btn('Cancel lesson', 'danger')}</div></div>`
 }), 'A real modal over the list, keeping context. “Keep” is the safe default; the fee warning is promoted to a banner.');
 

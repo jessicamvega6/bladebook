@@ -120,8 +120,10 @@ function openSlotsFor(cid, iso) {
 }
 /** A family's own lesson with a coach at a date and time, if any. */
 const myLessonAt = (cid, iso, t) => myLessons().find(l => lcoach(l) === cid && l.iso === iso && l.t === t);
-/** A personal price override is Coach Dana's; other coaches charge their schedule's price in the demo. */
-const priceAt = (cid, sid, slot) => (cid === DANA && student(sid).override) || slot.price;
+/** Every skater pays the schedule's price. Personal prices are Phase 2 (owner, 2026-10-13). */
+const priceAt = (cid, sid, slot) => slot.price;
+/** The price this family pays for a lesson: the whole price, or their share of a shared lesson (owner, 2026-10-13). */
+const myPrice = l => myKids().some(k => k.id === l.sid) ? l.price : ((l.with || []).find(w => myKids().some(k => k.id === w.sid)) || {}).price;
 
 /* ---------- shared-lesson invitations (ADR-026 d5, d5a) ---------- */
 /** The booking family's lessons an invitation covers: one lesson, or every lesson in the series. */

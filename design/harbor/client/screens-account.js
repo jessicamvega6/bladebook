@@ -30,7 +30,7 @@ const skaterOrgFields = (base, orgKey, numKey, idp, act) => { const u = getPath(
   <div class="fieldset"><div class="label">Skating organization</div>${SEG(SKATE_ORGS.map(o => o.name), u[orgKey], act, [], { block: true })}</div>
   ${INP(idp, org.num, `${base}.${numKey}`, { live: true, mono: true, placeholder: org.eg, error: acNumError(u[orgKey], u[numKey]), hint: `From the skater’s ${org.name} membership for this season${org.fmt}. It changes every season.` })}`; };
 /* Share codes (ADR-026 d4): every skater has one, issued when the skater is created. A family gives it to a family they
-   want to share a lesson with. A new code retires the old one. Length and alphabet wait on the coach-code decision (#7). */
+   want to share a lesson with. A skater's code never changes (owner, 2026-10-13). Length and alphabet wait on the coach-code decision (#7). */
 const SHARE_ALPHABET = 'ABCDEFGHJKMNPQRTVWXYZ2346789';
 const acShareCode = (name, seed) => { let h = hash(name + seed), c = ''; for (let i = 0; i < 4; i++) { c += SHARE_ALPHABET[h % SHARE_ALPHABET.length]; h = Math.floor(h / SHARE_ALPHABET.length) + 7919 * (i + 1); } return `${firstName(name).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5)}-${c}`; };
 /* Texts to families are Phase 2 (owner, 2026-10-12): until then every reminder and cancellation goes by email. */
@@ -154,7 +154,7 @@ SCREENS.signup = () => {
     <div class="listbox">${kids.map(k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `with ${coachOr(k.coaches, 'and')}`)}`, `<span class="ac-kc__list">${k.coaches.map(id => badge(multi ? `Waiting for Coach ${esc(coachById(id).first)}` : 'Waiting for approval', 'warning', 'clock')).join('')}</span>`)).join('')}</div>
     <p class="fine">We’ll email you as soon as ${multi ? 'each coach approves' : `${who} approves`}. Booking with a coach opens once they approve.</p>
     ${B('Go to my account', 'primary', 'acSuToHome', { block: true, lg: true })}`),
-    help('While you wait', 'Your account shows your profile and your skaters. You can’t see your coach’s times until a skater is approved. Added the wrong skater? Edit or remove them from your profile.'),
+    help('While you wait', 'Your account shows your profile and your skaters. You can’t see your coach’s times until a skater is approved.'),
     { steps: 4, ctx: 'Family sign up', right: '' });
 };
 
@@ -210,9 +210,8 @@ function acHomePending() {
       : `${multi ? 'Until a coach approves, you won’t see their times and can’t book with them.' : `Until then you won’t see Coach ${esc(waits[0].c.first)}’s times and can’t book.`} Each coach checks that they know each family who signs up with their code.`}</div></div></div>${multi ? `<div class="listbox ac-waitlist">${waits.map(w => row(`${avatar(initials(cName(w.c)), 'sm')}${rowTitle(`Coach ${esc(cName(w.c))}`, `Waiting to approve ${names(w.kids)}`)}`, badge('Waiting', 'warning', 'clock'))).join('')}</div>` : ''}</div>` : ''}
     ${acInviteCard()}
     ${card(kids.map(k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `${k.minor ? 'Under 18' : 'Adult'} · ${acKidCoaches(k).length ? `signed up ${dShort(k.since)}` : 'invited to share a lesson'}`)}`, acKidCoaches(k).length ? `<span class="ac-kc__list">${acKidCoaches(k).map(id => badge(multiCoach() ? `Waiting for Coach ${esc(coachById(id).first)}` : 'Waiting for approval', 'warning', 'clock')).join('')}</span>` : badge(`Not Coach ${esc(icn || coachFirst())}’s student yet`, 'neutral'))).join(''),
-      { title: 'Your skaters', pad: false, action: A_('profile', 'Edit or remove') })}
-    ${card(`<ol class="ac-steps"><li><b>${multi ? 'Each coach approves' : `Coach ${esc((waits[0] || { c: coachById(DANA) }).c.first)} approves`} each skater.</b> Usually within a day.</li><li><b>We email you</b> at ${esc(state.me.email)}${multi ? ' as each coach approves' : ''}.</li>${invited.length && inv ? `<li><b>${esc(firstName(invited[0].name))} joins the shared lesson</b> on ${invWhen(inv)}, as long as it hasn’t started.</li>` : ''}<li><b>Booking opens${multi ? ' with each coach as they approve' : ''}.</b> You’ll see open times and can book single or weekly lessons.</li></ol>`, { title: 'What happens next' })}
-    <p class="fine">Signed up by mistake, or with the wrong coach? Remove your skaters from your ${A_('profile', 'profile')}.</p>`);
+      { title: 'Your skaters', pad: false, action: A_('profile', 'Profile') })}
+    ${card(`<ol class="ac-steps"><li><b>${multi ? 'Each coach approves' : `Coach ${esc((waits[0] || { c: coachById(DANA) }).c.first)} approves`} each skater.</b> Usually within a day.</li><li><b>We email you</b> at ${esc(state.me.email)}${multi ? ' as each coach approves' : ''}.</li>${invited.length && inv ? `<li><b>${esc(firstName(invited[0].name))} joins the shared lesson</b> on ${invWhen(inv)}, as long as it hasn’t started.</li>` : ''}<li><b>Booking opens${multi ? ' with each coach as they approve' : ''}.</b> You’ll see open times and can book single or weekly lessons.</li></ol>`, { title: 'What happens next' })}`);
 }
 
 SCREENS.home = () => {
@@ -223,6 +222,7 @@ SCREENS.home = () => {
   return shell(`
     ${pageHead(`Good morning, ${esc(firstName(state.me.name))}`, dLong(TODAY), B('Book a lesson', 'primary', '', { href: href('book'), icon: 'calendar' }))}
     ${acShareBanners()}
+    ${bkAskFullCards()}
     ${waits.map(w => banner('warning', `${w.kids.map(k => esc(firstName(k.name))).join(' and ')} ${w.kids.length === 1 ? 'is' : 'are'} waiting for Coach ${esc(w.c.first)}’s approval`, `You can book with Coach ${esc(w.c.first)} once they approve.`)).join('')}
     ${acInviteCard()}
     <div class="split split--today">
@@ -282,9 +282,9 @@ SCREENS.profile = () => {
   const u = acUi(), kids = myKids(), self = state.me.rel === 'Self', multi = multiCoach();
   const status = k => multi ? '' : k.status === 'ACTIVE' ? badge('Approved', 'success', 'check') : k.status === 'PENDING' ? badge('Waiting for approval', 'warning', 'clock') : badge('Not Coach ' + esc(coachFirst()) + '’s student yet', 'neutral');
   const skaterRow = k => row(`${avatar(initials(k.name), 'sm')}${rowTitle(esc(k.name), `${k.minor ? 'Under 18' : 'Adult'}${k.orgNum ? ` · ${orgLine({ org: k.org, num: k.orgNum })}` : ''}`)}`,
-    `${status(k)}${B('Remove', 'ghost', 'acRemoveOpen', { sm: true, args: [k.id] })}`)
+    status(k))
     + (multi ? `<div class="ac-code ac-kc"><span class="ac-code__label">Coaches</span><span class="ac-kc__list">${acCoachBadges(k) || '<span class="muted">None yet</span>'}</span></div>` : '')
-    + (k.shareCode ? `<div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">${esc(k.shareCode)}</span><span class="ac-code__btns">${B('Copy', 'ghost', 'acCopyCode', { sm: true, icon: 'copy', args: [k.id] })}${B('New code', 'ghost', 'acNewCodeOpen', { sm: true, icon: 'refresh', args: [k.id] })}</span></div>` : '');
+    + (k.shareCode ? `<div class="ac-code"><span class="ac-code__label">Share code</span><span class="mono ac-code__v">${esc(k.shareCode)}</span><span class="ac-code__btns">${B('Copy', 'ghost', 'acCopyCode', { sm: true, icon: 'copy', args: [k.id] })}</span></div>` : '');
   return shell(`
     ${pageHead('Profile', multi ? 'How your coaches and BladeBook reach you.' : 'How Coach ' + esc(coachFirst()) + ' and BladeBook reach you.')}
     ${card(`
@@ -312,7 +312,8 @@ SCREENS.profile = () => {
    Opened from the invitation email. It's inside the signed-in shell: opening the link does nothing on its own, and signing
    in proves it's Family B. Shows who invited, the lesson or series, which skater, and clashes with that skater's other
    lessons (ADR-025 d5); Family B goes ahead or declines. A skater who isn't the coach's student yet goes to the coach first,
-   exactly like a coach-code sign-up, and joins when the coach accepts. No price: shared pricing is still open (Kim P2). */
+   exactly like a coach-code sign-up, and joins when the coach accepts. The lesson's price is split between the two skaters
+   (owner, 2026-10-13; ADR-026 P2). */
 const invUi = () => (state.ui.inv ??= { id: null });
 const invCur = () => { const mine = invsToMe(); return mine.find(i => i.id === invUi().id) || mine.find(i => i.status === 'SENT') || mine[0]; };
 SCREENS.invite = () => {
@@ -326,7 +327,7 @@ SCREENS.invite = () => {
     ${inv.series ? kv('Dates', invDates(inv)) : ''}
     ${kv('Coach', `Coach ${esc(cName(ic_))} · ${RINK_SHORT}`)}
     ${kv('Skater', esc(kid.name))}
-    ${kv('Price', `Set by Coach ${coach}. You pay ${coach} directly.`)}`, { title: inv.series ? 'The lessons' : 'The lesson' });
+    ${(() => { const l0 = ls[0], full = l0 ? (l0.full ?? l0.price) : 0; return kv('Price', full ? `${money(full / 2)} for ${kf}${inv.series ? ' per lesson' : ''}: the lesson’s ${money(full)}, split between the two skaters. You pay Coach ${coach} directly.` : `You pay Coach ${coach} directly.`); })()}`, { title: inv.series ? 'The lessons' : 'The lesson' });
   const aside = `<div class="stack">${help('Shared lessons', `Two skaters share one lesson with Coach ${coach}. Each skater’s attendance and payment are kept separately.`)}${inv.series ? help('A repeating lesson', `Going ahead joins ${kf} to every lesson in the series.`) : ''}</div>`;
   const page = (top, body = '') => shell(`${top}${acShareBanners(inv)}<div class="split split--today"><div class="stack">${details}${body}</div>${aside}</div>`, { width: 'wide' });
   const hero = (cls, icon, title, sub) => `<div class="crumb">${crumb('home', 'Home')}</div><div class="hero ${cls}"><span class="hero__icon">${ic(icon, 26)}</span><div><h1 class="h1">${title}</h1><p class="lede">${sub}</p></div></div>`;
@@ -361,23 +362,6 @@ SCREENS.payments = () => {
 };
 
 /* ================= modals ================= */
-MODALS.acRemove = m => {
-  const k = student(m.id), up = state.lessons.filter(l => l.sid === k.id && !isStarted(l)).length;
-  return `<div class="dialog__icon dialog__icon--danger">${ic('trash', 22)}</div>
-    <h2 class="h2">Remove ${esc(k.name)}?</h2>
-    <p class="fine">${k.status === 'PENDING' ? `Coach ${esc(coachFirst())} won’t see this sign-up any more.` : up ? `${plural(up, 'upcoming lesson')} ${up === 1 ? 'is' : 'are'} cancelled. Coach ${esc(coachFirst())} is told about any inside the notice period, and those may be charged.` : `Nothing is booked for ${esc(firstName(k.name))}.`}</p>
-    <div class="dialog__actions">${B('Keep skater', 'secondary', 'closeModal')}${B('Remove skater', 'danger', 'acRemove')}</div>`;
-};
-
-MODALS.acNewCode = m => {
-  const k = student(m.id);
-  return `<div class="dialog__icon">${ic('refresh', 22)}</div>
-    <h2 class="h2">New share code for ${esc(firstName(k.name))}?</h2>
-    <div class="dialog__what"><b class="mono">${esc(k.shareCode)}</b><span>Current code</span></div>
-    <p class="fine">The current code stops working straight away. Give the new one to any family you still want to share lessons with.</p>
-    <div class="dialog__actions">${B('Keep this code', 'secondary', 'closeModal')}${B('Make a new code', 'primary', 'acNewCode')}</div>`;
-};
-
 /* ================= actions ================= */
 Object.assign(ACTIONS, {
   acLogin() { state.auth.notice = ''; state.authed = true; go('home'); },
@@ -446,26 +430,17 @@ Object.assign(ACTIONS, {
     state.flash = `Sent to Coach ${cName(c)}. ${kids.map(k => firstName(k.name)).join(' and ')} can book with Coach ${c.first} once they approve. We’ll email you.`;
   },
   acCopyCode(id) { const c = student(id).shareCode; try { navigator.clipboard.writeText(c); } catch (e) { /* static build: no clipboard */ } state.flash = `Copied ${c}.`; },
-  acNewCodeOpen(id) { state.modal = { kind: 'acNewCode', id }; },
-  acNewCode() { const k = student(state.modal.id), old = k.shareCode; k.shareCode = acShareCode(k.name, old); state.modal = null; state.flash = `${firstName(k.name)}’s new share code is ${k.shareCode}. ${old} no longer works.`; },
   invOpen(id) { invUi().id = id; go('invite'); },
   /** Go ahead: a skater who is the coach's student joins now; one who isn't becomes PENDING with pendingJoins (ADR-026 d5). */
   invGo() {
     const inv = invCur(), kid = student(inv.skater), ls = invLessons(inv);
-    if (kid.status === 'ACTIVE') { for (const l of ls) l.with = [...(l.with || []), { sid: kid.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; inv.status = 'CONFIRMED'; }
+    if (kid.status === 'ACTIVE') { for (const l of ls) { l.with = [...(l.with || []), { sid: kid.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: null }]; splitPrice(l); } inv.status = 'CONFIRMED'; }
     else { Object.assign(kid, { status: 'PENDING', since: TODAY, invitedBy: inv.from, pendingJoins: ls.map(l => ({ iso: l.iso, t: l.t, invite: inv.id })) }); inv.status = 'AWAITING_COACH'; inv.confirmed = TODAY;
       // A late confirmation whose warning falls due before tonight's sweep gets the warning straight away (ADR-026 d5a).
       if (inv.iso && bkMinutesUntil(inv.iso, inv.t) - (24 + NOTICE_H) * 60 <= 21 * 60 - NOW_MIN) inv.warnedAt = TODAY; }
     state._scrollTop = true;
   },
   invDecline() { invCur().status = 'DECLINED'; state._scrollTop = true; },
-  acRemoveOpen(id) { state.modal = { kind: 'acRemove', id }; },
-  acRemove() {
-    const k = student(state.modal.id);
-    state.lessons = state.lessons.filter(l => !(l.sid === k.id && !isStarted(l)));
-    state.students = state.students.filter(s => s.id !== k.id);
-    state.modal = null; state.flash = `${k.name} removed.`;
-  },
 });
 
 /* ================= presets ================= */
@@ -495,11 +470,9 @@ PRESETS.push(
   { id: 'ClientHomePending', file: 'home-pending', group: 'Home', title: 'Home — waiting for approval', note: 'New. A family with no approved skater sees only their own account: no schedule, open times or coach contact details (ADR-022 d6).', setup: st => { acAsSarah(st); st.screen = 'home'; } },
   { id: 'ClientHomePendingTwo', file: 'home-pending-two-coaches', group: 'Home', title: 'Home — waiting for two coaches', note: 'New (owner, 2026-10-13). Sarah signed up with Coach Dana and Coach Ben; neither has approved yet, so she still sees only Home and Profile. Each waiting coach is named with the skaters they’re approving, and each coach’s card has no contact details until they approve.', setup: st => { acAsSarah(st); st.students.find(x => x.id === 'p1').links = { ben: 'PENDING' }; st.screen = 'home'; } },
   { id: 'ClientHomeTom', file: 'home-invited', group: 'Home', title: 'Home — Tom, invited family waiting for coach', note: 'New (ADR-026 d5a). Tom accepted Grace’s invitation, so Zoe waits for Coach Dana like any sign-up and Tom sees only Home and Profile. The red banner says Zoe won’t join the Friday lesson unless Coach Dana accepts her first.', setup: st => { acAsTom(st); st.screen = 'home'; } },
-  { id: 'ClientProfile', file: 'profile', group: 'Profile', title: 'Profile', note: 'New (ClientProfileView). Contact details, SMS opt-in, skaters with add and remove; adding Lily asks which coaches she joins (ticked: Coach Dana and Coach Ben; owner, 2026-10-13); a new skater needs their U.S. Figure Skating or USA Hockey number (shape checked) and waits for approval. Each skater shows their share code with Copy and New code (ADR-026 d4).', setup: st => { st.screen = 'profile'; st.ui.ac = { fp: 0, newName: 'Lily Chen', newMinor: 0, newOrg: 0, newNum: '3407715', adding: true, newCoaches: [DANA, 'ben'], coachAdding: false, coachCode: '', coachKids: [] }; } },
+  { id: 'ClientProfile', file: 'profile', group: 'Profile', title: 'Profile', note: 'New (ClientProfileView). Contact details, SMS opt-in, skaters and adding one (no Remove: owner, 2026-10-13); adding Lily asks which coaches she joins (ticked: Coach Dana and Coach Ben; owner, 2026-10-13); a new skater needs their U.S. Figure Skating or USA Hockey number (shape checked) and waits for approval. Each skater shows their share code with Copy; a skater’s code never changes (owner, 2026-10-13).', setup: st => { st.screen = 'profile'; st.ui.ac = { fp: 0, newName: 'Lily Chen', newMinor: 0, newOrg: 0, newNum: '3407715', adding: true, newCoaches: [DANA, 'ben'], coachAdding: false, coachCode: '', coachKids: [] }; } },
   { id: 'ClientProfileAddCoach', file: 'profile-add-coach', group: 'Profile', title: 'Profile — add a coach', note: 'New (ADR-025 d2). Grace’s skaters already have three coaches between them: each skater lists theirs (approved, or waiting for that coach). Your coaches lists each coach with which skaters are theirs. Add a coach: MARC-6P2D finds Coach Marcus Lee, and Grace ticks Mia. Noah stays unticked.', setup: st => { st.screen = 'profile'; Object.assign(acUi(), { coachAdding: true, coachCode: 'MARC-6P2D', coachKids: ['s1'] }); } },
   { id: 'ClientProfileCoachSent', file: 'profile-coach-sent', group: 'Profile', title: 'Profile — coach added, waiting', note: 'New. After Send to Coach Marcus: Mia waits for Coach Marcus alone. She stays approved with Coach Dana and Coach Ben, and Grace can keep booking with them.', setup: st => { st.screen = 'profile'; Object.assign(acUi(), { coachAdding: true, coachCode: 'MARC-6P2D', coachKids: ['s1'] }); ACTIONS.acCoachSend(); } },
   { id: 'ClientProfilePending', file: 'profile-pending', group: 'Profile', title: 'Profile — waiting for approval', note: 'New. The same profile for a family still waiting; this is most of what they can see.', setup: st => { acAsSarah(st); st.screen = 'profile'; } },
-  { id: 'ClientProfileRemove', file: 'profile-remove-skater', group: 'Profile', title: 'Profile — remove a skater', note: 'New. Removing an approved skater cancels their upcoming lessons. One reading of the open “delete a student” decision (Open-Pending.md).', setup: st => { st.screen = 'profile'; st.modal = { kind: 'acRemove', id: 's2' }; } },
-  { id: 'ClientProfileNewCode', file: 'profile-new-share-code', group: 'Profile', title: 'Profile — new share code', note: 'New (ADR-026 d4). A new share code retires the old one straight away, so it asks first.', setup: st => { st.screen = 'profile'; st.modal = { kind: 'acNewCode', id: 's1' }; } },
   { id: 'ClientPayments', file: 'payments', group: 'Phase 2', title: 'Payments', note: 'New, Phase 2. Lessons the coach hasn’t marked paid, with the coach’s payment instructions; BladeBook doesn’t take payments.', setup: st => { st.screen = 'payments'; } },
 );
