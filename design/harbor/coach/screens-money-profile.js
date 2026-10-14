@@ -319,7 +319,9 @@ MODALS.mpPassword = () => `
   ${pwRules()}
   <p class="fine">Your rinkside app stays signed in until its session runs out.</p>
   <div class="dialog__actions">${B('Cancel', 'secondary', 'closeModal')}${B('Change password', 'primary', 'mpPwSave')}</div>`;
-const MP_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+/* A coach code is 8 random characters from a set with no look-alikes (no 0, O, 1, I, L, 5, S, U), shown 4-dash-4.
+   No part of the coach's name; it never expires on its own (ADR-002, amended 2026-10-13). */
+const MP_CODE_CHARS = 'ABCDEFGHJKMNPQRTVWXYZ2346789';
 Object.assign(ACTIONS, {
   mpSave() { state.flash = 'Saved.'; },
   mpToggle(key) { state.profile[key] = !state.profile[key]; },
@@ -339,8 +341,8 @@ Object.assign(ACTIONS, {
   mpRotateAsk() { state.modal = { kind: 'mpRotate' }; },
   mpRotate() {
     const p = state.profile, old = p.code;
-    let s = ''; for (let i = 0; i < 4; i++) s += MP_CODE_CHARS[(hash(old + i + s) + i * 7) % MP_CODE_CHARS.length];
-    p.code = p.first.toUpperCase().slice(0, 4) + '-' + s;
+    let s = ''; for (let i = 0; i < 8; i++) s += MP_CODE_CHARS[(hash(old + i + s) + i * 7) % MP_CODE_CHARS.length];
+    p.code = s.slice(0, 4) + '-' + s.slice(4);
     state.modal = null; state.flash = `New code: ${p.code}. ${old} no longer works for new sign-ups.`;
   },
   mpPickEmail(i) { const e = state.profile.emails[i]; if (e && !e.pending) state.profile.businessEmail = e.addr; },

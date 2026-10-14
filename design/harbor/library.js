@@ -245,14 +245,14 @@ add('Family · Booking', 'Confirmation', '4 · Result', 1280, () => familyApp('B
 const famHelp = help('How signing up works', 'Your coach gives you a code. You create an account, add the skater (you or your child), and your coach approves them. Booking opens as soon as they do — usually within a day.');
 add('Family · Sign up', 'ClientCodeEmpty', '1a · Coach code — empty', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
-  ${field('Coach code', 'e.g. ABCD-1234', { placeholder: true, focus: true, mono: true, hint: 'It links your account to your coach’s lessons.' })}
+  ${field('Coach code', 'e.g. K7QM-4X9T', { placeholder: true, focus: true, mono: true, hint: 'It links your account to your coach’s lessons.' })}
   <div class="empty-coach">${ic('user', 20)}<span>Your coach will appear here so you can check it’s the right one.</span></div>
   ${btn('Continue', 'primary', { block: true, lg: true, disabled: true })}
   <p class="fine center">No code? Ask your coach — every coach has their own.</p>`), famHelp), 'One font, one primary action, one help panel. The disabled button tells you what’s missing instead of a separate warning line.');
 
 add('Family · Sign up', 'ClientCode', '1b · Coach code — found', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
-  ${field('Coach code', 'DANA-7K2Q', { mono: true, ok: true })}
+  ${field('Coach code', '7K2Q-M9XT', { mono: true, ok: true })}
   <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Civic Center · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
   ${btn('Continue with Dana', 'primary', { block: true, lg: true, iconR: 'arrowR' })}
   <p class="fine center">Wrong coach? Check the code with them.</p>`), famHelp), 'Confirmation of the coach is a clear identity card; the button names who you’re continuing with.');
@@ -266,7 +266,7 @@ add('Family · Sign up', 'ClientDetails', '2 · Your details', 1280, () => wizar
   <div class="fieldset"><div class="label">Who are the lessons for?</div>${seg(['Me', 'My child (parent)', 'My child (guardian)'], 1, { block: true })}<div class="hint">You’ll add your child on step 4.</div></div>
   ${check('Text me reminders too', true, 'Email reminders always go out. Texts arrive the morning of a lesson. Msg & data rates may apply; reply STOP to stop.')}
   ${actions(btn('Back', 'ghost', { icon: 'arrowL' }), btn('Create account', 'primary', { lg: true }))}`),
-  `<div class="stack">${card(`${eyebrow('Signing up with')}<div class="found found--plain">${avatar('DW')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub mono">DANA-7K2Q</div></div></div>`)}${help('Signing up for your child?', 'Sign up as yourself. You add your child as a skater on the next step.')}</div>`),
+  `<div class="stack">${card(`${eyebrow('Signing up with')}<div class="found found--plain">${avatar('DW')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub mono">7K2Q-M9XT</div></div></div>`)}${help('Signing up for your child?', 'Sign up as yourself. You add your child as a skater on the next step.')}</div>`),
   'Name and phone share a row, password rules tick off live, and the “who is it for” choice is one segmented control instead of three stacked buttons.');
 
 const verify = (ctx, steps, idx, email, extra, aside) => wizard(ctx, steps, idx, card(`
@@ -389,7 +389,7 @@ const bizHelp = help('Why a business email?', 'It’s the only address families 
 add('Coach · Sign up', 'CoachBusiness', '3 · Business details — different email', 1280, () => wizard('Coach sign up', COACH_STEPS, 2, bizForm(false), bizHelp), 'The same-vs-different email choice is an explicit toggle up front, so the confirmation step that follows is expected.');
 add('Coach · Sign up', 'CoachBusinessSame', '3 · Business details — same email', 1280, () => wizard('Coach sign up', COACH_STEPS, 2, bizForm(true), bizHelp), 'Same layout, with a verified badge — and the button changes to “Finish setup” because step 4 is skipped.');
 
-const codeCard = () => `<div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">DANA-7K2Q</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>${btn('Copy', 'secondary', { icon: 'copy' })}</div>`;
+const codeCard = () => `<div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">7K2Q-M9XT</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>${btn('Copy', 'secondary', { icon: 'copy' })}</div>`;
 add('Coach · Sign up', 'CoachConfirm', '4 · Confirm business email', 1280, () => wizard('Coach sign up', COACH_STEPS, 3, card(`
   <div class="mailicon">${ic('mail', 26)}</div>
   <h1 class="h1 center">Confirm your business email</h1><p class="lede center">We sent a link (not a code) to<br><b>lessons@danawhitfieldskating.com</b></p>

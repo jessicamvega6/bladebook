@@ -13,10 +13,12 @@ that there are only two — and an eleventh Lambda function.
 replaces the booking with a **lesson time** and a **seat** for each skater. The unpaid list now
 comes from **seats**: GSI3 is written on a seat while it is `UNPAID` (ADR-031 decision 2), so a
 shared lesson gives one entry per skater, each with its own share. `settleReminderSentOn` is on
-the seat. The rest of this ADR is unchanged. *Revised 2026-10-13 (ADR-031 revision): a seat no longer stores `shareMinor`. Each entry
+the seat. The rest of this ADR is unchanged. *Revised 2026-10-13 (ADR-031 revision): a seat no longer stores `shareMinor`. ~~Each entry
 shows the seat's `amountMinor`, fixed at check-in or a no-show. A seat with **attendance not
 recorded** gets its `amountMinor` from the 9pm report job, which fixes it for any of that day's
-seats still without one. So every past seat in the list has an amount (ADR-031 decision 7).*
+seats still without one. So every past seat in the list has an amount (ADR-031 decision 7).~~*
+*Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Each entry shows the skater's share, worked out from the seat's lesson time
+(`priceMinor ÷ shareCount`, odd cents by `joinOrder`). The 9pm report job writes nothing.*
 
 ---
 
@@ -103,8 +105,10 @@ decision 4), so they are picked up automatically. The digest labels them as late
   SMS, no S3.
 - **GSI3 projects what the digest needs** — date, start time, student, amount, status and
   `settleReminderSentOn` — so most of the work is one scan. *Note — 2026-10-13: on a seat the
-  amount is its ~~`shareMinor`~~ `amountMinor` (ADR-031 decision 7).* *Revised 2026-10-13
-  (ADR-031 revision): `amountMinor` is fixed on the seat at check-in or a no-show.*
+  amount is its ~~`shareMinor`~~ ~~`amountMinor`~~ share (ADR-031 decision 7).* *Revised 2026-10-13
+  (ADR-031 revision): ~~`amountMinor` is fixed on the seat at check-in or a no-show.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
+  *GSI3 carries no amount, so the digest reads each listed seat's lesson time (`priceMinor`,
+  `shareCount`, `joinOrder`) to work the share out.*
 - **Access logging** (ADR-012 decision 3): one aggregate line per run — *"read 12 unpaid
   lessons across 3 coaches."*
 - **Reliability** (ADR-010): a dead-letter queue and the dead man's switch like the other

@@ -5,7 +5,7 @@ Within 'My bookings' section by each lesson item there is a cancel button. on cl
 There will be a note that says bookings canceled within ~~24 hours~~ *the coach's notice period (24 hours in the design)* may incur a late cancelation fee. 
 *Design:* the confirmation shows the lesson (day, time, length, price). Inside the notice period the note becomes a warning:
   "Inside the N-hour notice period. <coach> may charge a late cancellation fee."
-  It says the time goes back on the coach's calendar and the coach will be told, and, for a repeating lesson, that other
+  It says the time goes back on the coach's calendar and the coach will be told *if it's a late cancellation (revised 2026-10-13)*, and, for a repeating lesson, that other
   lessons in the series aren't affected. Buttons: "Keep lesson" and "Cancel lesson".
 *Shared lessons (owner, 2026-10-13; ADR-026; bookings-cancel-shared.html, home-share-left.html):* either family can cancel
   their skater's place, with the same rules whichever family booked it. The pop-up shows their share of the price.
@@ -31,6 +31,7 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
     Cancelling all sends the family one email listing the cancelled dates. The coach isn't emailed, because none of
       these cancellations is late.
     A lesson the family keeps becomes a freed place, and can take a new skater (see 'Schedule lesson split').
+  *Added 2026-10-13 (ADR-031 decision 5, option B):* If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted. Withdrawing is only possible before the other family answers.
 
 
 

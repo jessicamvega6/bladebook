@@ -10,7 +10,7 @@ Also needs to show the coach who has signed up for lessons that day and what tim
 
 
 The checkin app will allow a coach to cancelan individual lesson, or any lessons ~~that day~~ *from today to the end of this week (the Week tab, see C_Rinkside Cancel Several Lessons.md)*. When canceling the coach will be asked if they want to release or hold the slots. 
-    Hold: means they are coach held
+    Hold: ~~means they are coach held~~ the time stays closed (a held lesson time) *(revised 2026-10-13, ADR-031)*
     Release: means they are rebookable by othr students
 *Design:* cancelling one lesson is under the "..." button on its card, kept away from Present and No-show. It always
 confirms, names the family who will be emailed, and asks Release for rebooking or Hold it closed (ADR-009 d5a).

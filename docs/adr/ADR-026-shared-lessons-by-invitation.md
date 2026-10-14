@@ -4,7 +4,8 @@
 
 **Accepted** — 2026-10-06. *Decided by the owner, after talking with an end user.*
 ~~**P2 and P4 wait on Kim, and P5 in part**~~ **P2 and P4 answered by the owner, 2026-10-13**
-(see the amendment below); P5 still waits on Kim in part. P1 and P3 were answered 2026-10-07.
+(see the amendment below), and ~~P5 in part~~ **P5 answered by the owner, 2026-10-13**: no cutoff before
+the lesson. P1 and P3 were answered 2026-10-07.
 None of them blocks private booking.
 
 **Extends** [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md) (a booking
@@ -51,19 +52,21 @@ is also triggered by `StudentChanged` (ADR-021 decision 6, ADR-001).
 **Amended — 2026-10-09.** *Decided by the owner.* An invitation still waiting on the coach gets a
 warning email and a home-screen banner before the lesson, and a nightly sweep closes any
 invitation whose lesson has started (decision 5a, new). The coach's email is moved from Phase 2
-to MVP. Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.
+to MVP. ~~Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.~~ *Settled by the
+owner 2026-10-13: it doesn't; see P5.*
 
 **Amended — 2026-10-13.** *Decided by the owner.* **How a shared lesson is priced, and what
 happens when a skater leaves** (P2 and P4; Kim's list §8 questions 2, 3 and 5):
 
 - **One set price, split.** The lesson has one price, the block's schedule price when it was
-  booked, split evenly between its skaters: a $50 lesson shared by two is $25 each. ~~Each
+  booked, split evenly between its skaters: a $50 lesson shared by two is $25 each. *On the
+  lesson time since ADR-031.* ~~Each
   participant line stamps its share.~~ *Replaced by ADR-031 decision 7 (2026-10-13): ~~each
   **seat** carries `shareMinor`. The price is split among the `BOOKED` seats,~~ and odd cents go
   one each to the earliest-joined seats.* *Revised 2026-10-13 (ADR-031 revision): the total
   price is stored only on the lesson time (`priceMinor`). A share is worked out, not stored:
-  `priceMinor ÷ shareCount`, where `shareCount` is a lesson-time attribute. A seat gets a fixed
-  `amountMinor` only at check-in, at a no-show, or when marked paid or waived.* Personal prices are Phase 2 (ADR-003, amended the same
+  `priceMinor ÷ shareCount`, where `shareCount` is a lesson-time attribute. ~~A seat gets a fixed
+  `amountMinor` only at check-in, at a no-show, or when marked paid or waived.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* Personal prices are Phase 2 (ADR-003, amended the same
   day), so the split is always of the schedule's price.
 - **Joining:** when a second skater joins, ~~both are re-stamped at the split price~~ the
   lesson time's `shareCount` goes up and both shares follow from it. Until then the booking
@@ -95,6 +98,21 @@ doesn't.
 "a family can issue a new code" is withdrawn: a skater keeps one share code for good, and the
 family profile shows it with Copy only.
 
+**Amended — 2026-10-13.** *Decided by the owner.* **P5: no cutoff before the lesson.** An invitation
+the family hasn't answered stays open until the lesson starts, and then expires (decision 5a, ADR-031
+decision 12's `EXPIRE`); the lesson goes ahead private. Nothing lapses earlier, so P5 needs no
+new deadline in the sweep and no longer waits on Kim.
+
+**Amended — 2026-10-13.** *Decided by the owner.* **The share code's shape** (decision 4). The
+first **3 letters of the skater's first name**, a dash, then **5 random characters** from the
+coach code's look-alike-free set ([ADR-002](ADR-002-client-registration.md), amended
+2026-10-13): `MIA-4K7QX`. Names are uppercased with accents dropped (Zoë → `ZOE`) and letters
+outside A–Z skipped; a first name shorter than 3 letters is filled from the last name (Bo Li →
+`BOL`). Only the random part avoids look-alikes; the name letters can be any letter. A skater
+renamed later keeps their code, old letters included. Typing ignores case and the dash. Each
+three-letter start has about 17.2 million possible codes, so at the lookup's rate limit guessing
+a skater takes millions of tries, years from one address, and a hit returns only a display name.
+
 **Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. The invitation's text pointing to the email waits for
 it; in MVP the invited family gets the email only.
 
@@ -113,7 +131,10 @@ decision 5a's **nightly** sweep. Shared and private lessons now go through one p
 - **`pendingJoins` → `AWAITING_COACH` seats.** The coach's Accept turns every one of that
   skater's `AWAITING_COACH` seats into `BOOKED`, each if its lesson hasn't started (decision 6).
 - **The nightly sweep → `sched-deadline-sweep`, every hour**, reading deadlines from a new
-  sparse index, **GSI4** (`WARN`, `EXPIRE`, `ANSWER`). The warning is still sent at the 9pm run
+  sparse index, **GSI4** ~~(`WARN`, `EXPIRE`, `ANSWER`)~~ *Revised 2026-10-13 (ADR-031): `WARN`,
+  `EXPIRE`, ~~`INVITER_LEFT`~~ on the invited seat; `ANSWER` on the lesson time.* *Revised
+  2026-10-13 (ADR-031 d5, d12): `INVITER_LEFT` sits on the lesson time too, naming the invited
+  seat.* The warning is still sent at the 9pm run
   before it's due, so it's never late and never sent at night (decision 12).
 
 **It also closes gaps this ADR left:** how a skater leaves a shared lesson, what happens when the
@@ -183,8 +204,8 @@ family's skater, price, payment and attendance. It gains two attributes:~~
 *Replaced by ADR-031 decisions 1, 2 and 4 (2026-10-13): the slot is a stored **lesson time**
 (`LESSON#<date>#<startTime>`), which carries `lessonStatus`, the price stamps, `maxSkaters` and
 `seatsTaken`. Booking updates it from `OPEN` to `BOOKED` and puts the family's **seat** in one
-transaction. The seat, not the lesson time, carries the skater, their share, payment and
-attendance.*
+transaction. The seat, not the lesson time, carries the skater, ~~their share,~~ payment and
+attendance.* *Revised 2026-10-13 (ADR-031): no share is stored; it is worked out (ADR-031 d7).*
 
 To everyone else the slot is taken from the moment the first family books, as now (§7: never
 who holds it, and now never how many).
@@ -237,7 +258,7 @@ confirmed at the same moment.
 
 ### 4. A skater is invited with a share code
 
-**Every skater gets a short share code**, for example `MIA-4K7Q`, shown on their profile in the
+**Every skater gets a short share code**, for example `MIA-4K7QX`, shown on their profile in the
 family website. A family gives it to the family they want to share with, the same way a coach
 gives out their coach code.
 
@@ -256,7 +277,8 @@ gives out their coach code.
 - ~~**A family can issue a new code** for a skater, which retires the old one.~~ *Withdrawn
   2026-10-13 by the owner:* a skater's share code never changes; there is no way to refresh it.
 
-Code length and alphabet follow the coach-code decision (blocker #7), so they're settled once.
+*Settled 2026-10-13 (amendment above):* the first 3 letters of the skater's first name and 5 random
+characters from the coach code's character set, `MIA-4K7QX`.
 
 ### 5. The invitation flow
 
@@ -377,8 +399,12 @@ lesson yet, so ~~`consumer-invite` ends skater B's seat as `WITHDRAWN` and email
 lesson was cancelled~~ the invitation ends.* *Revised 2026-10-13 (option B, ADR-031 decisions 5
 and 12): still `INVITED`, skater B's seat is Family A's own record, so their cancel ends it as
 `WITHDRAWN` in the same transaction. Already `AWAITING_COACH`, it is Family B's, so the cancel
-only sets an `INVITER_LEFT` deadline on it, due at once; the hourly sweep ends it as `WITHDRAWN`
-and Family B is emailed that the lesson was cancelled, up to an hour later.* *Declining is Family B's answer to an invitation addressed to their skater,
+~~only sets an `INVITER_LEFT` deadline on it~~, due at once; the hourly sweep ends it as `WITHDRAWN`
+and Family B is emailed that the lesson was cancelled, up to an hour later.* *Revised 2026-10-13
+(ADR-031 d5, d12): the cancel doesn't touch skater B's seat; it records an `INVITER_LEFT`
+deadline, due at once, on the lesson time, naming that seat. The sweep ends the seat as
+`WITHDRAWN`, the lesson time goes back to `OPEN` (it was the last seat), and `consumer-invite`
+emails Family B.* *Declining is Family B's answer to an invitation addressed to their skater,
 under the same condition as accepting (no `clientId`, `INVITED`, their skater): the seat moves to
 `SEATEND#` as `DECLINED`.*
 
@@ -398,13 +424,15 @@ waits forever:
 - **The coach declines skater B:** `DECLINED`. It now covers either family's "no" or the
   coach's; the email to Family A says which.
 - **The lesson passes before the coach acts, or the coach accepts but the join fails** (the
-  booking was cancelled, the lesson has started, or it's full): **`EXPIRED`**. Family B is told
-  the lesson was no longer available.
+  ~~booking was cancelled,~~ the lesson has started~~, or it's full~~): **`EXPIRED`**. Family B is told
+  the lesson was no longer available. *Revised 2026-10-13 (ADR-031): never full: the place is held
+  from booking. If the inviting family cancels first, the seat ends `WITHDRAWN` (option B).*
 
 For a recurring series, these apply lesson by lesson; what the invitation's single status shows
 when some lessons join and others don't is part of the open partial-series question (Open).
 *Settled by ADR-031 decision 6 (2026-10-13): each date has its own seat and status, and a
-series joins lesson by lesson.* When an unanswered `SENT` invitation lapses is still Kim's P5.
+series joins lesson by lesson.* ~~When an unanswered `SENT` invitation lapses is still Kim's P5.~~ *P5, 2026-10-13: it expires when the
+lesson starts, with no earlier cutoff.*
 
 **A recurring booking shares every lesson in the series.** One invitation covers them all, and one
 confirmation joins skater B to each lesson in it.
@@ -422,25 +450,29 @@ writes skater B's invited seat as a **reservation** — display name and status 
 exception ADR-024 allows~~. Family B's session converts it on accept.* *Revised 2026-10-13
 (ADR-031 revision): it isn't an exception. The invited seat is Family A's own record until Family
 B accepts, so ADR-024 needs no shared-lesson exception.* Whenever Family B is signed in, it's Family B's own session,
-so Family A never writes anything for a skater who isn't theirs (ADR-024). **The automatic join
+so Family A never writes anything for a skater who isn't theirs (ADR-024). ~~**The automatic join
 is the one exception:** no one from Family B is signed in when the coach accepts, so the coach's
 own session writes it, inside the coach's own partition, only for lessons Family B confirmed
-while signed in and that name skater B as invited.
+while signed in and that name skater B as invited.~~ *Revised 2026-10-13 (ADR-031): no exception:
+the coach's Accept is the coach's own write (ADR-031 d5).*
 
 ### 5a. Before and after the lesson: the warning, the banner and the nightly sweep
 
 *Decided by the owner, 2026-10-09.*
 
 *Mechanism replaced by ADR-031 decision 12 (2026-10-13): the sweep is **`sched-deadline-sweep`,
-every hour**. A seat with a pending deadline carries `dueAt` and `dueKind` (`WARN`, `EXPIRE`,
-`ANSWER`) and sits in the sparse index **GSI4** only while it has one. Each run queries what's
-due, re-checks each seat, acts, and sets the next deadline. Urgent emails go at once; **the
+every hour**. A ~~seat~~ record with a pending deadline carries `dueAt` and `dueKind` ~~(`WARN`, `EXPIRE`,
+`ANSWER`)~~ and sits in the sparse index **GSI4** only while it has one. Each run queries what's
+due, re-checks each ~~seat~~ record (an invited seat, or a lesson time for `ANSWER` or `INVITER_LEFT`), acts, and sets the next deadline. Urgent emails go at once; **the
 warning still waits for the 9pm run before it's due**, so it's never late and never sent at
-night. The warning, banner and email rules below all still hold.*
+night. The warning, banner and email rules below all still hold.* *Revised 2026-10-13 (ADR-031):
+the kinds are `WARN`, `EXPIRE`, ~~`INVITER_LEFT`~~ on the invited seat; `ANSWER` on the lesson time.*
+*Revised 2026-10-13 (ADR-031 d5, d12): `WARN` and `EXPIRE` on the invited seat; `ANSWER` and
+`INVITER_LEFT` on the lesson time.*
 
 **The warning.** For each lesson whose invitation is still `AWAITING_COACH`, an email goes to
 **Family A, Family B and the coach** no later than **24 hours plus the coach's
-`requiredNoticeHours`** (as stamped on the booking) before the lesson. Families who have opted in
+`requiredNoticeHours`** (as stamped on the booking; *on the lesson time since ADR-031*) before the lesson. Families who have opted in
 to texts also get a text pointing to the email (ADR-007). The coach's email is MVP, *moved from
 Phase 2 by the owner*.
 
@@ -511,7 +543,7 @@ cancels every skater in it, and each family is told (ADR-009).
 ## Pending Kim
 
 Each is a question in `Items to ask Kim About.md` §8. **None of them blocks private booking**,
-which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.* *Since 2026-10-13 P2 and P4 are answered too.*
+which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.* *Since 2026-10-13 P2, P4 and P5 are answered too.*
 
 | # | Question | The owner's leaning |
 |---|---|---|
@@ -519,7 +551,7 @@ which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P
 | **P2** | ~~**How a shared lesson is priced**~~ | **Answered by the owner, 2026-10-13:** the lesson's set price is split between the skaters; a skater leaving in time leaves the other family to choose full price or cancel; leaving late, the other keeps their share (amendment 2026-10-13) |
 | **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval |
 | **P4** | ~~If the **booking family cancels**, what happens to the invited skaters?~~ | **Answered by the owner, 2026-10-13:** the same as either skater leaving (amendment 2026-10-13) |
-| **P5** | If an invitation **isn't confirmed in time** | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. Still open: when an invitation the family hasn't accepted lapses; leaning towards the coach's notice period (24 hours by default), once pricing is known *(pricing settled 2026-10-13)* |
+| **P5** | ~~If an invitation **isn't confirmed in time**~~ | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. **Answered by the owner, 2026-10-13:** an invitation the family hasn't accepted has no cutoff before the lesson; it expires when the lesson starts, and the lesson goes ahead private. ~~Leaning towards the coach's notice period (24 hours by default)~~ |
 
 **P3's answer is what ADR-024 already does.** `requireActive` only issues a `LinkedSkater` for a
 skater `ACTIVE` with that coach, so a skater can't join until the coach has accepted them.
@@ -548,14 +580,16 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
 - ~~**Private booking is unchanged.** The slot lock, the booking item and every existing flow stay
   as they are. Sharing adds to them.~~ *Replaced by ADR-031 (2026-10-13): private and shared
   lessons share one path, a lesson time with one seat or two.*
-- **Fourteen functions.** *Since ADR-031 (2026-10-13), `consumer-invite` no longer keeps
+- ~~**Fourteen functions.**~~ *Sixteen functions since ADR-031 (ADR-001's 2026-10-13 amendment).* *Since ADR-031 (2026-10-13), `consumer-invite` no longer keeps
   `INVITE#` copies in step, and its nightly run is replaced by `sched-deadline-sweep`; see ADR-001's
-  2026-10-13 amendment for the count.* `consumer-invite` joins `consumers.jar`: it reads and writes invitations
-  in both families' partitions and sends email and text, so it holds `ses:SendEmail` and
-  `sns:Publish`. *Settled 2026-10-07:* its permissions are unchanged by decision 5's rewrite. It
+  2026-10-13 amendment for the count.* `consumer-invite` joins `consumers.jar`: it ~~reads and writes invitations
+  in both families' partitions and~~ sends email and text, so it holds `ses:SendEmail` and
+  `sns:Publish`. ~~*Settled 2026-10-07:* its permissions are unchanged by decision 5's rewrite.~~ ~~It
   also reacts to the `STUDENT#` item changing when the coach accepts or declines, to update
   invitations and tell families, which needs no database write outside the families'
-  partitions.
+  partitions.~~ *Revised 2026-10-13 (ADR-031): `consumer-invite` reacts to seat changes only;
+  the coach's Accept or decline changes the seats themselves (ADR-031 d6).* *Revised 2026-10-13 (ADR-031): reads, plus `UpdateItem` limited to the copied
+  fields; no Put or Delete (ADR-031 Consequences).*
 - **No new database permission for the automatic join.** It runs in `api-coach` under
   `coach-tenant` (ADR-001 A8), which already writes and updates items in the coach's own
   partition. ~~The booking gains **`invitedStudentId`**; the pending `STUDENT#` item gains
@@ -579,7 +613,8 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   *Amended 2026-10-09: the nightly sweep (decision 5a) covers the warning and the expiry. P5's
   lapse before the lesson may still need a precise timer.* *Replaced by ADR-031 (2026-10-13): P5,
   when decided, becomes one more `dueKind` for the hourly sweep. Nothing needs better than an
-  hour.*
+  hour.* *P5 decided 2026-10-13: no cutoff before the lesson, so no new `dueKind`; the existing
+  `EXPIRE` at the lesson start is the only lapse.*
 - **New screens:** the share code on a skater's profile; "add a skater to share" on booking;
   invitations to confirm or decline; both skaters on a shared booking; every skater in a slot on
   the coach's views. None is in the Harbor designs. *2026-10-13: designed in `design/harbor` (family and coach
@@ -587,12 +622,14 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
 
 **Tests** (ADR-013 decision 4):
 
-- Two invitations confirmed at once for the last place: one joins, one is refused.
+- ~~Two invitations confirmed at once for the last place: one joins, one is refused.~~
+  *Revised 2026-10-13 (ADR-031): can't happen; the invited seat holds the place.*
 - A ~~participant~~ seat never appears in another family's availability query.
 - Family 1's session can't write a ~~participant item~~ seat for Family 2's skater, except the
   `INVITED` reservation, which holds only display name and status (*ADR-031, 2026-10-13*).
   *Revised 2026-10-13 (ADR-031 revision): Family 1's session also can't change Family 2's seat
-  once Family 2 has accepted it — not the share, the status or the partner fields.*
+  once Family 2 has accepted it — not ~~the share,~~ the status or the partner fields.* *Revised
+  2026-10-13 (ADR-031): no share is stored; it is worked out (ADR-031 d7).*
 - A share-code lookup returns the display name and nothing else.
 - A coach cancelling a shared lesson cancels every skater and notifies each family once.
 - ~~A `pendingJoins` entry for a lesson whose `invitedStudentId` isn't that skater writes nothing.~~
@@ -616,7 +653,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   cancels); whether a freed place can take a new invite (yes, one lesson only, from My bookings);
   and how re-pricing applies to split shares (~~re-split after a re-price; paid and waived seats
   never change~~ *revised 2026-10-13, ADR-031 revision: a re-price changes only the lesson time's
-  price; shares not yet fixed follow it, and a seat with a fixed `amountMinor` keeps it*).
+  price; shares ~~not yet fixed~~ follow it~~, and a seat with a fixed `amountMinor` keeps it~~*; *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*).
 - ~~**A skater in two places at once.** Joining a shared lesson that clashes with the skater's other
   lesson gets ADR-025's warning; confirm that's enough here too.~~ **Settled 2026-10-07**
   (decision 5): the confirm page shows clashes and the family chooses; they aren't re-checked at

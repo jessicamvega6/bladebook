@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** ~~2026-10-12~~ 2026-10-13 · **Current through:** ~~ADR-030~~ ADR-031 *(booking entries only; the function count is left for `architecture.md` to restate)*
+**As of:** ~~2026-10-12~~ 2026-10-13 · **Current through:** ~~ADR-030~~ ADR-031 *(booking entries only)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -10,7 +10,7 @@ Where this document and an ADR disagree, the ADR wins.
 
 ## The shape of the system
 
-BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; fourteen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$20–32 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
+BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$20–32 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
 
 ## What drives the choices
 
@@ -49,9 +49,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 1; A1, A2
 
-### Fourteen functions, split by who calls and what they may touch
+### Sixteen functions, split by who calls and what they may touch
 
-**What it is.** Two APIs (coach and client), seven event consumers, four scheduled jobs and one archiver — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
+**What it is.** Two APIs (coach and client), seven event consumers, six scheduled jobs and one archiver — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
 
 **Why.** One role per function is the security model's core: a defect in one function can only do what that function's role allows. The APIs split on trust boundaries — coach and family — not on routes. The per-request roles go further: DynamoDB itself refuses a read or write outside the caller's own records, so a bug in the application's own checks can't expose another coach's or family's data. The rinkside page runs in the coach API; a phone left signed in at the rink is guarded by requiring a recent sign-in before a schedule save, not by a function of its own.
 
@@ -205,7 +205,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Added 2026-10-13 (ADR-031).*
 
-**What it is.** Every bookable time is stored as a **lesson time**, made from the schedule about 15 months ahead by a nightly job. Each skater in a lesson has a **seat**: a private lesson has one, a shared lesson two. Booking changes the lesson time and adds the seat in one step. An invited skater's seat holds their place at once. When a skater leaves a shared lesson in time, the other family chooses to keep it at the full price or cancel with no charge; an hourly sweep acts on anything left unanswered, and on the other deadlines.
+**What it is.** Every bookable time is stored as a **lesson time**, made from the schedule about 15 months ahead by a nightly job. Each skater in a lesson has a **seat**: a private lesson has one, a shared lesson two. Booking changes the lesson time and adds the seat in one step. An invited skater's seat holds their place at once. When a skater leaves a shared lesson in time, the other family chooses to keep it at the full price or cancel with no charge; an hourly sweep acts on anything left unanswered, and on the other deadlines. Revised the same day: no family's action writes another family's records, except answering an invitation addressed to their own skater; the price lives only on the lesson time; `consumer-invite` only copies; ADR-024 needs no other exception.
 
 **Why.** Private and shared lessons follow one path, so sharing stops being special cases added to a private booking. Either family can leave by the same rules, because neither owns the lesson. A booking and a schedule save change the same record, so a booking can't land on a time the new schedule removed. Retry checks read the family's own seat directly.
 
@@ -307,7 +307,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Payment tracking, not payment processing
 
-**What it is.** Prices are integers in cents, stamped on ~~bookings~~ *lesson times; each skater's seat carries their share, split evenly with odd cents going to the skaters who joined first (changed 2026-10-13, ADR-031 decision 7)*. Coaches mark lessons paid or waived; families get a reminder with the amount and the coach's payment instructions.
+**What it is.** Prices are integers in cents, stamped on ~~bookings~~ *lesson times; each skater's share is worked out from the lesson's price (`priceMinor ÷ shareCount`); nothing is stored on the seat; odd cents go to the skaters who joined first (changed 2026-10-13, ADR-031 decision 7)*. Coaches mark lessons paid or waived; families get a reminder with the amount and the coach's payment instructions.
 
 **Why.** No payment processor means no card-data scope, no webhooks and no refunds in MVP. A weekly email tells the coach about lessons left unpaid too long.
 
@@ -370,7 +370,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Guards, dead-letter queues and dead man's switches
 
-**What it is.** Every consumer has a duplicate-send guard and a dead-letter queue with a stated replay policy. Scheduled jobs alarm when they *don't* run. Alerts go by text to the owner.
+**What it is.** Every consumer has a duplicate-send guard and a dead-letter queue with a stated replay policy (the two scheduled jobs from ADR-031 have none, by design). Scheduled jobs alarm when they *don't* run. Alerts go by text to the owner.
 
 **Why.** Retries must be safe, and a job that silently doesn't fire produces no error to alarm on. Alerting through email would fail exactly when email is the problem.
 

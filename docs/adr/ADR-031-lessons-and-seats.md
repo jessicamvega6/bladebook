@@ -7,12 +7,15 @@ handle shared lessons and private lessons through **one** path, so the shared fl
 set of special cases bolted onto a private booking.
 
 **Revised — 2026-10-13, later.** *Decided by the owner:* **no family's action writes another
-family's records.** The total price lives only on the lesson time, and each skater's share is
+family's records, except answering an invitation addressed to their own skater (accept or
+decline, decision 5).** The total price lives only on the lesson time, and each skater's share is
 worked out from it (decision 7). A leave and the staying family's question are recorded on the
 lesson time, not on the other family's seat (decision 8). The other skater's name and status are
 copied onto each seat by `consumer-invite`, a system function, not by either family (decision 6).
 An invited seat belongs to the inviting family until the invited family accepts it (decision 5).
-So ADR-024's rule — a family writes only its own records — needs no exception for shared lessons.
+So ADR-024's rule — a family writes only its own records — needs no other exception for shared
+lessons. Option B, same day: an accepted invitation whose inviting family cancels first is ended
+by the hourly sweep (`INVITER_LEFT`); `consumer-invite` only copies (Consequences).
 
 **Replaces how booking is stored and enforced.** Every behaviour rule in the ADRs below still
 holds unless this ADR says otherwise; what changes is the mechanism.
@@ -33,6 +36,11 @@ holds unless this ADR says otherwise; what changes is the mechanism.
   `pendingJoins` list) and decision 5a's **nightly** sweep (now hourly, decision 12). Every
   ADR-026 behaviour rule — share codes, consent, the coach's acceptance, the warning, the
   banner, siblings, coaches seeing every skater — still holds.
+- [ADR-006](ADR-006-open-booking-recurring-lessons-and-cancellation.md) decision 1 (no booking
+  horizon; a 3-month window on picks returns, decision 3 below) and decision 7's preview (now
+  compares lesson times, decision 11).
+- [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) decision 3's stamps on the booking
+  (now on the lesson time, decision 1).
 
 **Closes:**
 - Open-Pending §4's *booking doesn't check the schedule atomically* (Phase 2 fix no longer
@@ -46,7 +54,15 @@ holds unless this ADR says otherwise; what changes is the mechanism.
 hourly sweep's missed-run alarm), [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md)
 decision 4 (the charge lives on the seat's cancellation line),
 [ADR-020](ADR-020-repricing-booked-lessons.md) (a re-price changes the lesson time's total; shares follow it),
-[ADR-008](ADR-008-schedule-editor.md) (the odd-cents warning, decision 8).
+[ADR-008](ADR-008-schedule-editor.md) (the odd-cents warning, decision 8),
+[ADR-001](ADR-001-backend-stack.md) (the functions, and `consumer-invite`'s role),
+[ADR-003](ADR-003-lesson-pricing-and-payment.md) (price and payment per seat),
+[ADR-014](ADR-014-check-in-app-and-offline-capture.md) (attendance per seat),
+[ADR-017](ADR-017-data-retention-ttl-and-archive.md) (retention),
+[ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md) (the unpaid list is built from seats),
+[ADR-024](ADR-024-client-write-link-check.md) (no shared-lesson exception),
+[ADR-025](ADR-025-many-coaches-per-skater.md) decision 6 (family sync updates seat names),
+[ADR-030](ADR-030-financial-page-gross-and-rink-fees.md) (gross is worked out from the lesson time).
 
 ---
 
@@ -101,16 +117,16 @@ separate `SEAT#` prefix keeps seats out of the availability query.
 A seat carries `studentId`, `clientId`, `studentName` (display form, "Mia R."), `seatStatus`,
 copies of the lesson time's `startsAtUtc`, `coachTz` and `durationMinutes` (the 7am and 9pm jobs
 read seats through GSI2 and filter on the coach's time zone, so they never need the lesson time),
-`joinedAt`, **`amountMinor`** (what this skater owes, fixed only at check-in, no-show or when
-marked paid or waived — decision 7), `idempotencyKey` (the request that created it),
+`joinedAt`, `idempotencyKey` (the request that created it),
 `recurrenceId` + `bookedIntervalWeeks`, `inviteId` and `invitedByClientId` (shared lessons),
-**`partnerName` + `partnerStatus`** (written by `consumer-invite`, decision 6), the reminder flags (`confirmationSent`, `remindedOn`,
+**`partnerName` + `partnerStatus`** (written by `consumer-invite`, decision 6),
+`invitedClientId` and `choiceAnswerBy` (read-only copies written by `consumer-invite`, decision 6), the reminder flags (`confirmationSent`, `remindedOn`,
 `settleReminderSentOn`), attendance (`outcomeAt`, `recordedAt`), payment (`paymentStatus`,
 `paidAt`, `markedPaidBy`, `paidVia`, `waivedAt`, `waivedBy`, `paymentReminderSent`) and the
 deadline keys (decision 12).
 
 `seatStatus`: `INVITED | AWAITING_COACH | BOOKED | CHECKED_IN | NO_SHOW`. (*Keep or cancel?* is
-not a seat status: it comes from the pending leave on the lesson time, decision 8.)
+not a seat status: it comes from the `choiceAnswerBy` copy on the family's own seat, decision 8.)
 
 **Indexes**, the same roles as before, now on seats:
 - **GSI1, by client** — `GSI1PK = CLIENT#<clientId>`, `GSI1SK = SEAT#<date>#<startTime>`: My
@@ -151,7 +167,8 @@ anything is written.
 Per date, **one transaction**:
 - update the lesson time: `lessonStatus = OPEN` and `startsAtUtc` in the future → `BOOKED`,
   `seatsTaken = 1` (2 with an invitation);
-- put the seat, `BOOKED`, if it doesn't exist; the lesson time's `shareCount` becomes 1;
+- put the seat, `BOOKED`, if it doesn't exist; the lesson time's `shareCount` becomes the number
+  of seats booked (`BOOKED`) now — 1, or 2 with a sibling — and `joinOrder` lists them;
 - with a share code, also put the invited seat (decision 5).
 
 Of two families racing, one transaction succeeds; the other gets **unavailable**. A failed date
@@ -203,9 +220,12 @@ The coach's Accept (decision 6) is the coach's own write in their own partition.
   2026-10-13, option B*):
   - still `INVITED` — it is the inviting family's own record, so **their cancel ends it** as
     `WITHDRAWN` in the same transaction;
-  - already `AWAITING_COACH` — it is the invited family's, so the cancel only sets a deadline on
-    it, `dueKind = INVITER_LEFT`, due at once. **The hourly sweep ends it** as `WITHDRAWN` and
-    the invited family is emailed that the lesson was cancelled, up to an hour later.
+  - already `AWAITING_COACH` — it is the invited family's, so the cancel doesn't touch it. The
+    cancel records an `INVITER_LEFT` deadline, due at once, on the **lesson time** (which it
+    updates anyway, one fewer seat), naming the invited seat. **The hourly sweep ends that seat**
+    as `WITHDRAWN` and the invited family is emailed that the lesson was cancelled, up to an hour
+    later. *Revised 2026-10-13 by the owner: the deadline moved from the invited seat to the
+    lesson time, so no family writes another family's seat.*
 
 ### 6. Joining
 
@@ -217,9 +237,10 @@ The invited family confirms on the signed-in page (ADR-026 d5); each date is **o
   coach. The coach's **Accept** turns every one of that skater's `AWAITING_COACH` seats into
   `BOOKED` in the same request, each if its lesson hasn't started, raising each lesson's
   `shareCount`.
-- **Declined** (by the family or the coach), **withdrawn** (by the booking family) or **expired**
+- **Declined** (by the family or the coach), **withdrawn** (by the booking family while
+  `INVITED`, or by the sweep after the inviting family cancelled, decision 5) or **expired**
   (the lesson starts first): the seat moves to `SEATEND#`, `seatsTaken` drops, and the lesson
-  stays private at the full price.
+  stays private at the full price, or reopens if no seat is left.
 - **A series joins lesson by lesson.** Each date succeeds or fails on its own; the invited family
   gets the dates that work.
 
@@ -231,8 +252,8 @@ either family. It also keeps two more views up to date, the same way:
   invited family to the invited seat, so the invitation shows on their Home and My bookings
   before they accept (the Harbor design, `home-invited`);
 - **the question, for the staying family:** it copies the pending leave's `answerBy` onto the
-  staying seat as `choiceAnswerBy`, and clears it once answered, so the staying family's screens
-  read only their own seat.
+  staying seat as `choiceAnswerBy`, sets `partnerStatus = LEFT`, and clears both once answered,
+  so the staying family's screens read only their own seat (*owner, 2026-10-13*).
 The lesson time's pending leave stays the authority; the copies are for reading. That replaces ADR-026's `INVITE#` copies: each family still reads only its own
 seats (so the database keeps every other seat's name out of a family's reach) and still sees who
 it shares with.
@@ -252,15 +273,16 @@ it shares with.
   a lesson after an in-time leave. **A late leave doesn't change it**, so the staying skater keeps
   paying their share (decision 8). An `INVITED` or `AWAITING_COACH` seat doesn't count yet, so the
   booking family pays the full price until the invited skater joins.
-- **The amount is fixed onto the seat** (`amountMinor`) at check-in, at a no-show, or when the
-  coach marks it paid or waived — whichever comes first. **The 9pm report job fixes it for any of
-  that day's seats still without one** (attendance not recorded), so every past seat has an
-  amount for the unpaid index (GSI3) and the weekly unpaid reminder. The payment reminder, the unpaid list and
-  the financial page use `amountMinor` (ADR-003, ADR-018, ADR-030). Before that, every screen
-  works the share out from the lesson time.
-- **A re-price** (ADR-020) changes only the lesson time's `priceMinor`; unpaid shares follow it
-  automatically. A seat with a fixed `amountMinor` keeps it. So the amounts can add up to a little
-  more or less than the new price, and that's accepted.
+- **No amount is ever copied onto a seat** (*owner, 2026-10-13*). Everything that shows what a
+  skater owes works it out from the lesson time: the booking and cancel pop-ups, My bookings,
+  the payment reminder, the coach's Payments page and unpaid list, the weekly unpaid reminder
+  (ADR-018) and the financial page's gross (ADR-030). A past lesson's share can't change — price
+  changes never reach past lessons (ADR-020), and nobody joins or leaves once a lesson has
+  started — so working it out gives the same answer every time. The 9pm report job writes
+  nothing to the table (ADR-014 d7).
+- **A re-price** (ADR-020) changes only the lesson time's `priceMinor`, and every share follows
+  it. One case isn't handled: a lesson **marked paid in advance** and then re-priced would show a
+  different amount from what was paid. It's unlikely, so it isn't designed for (see Revisit if).
 
 ### 8. Leaving a shared lesson
 
@@ -271,7 +293,7 @@ it shares with.
   - the **lesson time** records a **pending leave**, a `pendingLeave` map: `leaveId`,
     `leftStudentId`, `leftAt`, `stayingStudentId` and `answerBy`. The staying family's seat isn't touched, and their share stands
     (`shareCount` doesn't change) until they answer. Their screens show *Keep or cancel?* from the
-    pending leave.
+    `choiceAnswerBy` copy on their own seat, about a second after the leave (decision 6).
 - **Late** (inside the notice period): the leaver's line records their share of the
   late-cancellation fee (half, for two — Phase 2 charge, ADR-015). The staying skater keeps
   their share and isn't asked anything.
@@ -285,7 +307,9 @@ week.
 
 **The staying family answers:**
 - **Keep it private at the full price** → their own write to the lesson time: the pending leave
-  is cleared and `shareCount` becomes 1. The lesson is now a **freed place** (decision 10).
+  is cleared and `shareCount` becomes 1. The write goes ahead only if the pending leave still
+  names their skater as the one staying, checked as a condition on the write, so the family never
+  reads it. The lesson is now a **freed place** (decision 10).
 - **Cancel with no charge** → their own seat becomes a `CANCELLED#` line and the pending leave is
   cleared; the lesson time reopens (`OPEN`) when its last
   seat goes. The same is true whenever the last seat goes — a family's cancel, or a coach's
@@ -304,7 +328,12 @@ lesson in it has another skater, joined or invited**. Once none does, both come 
 freed date makes it shared again until that lesson is over.
 
 **The staying family's card:**
-- **Remaining dates** are the lesson times with a pending leave for this family's skater that (1) this leave freed — a one-off cancel or cancelling the
+- **The card is built from the family's own seats** (*owner, 2026-10-13*): every seat with
+  `choiceAnswerBy` set is a date waiting for an answer. Who left comes from the seat's
+  `partnerName` (with `partnerStatus = LEFT`), and the full price from the lesson time's
+  `priceMinor`. Grouping the seats by series (`recurrenceId`) gives one card per series, which is
+  what makes cards merge per series. Families never read the pending leave.
+- **Remaining dates** are the dates that (1) this leave freed — a one-off cancel or cancelling the
   series; (2) were left in time; (3) the staying family hasn't answered; (4) are still waiting —
   not started, answer-by not passed, not cancelled by the coach.
 - **One freed date** gets the ordinary card: keep at full price, or cancel with no charge.
@@ -342,8 +371,8 @@ mark executed last, notify after.
   ordinary cancellation email (ADR-006 d7's MVP rule).
 - **Cancel** moves every seat to a `CANCELLED#` line and deletes the lesson time.
 - **Re-price** sets the lesson time's new `priceMinor`, following ADR-020: increases only beyond
-  the notice period, decreases at once. Seats with a fixed `amountMinor` keep it; the rest follow
-  (decision 7). A `REPRICED#` line is written per seat whose share changes, for the email.
+  the notice period, decreases at once; every share follows (decision 7). A `REPRICED#` line is
+  written per seat whose share changes, for the email.
 - **Every lesson time records the `scheduleVersion` that made it.** Because a booking and a
   schedule save both change the same lesson-time record, a booking can no longer land on a time
   the new schedule removed. This closes Open-Pending §4's gap.
@@ -361,7 +390,7 @@ ADR-026 d5a's **nightly** sweep becomes **`sched-deadline-sweep`, every hour** (
     invited seat;
   - `ANSWER` — the staying family's `answerBy`, on the **lesson time's** pending leave;
   - `INVITER_LEFT` — an accepted invitation whose inviting family cancelled first, due at once,
-    on the invited seat (decision 5).
+    on the **lesson time**, naming the invited seat (decision 5).
 - Each hour the sweep queries what's due, **re-checks each record**, acts, and sets the next
   deadline or removes it. A deadline that no longer applies is skipped. The sweep is a system
   function, so its writes are no family's.
@@ -407,12 +436,14 @@ the price or the skaters-per-lesson changes, and the coach can still save (*owne
   ended it (`endedBy`: the family, the coach or `SWEEP`), and the seat's `studentId`, `studentName`,
   `clientId` and `inviteId`. They're kept for the same window as cancellation lines (ADR-017).
 - **Who sends what:** `consumer-invite` writes the partner fields and sends the invitation and every outcome email (joined,
-  declined, withdrawn, no longer available after the coach's Accept, and "the other skater can't
+  declined, withdrawn, expired, no longer available after the coach's Accept, and "the other skater can't
   make it — keep or cancel"). The change notifier sends cancellation emails, including cancel all
   and no answer.
 - **A skater's name change reaches their seats.** `consumer-family-sync` (ADR-025 d6) already
   copies a skater's changes to every coach's record; it now also updates `studentName` on their
-  upcoming seats; `consumer-invite` then refreshes `partnerName` on the seats sharing a lesson
+  upcoming seats, which it finds, for each of the skater's coaches, by querying that coach's
+  upcoming `SEAT#` items and keeping the skater's (*owner, 2026-10-13*: no index access across
+  families; name changes are rare enough that the extra reads don't matter); `consumer-invite` then refreshes `partnerName` on the seats sharing a lesson
   with them.
 - *Open:* the IAM roles of the two new jobs. (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
   only `sched-deadline-sweep` should be able to read it.
@@ -434,15 +465,16 @@ flowchart LR
   subgraph coach["COACH#&lt;coachId&gt;"]
     sched["SCHEDULE#…<br/>default · overrides · temps"]
     lesson["LESSON#date#time<br/>OPEN / BOOKED / HELD · total price · shareCount · seatsTaken<br/>scheduleVersion · pending leave"]
-    seatA["SEAT#date#time#studentA<br/>BOOKED · amount when fixed · payment · partner"]
+    seatA["SEAT#date#time#studentA<br/>BOOKED · payment · partner"]
     seatB["SEAT#date#time#studentB<br/>INVITED / AWAITING_COACH / BOOKED"]
-    ended["CANCELLED# lines · SEATEND#<br/>ended seats"]
+    ended["CANCELLED# · REPRICED# lines · SEATEND#<br/>ended and re-priced seats"]
     batch["CHANGEBATCH#<br/>plan → executed → notify"]
-    sched -->|"sched-lesson-roller makes ~15 months"| lesson
+    sched -->|"sched-lesson-roller makes ~15 months · save adds / removes open times"| lesson
     lesson --- seatA
     lesson --- seatB
-    seatA -->|"cancel / decline / expire"| ended
-    batch -->|"add · remove · cancel · re-price"| lesson
+    seatA -->|"cancel"| ended
+    seatB -->|"decline · withdraw · expire"| ended
+    batch -->|"cancel · re-price"| lesson
   end
   subgraph fam["CLIENT#&lt;clientId&gt;"]
     rec["RECURRENCE#…"]
@@ -453,13 +485,18 @@ flowchart LR
   seatA -.-> gsi1
   seatB -.-> gsi1
   seatB -.->|"WARN · EXPIRE"| gsi4
-  lesson -.->|"ANSWER"| gsi4
+  lesson -.->|"ANSWER · INVITER_LEFT"| gsi4
   gsi4 --> sweep
   sweep -->|"re-check, then act"| seatB
+  sweep -->|"re-check, then act"| lesson
   inv(["consumer-invite"])
-  inv -->|"partner name and status"| seatA
+  lesson -.->|"pendingLeave changes"| inv
+  inv -->|"partner name, status, choiceAnswerBy"| seatA
+  inv -->|"invitation copy: invitedClientId, GSI1 keys"| seatB
   rec -->|"one seat per date"| seatA
 ```
+
+*Amended 2026-10-13: diagram updated — storage diagram: sweep acts on invited seats and lesson times; ANSWER and INVITER_LEFT on the lesson time; consumer-invite's read-only copies; decline, withdraw and expire on the invited seat; adding and removing open times is part of the save (ADR-031).*
 
 ```mermaid
 stateDiagram-v2
@@ -469,13 +506,16 @@ stateDiagram-v2
   INVITED --> AWAITING_COACH: accepts, new to the coach
   AWAITING_COACH --> BOOKED: coach accepts
   INVITED --> SEATEND: declined / withdrawn / lesson starts
-  AWAITING_COACH --> SEATEND: coach declines / lesson starts
-  BOOKED --> BOOKED: other skater left in time - the lesson time asks keep or cancel, kept at full price
-  BOOKED --> CANCELLED: cancel after the other skater left, or no answer by answerBy
-  BOOKED --> CANCELLED: family or coach cancels
+  AWAITING_COACH --> SEATEND: coach declines / lesson starts / inviting family cancelled first (sweep)
+  BOOKED --> CANCELLED: family or coach cancels, or the other left and no answer
   BOOKED --> CHECKED_IN: rinkside
   BOOKED --> NO_SHOW: rinkside
+  note left of BOOKED
+    stays BOOKED if the other skater left in time<br/>and the family keeps it at full price
+  end note
 ```
+
+*Amended 2026-10-13: diagram updated — seat states: a waiting seat also ends when the inviting family cancels first; keep-at-full-price shown as a note (ADR-031).*
 
 ---
 
@@ -510,7 +550,7 @@ stateDiagram-v2
   none of those fields, so a stray write could only add a meaningless copy. Ending seats is left
   to the families' own writes and the sweep, the one function that can delete records in every
   coach's area.
-  It reacts to seat changes and sends the shared-lesson emails that aren't deadlines: the
+  It reacts to seat changes and to a lesson time's `pendingLeave`, and sends the shared-lesson emails that aren't deadlines: the
   invitation to the invited family, and the outcome emails (joined, declined, withdrawn, no longer
   available, the other skater left). Its nightly run is replaced by `sched-deadline-sweep`. With
   `sched-lesson-roller`, that is **two new functions**.
@@ -531,11 +571,18 @@ stateDiagram-v2
 
 - Whether a coach booking for a family (Phase 2) is held to the 3-month window (decision 3).
 - Whether the 7 days in the answer-by rule should be a question for Kim (decision 8).
-- ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
-  it becomes one more `dueKind`.
+- ~~ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
+  it becomes one more `dueKind`.~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson;
+  an unanswered invitation expires at the lesson start (`EXPIRE`, decision 12). No new `dueKind`.
+- The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`; only the sweep may read GSI4.
 
 ## Revisit if
 
+- **Coaches mark lessons paid in advance and then change their prices.** A re-price changes the
+  lesson time's total, so a lesson paid before the change shows the new amount, not what was
+  paid. If this happens in practice: either don't re-price a lesson time that has a paid or waived
+  seat, or record the amount when a lesson is marked paid. *Noted by the owner, 2026-10-13: not
+  designed for now.*
 - A coach needs lesson times further ahead than the window plus 12 months.
 - Deadlines need to act within minutes rather than an hour.
 - `maxSkaters` is raised well above 2 (shares, partner fields and the card would need a list).

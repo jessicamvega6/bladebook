@@ -16,7 +16,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 48 pages. |
+| `client/` | The family website: 54 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
 ## Coach website — `coach/`
@@ -82,8 +82,8 @@ approval and both homes show the red shared-lesson banner (ADR-026 d5a).
 48-hour notice), and Noah is waiting for **Coach Lauren Hayes**. These coaches exist only in the family demo. The
 booking pages have a Coach dropdown; picks are kept across coaches; clashes are warned about; the result has a
 section per coach, including one where Coach Ben's booking didn't go through. The profile adds a coach with a code
-(try `MARC-6P2D`), and adding a skater asks which coaches they join. Sign-up takes several coach codes
-(`DANA-7K2Q`, `BENO-4R8T`, `LAUR-3J9W`, `MARC-6P2D`). Home has one card per coach, and a family is "waiting" only
+(try `6P2D-NB4Y`), and adding a skater asks which coaches they join. Sign-up takes several coach codes
+(`7K2Q-M9XT`, `4R8T-WH6C`, `3J9W-QZ7E`, `6P2D-NB4Y`). Home has one card per coach, and a family is "waiting" only
 until any coach approves a skater.
 
 The family profile has no Remove button and share codes can't be refreshed (owner, 2026-10-13). What removing a

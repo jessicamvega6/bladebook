@@ -27,14 +27,14 @@ const FAMILIES = {
 const DANA = 'dana';
 function freshCoaches() {
   return {
-    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: 'BENO-4R8T', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 48, currency: 'USD',
+    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: '4R8T-WH6C', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 48, currency: 'USD',
       blocks: [{ name: 'Early edges', days: [3], sod: 450, eod: 570, len: 60, price: 70 }, { name: 'Power skating', days: [2, 4], sod: 930, eod: 1110, len: 45, price: 65 }],
       specials: [{ name: 'Seminar', kind: 'timeoff', sd: '2026-10-29', ed: '2026-10-29' }] },
-    lauren: { id: 'lauren', first: 'Lauren', last: 'Hayes', code: 'LAUR-3J9W', sport: 'Hockey skating skills', notice: 24, currency: 'USD', blocks: [], specials: [] },
+    lauren: { id: 'lauren', first: 'Lauren', last: 'Hayes', code: '3J9W-QZ7E', sport: 'Hockey skating skills', notice: 24, currency: 'USD', blocks: [], specials: [] },
   };
 }
 /** Coach codes the add-a-coach lookup finds besides the family's own coaches. */
-const COACH_DIRECTORY = [{ id: 'marcus', first: 'Marcus', last: 'Lee', code: 'MARC-6P2D', sport: 'Figure skating', notice: 24, currency: 'USD', blocks: [], specials: [] }];
+const COACH_DIRECTORY = [{ id: 'marcus', first: 'Marcus', last: 'Lee', code: '6P2D-NB4Y', sport: 'Figure skating', notice: 24, currency: 'USD', blocks: [], specials: [] }];
 /* Coach Ben's lessons: Mia's Tuesdays at 4:15, Noah's one-off Wednesday Nov 4 at 8:30 (the clash on Owen's invitation),
    and other families' lessons that make some of Ben's times taken. [studentId, weekday, start, first, last]. */
 function benLessons() {

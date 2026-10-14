@@ -22,6 +22,10 @@ Shared lesson cancelled, no answer — to the family who stays, when they didn't
 Shared lesson dates cancelled — to the family who stays, when they choose "Cancel all remaining dates": one email
   listing every cancelled date, with no charge. The coach isn't emailed, because none of these cancellations is late.
   *Added 2026-10-13 (ADR-031 decision 9).*
+Shared lesson joined — to both families, when the invited skater joins. *Added 2026-10-13 (ADR-031 decision 14).*
+Shared lesson cancelled because the other family cancelled first — to the invited family, when the inviting family
+  cancelled before the invited skater joined and the hourly check ends the accepted invitation (`INVITER_LEFT`).
+  *Added 2026-10-13 (ADR-031 decision 5, option B).*
 
 *In the Harbor design's email list (C_Coach Email Templates.md) and not above:*
 Booking confirmation — to the family, when they book.

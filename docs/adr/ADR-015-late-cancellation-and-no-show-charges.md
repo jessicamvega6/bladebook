@@ -43,7 +43,8 @@ lesson, a skater who leaves late has **their share of the fee** recorded on thei
 for two); the skater who stays keeps their share and isn't asked anything (decision 8). Every
 behaviour rule here still holds. *Revised 2026-10-13 (ADR-031 revision): the staying skater's
 seat isn't touched, and the lesson time's `shareCount` doesn't change, so their worked-out share
-stays the same. A no-show's share is fixed on its seat as `amountMinor` when it is recorded.*
+stays the same. ~~A no-show's share is fixed on its seat as `amountMinor` when it is recorded.~~*
+*Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 
 ---
 
@@ -163,7 +164,7 @@ stamping both halves is unchanged.*
 
 The threshold is a coach-level policy ("I need a day's notice") and is set on the coach
 profile, not per block; the amount is per block. They are stamped together onto the booking
-regardless of where they were configured.
+regardless of where they were configured. *Revised 2026-10-13: on the lesson time since ADR-031.*
 
 ### 4. The charge reaches the client through two structurally different paths
 
@@ -173,7 +174,7 @@ symmetric:
 - **A no-show keeps its ~~booking~~ seat.** The item survives with ~~`bookingStatus`~~
   `seatStatus = NO_SHOW` and already
   carries `paymentStatus`, `paidAt`, `markedPaidBy`, and already appears in GSI3 while
-  unpaid. Nothing new is required to bill it. *Replaced by ADR-031 decisions 2 and 14
+  unpaid. Nothing new is required to bill it. *Replaced by ADR-031 decisions 2 and 15
   (2026-10-13): it is the skater's **seat** that is kept, with its own payment fields and GSI3
   entry.*
 
@@ -187,8 +188,9 @@ symmetric:
   **For now, the dashboard shows a no-show at its full lesson price** — the booking's stamped
   `priceMinor`, labelled as a no-show. *Note — 2026-10-13: under ADR-031 the amount a seat owes
   is its ~~`shareMinor`~~ share (decision 7), which for a private lesson is the full price.*
-  *Revised 2026-10-13 (ADR-031 revision): the share is fixed on the seat as `amountMinor` when
-  the no-show is recorded. The dashboard shows `amountMinor`.* *Decided by the owner, 2026-09-30.* It is the amount
+  *Revised 2026-10-13 (ADR-031 revision): ~~the share is fixed on the seat as `amountMinor` when
+  the no-show is recorded. The dashboard shows `amountMinor`.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Recording a no-show
+  writes no amount; the dashboard shows the share worked out from the lesson time.* *Decided by the owner, 2026-09-30.* It is the amount
   the booking already carries, and the no-show label tells the coach what they are looking
   at before they decide to mark it paid or waive it. ADR-018's reminder lists it the same
   way. Showing the `missedLessonFeeMinor` instead is part of the open question below, and is

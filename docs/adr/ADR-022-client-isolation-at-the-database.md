@@ -167,8 +167,10 @@ partition can be named.
 `GSI1PK = CLIENT#<clientId>`, ~~`GSI1SK = BOOKING#<date>#<startTime>`~~. ~~Bookings~~ gain a
 `clientId` attribute, written with the rest of the booking. *Replaced by ADR-031 decision 2
 (2026-10-13): GSI1 indexes **seats**, `GSI1SK = SEAT#<date>#<startTime>`, and each seat carries
-its family's `clientId`. An invited seat carries the invited family's `clientId`, so the
-invitation shows in their My bookings (decision 5).* The client's GSI1 statement has
+its family's `clientId`. ~~An invited seat carries the invited family's `clientId`, so the
+invitation shows in their My bookings (decision 5).~~* *Revised 2026-10-13 (ADR-031): it has no
+`clientId` until accepted; `consumer-invite` adds `invitedClientId` and GSI1 keys so it shows
+(ADR-031 d6).* The client's GSI1 statement has
 the same `LeadingKeys` condition as decision 3, on the index ARN.
 
 - **The one non-structural check in §7 becomes structural for reads.** A client can no

@@ -6,13 +6,15 @@ Five steps, with a step counter across the top. "Already have an account? Log in
 Step 1, Coach code:
 CoachCode/Coach Name   : Code given to client by coach outside of website.
             : ~~On focusOut of input field and while value.length = 8 check to see if this is a valid coach code.~~
-              *Design:* the code is checked as the family types, once it has 8 letters and numbers (a dash, e.g. ABCD-1234, is ignored).
+              *Design:* the code is checked as the family types, once it has 8 letters and numbers (a dash, e.g. 7K2Q-M9XT, is ignored; case doesn't matter). *Coach codes are 8 random characters (ADR-002, 2026-10-13).*.
               If yes, display coach name and photo (if uploaded) *(Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.)*
               The lookup returns only the coach's name (ADR-022 d7).
             : ~~Code has to match coach name or nothing is displayed/error is displayed saying please check code/coach name~~
               *Design:* the family enters only the code, not the coach's name. Before a match, a placeholder says the coach
               will appear there so they can check it's the right one. A full-length code that matches no coach shows:
               "That code doesn't match a coach. Check it with your coach. Codes are 8 letters and numbers."
+              *Design (2026-10-13):* a skater's share code typed here (three letters, a dash, five characters, e.g.
+              MIA-4K7QX) shows "That looks like a skater's share code. Ask your coach for their coach code."
             : Continue stays disabled until a code is found. Once found it reads "Continue with <coach first name>",
               with "Wrong coach? Check the code with them." under it.
             : look up what Rate limiting would look like for the pic display

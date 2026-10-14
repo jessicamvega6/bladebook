@@ -70,19 +70,19 @@ const specialOn = iso => SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
 
 function freshStudents() {
   return [
-    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
-    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
-    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZB' },
-    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
-    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
-    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
-    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQW' },
-    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JACK-4MVD' },
-    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLIV-9KRB' },
+    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7QX' },
+    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOA-9WD2K' },
+    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELL-3HTVP' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZBQ' },
+    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXMA' },
+    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRI-7CJ4H' },
+    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWE-6NFKZ' },
+    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQWD' },
+    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JAC-4MVDN' },
+    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLI-9KRBT' },
     // Zoe skates with another coach. Grace invited her to share Mia's Friday lesson; Tom confirmed, so Zoe now waits for
     // Coach Dana like any sign-up, and joins the lesson when Dana approves her (pendingJoins, ADR-026 d5).
-    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3P',
+    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3PW',
       pendingJoins: [{ iso: '2026-10-16', t: 510, invite: 'i2' }], invitedBy: 'Grace Chen' },
   ];
 }
@@ -175,7 +175,7 @@ const PAID_BY_LABEL = { CASH: 'Cash', VENMO: 'Venmo', CASHAPP: 'Cash App', PAYPA
 function freshProfile() {
   return {
     first: 'Dana', last: 'Whitfield', loginEmail: 'dana.whitfield@gmail.com', businessEmail: 'lessons@danawhitfieldskating.com',
-    phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: 'DANA-7K2Q', photo: true,
+    phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: '7K2Q-M9XT', photo: true,
     showPhone: true, showEmail: true, smsCancel: false,
     instructions: 'Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.',
     venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',   // handles; a handle is kept when its type is switched off

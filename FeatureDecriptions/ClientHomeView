@@ -18,6 +18,8 @@ Shows their lesson(s) for that day.
     with no charge, with the answer-by time. Several dates in one series share one card (see cancelation.md).
     A lesson whose answer-by time has passed, or an invitation whose lesson has started, shows as cancelled or
     expired straight away, even before the hourly check has run.
+  *Added 2026-10-13 (ADR-031 decision 6):* an invitation to share a lesson shows here for the invited family, before
+    they accept (Harbor `home-invited`).
   If past lessons aren't marked paid yet, a line under the buttons gives how many and the total. *Phase 2 (ADR-003, 2026-10-12): unpaid history is coach-only in MVP.*
 
 Button that routes to Monthly Client Booking View ("Book a lesson")

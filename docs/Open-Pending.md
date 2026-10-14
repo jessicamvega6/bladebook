@@ -24,7 +24,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   Blockers-Before-Coding #3)
 - **Pending decision: How student data is deleted on request.** §7 promises it; nothing
   implements it. Two approaches drafted (erasure by constant, erasure by token), neither
-  chosen. *Deferred 2026-08-25.* (architecture §7, `design/deletion/`)
+  chosen. *Deferred 2026-08-25.* (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
 - **Pending decision: Who sends the SMS opt-in confirmation?** Required by ADR-007 decision 8,
   but no function holds `sns:Publish` where it happens. Suggested: a stream consumer on
   `smsOptIn` changing from false to true. Blocks SMS wiring, minimum viable product (MVP)
@@ -51,10 +51,11 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **Open question: How licensing works** — price, renewal, per coach or per organisation,
   where the gate sits, and above all **what happens to a coach's families when a licence
   lapses**. Nothing in the model expresses a suspended tenant. (ADR-016)
-- **Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
-  expiry. The client sign-up note checks at 8 characters, ADR-016 says 5, the designs show 8. *Deferred by the owner, 2026-09-30.*
-  (ADR-002, ADR-016) *The registration-number idea was dropped 2026-10-12 (§2b); the code
-  stays BladeBook-generated.*
+- ~~**Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
+  expiry.~~ **Settled 2026-10-13 by the owner:** 8 random characters from a set with no
+  look-alikes (`7K2Q-M9XT`), no part of the coach's name; never expires; the coach can rotate it
+  (ADR-002, amended). Share codes: the first 3 letters of the skater's first name and 5 random
+  characters, `MIA-4K7QX` (ADR-026 d4).
 - **Open question: Photo moderation.** Nothing inspects or lets anyone report a coach's photo.
   (ADR-016)
 - **Open question: What a coach sees on first login** — an empty grey month, designed together
@@ -91,7 +92,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   (P4)~~ **Settled by the owner, 2026-10-13** (ADR-026 amendment): the price is split; a skater
   leaving in time leaves the other family to choose full price or cancel with no charge (no
   answer by the notice period cancels); leaving late, the leaver may be charged their share of the
-  late-cancellation fee (half, for two skaters). **Still open (Kim §8 Q6):** when an invitation the family hasn't accepted lapses (P5, in part). Max 2 and
+  late-cancellation fee (half, for two skaters). ~~**Still open (Kim §8 Q6):** when an invitation the family hasn't accepted lapses (P5, in part).~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson; it expires when the lesson starts (ADR-026 P5). Max 2 and
   approval decided by the owner 2026-10-07; sharing is on. (ADR-026)
   *Changed 2026-10-13 (ADR-031 decision 8): the staying family answers by whichever comes first,
   the start of the notice period or 7 days after the leave. No answer by then cancels with no
@@ -124,35 +125,42 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - ~~**Open question: What amount the unpaid list and weekly reminder show for a past seat with
   attendance not recorded.** It has no fixed `amountMinor` yet, and the unpaid index (GSI3)
   doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
-  *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): the 9pm report job fixes
-  `amountMinor` for any of that day's seats still without one.*
+  *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): ~~the 9pm report job fixes
+  `amountMinor` for any of that day's seats still without one.~~*
+  *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *The unpaid list and weekly reminder work the share out from the seat's lesson
+  time, so no seat needs a stored amount; the 9pm report job writes nothing.*
 - ~~**To-do: Write `consumer-invite`'s narrow write permission** — only `partnerName`,
   `partnerStatus`, `invitedClientId`, its GSI1 keys and `choiceAnswerBy` on `SEAT#` items, across
   coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031, option
   B): reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields
   and those attributes; no `PutItem` or `DeleteItem`. It no longer ends seats — the inviting
   family's own cancel or the sweep's `INVITER_LEFT` does.*
+- **Open question: The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`** — only the
+  sweep may read GSI4 (ADR-031 d14). *Added 2026-10-13.*
 - ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
   `design/harbor` (family and coach sites).*
-- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — warnings sent early, `warnedAt`, expiry of ~~`SENT`~~ *`INVITED`*
+- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — ~~warnings sent early, `warnedAt`~~ warnings sent at the 9pm run before they're due *(Revised 2026-10-13 (ADR-031))*, expiry of ~~`SENT`~~ *`INVITED`*
   and `AWAITING_COACH` invitations. (ADR-026 d5a) *Changed 2026-10-13 (ADR-031 decision 12):
   the sweep runs every hour and also cancels unanswered staying-family choices at their
   answer-by time. The warning waits for the 9pm run before it's due; urgent emails go at once.
-  Its missed-run alarm is part of ADR-010.*
+  Its missed-run alarm is part of ADR-010.* *Revised 2026-10-13 (ADR-031 d5, d12): it also acts
+  on `INVITER_LEFT`, which sits on the lesson time and names an accepted invited seat: it ends
+  that seat as `WITHDRAWN` and the lesson time goes back to `OPEN`.*
 - **To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)
 - ~~**Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
   at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
   *Partly settled 2026-10-09 (ADR-026 d5a): a nightly sweep sends the warning and expires
   invitations whose lesson has started. Still open: a precise timer if Kim's P5 sets a lapse
   before the lesson.*~~ *Closed 2026-10-13 by ADR-031 decision 12:* the hourly sweep, not
-  one-off timers (turned down in ADR-031). If Kim's P5 sets a lapse before the lesson, it
+  one-off timers (turned down in ADR-031). ~~If Kim's P5 sets a lapse before the lesson, it
   becomes one more deadline the sweep handles. The P5 answer itself still waits on Kim (§2a
-  above).
+  above).~~ *P5 settled by the owner 2026-10-13: no lapse before the lesson, so no new deadline.*
 - ~~**Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
   that overlaps their lesson with another coach? (ADR-026)~~ **Settled 2026-10-07** (ADR-026
   decision 5): the confirm page shows clashes and the family chooses.
-- **To-do: Include participants everywhere a lesson is walked** — the schedule-change consumer's
+- **To-do: Include ~~participants~~ every seat everywhere a lesson is walked** (participants are
+  seats since ADR-031) — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
   end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
   *2026-10-13 (ADR-031 decision 2): each skater now has their own seat in the lesson, so this
@@ -184,8 +192,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 - ~~**Pending decision: Is the coach code the coach's registration number, or a random BladeBook
   code?**~~ **Settled 2026-10-12 by the owner:** BladeBook generates the coach code, as
   ADR-016 decision 2 and ADR-002 decision 2a already have it. It is never the coach's
-  registration number. That removes the lockout and guessing risks. Length and alphabet still
-  follow blocker #7.
+  registration number. That removes the lockout and guessing risks. Length and alphabet were
+  settled 2026-10-13 (blocker #7).
 - ~~**Open question — needs Kim (§9): Is a skater's number required?**~~ **Settled 2026-10-12
   by the owner:** yes. In Phase 1 every skater needs a US Figure Skating (USFSA) or USA Hockey
   number. It belongs to each skater, not the family account. **Still open, for Kim (§9):**
@@ -217,7 +225,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 
 - **Open question (Phase 2): What the missed-lesson fee is charged against when
   `missedLessonFeeMinor` ≠ `priceMinor`** — client-facing wording on the outstanding view and
-  the reminder. For MVP a no-show shows its full lesson price. (ADR-015)
+  the reminder. For MVP a no-show shows ~~its full lesson price~~ its share worked out from the lesson time (the
+  full price, unless shared) *(Revised 2026-10-13 (ADR-031))*. (ADR-015)
 - **Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
   2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
@@ -271,8 +280,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   on. No other types are added: cheques and Interac e-transfer are *Other*. (ADR-003 decision 4,
   ADR-016 decision 7, both amended 2026-10-12)
 - ~~**Open question: How-paid details.**~~ **Settled 2026-10-12 by the owner:** optional when
-  marking a lesson paid, editable afterwards, and **seen only by the coach** for now. Stored on
-  the booking as a fixed value (`CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
+  marking a lesson paid, editable afterwards, and **seen only by the coach** for now. Stored ~~on
+  the booking~~ on the seat *(Revised 2026-10-13 (ADR-031))* as a fixed value (`CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
   payment type from the profile later doesn't change past records. A waived lesson has none.
   (ADR-003)
 - ~~**To-do: Design the cash switch and the how-paid picker in Harbor.**~~ **Done 2026-10-12:**
@@ -301,10 +310,10 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   For now only the family is warned. *Decided by the owner, 2026-10-13.* (ADR-025 f)
 - **Open question (Phase 2): Is a saved schedule a third item type or a header not in
   effect?** Decides whether "save" and "apply" are one action or two. (ADR-008)
-- **Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
+- ~~**Pending decision — needs Kim, and blocks building re-pricing: Hand-edited booking
   prices.** ADR-020 would overwrite them on the next schedule save. Remove per-booking price
   editing (*mark as waived* covers it; the per-student override is Phase 2 since 2026-10-13), or mark hand-set prices
-  so they're never re-priced. (ADR-020 Open, `Items to ask Kim About.md` §5)
+  so they're never re-priced. (ADR-020 Open, `Items to ask Kim About.md` §5)~~ *Settled 2026-10-13 by the owner (ADR-031): per-lesson price editing is removed. Under ADR-031 no booking stores its own price — the price lives only on the lesson time and each skater's share is worked out from it. A one-off is covered by *mark as waived*. Personal prices (already Phase 2) will be a per-skater override applied when the share is worked out.*
 - *Phase 2 since 2026-10-13 (owner): personal prices.* **Open question (Phase 2) — needs Kim: The shape of the per-student discount** — a fixed price, a
   percentage off, or a dollar amount off; whether changing it re-prices booked lessons; and
   whether `0` should mean free. (ADR-003, ADR-020, `Items to ask Kim About.md` §5)
@@ -494,7 +503,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
-  days, unselectively — Point-in-Time Recovery. (ADR-017, `design/deletion/`) *Added
+  days, unselectively — Point-in-Time Recovery. (ADR-017, ~~`design/deletion/`~~ `docs/deletion/`) *Added
   2026-10-12:* and the monthly backups (12 months, §10), which also can't be edited.
 - **To-do (with the erasure design): An erased-ID list.** A small record, kept outside every
   backup, of each erased student and client ID and the date. It holds IDs only, no names. Any
@@ -712,6 +721,9 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   a freed place. Also decide whether keeping a freed date sends a confirmation (listed under
   "Mentioned but not decided"). *Added 2026-10-13.* (ADR-031 decisions 9 and 10;
   `FeatureDecriptions/Email templates Needed:`)
+- **Pending decision: Two shared-lesson emails ADR-031 leaves undecided** — a confirmation for
+  cancelling one freed date, and "the other skater can't make it": once per date or once per
+  series. *Added 2026-10-13.* (`FeatureDecriptions/Email templates Needed:`, "Mentioned but not decided")
 - **To-do: Write the pending-student decline email.**
   (`FeatureDecriptions/Coach Dashboard on website.md`)
 - **To-do: Fill in the empty Non-Functional Requirements sections** (durability,

@@ -56,8 +56,10 @@ rule holds for shared lessons as written. The points below say how.*
   `INVITED` or `AWAITING_COACH`, ~~`consumer-invite` ends it as `WITHDRAWN`~~ *Revised
   2026-10-13 (option B): still `INVITED`, it is the inviting family's own record, so their
   cancel ends it as `WITHDRAWN` in the same transaction; already `AWAITING_COACH`, the cancel
-  only sets an `INVITER_LEFT` deadline on it, due at once, and the hourly sweep ends it as
-  `WITHDRAWN` (ADR-031 decisions 5 and 12). `consumer-invite` never ends a seat.* So the invited family
+  ~~only sets an `INVITER_LEFT` deadline on it~~, due at once, and the hourly sweep ends it as
+  `WITHDRAWN` (ADR-031 decisions 5 and 12). *Revised 2026-10-13 (ADR-031 d5, d12): the cancel
+  doesn't touch the invited seat; it records the `INVITER_LEFT` deadline on the lesson time,
+  naming that seat, and since that removes the last seat the lesson time goes back to `OPEN`.* `consumer-invite` never ends a seat.* So the invited family
   can see it before accepting, `consumer-invite` adds `invitedClientId` and their GSI1 (global
   secondary index 1, by client) keys to it — a read-only copy, not a family's write. The invited family may
   also **decline**, under the same condition as accepting (no `clientId`, `INVITED`, their own
@@ -214,7 +216,7 @@ only temporarily, to prove they fire.
 
 ## Open
 
-- **Writes to the other family's seat in a shared lesson** (*raised 2026-10-13*). ADR-031 calls
+- ~~**Writes to the other family's seat in a shared lesson** (*raised 2026-10-13*). ADR-031 calls
   the invited seat "the one exception ADR-024 allows". But its decisions 6–8 also have one
   family's transaction change the other family's seat: `partnerName` and `partnerStatus` on every
   change, the share re-split when someone joins, and `YOUR_CHOICE` with `answerBy` when someone
@@ -222,20 +224,20 @@ only temporarily, to prove they fire.
   invited family's `clientId`. Decision 1's ownership condition (`clientId = :callerSub`) would
   refuse each of these as written. How they pass it — a narrower condition, such as
   `invitedByClientId` for a withdraw, or a fixed list of fields one family may set on the
-  other's seat — is not yet decided. ~~*Settled 2026-10-13 in ADR-031 decision 5: the exception is
+  other's seat — is not yet decided.~~ ~~*Settled 2026-10-13 in ADR-031 decision 5: the exception is
   widened to a fixed list of writes on the other seat in the same lesson, made only by the server
   inside the transaction that changes the caller's own seat (create the invited seat; withdraw it
   while `INVITED` and `invitedByClientId` is the caller; the partner fields; the share on an
   `UNPAID` seat; `YOUR_CHOICE` with `answerBy`). Nothing else on the other seat can change.*~~
-  *Withdrawn 2026-10-13 (ADR-031 revision): the exception isn't needed. The owner
+  ~~*Withdrawn 2026-10-13 (ADR-031 revision): the exception isn't needed. The owner
   decided that no family's action writes another family's records. The invited seat is the
   inviting family's until accepted, so a withdraw is a write to their own record. The partner
   fields are written by `consumer-invite`. No share is stored on a seat. A leave in time is
   recorded on the lesson time, not on the other seat. So decision 1's ownership condition stands
   with no list of exceptions. The only family write that touches a seat it doesn't yet own is
-  accepting an invitation, and that is the invited family's own write after the link check. Its
+  answering an invitation, accept or decline, and that is the invited family's own write after the link check. Its
   condition is: no `clientId`, `INVITED`, and `studentId` is the caller's skater (ADR-031
-  decision 5).*
+  decision 5).*~~ *Settled 2026-10-13: not needed (ADR-031 revision).*
 
 ## Revisit if
 
