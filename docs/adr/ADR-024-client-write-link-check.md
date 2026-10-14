@@ -145,7 +145,7 @@ handled differently:
 
 | Why it failed | Response to the family | Logged as | Counts toward the alert |
 |---|---|---|---|
-| **The skater was linked, but isn't `ACTIVE` now:** removed, declined or still pending. Most often the coach changed it while the family had the page open. | A clear message: *"Mia's lessons are no longer available to book. Contact Coach Dana."* (HTTP 409) | An ordinary application event | No |
+| **The skater was linked, but isn't `ACTIVE` now:** declined or still pending; removed too once removing a student arrives in Phase 2 *(owner, 2026-10-13)*. Most often the coach changed it while the family had the page open. | A clear message: *"Mia's lessons are no longer available to book. Contact Coach Dana."* (HTTP 409) | An ordinary application event | No |
 | **The skater or booking was never this family's** | A plain "not found" (HTTP 404). It doesn't confirm the item exists. | A **security event** | Yes |
 
 The security event follows ADR-012 decision 2's rules: **identifiers only, never values**. It
@@ -196,7 +196,8 @@ only temporarily, to prove they fire.
 - **The one code-only boundary becomes compiler-enforced for new writes and database-enforced
   for existing items.** What remains code-only is the correctness of `requireActive` itself:
   one method, tested directly.
-- **A family whose skater was removed mid-session gets an explanation**, not an error.
+- **A family whose skater was declined mid-session gets an explanation**, not an error — and,
+  from Phase 2, one whose skater was removed *(removing a student is Phase 2 since 2026-10-13)*.
 - **The owner learns about probing** within 15 minutes, and about a slow drip within a day.
 - **Two more alarms to prove in staging** before launch, per ADR-010 decision 4.
 - **`core.data` gains three types** (`LinkedSkater`, `ClientLinks`, the security-event emitter)
@@ -205,7 +206,7 @@ only temporarily, to prove they fire.
 **Tests** (ADR-013 decision 4):
 
 - `requireActive` returns a `LinkedSkater` for an `ACTIVE` linked skater, and refuses a pending,
-  removed, declined or never-linked one with the right reason.
+  declined or never-linked one with the right reason (removed added with Phase 2's removal).
 - A cancel or update of another family's booking with the same coach fails on the ownership
   condition, against DynamoDB Local (a condition expression, which DynamoDB Local does honour).
 - The ArchUnit rule fails a build that constructs `LinkedSkater` outside `core.data`.

@@ -363,7 +363,7 @@ added as needed, so the multi-coach screens are designed for about 10.
   objects. (ADR-025 decision 4, "Revisit if")
 - **Whether adding and dropping coaches mid-season needs more than today's remove flow**
   (question 4), including what the family sees when one coach removes their skater while another
-  keeps them. (ADR-025 Open; blocker #17)
+  keeps them. *Removing a student is Phase 2 (owner, 2026-10-13).* (ADR-025 Open; blocker #17)
 
 ---
 

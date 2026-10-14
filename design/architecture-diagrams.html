@@ -2381,7 +2381,7 @@ sequenceDiagram
             CD--&gt;&gt;API: LinkedSkater (private constructor)
             API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
             CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
-        else linked, but removed, declined or still pending
+        else linked, but declined or still pending (removed: Phase 2)
             CD--&gt;&gt;API: not ACTIVE - an ordinary application event
             API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
         else never this family&#x27;s
@@ -2436,7 +2436,7 @@ sequenceDiagram
             CD--&gt;&gt;API: LinkedSkater (private constructor)
             API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
             CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
-        else linked, but removed, declined or still pending
+        else linked, but declined or still pending (removed: Phase 2)
             CD--&gt;&gt;API: not ACTIVE - an ordinary application event
             API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
         else never this family&#x27;s

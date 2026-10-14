@@ -19,11 +19,13 @@ By clicking on the day the caoch is taken to a Day view (see C_Coach Day View.md
 
 
 The student List page shows a list of students names and their guardians contact info. On this page there needs to be a way for the coach to update the contact information and delete the client/student. On delete there is a confirmation pop that must be accepted before delete happens. NEED TO DECIDE WHAT DELETE MEANS, ARE THEY REMOVED FROM INFO GOING FORWARD OR REFROACTIVATLY? DOES THIS MEAN THE CLIENT CAN NO LONGER BOOK WITH THE COACH, IF SO HOW DOES THAT SHOW ON THE UI FOR THE CLIENT
-*Design (students-remove.html), the design's reading of this open decision (docs/Open-Pending.md):* upcoming lessons are
+*Phase 2 (owner, 2026-10-13): removing a student, from one coach or from all, is Phase 2. MVP has no Remove button, and
+students-remove.html is in the Phase 2 group.*
+*Design (students-remove.html, Phase 2), the design's reading of this open decision (docs/Open-Pending.md):* upcoming lessons are
 cancelled and the family is emailed, the student can no longer book with the coach, and past lessons and payments stay
 in the coach's records.
 *Design (students.html):* a search box (name, family, email or phone). Each row: skater (minor or adult), family contact
-(email, phone, texts on or email only), ~~price,~~ next lesson, and Edit contact and Remove buttons. *Phase 2 (2026-10-12): all client SMS deferred.*
+(email, phone, texts on or email only), ~~price,~~ next lesson, and an Edit contact button (~~Remove~~, Phase 2 since 2026-10-13). *Phase 2 (2026-10-12): all client SMS deferred.*
   Contact details belong to the family, so an edit applies to every skater in it.
   ~~Price: "Schedule price" or a personal price.~~ *Phase 2 (owner, 2026-10-13): personal prices move to Phase 2, and the
   Students list has no price column in MVP (students-price.html is in the Phase 2 group).* "Set price" (or "Change") chooses the schedule's price or one personal
