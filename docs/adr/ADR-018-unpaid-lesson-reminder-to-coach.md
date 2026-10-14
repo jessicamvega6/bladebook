@@ -9,6 +9,15 @@ Answers [ADR-017](ADR-017-data-retention-ttl-and-archive.md)'s open question abo
 that never expire. Adds a third scheduled job — `architecture.md` §8 has said since ADR-006
 that there are only two — and an eleventh Lambda function.
 
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+replaces the booking with a **lesson time** and a **seat** for each skater. The unpaid list now
+comes from **seats**: GSI3 is written on a seat while it is `UNPAID` (ADR-031 decision 2), so a
+shared lesson gives one entry per skater, each with its own share. `settleReminderSentOn` is on
+the seat. The rest of this ADR is unchanged. *Revised 2026-10-13 (ADR-031 revision): a seat no longer stores `shareMinor`. Each entry
+shows the seat's `amountMinor`, fixed at check-in or a no-show. A seat with **attendance not
+recorded** gets its `amountMinor` from the 9pm report job, which fixes it for any of that day's
+seats still without one. So every past seat in the list has an amount (ADR-031 decision 7).*
+
 ---
 
 ## Context
@@ -61,7 +70,8 @@ nothing to do, and sends nothing. Setting it needs no deployment.
 
 ### 3. Each lesson is included once
 
-A booking gains **`settleReminderSentOn`**, stamped when a digest that listed it is sent.
+A ~~booking~~ gains **`settleReminderSentOn`**, stamped when a digest that listed it is sent.
+*Replaced by ADR-031 decision 2 (2026-10-13): the **seat** carries it.*
 The job skips any lesson already stamped — the idempotency guard ADR-010 decision 2 requires
 of every scheduled job, keyed like `remindedOn`.
 
@@ -69,8 +79,8 @@ of every scheduled job, keyed like `remindedOn`.
 forever. Whether an unsettled lesson should be listed again later is left open.
 
 Marking a lesson paid or waived removes it from the unpaid index (ADR-003 decision 5), so a
-settled lesson can never appear. Its stamp is harmless and expires with the booking under
-ADR-017.
+settled lesson can never appear. Its stamp is harmless and expires with the ~~booking~~ seat
+under ADR-017.
 
 ### 4. The job reads the sparse unpaid index across coaches
 
@@ -89,10 +99,12 @@ decision 4), so they are picked up automatically. The digest labels them as late
 ### 5. Operational fit
 
 - **Role** (ADR-001 amendment A6's format): `Scan` on GSI3; `GetItem` on coach profiles and
-  student names; `UpdateItem` on bookings for the guard; `ses:SendEmail`. No GSI1 or GSI2, no
+  student names; `UpdateItem` on ~~bookings~~ seats (*ADR-031, 2026-10-13*) for the guard; `ses:SendEmail`. No GSI1 or GSI2, no
   SMS, no S3.
 - **GSI3 projects what the digest needs** — date, start time, student, amount, status and
-  `settleReminderSentOn` — so most of the work is one scan.
+  `settleReminderSentOn` — so most of the work is one scan. *Note — 2026-10-13: on a seat the
+  amount is its ~~`shareMinor`~~ `amountMinor` (ADR-031 decision 7).* *Revised 2026-10-13
+  (ADR-031 revision): `amountMinor` is fixed on the seat at check-in or a no-show.*
 - **Access logging** (ADR-012 decision 3): one aggregate line per run — *"read 12 unpaid
   lessons across 3 coaches."*
 - **Reliability** (ADR-010): a dead-letter queue and the dead man's switch like the other

@@ -30,9 +30,54 @@ Accept, on behalf of a family who confirmed the invitation while signed in. The 
 that session to the coach's own partition (ADR-021), and the join writes nothing unless the
 booking still exists, the lesson hasn't started, there's room, and the booking names that skater
 in `invitedStudentId`. *Settled by the owner the same day; no function gains a permission.*
+*Replaced by ADR-031 decision 6 (2026-10-13): there is no separate join write. The coach's
+Accept turns every one of that skater's `AWAITING_COACH` seats into `BOOKED`, each if its lesson
+hasn't started, and ~~re-splits the shares~~ raises each lesson's `shareCount`. See the
+2026-10-13 amendment below.* *Revised 2026-10-13 (ADR-031 revision): no share is stored on a
+seat, so nothing is re-split; the shares follow from the lesson time's `shareCount`.*
 
 **Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): the alarms are proved in the on-demand **dev** stack; read
 "staging" as dev.
+
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+rebuilds booking as **lesson times** and a **seat** for each skater. ~~The one exception to "a
+skater is added only by their own family's session" is now this:~~ *Revised 2026-10-13 (ADR-031
+revision): there is no exception. No family's action writes another family's records, so the
+rule holds for shared lessons as written. The points below say how.*
+
+- **A family's booking creates an `INVITED` reservation seat for another family's skater.** It
+  holds only that skater's display name and status (and the invitation's `inviteId` and
+  `invitedByClientId`). Nothing of the invited family's can be changed through it (ADR-031
+  decision 5). *Revised 2026-10-13 (ADR-031 revision): the invited seat is the **inviting
+  family's** record until it is accepted. It has no `clientId` until then. Only the inviting
+  family can withdraw it, and only while it is still `INVITED` and `invitedByClientId` is the
+  caller. Once accepted (`AWAITING_COACH`), only the invited family, the coach or the deadline
+  sweep can end it. If the inviting family cancels their own seat while the invited seat is
+  `INVITED` or `AWAITING_COACH`, `consumer-invite` ends it as `WITHDRAWN`. So the invited family
+  can see it before accepting, `consumer-invite` adds `invitedClientId` and their GSI1 (global
+  secondary index 1, by client) keys to it — a read-only copy, not a family's write. The invited family may
+  also **decline**, under the same condition as accepting (no `clientId`, `INVITED`, their own
+  skater): it is their answer to an invitation addressed to their skater, and moves the seat to
+  `SEATEND#` as `DECLINED`.*
+- **The invited family converts it on accept**, in their own session, after the link check:
+  `requireActive` gives them a `LinkedSkater`, and the seat goes `INVITED → BOOKED` (already
+  the coach's student) or `INVITED → AWAITING_COACH` (new to the coach) (ADR-031 decision 6).
+  *Revised 2026-10-13 (ADR-031 revision): accepting is the invited family's own write. For a
+  skater new to the coach, the check is that the skater is in the caller's own family. Its
+  condition is: the seat has **no `clientId`**, is `INVITED`, and its `studentId` is the
+  caller's skater. It sets the seat's `clientId` to them. From then on the seat is theirs.*
+- **The coach's Accept turns `AWAITING_COACH` seats into `BOOKED`**, in the coach's own session
+  and partition (ADR-021), each if its lesson hasn't started. This replaces the automatic join
+  of the 2026-10-07 note.
+- **A sibling's seat** is written directly by the booking family's session, which holds both
+  skaters: `BOOKED`, or `AWAITING_COACH` if the sibling isn't approved yet.
+- *Added 2026-10-13 (ADR-031 revision):* **Nothing on the other family's seat changes** when a
+  skater joins or leaves. Shares are worked out from the lesson time (ADR-031 decision 7). A leave
+  in time is recorded on the lesson time, not on the staying family's seat (decision 8). The
+  partner name and status are written by `consumer-invite`, a system function, not by a family
+  (decision 6).
+
+Decisions 1–3 are otherwise unchanged. The ownership condition now guards **seats**.
 
 ---
 
@@ -162,6 +207,31 @@ only temporarily, to prove they fire.
   was-linked failure writes none.
 
 ---
+
+## Open
+
+- **Writes to the other family's seat in a shared lesson** (*raised 2026-10-13*). ADR-031 calls
+  the invited seat "the one exception ADR-024 allows". But its decisions 6–8 also have one
+  family's transaction change the other family's seat: `partnerName` and `partnerStatus` on every
+  change, the share re-split when someone joins, and `YOUR_CHOICE` with `answerBy` when someone
+  leaves in time. A booking family withdrawing an invitation also removes a seat that carries the
+  invited family's `clientId`. Decision 1's ownership condition (`clientId = :callerSub`) would
+  refuse each of these as written. How they pass it — a narrower condition, such as
+  `invitedByClientId` for a withdraw, or a fixed list of fields one family may set on the
+  other's seat — is not yet decided. ~~*Settled 2026-10-13 in ADR-031 decision 5: the exception is
+  widened to a fixed list of writes on the other seat in the same lesson, made only by the server
+  inside the transaction that changes the caller's own seat (create the invited seat; withdraw it
+  while `INVITED` and `invitedByClientId` is the caller; the partner fields; the share on an
+  `UNPAID` seat; `YOUR_CHOICE` with `answerBy`). Nothing else on the other seat can change.*~~
+  *Withdrawn 2026-10-13 (ADR-031 revision): the exception isn't needed. The owner
+  decided that no family's action writes another family's records. The invited seat is the
+  inviting family's until accepted, so a withdraw is a write to their own record. The partner
+  fields are written by `consumer-invite`. No share is stored on a seat. A leave in time is
+  recorded on the lesson time, not on the other seat. So decision 1's ownership condition stands
+  with no list of exceptions. The only family write that touches a seat it doesn't yet own is
+  accepting an invitation, and that is the invited family's own write after the link check. Its
+  condition is: no `clientId`, `INVITED`, and `studentId` is the caller's skater (ADR-031
+  decision 5).*
 
 ## Revisit if
 

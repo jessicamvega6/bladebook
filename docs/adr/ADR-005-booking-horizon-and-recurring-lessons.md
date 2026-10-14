@@ -10,6 +10,11 @@ temporary schedule is resolved by the date being booked, not by today) survives,
 becomes trivially true once overrides are keyed by date. The Open question "rolling
 daily or weekly batch?" is answered: neither.
 
+**Note — 2026-10-13.** [ADR-031](ADR-031-lessons-and-seats.md) decision 3 brings back a
+server-side booking window — from today to the end of the month two months ahead — checked on
+each picked time, and stores lesson times instead of computing them (ADR-004 decisions 1 and 2).
+Whether a coach booking for a family is held to that window is open there.
+
 **Accepted** — 2026-07-31.
 
 Amends (does not supersede):

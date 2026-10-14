@@ -21,10 +21,13 @@ Amends:
   are *entered* as a date range plus a pattern, and now carry a **header item** that gives
   the group identity, a name, and a range.
 
-Unaffected and load-bearing: ADR-004 decisions **1** (availability is computed),
-**2** (a booking is claimed by a conditional write), **3** (the default schedule is a
+Unaffected and load-bearing: ~~ADR-004 decisions **1** (availability is computed),
+**2** (a booking is claimed by a conditional write),~~ *(replaced by ADR-031 decisions 1 and 4,
+2026-10-13: lesson times are stored, and a booking is a transaction on the lesson time)*
+ADR-004 decisions **3** (the default schedule is a
 per-weekday list of blocks) and **5** (slot generation per block); ADR-006 decisions
-**1** (no booking horizon), **4** (recurring lessons), **5** and **7** (cancellation
+~~**1** (no booking horizon),~~ *(replaced by ADR-031 decision 3, 2026-10-13: a server-checked
+booking window of about 3 months)* **4** (recurring lessons), **5** and **7** (cancellation
 records and the mandatory preview).
 
 Cancellation behaviour triggered from this editor is specified in
@@ -64,6 +67,20 @@ which needs no counter. **To be reconsidered if feedback supports that this is a
 
 **Note — 2026-09-30.** [ADR-020](ADR-020-repricing-booked-lessons.md) extends decision 8: every
 upcoming lesson follows a price edit (see the note under decision 8).
+
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+changes what a save does underneath, not what the coach sees:
+- **A new warning (ADR-031 decision 13).** When a block allows 2 or more skaters and its
+  price doesn't split evenly, the editor warns: *"Split 2 ways, $45.01 is $22.51 and $22.50.
+  One family will pay a cent more."* It shows whenever the price or the skaters-per-lesson
+  changes. It is a warning, not a validation failure: the coach can still save.
+- **A save rewrites stored lesson times (ADR-031 decision 11).** Bookable times are now stored
+  `LESSON#` records made from the schedule. The preview compares the lesson times the old and
+  new schedules produce, and sorts each into add, remove, cancel or re-price. The batch then
+  rewrites them in the background — up to a year of them.
+- **Every lesson time records the `scheduleVersion` that made it.** A booking and a save both
+  change the same lesson-time record, so a booking can no longer land on a time the save
+  removed.
 
 ---
 
@@ -319,13 +336,14 @@ illness on the morning, a family emergency — the coach uses ADR-009's *cancel 
 
 | | Read by | Concern |
 |---|---|---|
-| **Date items** | Availability, booking, conflict detection | **Correctness** — one key, one lookup, no arbitration |
+| **Date items** | ~~Availability, booking, conflict detection~~ *Making lesson times and the schedule-change diff (ADR-031 decisions 1 and 11, 2026-10-13)* | **Correctness** — one key, one lookup, no arbitration |
 | **Header** | Schedule list, naming, "runs 7 days", delete-as-a-unit, overlap validation | **Management** |
 
 Nothing on the booking path reads the header. That is what makes the duplication
 tolerable: a stale or missing header can misname or mis-range a listing, but it can never
-let a client book something they should not, because availability resolves from date items
-alone. ADR-006 decision 2's single-lookup rule survives intact.
+let a client book something they should not, because ~~availability resolves from date items
+alone.~~ *availability reads only the stored lesson times, which are made from date items and
+the default alone (ADR-031 decision 1, 2026-10-13).* ADR-006 decision 2's single-lookup rule survives intact.
 
 **ADR-004's overlap-rejection rule stays dead.** It existed because two ranges covering one
 date had no non-arbitrary winner — a correctness problem. Header overlap is only ever a
@@ -384,6 +402,10 @@ and nothing is written:
   ending as 15:00 begins (ADR-004 decision 3).
 - A new temp's date range is checked against existing temp headers for date and time
   overlap.
+- *Added 2026-10-13 by [ADR-031](ADR-031-lessons-and-seats.md) decision 13:* **an odd-cents
+  warning, not a failure.** A block with 2 or more skaters per lesson whose price doesn't
+  split evenly shows *"Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent
+  more."* The coach can still save.
 
   *Settled 2026-09-30 by the owner:* **an overlap is rejected, never warned-and-allowed, and
   the message says exactly what to do.** It names the existing temp, the dates they share and
@@ -398,8 +420,9 @@ plus:
 - **Every booking the change will cancel** — for **both** default and temporary schedules.
   This is the correction that matters most: a default-pattern change is the *more*
   dangerous of the two, because the default governs every date without an override, and
-  with no booking horizon and 12-month recurrences behind it (ADR-006 decisions 1 and 4) a
-  single save can reach a year out. A temp change is bounded by its own range.
+  with ~~no booking horizon and~~ 12-month recurrences behind it (ADR-006 decisions 1 and 4) a
+  single save can reach a year out. *ADR-031 decision 3 (2026-10-13): single picks are now held
+  to a 3-month window, but a series can still run 12 months.* A temp change is bounded by its own range.
 - **How long the schedule will run** — for a temp, until its end date; for the default,
   indefinitely.
 - **A statement that accepting will send cancellation emails to affected clients.**
@@ -412,13 +435,17 @@ plus:
 **Nothing is cancelled until the coach accepts.** The preview and the consumer that
 performs the cancellation must share one conflict implementation in `core/` — ADR-001's
 framework-free core exists so a rule like this has exactly one definition, and two copies
-would drift into a preview that under-reports.
+would drift into a preview that under-reports. *ADR-031 decision 11 (2026-10-13): that one
+implementation now diffs the lesson times the old and new schedules produce.*
 
 The preview remains advisory: a client can book between preview and save, so the
 authoritative record of what was destroyed is always the batch written by the consumer
 (ADR-006 decision 5), never the number the coach was shown. *Amended 2026-10-08: the save now
 checks a per-coach booking counter (see Status).* *Amended 2026-10-09: no counter in MVP; the save
-simply goes ahead (see Status).*
+simply goes ahead (see Status).* *Amended 2026-10-13 by ADR-031 decision 11: a booking made
+after the preview on a time the save removes becomes a cancel line in the same batch, with the
+ordinary email. Because both write the same lesson-time record, a booking can no longer land
+on a time after the save has removed it.*
 
 ---
 

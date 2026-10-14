@@ -55,13 +55,46 @@ unchanged.
 
 **Amended** — 2026-10-09. [ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 5a: `consumer-invite` also runs
 nightly on a schedule, after the end-of-day report, and gains `Query` on GSI2. Still fourteen
-functions.
+functions. *Replaced by ADR-031 decision 12 (2026-10-13): the nightly run becomes
+`sched-deadline-sweep`, hourly, reading GSI4 (see the 2026-10-13 amendment below).*
 
 **Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. In MVP only `consumer-change-notifier` publishes
 SMS, for the coach's late-cancellation text; `sched-day-reminder` and
 `consumer-payment-reminder` need `sns:Publish` from Phase 2. A6's opt-in confirmation in MVP is
 the coach's, sent when `smsCancellationAlerts` changes from false to true on the coach profile.
 Still fourteen functions.
+
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+rebuilds booking as **lesson times** and **seats** in the coach's partition. For this ADR's
+function list that means:
+
+- **`consumer-invite` no longer keeps `INVITE#` copies in step.** The copies are gone: each seat
+  carries `partnerName` and `partnerStatus`, ~~written in the same transaction as every change~~
+  (ADR-031 decision 6). *Revised 2026-10-13 (ADR-031 revision): `consumer-invite` writes them,
+  reacting to seat changes, about a second later. No family writes them. It also writes two more
+  read-only copies: `invitedClientId` with GSI1 keys, so the invited family sees the invitation,
+  and `choiceAnswerBy` on the staying family's seat. So `consumer-invite` now needs a narrow write
+  permission on `SEAT#` items across coaches — only those attributes. Its role isn't written yet
+  (ADR-031 decision 14, Open).*
+- **Its nightly run is replaced** by **`sched-deadline-sweep`**, a new scheduled function that
+  runs **every hour**. It queries the new deadline index, **GSI4**, re-checks each ~~seat~~
+  record, sends the warning (at the 9pm run before it's due), expires invitations and cancels
+  unanswered ~~seats~~ lessons (ADR-031 decision 12). *Revised 2026-10-13 (ADR-031 revision): the
+  `ANSWER` deadline sits on the lesson time's pending leave, not on a seat.*
+- **`sched-lesson-roller`** is a new **nightly** scheduled function. It keeps lesson times stored
+  to the end of the booking window plus 12 months, about 15 months ahead (ADR-031 decision 1).
+- **What else `consumer-invite` did is not reassigned by ADR-031:** emailing Family B straight
+  away when they are invited, and telling families the outcome when the coach accepts or declines
+  an invited skater (`StudentChanged`). ~~Whether `consumer-invite` stays for those emails only, or
+  the work moves elsewhere, is open. **Sixteen functions** if it stays, fifteen if it goes.~~
+  *Settled in ADR-031 Consequences (2026-10-13): `consumer-invite` stays, ~~for those emails
+  only~~. With the two new scheduled functions that makes **sixteen functions**.* *Revised
+  2026-10-13 (ADR-031 revision): it stays for emails **and the read-only copies** — the partner
+  fields, the invited family's view of an invitation and `choiceAnswerBy` (ADR-031 decision 6 and
+  Consequences). It also ends an invited seat as `WITHDRAWN` when the inviting family cancels
+  (decision 5).*
+- **Neither new function's role is written yet.** GSI4 is keyed `DUE` across every coach, so, like
+  GSI2 and GSI3, it is a cross-tenant index that only a scheduled job should hold.
 
 ---
 
@@ -306,9 +339,11 @@ Key-management permissions follow whichever keys encrypt the table and bucket (�
   `CLIENT#` partition from functions that otherwise only read and send, and it is the
   broadest thing any consumer does. An alternative is a single small consumer that owns the
   write, fed by the other three; not adopted, but worth knowing before the first one is built.
-- **`api-client` reads the coach's partition.** Availability is computed from the coach's
-  schedule and bookings (ADR-004 decision 1), so a client function necessarily reads inside
+- **`api-client` reads the coach's partition.** ~~Availability is computed from the coach's
+  schedule and bookings (ADR-004 decision 1), so~~ a client function necessarily reads inside
   `COACH#<coachId>`. What it returns is only whether a slot is free, never who holds it (§7).
+  *Replaced by ADR-031 decision 1 (2026-10-13): availability is one range query on the coach's
+  stored `LESSON#` items, which hold nothing about who booked.*
 
 **Not yet assigned to any function** — work the ADRs require that no role above covers:
 
@@ -463,8 +498,11 @@ Locally, `api-coach` runs on `:8080` and `api-client` on `:8081` as ordinary `ma
 
 **Store, from the very first write:**
 - `Coach.coachTimezone` — required, non-null, IANA identifier (`America/New_York`). No default constant is ever read at runtime by scheduling logic; the onboarding form pre-fills from an SSM parameter, but the value written to the record is the source of truth.
-- `Booking.startsAtUtc` — ISO-8601 instant, alongside the existing local-date key components.
-- `Booking.coachTz` — denormalized onto the item at write time.
+- ~~`Booking.startsAtUtc`~~ — ISO-8601 instant, alongside the existing local-date key components.
+- ~~`Booking.coachTz`~~ — denormalized onto the item at write time.
+
+*Replaced by ADR-031 decision 1 (2026-10-13): `startsAtUtc` and `coachTz` are on the **lesson
+time** (`LESSON#`), written when it is created from the schedule. The rule is unchanged.*
 
 **Keep unchanged:** `SLOT#<date>#<startTime>#<slotId>` and `GSI2PK = DATE#<yyyy-mm-dd>` remain the coach's *local* date. "Everyone with a lesson today" means the coach's today; that is the correct partition and it does not change.
 

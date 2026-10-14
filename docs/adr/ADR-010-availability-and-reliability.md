@@ -42,6 +42,25 @@ can't see a missed run of a function that also has other triggers. [ADR-026](ADR
 decision 5a's nightly invitation sweep runs inside `consumer-invite`, which also runs on every
 invitation event. So the sweep records its own metric, **`InviteSweepCompleted`**, each time it
 finishes, and its alarm watches that metric: `Sum < 1` over a day, `treatMissingData: breaching`.
+*Replaced by ADR-031 decision 12 (2026-10-13): the nightly invitation sweep becomes the hourly
+`sched-deadline-sweep`, and its completion metric drives the missed-run alarm.*
+
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+stores bookable times as **lesson times** (`LESSON#`) and each skater's place as a **seat**
+(`SEAT#`). For this ADR that means:
+- **A new nightly job, `sched-lesson-roller`** (ADR-031 decision 1), keeps lesson times stored
+  about 15 months ahead. As a scheduled function it gets decision 4's missed-run alarm.
+- **ADR-026's nightly invitation sweep becomes `sched-deadline-sweep`, every hour** (ADR-031
+  decision 12). It finds due seats through a new sparse global secondary index (GSI), GSI4. Its completion metric
+  drives a missed-run alarm; a missed hour catches up on the next run.
+- **Decision 5's batch now acts on lesson times and seats.** Its steps are unchanged — claim,
+  write the whole plan, re-check each line, mark executed last, notify after — but a cancel
+  moves each seat to a `CANCELLED#` line and deletes the lesson time, and the plan also adds
+  and removes `OPEN` lesson times (ADR-031 decision 11).
+- **Reconcile and the drift check compare the schedule with the stored lesson times**, not
+  with bookings.
+
+Every behaviour rule still holds unless ADR-031 says otherwise.
 
 ---
 
@@ -107,7 +126,7 @@ Guards required, per consumer:
 |---|---|---|
 | `consumer-payment-reminder` | `paymentReminderSent` | Exists (ADR-003 d4) |
 | `consumer-change-notifier` | `notificationStatus` | Exists (ADR-006 d5) |
-| `consumer-booking-confirmation` | a `confirmationSent` flag on the booking | **To build** |
+| `consumer-booking-confirmation` | a `confirmationSent` flag on the booking *(on the seat — ADR-031 decision 2, 2026-10-13)* | **To build** |
 | `sched-day-reminder` | **`remindedOn`** — see decision 3 | **To build** |
 | `sched-daily-report` | the report's `(coach, date)` S3 key is naturally idempotent; the **email** is not | **To build** |
 | Schedule-change cancellation | see decision 5 — the hard one | **To build** |
@@ -151,7 +170,7 @@ after confirmation; for the daily report it re-runs each message's date. It refu
 ### 3. `Booking.remindedOn` — the day-of reminder guard
 
 *Decided by the owner, 2026-08-28.* The guard is keyed on **(booking, date)**, not on the
-booking alone.
+booking alone. *ADR-031 decision 2 (2026-10-13): `remindedOn` now sits on each seat.*
 
 The other guards are booleans on an item because their event happens once in a booking's
 life. This one runs per date across every coach, so the reminder job reads `remindedOn`,
@@ -228,7 +247,9 @@ started, and the run switches from *fresh* to *resume*.
 
 **5c. Write the plan before executing it.** This is the load-bearing requirement. Compute
 the conflict set, then write the header **and every `CANCELLED#` line** first, each marked
-pending. Only then delete the bookings, marking lines executed as it goes.
+pending. ~~Only then delete the bookings, marking lines executed as it goes.~~ *Replaced by
+ADR-031 decision 11 (2026-10-13): only then change the lesson times and seats — add, remove,
+cancel or re-price — marking lines executed as it goes.*
 
 The plan survives the crash. Without it a partial run is unrecoverable, because the record
 of what it intended existed only in memory and the query can no longer rediscover it.
@@ -236,8 +257,10 @@ of what it intended existed only in memory and the query can no longer rediscove
 *"Pending" here means not yet carried out. It is not `notificationStatus = PENDING`, which
 means nobody has been told yet. Decision 5f gives it its own field, `executionStatus`.*
 
-**5d. One transaction per cancellation.** Delete the booking and mark its line executed in a
-single `TransactWriteItems` — both or neither. This closes the hole where a booking is
+**5d. One transaction per cancellation.** ~~Delete the booking and mark its line executed in a
+single `TransactWriteItems` — both or neither.~~ *Replaced by ADR-031 decisions 2 and 11
+(2026-10-13): move each seat to its `CANCELLED#` line, delete the lesson time and mark the line
+executed in a single `TransactWriteItems` — all or nothing.* This closes the hole where a booking is
 deleted with no record, which would mean a lesson silently gone and a family never told.
 
 Per booking, **not** one transaction for the batch: the 100-item cap breaks at 50
@@ -283,7 +306,8 @@ emits an event for each:
 So:
 
 1. **Execution gets its own field.** Each `CANCELLED#` line carries `executionStatus`:
-   `PLANNED` when 5c writes it, `EXECUTED` when 5d deletes its booking, or `SKIPPED` if the
+   `PLANNED` when 5c writes it, `EXECUTED` when 5d ~~deletes its booking~~ *moves its seat
+   (ADR-031, 2026-10-13)*, or `SKIPPED` if the
    booking was already gone when the consumer reached it — most likely cancelled by someone
    else in between, which produced its own record and its own message. The batch header
    carries `executionStatus` too: `PLANNED`, then `EXECUTED`.
@@ -325,7 +349,8 @@ covered a consumer that fails for good or an event that is lost. These close the
 **5g. Every key comes from the triggering event.** The batch ID comes from the stream record's
 event ID (5a), and the timestamp in the header key `CHANGEBATCH#<timestamp>#<batchId>` comes
 from the stream record's creation time — never the clock. Every `CANCELLED#` and `REPRICED#`
-key is built from those two values plus the booking ID. A retry therefore produces
+key is built from those two values plus ~~the booking ID~~ *the seat key (ADR-031 decision 2,
+2026-10-13)*. A retry therefore produces
 identical keys: it can only resume, never start a second batch beside the first.
 
 **5h. The header records when the plan is complete.** The header carries **`planStatus`**:
@@ -341,7 +366,9 @@ booking needed *when the plan was written*. The app keeps running during a crash
 gap — families book and cancel, coaches check students in, the coach may edit the schedule
 again — so before carrying out any `PLANNED` record, whether in a normal retry or a reconcile
 (5j), the consumer re-checks it against **the current schedule and the current booking**, and
-acts only if the change is still needed. Otherwise the record is marked `SKIPPED`, with
+acts only if the change is still needed. *ADR-031 decision 11 (2026-10-13): "the current
+booking" is now the current lesson time and its seats. A remove line whose lesson time is no
+longer `OPEN` — a family booked it after the preview — becomes a cancel, not a skip.* Otherwise the record is marked `SKIPPED`, with
 **`skippedReason`**:
 
 | `skippedReason` | Meaning |
@@ -385,8 +412,10 @@ role — and runs in two stages:
    tells the families. This stage comes first because a batch that died partway may already
    have cancelled lessons without anyone being told — and a fresh check would never find
    them, since they are already gone.
-2. **Check for anything else.** The evaluator runs against the coach's current schedule and
-   all their upcoming bookings. Anything that does not match becomes a new batch with
+2. **Check for anything else.** ~~The evaluator runs against the coach's current schedule and
+   all their upcoming bookings.~~ *Replaced by ADR-031 decision 11 (2026-10-13): the evaluator
+   compares the lesson times the coach's current schedule produces with the stored lesson
+   times and their seats.* Anything that does not match becomes a new batch with
    **`batchSource = RECONCILE`**. If everything matches, nothing is written and nobody is emailed.
 
 **`--dry-run`** prints what both stages would do and changes nothing. The command is
@@ -408,7 +437,8 @@ with no ability to change anything.
   drift can hurt soonest; drift further out is caught as its dates come into the window, or
   by the coach's next schedule save.
 - **What it looks at:** each such coach's recent batch headers, for any not `EXECUTED`; and
-  the evaluator's verdict on their upcoming bookings in the window.
+  the evaluator's verdict on their ~~upcoming bookings~~ *stored lesson times and seats (ADR-031,
+  2026-10-13)* in the window.
 - **What it does:**
 
 | Finding | Response |

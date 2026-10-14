@@ -13,6 +13,16 @@ paid and waived), [ADR-015](ADR-015-late-cancellation-and-no-show-charges.md) de
 no-show is collected by marking it paid) and [ADR-017](ADR-017-data-retention-ttl-and-archive.md)
 (retention).
 
+**Note — 2026-10-13.** [ADR-031](ADR-031-lessons-and-seats.md) replaces the booking with a
+**lesson time** (the coach's, `LESSON#`) and a **seat** for each skater (`SEAT#`). For this page:
+a paid lesson counts at its ~~**seat's `shareMinor`**~~ **seat's `amountMinor`** — the full price for a private lesson, the
+skater's share for a shared one — and the year's figures are a range query on the coach's
+`SEAT#<date>` items. Payment is per seat, so a shared lesson where one family has paid and the
+other hasn't counts only the paid share. The ice type is stamped on the lesson time
+(`iceType`). Decisions 1–7 are unchanged. *Revised 2026-10-13 (ADR-031 revision): a seat no longer stores `shareMinor`. Its share
+is worked out from the lesson time until it is fixed as `amountMinor` — at check-in, at a
+no-show, or when marked paid or waived. A paid seat always has `amountMinor`, so gross uses it.*
+
 ---
 
 ## Context
@@ -42,7 +52,9 @@ coach's currency (ADR-016).
 
 *Decided by the owner, 2026-10-12.* Gross counts:
 
-- lessons **marked paid** (`paymentStatus = PAID`), at the booking's stamped `priceMinor`;
+- lessons **marked paid** (`paymentStatus = PAID`), at the ~~booking's stamped `priceMinor`~~
+  *seat's ~~`shareMinor`~~ `amountMinor` (ADR-031 decisions 2 and 7, 2026-10-13; revised the
+  same day by the ADR-031 revision)*;
 - **missed-lesson fees actually collected.** In MVP that is a no-show marked paid, at its full
   lesson price (ADR-015 decision 4). Charging a late cancellation is Phase 2 (ADR-015), and its
   collected fee joins gross then.
@@ -122,7 +134,9 @@ month by the coach's choice, and a lesson counted in the month it was taught.
 ## Consequences
 
 - **The page reads the coach's bookings by lesson date.** A year's figures are a query on the
-  coach's `BOOKING#<date>` range for that year, keeping those marked paid. No new index is needed.
+  coach's ~~`BOOKING#<date>`~~ range for that year, keeping those marked paid. No new index is needed.
+  *Replaced by ADR-031 decision 2 (2026-10-13): the range is the coach's `SEAT#<date>` items,
+  one per skater. Phase 2's collected late-cancellation fees are on `CANCELLED#` lines.*
 - **A lesson paid after its year has closed is in no year's gross** (decision 4). A December
   lesson marked paid in January is the usual case. Decision 5's statement is what tells the coach
   to mark lessons paid before the year ends. Last year's summary export (decision 7) shows the
@@ -131,7 +145,8 @@ month by the coach's choice, and a lesson counted in the month it was taught.
   lesson or payment records is at least **16 months**, so a calendar year's records stay live
   until the US and most Canadian filing deadlines (`Open-Pending.md` §8). Phase 2's past years
   on screen need longer, or a read from the archive.
-- **Bookings will need what the calculation needs.** The schedule builder already stamps an ice
+- **Bookings will need what the calculation needs.** *Since ADR-031 (2026-10-13), these stamps
+  belong on the lesson time, which already carries `iceType`.* The schedule builder already stamps an ice
   type per tab (`FeatureDecriptions/Schedule Creater.md`); the rink and the sport may need
   stamping too (Q_Rink-Fees question 20). Stamped, like the price, so a rate or schedule change
   doesn't rewrite past months.

@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** 2026-10-12 · **Current through:** ADR-030
+**As of:** ~~2026-10-12~~ 2026-10-13 · **Current through:** ~~ADR-030~~ ADR-031 *(booking entries only; the function count is left for `architecture.md` to restate)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -178,7 +178,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### DynamoDB, one table, on-demand
 
-**What it is.** Every entity lives in one table, keyed by coach or client, with three indexes: by client, by date (cross-coach, scheduled jobs only) and a sparse unpaid-lessons index.
+**What it is.** Every entity lives in one table, keyed by coach or client, with ~~three~~ *four* indexes: by client, by date (cross-coach, scheduled jobs only) ~~and~~ a sparse unpaid-lessons index *and a sparse deadlines index for the hourly sweep (added 2026-10-13, ADR-031 decision 12)*.
 
 **Why.** No VPC and so no ~$32 NAT gateway; pay per request; one query returns related items together. Keys are designed around the questions the app asks.
 
@@ -188,20 +188,38 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* architecture §2, §5; ADR-002 decision 6
 
-### Availability is calculated; the booking is the lock
+### ~~Availability is calculated; the booking is the lock~~
 
-**What it is.** Open slots are worked out from the coach's schedule minus existing bookings. Booking a slot is a conditional write of the booking record itself.
+*Superseded 2026-10-13 by ADR-031; see "Lessons and seats" below.*
 
-**Why.** A schedule change is one write, never hundreds, and two families racing for one slot can't both win — with no transaction and no slot records to keep consistent.
+~~**What it is.** Open slots are worked out from the coach's schedule minus existing bookings. Booking a slot is a conditional write of the booking record itself.~~
+
+~~**Why.** A schedule change is one write, never hundreds, and two families racing for one slot can't both win — with no transaction and no slot records to keep consistent.~~
+
+~~**Turned down:**~~
+~~- *Stored availability slots* — Every schedule change regenerates them, and they can disagree with bookings.~~
+
+~~*Full reasoning:* ADR-004 decisions 1–2~~
+
+### Lessons and seats
+
+*Added 2026-10-13 (ADR-031).*
+
+**What it is.** Every bookable time is stored as a **lesson time**, made from the schedule about 15 months ahead by a nightly job. Each skater in a lesson has a **seat**: a private lesson has one, a shared lesson two. Booking changes the lesson time and adds the seat in one step. An invited skater's seat holds their place at once. When a skater leaves a shared lesson in time, the other family chooses to keep it at the full price or cancel with no charge; an hourly sweep acts on anything left unanswered, and on the other deadlines.
+
+**Why.** Private and shared lessons follow one path, so sharing stops being special cases added to a private booking. Either family can leave by the same rules, because neither owns the lesson. A booking and a schedule save change the same record, so a booking can't land on a time the new schedule removed. Retry checks read the family's own seat directly.
 
 **Turned down:**
-- *Stored availability slots* — Every schedule change regenerates them, and they can disagree with bookings.
+- *A relational database (Postgres)* — Capacity and uniqueness would be plain constraints, but it costs about $12–15 a month always on, or about 15 seconds to wake. Every rule here fits one DynamoDB transaction.
+- *Keep computing availability* — Less to keep in step, but double-booking and the schedule-save race each need their own lock.
+- *Rolling series* (a job books a few weeks ahead) — A family could lose a date long after booking.
+- *One-off timers* (EventBridge Scheduler) instead of a sweep — Every seat change must move timers, a failed create loses a deadline, and nothing here needs better than an hour.
 
-*Full reasoning:* ADR-004 decisions 1–2
+*Full reasoning:* ADR-031
 
 ### No booking horizon; recurrences written at booking time
 
-**What it is.** Any date the schedule produces is bookable. A recurring booking writes every lesson up front — every 1–4 weeks, up to 12 months — plus a header describing the arrangement.
+**What it is.** ~~Any date the schedule produces is bookable.~~ *Changed 2026-10-13 (ADR-031 decision 3): each picked date must be inside the three months the booking page shows, and the system checks it. A series is checked on its first date only; its later dates can run past the window up to the end date.* A recurring booking writes every lesson up front — every 1–4 weeks, up to 12 months — plus a header describing the arrangement.
 
 **Why.** Families with a standing slot book once instead of weekly. The header exists because the current frequency can't be recovered from the lessons once one is cancelled by hand. A failed booking repairs itself.
 
@@ -209,7 +227,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 - *A 7-day rolling horizon* — Made every family re-book weekly.
 - *A generator that books future weeks on a schedule* — Machinery to feed a horizon that no longer exists.
 
-*Full reasoning:* ADR-005; ADR-006 decisions 1, 4, 4a, 4b
+*Full reasoning:* ADR-005; ADR-006 decisions 1, 4, 4a, 4b; ADR-031 decision 3
 
 ### Attribute names avoid DynamoDB reserved words
 
@@ -279,17 +297,17 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 **What it is.** Client, coach and schedule-change cancellations all write a change batch with one record per lesson. A coach can hold a freed slot so it can't be rebooked.
 
-**Why.** One message per family per batch, a full audit of who cancelled what, and one notifier for every case. A held slot is just a booking with no student, so the existing lock and indexes handle it.
+**Why.** One message per family per batch, a full audit of who cancelled what, and one notifier for every case. ~~A held slot is just a booking with no student, so the existing lock and indexes handle it.~~ *Changed 2026-10-13 (ADR-031 decision 1): a held slot is a held lesson time, with no seats, so families see it as taken.*
 
 **Turned down:**
 - *A rescheduling operation* — Rebook-then-cancel covers it without new machinery.
 - *A separate blocked-slot record* — Availability and the lock would both need a second check.
 
-*Full reasoning:* ADR-009
+*Full reasoning:* ADR-009; ADR-031
 
 ### Payment tracking, not payment processing
 
-**What it is.** Prices are integers in cents, stamped on bookings. Coaches mark lessons paid or waived; families get a reminder with the amount and the coach's payment instructions.
+**What it is.** Prices are integers in cents, stamped on ~~bookings~~ *lesson times; each skater's seat carries their share, split evenly with odd cents going to the skaters who joined first (changed 2026-10-13, ADR-031 decision 7)*. Coaches mark lessons paid or waived; families get a reminder with the amount and the coach's payment instructions.
 
 **Why.** No payment processor means no card-data scope, no webhooks and no refunds in MVP. A weekly email tells the coach about lessons left unpaid too long.
 

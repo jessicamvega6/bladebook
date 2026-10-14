@@ -41,6 +41,14 @@ guarded rather than designed around:
 - A cleared page cannot open with no signal at all. Decision 5a's advice to open the page with
   signal before leaving for the rink covers this case.
 
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+replaces the booking with a **lesson time** (the coach's) and a **seat** for each skater in it.
+Attendance is now captured **per seat**: `outcomeAt` and `recordedAt` live on the seat, and a
+capture succeeds only from `BOOKED`, so first write still wins (ADR-031 decision 15). A cancelled
+seat is moved to a `CANCELLED#` line in the same transaction that deletes it (decision 2), so a
+replay onto it finds no seat and fails, exactly as before. ADR-009's coach-held booking is now a
+**held lesson time** with no seats (decision 1). Every behaviour rule here still holds.
+
 ---
 
 ## Context
@@ -92,12 +100,15 @@ wrong bucket, or miss it entirely.
 This means accepting a **client-supplied timestamp**, which is the first place in the
 system that does so. Two guards:
 
-- The booking stores **both** `outcomeAt` (from the device, when the coach recorded it)
+- The ~~booking~~ stores **both** `outcomeAt` (from the device, when the coach recorded it)
   and `recordedAt` (server time on write). Every user-facing view reads `outcomeAt`; the
   pair makes a delayed replay visible rather than invisible.
 - `outcomeAt` is **rejected if it is in the future** by more than a small clock-skew
   allowance, or older than 24 hours. A phone with a badly wrong clock should fail loudly.
   *The 24-hour limit is replaced by decision 2a (2026-09-30).*
+
+*Replaced by ADR-031 decision 15 (2026-10-13): each skater's **seat** stores `outcomeAt` and
+`recordedAt`. In a shared lesson each skater is recorded separately.*
 
 ### 2a. The time must fit the lesson, not be recent
 
@@ -113,7 +124,8 @@ accepted whenever it arrives, provided:
   the end of that day, in the coach's timezone. A wrong clock produces a time outside the
   window and is rejected loudly, which is what the check exists for;
 - **it is not in the future**, beyond a small clock-skew allowance (unchanged);
-- **the booking is still unrecorded** (decision 3, unchanged). If the coach recorded it on
+- **the ~~booking~~ seat is still unrecorded** (decision 3, unchanged; *seat since ADR-031,
+  2026-10-13*). If the coach recorded it on
   the website in the meantime, the late entry is dropped silently (decision 8); if the
   family cancelled, the coach is told (decision 4).
 
@@ -130,7 +142,8 @@ treatment for the same reason.
 The queue survives a page reload, so the same entry can be submitted twice — a flaky
 connection at the rink door is the ordinary case, not the edge case.
 
-The attendance write is conditional on **the booking still being `BOOKED`**. A replay of
+The attendance write is conditional on **the ~~booking~~ still being `BOOKED`**. *Replaced by
+ADR-031 decision 15 (2026-10-13): conditional on **the skater's seat** still being `BOOKED`.* A replay of
 an already-recorded outcome fails that condition, is treated as success by the client, and
 is dropped from the queue.
 
@@ -139,19 +152,24 @@ outcomes with one expression, and it also catches decision 4's case. Note the tw
 that takes, because they are not the same write:
 
 - **The booking was deleted.** ADR-009 decision 5 deletes the item on cancellation — there
-  is no `CANCELLED` status — and the record survives as a separate `CANCELLED#` item. A
+  is no `CANCELLED` status — and the record survives as a separate `CANCELLED#` item.
+  *Replaced by ADR-031 decision 2 (2026-10-13): the **seat** is moved to a `CANCELLED#` line in
+  one transaction with its delete. A replay finds no seat at its key and fails the same way.* A
   conditional `UpdateItem` whose condition reads `bookingStatus` fails against a non-existent
   item rather than upserting one, which is the behaviour needed here: a replay must never
   resurrect a cancelled booking as a bare attendance record.
-- **The booking became `COACH_HELD`.** Cancel-and-hold replaces the item at the same key
+- ~~**The booking became `COACH_HELD`.** Cancel-and-hold replaces the item at the same key
   (ADR-009 decision 5), so it exists with a status that is not `BOOKED` and the same
-  condition rejects it. This matters because the write is what emits `CheckInRecorded`
+  condition rejects it.~~ *Replaced by ADR-031 decision 1 (2026-10-13): cancel-and-hold moves
+  every seat to a `CANCELLED#` line and marks the **lesson time** `HELD`, with no seats. The
+  replay finds no seat and fails, as in the case above.* This matters because the write is what emits `CheckInRecorded`
 through the stream: without the condition, a duplicate replay sends the family a second
 payment reminder for the same lesson.
 
-This is the same shape as ADR-010's idempotency guards, with the booking item itself
+This is the same shape as ADR-010's idempotency guards, with the ~~booking item~~ itself
 acting as the guard rather than a separate record — consistent with ADR-006, where the
-booking item is already the lock.
+~~booking item is already the lock~~. *Replaced by ADR-031 decisions 1 and 2 (2026-10-13): the
+**seat** is the guard, and the **lesson time** is the lock.*
 
 Only `CHECKED_IN` emits `CheckInRecorded`. A recorded `NO_SHOW` emits its own event —
 **amended 2026-08-30 by ADR-015 decision 5**, which made a no-show billable; it originally
@@ -275,7 +293,7 @@ student never came. Reporting the unknown case as a no-show converts "my phone n
 reconnected" into "your student did not show up" — an assertion about a family, generated
 from missing data, and one that a coach may act on.
 
-**`PENDING` is a report bucket derived from `bookingStatus`, not a stored booking state.** Nothing
+**`PENDING` is a report bucket derived from ~~`bookingStatus`~~ `seatStatus` (*ADR-031, 2026-10-13*), not a stored booking state.** Nothing
 is written to any booking at 9pm; the absence of a recorded outcome *is* the pending state,
 and a queued outcome that replays later simply leaves the bucket. Adding a real status
 would mean a write across every unrecorded booking each night to record something already

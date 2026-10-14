@@ -320,11 +320,11 @@ li{margin:0 0 7px}
 
           <div class="card live">
             <span class="tag link">linked</span>
-            <p class="k"><b>COACH#c1</b><br>BOOKING#2026-03-14#16:00</p>
+            <p class="k"><b>COACH#c1</b><br>SEAT#2026-03-14#16:00#S_7f3a</p>
             <p class="f"><span class="nm">studentId</span><span class="val-tok">S_7f3a</span></p>
-            <p class="f"><span class="nm">GSI1PK</span><span class="val-tok">STUDENT#S_7f3a</span></p>
+            <p class="f"><span class="nm">GSI1PK</span><span class="val-tok">CLIENT#C_9d1</span></p>
             <p class="f"><span class="nm">lessonDate</span><span class="vl val-keep">2026-03-14</span></p>
-            <p class="f"><span class="nm">priceMinor</span><span class="vl val-keep">4500</span></p>
+            <p class="f"><span class="nm">amountMinor</span><span class="vl val-keep">4500</span></p>
             <p class="f"><span class="nm">currency</span><span class="vl val-keep">USD</span></p>
             <p class="f"><span class="nm">paymentStatus</span><span class="vl val-keep">PAID</span></p>
           </div>
@@ -416,12 +416,14 @@ li{margin:0 0 7px}
           <tr><td><code>CLIENT#sub / STUDENT#c1#s9</code></td><td>studentName (denormalised), studentStatus</td><td class="act act-del">hard delete</td></tr>
           <tr><td><code>CLIENT#sub / PROFILE</code></td><td>guardian name, email, phone</td><td class="act act-cond">delete if last child</td></tr>
           <tr><td>Cognito user</td><td>the guardian's account</td><td class="act act-cond">delete if last child</td></tr>
-          <tr><td><code>COACH#c1 / BOOKING#…</code></td><td>studentId, price, payment state</td><td class="act act-tok">tokenise — stays joined</td></tr>
+          <tr><td><code>COACH#c1 / SEAT#…#s9</code></td><td>studentId (also in the key), studentName, clientId, amount owed, payment state</td><td class="act act-tok">tokenise — re-keyed under the token, stays joined</td></tr>
+          <tr><td><code>COACH#c1 / SEATEND#…#s9#…</code></td><td>studentId (also in the key), studentName, invitation outcome</td><td class="act act-tok">tokenise — re-keyed under the token</td></tr>
+          <tr><td><code>COACH#c1 / LESSON#…</code></td><td>the lesson time: total price, length, seats taken — no names</td><td class="act act-tok">no change</td></tr>
           <tr><td><code>COACH#c1 / CANCELLED#…</code></td><td>studentId, studentName, clientId</td><td class="act act-tok">tokenise — stays joined</td></tr>
           <tr><td><code>COACH#c1 / CHANGEBATCH#…</code></td><td>cancelledById</td><td class="act act-tok">tokenise — stays joined</td></tr>
           <tr><td>S3 <code>report.json</code></td><td>per-student attendance</td><td class="act act-tok">joins across every day</td></tr>
           <tr><td>CloudWatch access log</td><td>who read this student's data (ADR-012)</td><td class="act act-del">retention expiry</td></tr>
-          <tr><td>Phone offline queue</td><td>queued attendance outcomes (ADR-014)</td><td class="act act-tok">bookingId only — no PII</td></tr>
+          <tr><td>Phone offline queue</td><td>queued attendance outcomes (ADR-014)</td><td class="act act-tok">seat key only — carries the studentId, no other PII</td></tr>
         </tbody>
       </table>
     </div>

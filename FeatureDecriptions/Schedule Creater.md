@@ -9,6 +9,10 @@ As of now schedule creation will have
   (LC)Lesson Cost ("Price per lesson"): the cost of the lesson. represented in the currency selected on sign up. MVP the currency is USD or canadian. 
   (SPL)Skaters per lesson: default 1, max 2 (owner, 2026-10-07; ADR-026 d1). Per tab.
         *Design: skaters per lesson, rink and ice type are on every block (schedule-weekly.html, schedule-weekly-no-ice.html, schedule-review-skaters.html).*
+        *Added 2026-10-13 (ADR-031 decision 13): when a block allows 2 or more skaters and its price doesn't split evenly, the
+        editor warns: "Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent more." It shows whenever the price
+        or the skaters per lesson changes. The coach can still save.*
+        *Added 2026-10-13: skaters per lesson can't be lowered on a lesson that's already booked; a change applies to lessons booked afterwards (owner 2026-10-12, ADR-026; kept by ADR-031 decision 1).*
   (R)Rink: the rink the lessons are at. Per tab, because a coach can work at more than one rink. Decides which ice types are listed. Added 2026-10-07.
                 Phase 1: fixed to Pelham Civic Center (PCC) and not selectable. Phase 2: a dropdown of the rinks BladeBook has ice types for.
   (IT)Ice Type: the type of ice the lessons are on, named the way the rink names its sessions, e.g. at PCC: Birmingham Figure Skating Club (BFSC) freestyle ice, Stick and Puck (S&P) ice, public ice. Added 2026-10-07 from talking with Kim. 

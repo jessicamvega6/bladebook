@@ -317,11 +317,11 @@ li{margin:0 0 7px}
 
           <div class="card live">
             <span class="tag kept">retained</span>
-            <p class="k"><b>COACH#c1</b><br>BOOKING#2026-03-14#16:00</p>
+            <p class="k"><b>COACH#c1</b><br>SEAT#2026-03-14#16:00#DELETED-1</p>
             <p class="f"><span class="nm">studentId</span><span class="val-gone">DELETED</span></p>
             <p class="f"><span class="nm">GSI1PK</span><span class="val-gone">removed</span></p>
             <p class="f"><span class="nm">lessonDate</span><span class="vl val-keep">2026-03-14</span></p>
-            <p class="f"><span class="nm">priceMinor</span><span class="vl val-keep">4500</span></p>
+            <p class="f"><span class="nm">amountMinor</span><span class="vl val-keep">4500</span></p>
             <p class="f"><span class="nm">currency</span><span class="vl val-keep">USD</span></p>
             <p class="f"><span class="nm">paymentStatus</span><span class="vl val-keep">PAID</span></p>
           </div>
@@ -362,13 +362,23 @@ li{margin:0 0 7px}
 
   <section>
     <h2>Two keys that need handling, not just attributes</h2>
-    <p class="prose">Overwriting attributes is not sufficient on its own, because two index keys
-    embed the student identifier directly.</p>
+    <p class="prose">Overwriting attributes is not sufficient on its own, because the seat's own key
+    and two index keys embed the student identifier directly.</p>
 
     <div class="note">
-      <h3><code>GSI1PK = STUDENT&lt;studentId&gt;</code> — must be removed</h3>
-      <p>Bookings are indexed by student for the client-facing views. Blanking the attribute
-      while leaving the key in place would keep every lesson retrievable under the child's
+      <h3><code>SK = SEAT#&lt;date&gt;#&lt;time&gt;#&lt;studentId&gt;</code> — must be re-keyed</h3>
+      <p><em>Added 2026-10-13 for ADR-031 (lessons and seats).</em> A seat's sort key contains the
+      student identifier, so anonymising means deleting the seat and writing it again under a new
+      key, in one transaction. The replacement can't be a single shared constant: two erased
+      skaters who shared a lesson would collide on the same key. Each gets a numbered suffix
+      (<code>DELETED-1</code>, <code>DELETED-2</code>). <code>SEATEND#</code> records are handled
+      the same way.</p>
+    </div>
+
+    <div class="note">
+      <h3><code>GSI1PK = CLIENT#&lt;clientId&gt;</code> — must be removed</h3>
+      <p>Seats are indexed by family for the client-facing views (ADR-022, ADR-031). Blanking the attribute
+      while leaving the key in place would keep every lesson retrievable under the family's
       identifier. Deleting the two GSI1 attributes drops the row out of the index entirely,
       which is exactly the intent.</p>
     </div>
@@ -376,8 +386,8 @@ li{margin:0 0 7px}
     <div class="note">
       <h3><code>GSI3SK = UNPAID#&lt;date&gt;#&lt;studentId&gt;</code> — resolves itself</h3>
       <p>The unpaid index also embeds the identifier, but it is <strong>sparse and written only
-      while a booking is <code>UNPAID</code></strong>. A live debt cannot be anonymised anyway —
-      you would lose the ability to collect it — so by the time erasure is permitted the booking
+      while a seat is <code>UNPAID</code></strong>. A live debt cannot be anonymised anyway —
+      you would lose the ability to collect it — so by the time erasure is permitted the seat
       is <code>PAID</code> or <code>WAIVED</code> and has already dropped out of GSI3. The
       awkward case is closed by an ordering rule rather than by code.</p>
     </div>
@@ -405,12 +415,14 @@ li{margin:0 0 7px}
           <tr><td><code>CLIENT#sub / STUDENT#c1#s9</code></td><td>studentName (denormalised), studentStatus</td><td class="act act-del">hard delete</td></tr>
           <tr><td><code>CLIENT#sub / PROFILE</code></td><td>guardian name, email, phone</td><td class="act act-cond">delete if last child</td></tr>
           <tr><td>Cognito user</td><td>the guardian's account</td><td class="act act-cond">delete if last child</td></tr>
-          <tr><td><code>COACH#c1 / BOOKING#…</code></td><td>studentId, price, payment state</td><td class="act act-anon">anonymise</td></tr>
+          <tr><td><code>COACH#c1 / SEAT#…#s9</code></td><td>studentId (also in the key), studentName, clientId, amount owed, payment state</td><td class="act act-anon">anonymise — re-keyed</td></tr>
+          <tr><td><code>COACH#c1 / SEATEND#…#s9#…</code></td><td>studentId (also in the key), studentName, invitation outcome</td><td class="act act-anon">anonymise — re-keyed</td></tr>
+          <tr><td><code>COACH#c1 / LESSON#…</code></td><td>the lesson time: total price, length, seats taken — no names</td><td class="act act-anon">no change</td></tr>
           <tr><td><code>COACH#c1 / CANCELLED#…</code></td><td>studentId, studentName, clientId</td><td class="act act-anon">anonymise</td></tr>
           <tr><td><code>COACH#c1 / CHANGEBATCH#…</code></td><td>cancelledById</td><td class="act act-anon">anonymise</td></tr>
           <tr><td>S3 <code>report.json</code></td><td>per-student attendance</td><td class="act act-anon">free, if ids not names</td></tr>
           <tr><td>CloudWatch access log</td><td>who read this student's data (ADR-012)</td><td class="act act-del">retention expiry</td></tr>
-          <tr><td>Phone offline queue</td><td>queued attendance outcomes (ADR-014)</td><td class="act act-anon">bookingId only — no PII</td></tr>
+          <tr><td>Phone offline queue</td><td>queued attendance outcomes (ADR-014)</td><td class="act act-anon">seat key only — carries the studentId, no other PII</td></tr>
         </tbody>
       </table>
     </div>

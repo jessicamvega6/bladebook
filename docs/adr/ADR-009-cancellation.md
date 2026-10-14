@@ -45,6 +45,15 @@ settles the Open item below and narrows decision 9's `CLIENT` row.
 is the one SMS path that stays in MVP. The SMS forms of the client-directed rows (`COACH`,
 `SCHEDULE_CHANGE`) wait for Phase 2.
 
+**Superseded in part — 2026-10-13.** *Decided by the owner.*
+[ADR-031](ADR-031-lessons-and-seats.md) replaces decision **2**'s "cancelling deletes the
+booking" and decision **5**'s `COACH_HELD` booking. A cancelled seat now moves to a
+`CANCELLED#` line, and the lesson time reopens (`OPEN`) when its last seat goes; a hold is a
+**held lesson time** (`lessonStatus = HELD`) with no seats. Decision **4**'s three series
+operations stay, except on a **shared** series: there a family can only cancel one lesson or
+cancel the series (ADR-031 decision 9). Every behaviour rule still holds unless ADR-031 says
+otherwise.
+
 ---
 
 ## Context
@@ -71,7 +80,8 @@ piece of modelling is the coach-held slot in decision 5.
 | `SCHEDULE_CHANGE` | The consumer in ADR-006 decision 5 | Unbounded |
 
 All three write the same items: one `CHANGEBATCH#<isoTs>#<batchId>` header and one
-`CANCELLED#<isoTs>#<batchId>#<bookingId>` line per lesson. **A single-lesson cancellation
+~~`CANCELLED#<isoTs>#<batchId>#<bookingId>` line per lesson.~~ *Replaced by ADR-031 decision 2
+(2026-10-13): one `CANCELLED#<isoTs>#<batchId>#<seatKey>` line per seat.* **A single-lesson cancellation
 is a batch of one.** The batch is what makes "cancel this whole week" produce one email per
 affected client rather than six, and it is what satisfies *"all cancellations will be
 tracked showing who cancelled."*
@@ -83,9 +93,12 @@ the lesson's start (decision 3).
 ### 2. Client cancellation
 
 In **My Bookings**, each lesson carries a **cancel** button. Clicking it raises a
-confirmation. Confirming deletes the booking, which releases the slot back into
+confirmation. ~~Confirming deletes the booking, which releases the slot back into
 availability — because ADR-004 decision 2 made the booking item the lock, so a released
-time must stop existing rather than be restatused.
+time must stop existing rather than be restatused.~~ *Replaced by ADR-031 decision 2
+(2026-10-13): confirming moves the family's seat to a `CANCELLED#` line in one transaction.
+The lesson time goes back to `OPEN` when its last seat goes. In a shared lesson, the other
+skater stays (ADR-031 decision 8).*
 
 Beside the confirmation: *"Bookings cancelled within 24 hours may incur a late
 cancellation fee."*
@@ -125,6 +138,11 @@ operations:
   never the reverse. Occurrences that no longer fall on the new interval are cancelled as
   one batch.
 - **Cancel all future lessons.** Every remaining occurrence is cancelled.
+
+*Amended 2026-10-13 by [ADR-031](ADR-031-lessons-and-seats.md) decision 9:* **while a series is
+shared** — any future lesson in it has another skater, joined or invited — a family can only
+cancel one lesson or cancel the series. *Move the end date earlier* and *reduce the
+frequency* are hidden, and come back once no future lesson is shared.
 
 *Added 2026-09-29.* **Late occurrences carry the same fee notice as a per-lesson cancel.**
 All three operations can cancel an occurrence inside the coach's late-cancellation
@@ -262,21 +280,28 @@ booked slots with the student's name. Cancellation happens from there, in three 
 
 Each asks one question: **release the time for rebooking, or keep it unbookable?**
 
-- **Release** — the booking item is deleted. The slot returns to availability.
-- **Hold** — the slot is **assigned to the coach** and stays unbookable.
+- **Release** — ~~the booking item is deleted.~~ *each seat moves to a `CANCELLED#` line and
+  the lesson time goes back to `OPEN` (ADR-031 decision 2, 2026-10-13).* The slot returns to
+  availability.
+- **Hold** — the slot is **assigned to the coach** and stays unbookable. *ADR-031 decision 1
+  (2026-10-13): the seats move to `CANCELLED#` lines and the lesson time becomes `HELD`.*
 
-**A held slot is a booking item with no student.** Same `BOOKING#<date>#<startTime>` key,
-`bookingStatus = COACH_HELD`, no `studentId`, no `clientId`, no `priceMinor`.
+~~**A held slot is a booking item with no student.** Same `BOOKING#<date>#<startTime>` key,
+`bookingStatus = COACH_HELD`, no `studentId`, no `clientId`, no `priceMinor`.~~
 
-This is the only shape that works, and it works for one reason: ADR-004 decision 2 made
+~~This is the only shape that works, and it works for one reason: ADR-004 decision 2 made
 the booking item *itself* the lock. A client's conditional `PutItem` fails against a held
 slot automatically, and availability — candidate slots minus existing bookings — already
 subtracts it. A separate "blocked slot" item type would break both: availability would
 need a second query, and nothing would stop a client booking a slot that had a block but
-no booking.
+no booking.~~ *Replaced by ADR-031 decision 1 (2026-10-13): a held slot is a **held lesson
+time** — the same `LESSON#<date>#<startTime>` item with `lessonStatus = HELD` and no seats. A
+booking needs the lesson time to be `OPEN`, so it fails against a held one, and availability
+shows it as taken. The reasoning is the same: the lock and the hold are one item.*
 
 **A held slot writes no GSI keys at all**, and that single fact handles three problems
-without any filtering logic:
+without any filtering logic: *(Still true under ADR-031, 2026-10-13: a held lesson time has no
+seats, and only seats carry index keys.)*
 
 | Index | Effect of omission |
 |---|---|
@@ -289,7 +314,8 @@ different end.
 
 **A hold is permanent for MVP.** *Decided by the owner, 2026-08-25.* There is no release
 action: once a coach keeps a slot unbookable, it stays that way. Releasing it would mean
-deleting the `COACH_HELD` item, and no surface is specified for that.
+~~deleting the `COACH_HELD` item~~ *setting the held lesson time back to `OPEN` (ADR-031
+decision 1, 2026-10-13)*, and no surface is specified for that.
 
 This is defensible because a hold is an exception — the coach has already decided they are
 not teaching that time — and because the alternative was a delete affordance on a slot that
@@ -322,7 +348,8 @@ week view.
 
 **"Part of a day" and "part of a week" are not new scopes.** *Settled by the owner,
 2026-09-22:* they are the **coach-held spots** — a coach selects several lessons within a day
-or a week, cancels them, and the slots they keep become `COACH_HELD`. That is a multi-select
+or a week, cancels them, and the slots they keep become ~~`COACH_HELD`~~ *held lesson times
+(`HELD`, ADR-031 decision 1, 2026-10-13)*. That is a multi-select
 of *this lesson*, exactly as this ADR's Open item anticipated, and it needs no new machinery:
 the same batch header, the same lines, the same release-or-hold question, the same preview.
 
@@ -350,8 +377,8 @@ for decision 8's preview.
 `Coach App` puts it, but a tap opens a confirmation rather than cancelling. This goes further
 than decision 8, which only requires confirmation above a single lesson. The reason is
 where the button sits: on a phone held rinkside, often with gloves on, next to the two
-buttons tapped most, and a cancel cannot be undone — release deletes the booking and a hold
-is permanent.
+buttons tapped most, and a cancel cannot be undone — release ~~deletes the booking~~ *moves
+the seat to a `CANCELLED#` line (ADR-031, 2026-10-13)* and a hold is permanent.
 
 For the confirmation to actually stop a mis-tap, it has to be something a second mis-tap
 cannot complete:
@@ -369,9 +396,11 @@ cannot complete:
 None of the operations above touch `SCHEDULE#DEFAULT` or any `SCHEDULE#DATE#` item. A
 coach who cancels a week is *not* declaring that they no longer work those hours.
 
-This keeps ADR-004 decision 1 intact — availability is still computed from the pattern —
-and makes cancellation dramatically cheaper than a schedule change: no `ScheduleChanged`
-event, no conflict re-evaluation, no expansion. Only booking items move.
+~~This keeps ADR-004 decision 1 intact — availability is still computed from the pattern —
+and makes~~ *This makes* cancellation dramatically cheaper than a schedule change: no `ScheduleChanged`
+event, no conflict re-evaluation, no expansion. ~~Only booking items move.~~ *Replaced by
+ADR-031 decisions 1 and 2 (2026-10-13): only seats and lesson times change — seats move to
+`CANCELLED#` lines, and each lesson time goes `OPEN` or `HELD`.*
 
 ### 7. Lessons that already happened are never cancelled
 
@@ -456,7 +485,8 @@ original lesson. Cancel-first risks losing both, and the UI should not present i
 > no-show question at the end is settled by ADR-015 decision 1: it is charged.
 
 Payment reminders fire on check-in (ADR-003 decision 7), so a cancelled booking is always
-`UNPAID` and simply ceases to exist. There is no charge, no credit and no balance —
+`UNPAID` and ~~simply ceases to exist~~ *becomes a `CANCELLED#` line (ADR-031 decision 2,
+2026-10-13)*. There is no charge, no credit and no balance —
 consistent with ADR-003 decision 4's no-ledger model. This also answers ADR-003's open
 question in the narrow case: a lesson that was cancelled is not billed. Whether a
 **no-show** is owed remains open.
@@ -465,7 +495,9 @@ question in the narrow case: a lesson that was cancelled is not billed. Whether 
 
 ## Model changes to `architecture.md`
 
-**Added:** `COACH_HELD` as a `Booking.bookingStatus` value, for slots a coach has retained;
+**Added:** ~~`COACH_HELD` as a `Booking.bookingStatus` value, for slots a coach has retained;~~
+*(replaced by ADR-031 decision 1, 2026-10-13: `HELD` as a `lessonStatus` value on the lesson
+time)*
 `cancelledBy` and acting identity on the cancellation batch header; `cancelledAt` and
 `noticeHours` on cancellation lines; a coach week view; client-facing cancel and
 recurrence-management controls. *Added 2026-09-29, omitted when decision 4 was written:*
@@ -480,8 +512,8 @@ cancellations notify the coach rather than the client.
 
 | # | Query | Served by |
 |---|---|---|
-| 19 | A coach's week, slot by slot, with booked/open/held state | Pattern 5 over a Sun–Sat range, joined against computed availability |
-| 20 | A client's cancellable upcoming bookings | GSI1 by student, filtered on `bookingStatus = BOOKED` |
+| 19 | A coach's week, slot by slot, with booked/open/held state | ~~Pattern 5 over a Sun–Sat range, joined against computed availability~~ *Two range queries, `LESSON#` and `SEAT#`, over the Sun–Sat range (ADR-031, 2026-10-13)* |
+| 20 | A client's cancellable upcoming bookings | ~~GSI1 by student, filtered on `bookingStatus = BOOKED`~~ *GSI1 by client, on seats (ADR-031 decision 2, 2026-10-13)* |
 
 ---
 
@@ -493,10 +525,12 @@ the existing notifier, and the existing preview contract. A coach-held slot need
 item type and no new query. The batch abstraction from ADR-006 turns out to generalize
 cleanly to single-lesson cancellations.
 
-**Harder.** `BOOKING#` items now mean two different things — a client's lesson and a
+**Harder.** ~~`BOOKING#` items now mean two different things — a client's lesson and a
 coach's hold — and every consumer that reads them has to know the difference. The GSI
 omission handles the automated paths, but any new code that queries the main table
-directly must not assume `studentId` is present.
+directly must not assume `studentId` is present.~~ *Replaced by ADR-031 decisions 1 and 2
+(2026-10-13): a hold is a lesson-time status, and only seats name a skater, so no item means
+two things.*
 
 **The 24-hour notice is honest about what it is.** It warns, and it records enough for a
 coach to act, and it does nothing else. That is the right amount for a system that does not

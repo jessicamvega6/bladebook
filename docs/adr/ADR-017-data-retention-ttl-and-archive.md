@@ -21,6 +21,15 @@ calendar-year financial page and its summary export stay whole until the filing 
 history screens say when older lessons are archived; and an archive restore writes an ADR-012
 access-log entry.
 
+**Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
+replaces the booking with a stored **lesson time** (`LESSON#`, the coach's) and a **seat** for
+each skater (`SEAT#`). Retention applies to seats and lines as it did to bookings and lines
+(ADR-031 decision 15). In decision 2's table: the booking rows now mean **seats**; a held slot is
+now a **held lesson time**; and three item types join: **past lesson times**, which can expire
+once they have no seats, and the **`SEATEND#`** line for an invitation that was declined,
+withdrawn or expired. Seats moved to `CANCELLED#` lines follow the existing cancellation-line
+rows. The windows still wait on the legal review.
+
 ---
 
 ## Context
@@ -76,10 +85,13 @@ differently enough to shape the design:
 |---|---|---|---|
 | Date override `SCHEDULE#DATE#<date>` | Written | Its date + **30 days** (proposed) | No — schedule data, no person |
 | Temporary schedule header `SCHEDULE#TEMP#` | Written or edited | Its `endDate` + the date-override window | No |
-| Held slot (`COACH_HELD` booking) | Written | Its date + the date-override window | No — no student |
-| Booking, `PAID` or `WAIVED` | **When settled** | Settlement + booking window | **Yes** |
-| Booking, `UNPAID` | **Never, while unpaid** | — | — |
-| Cancellation line `CANCELLED#` — not chargeable | Written | Cancellation + cancellation window | **Yes** — and tax (ADR-006, ADR-009 Open) |
+| ~~Held slot (`COACH_HELD` booking)~~ | Written | Its date + the date-override window | No — no student |
+| *Held lesson time (`LESSON#`, `HELD`) — ADR-031, 2026-10-13* | Written | Its date + the date-override window | No — no student |
+| *Past lesson time (`LESSON#`) with no seats — ADR-031, 2026-10-13* | When it is past and has no seats | Its date + the date-override window (proposed, as for a held time) | No — holds nothing about who booked |
+| ~~Booking~~ *Seat (`SEAT#`, ADR-031)*, `PAID` or `WAIVED` | **When settled** | Settlement + booking window | **Yes** |
+| ~~Booking~~ *Seat (`SEAT#`, ADR-031)*, `UNPAID` | **Never, while unpaid** | — | — |
+| *Ended invitation `SEATEND#` — ADR-031, 2026-10-13* | Written | Same window as cancellation lines — proposed; it names a student | **Yes** |
+| Cancellation line `CANCELLED#` — not chargeable (*since ADR-031, a moved seat*) | Written | Cancellation + cancellation window | **Yes** — and tax (ADR-006, ADR-009 Open) |
 | Re-price line `REPRICED#` (ADR-020) | Written | Same window as cancellation lines — proposed; they name students too | **Yes** |
 | Cancellation line — chargeable (ADR-015 decision 1a) | **When settled** | Settlement + cancellation window | **Yes** |
 | Cancellation batch header `CHANGEBATCH#` | With its lines | Never earlier than its latest line — see decision 3 | Derived |
@@ -234,6 +246,10 @@ by construction, and the scanner is what confirms it.
 
 ## Open
 
+- **A past lesson time that still has seats** (*added 2026-10-13, ADR-031*). ADR-031 says only
+  that past lesson times with no seats can expire. How a lesson time is kept while its seats
+  remain — not given `expiresAt` until its last seat goes, or raised like a batch header
+  (decision 3) — is not yet decided.
 - **Every window marked "needs legal review" in decision 2**, plus the archive's own
   retention window. These go on the pre-launch legal review's agenda.
 - **The date-override window** — 30 days is proposed; confirm. It needs no legal input.
