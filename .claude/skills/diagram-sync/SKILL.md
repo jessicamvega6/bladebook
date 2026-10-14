@@ -23,7 +23,7 @@ names. Never commit; the owner commits, or asks for a commit, themselves.
 | D1 | System diagrams | `docs/architecture.md` Mermaid `flowchart` blocks: §3 (overview), §3.1 (the event consumers, one by one), §7 *Lower environments* (production and dev accounts) | hand-written | ADRs, §3 and §7 text, event catalog |
 | D2 | Data model (§4) | `docs/architecture.md` Mermaid `erDiagram` | hand-written | §4/§5 text, ADR item types and attributes |
 | D3 | Sequence diagrams | `docs/architecture.md` Mermaid `sequenceDiagram` blocks (§6.1–§6.11 plus two in §7, 14 today) | hand-written | the ADR that defines each flow, event catalog |
-| D4 | ADR diagrams | Mermaid blocks inside `docs/adr/*.md` (ADR-006 today) | hand-written | later ADRs that amend that ADR |
+| D4 | ADR diagrams | Mermaid blocks inside `docs/adr/*.md` (ADR-006 and ADR-031 today) | hand-written | later ADRs that amend that ADR |
 | D5 | Rendered diagrams page | `design/architecture-diagrams.html` | **generated** by `python3 design/render-diagrams.py` from D1–D3 — never edit by hand | its source |
 | D6 | C4 map | `design/c4-map.html` — data in the `Q`, `E`, `FOUNDATION`, `SETTLED`, `VIEWS` objects | hand-written; published | see *C4 map checks* below |
 | D7 | Student-erasure options | `docs/deletion/erasure-by-token.html`, `docs/deletion/erasure-by-constant.html` (inline SVG) | hand-written | `architecture.md` §7 and any ADR on student deletion |

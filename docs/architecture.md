@@ -2023,7 +2023,7 @@ sequenceDiagram
             CD-->>API: LinkedSkater (private constructor)
             API->>CD: repository write - takes a LinkedSkater, no String overload
             CD->>DB: write into the coach's partition - the client-tenant role<br/>confines it to that coach (ADR-022 d8)
-        else linked, but removed, declined or still pending
+        else linked, but declined or still pending (removed: Phase 2)
             CD-->>API: not ACTIVE - an ordinary application event
             API-->>F: 409 "Mia's lessons are no longer available to book.<br/>Contact Coach Dana."
         else never this family's

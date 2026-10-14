@@ -87,8 +87,8 @@ to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
 - **l. Shared-lesson invitations name their coach** on every family page (home banner,
   invitations card, invitation page). The invitation emails already did.
 - **m. Payments (Phase 2) are grouped by coach**, never totalled across coaches (as d7 says).
-- **n. Removing a skater from one coach or from all** stays deferred with the "delete a
-  student" question (blocker #17).
+- **n. Removing a skater from one coach or from all** is Phase 2, with the rest of the
+  "delete a student" question (blocker #17) *(owner, 2026-10-13)*.
 - **o. My bookings has a coach filter** *(owner, 2026-10-13)*: a Coach dropdown beside the
   skater filter, "All coaches" by default, listing only coaches with upcoming lessons. The two
   filters combine.
@@ -292,7 +292,7 @@ lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 
 - **Double-booking a skater across coaches is possible**, and warned about.
 - **New screens on both sites**: adding a coach, the coach switcher, cross-coach lessons and
   payments (payments Phase 2, item m), and *"Also coached by"* on the coach's skater record (*Phase 2*).
-- **Knock-ons recorded elsewhere:** "remove a student" (blocker #17) is now per coach; erasure
+- **Knock-ons recorded elsewhere:** "remove a student" (blocker #17) is now per coach, and Phase 2 since 2026-10-13; erasure
   on request must reach every coach a skater had; staging's subset brings in all of a family's
   coaches (ADR-011 decision 8a).
 
@@ -319,10 +319,10 @@ lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 
 - **Designs for the new screens** (decision 7), for about 10 coaches. *Booking and the
   profile's coaches designed 2026-10-13*, then sign-up, Home and the waiting pages the same
   day. Payments (Phase 2) is still to do; per-coach removal
-  is deferred (n). *"Also coached by"* on the coach side is Phase 2.
+  is Phase 2 (n). *"Also coached by"* on the coach side is Phase 2.
 - **What the family sees when one coach removes their skater** while another coach keeps them.
   Part of blocker #17. *2026-10-13: the other coaches' lessons aren't affected (g); what the
-  family sees is still open.*
+  family sees is still open, and Phase 2 with the rest of removal (n).*
 
 ---
 

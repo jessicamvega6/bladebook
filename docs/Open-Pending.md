@@ -76,8 +76,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
     a Coach dropdown beside the skater filter, "All coaches" by default; designed (ADR-025 o).
   - **To-do (Phase 2): group the Payments page by coach**, with no total across coaches
     (ADR-025 m). Today's Phase 2 design adds every coach together.
-  - *Deferred by the owner, 2026-10-13:* removing a skater from one coach or from all — part of
-    the "delete a student" question (§8).
+  - *Phase 2 (owner, 2026-10-13):* removing a skater from one coach or from all — part of
+    the "delete a student" question (§8), which is Phase 2.
 - ~~**Pending decision — needs Kim (§10): Is there a limit on coaches per skater?**~~
   **Settled by the owner, 2026-10-07: no limit.** A skater signs up with 1 to 10 coaches and adds
   more later as needed. (ADR-025)
@@ -494,13 +494,15 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
 - ~~Open question: Should a `PENDING` family see their coach's availability at all?~~
   **Settled by the owner, 2026-10-01: no.** A pending family sees only their own account; the
   database refuses their reads of the coach's partition. (ADR-022 d6, ADR-002)
-- **Open question: What does "delete a student/client" from the coach's student list mean?**
+- *Phase 2 since 2026-10-13 (owner): removing a student.* **Open question (Phase 2): What does "delete a student/client" from the coach's student list mean?**
   Going forward or retroactive? Can the client still book? What does the client see? Also
   covers what happens to a client account left empty by a rejection. *Deferred by the
   owner, 2026-09-30.* *Narrowed 2026-10-13 by the owner:* removal is per coach, and a coach
   removing a skater doesn't affect the skater's lessons with other coaches (ADR-025 g). *2026-10-13:* the family
-  profile has no Remove button until this is decided.
-  (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002)
+  profile has no Remove button. *Moved to Phase 2 by the owner, 2026-10-13:* every way of
+  removing a student — from the coach's student list, from one coach or from all coaches — is
+  Phase 2, so MVP has no Remove button on either website and this no longer blocks coding.
+  (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002, ADR-025 n)
 - **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
   days, unselectively — Point-in-Time Recovery. (ADR-017, ~~`design/deletion/`~~ `docs/deletion/`) *Added
