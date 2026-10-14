@@ -220,6 +220,9 @@ flowchart LR
 *Updated 2026-10-13 for ADR-031 (lessons and seats).*
 *Updated 2026-10-13 for the ADR-031 revision.*
 
+**The whole model at a glance.** Boxes and relationships only; each group's fields are in the
+smaller diagrams below.
+
 ```mermaid
 erDiagram
     COACH ||--|| SCHEDULE_DEFAULT : "publishes"
@@ -239,8 +242,7 @@ erDiagram
     COACH ||--o{ LESSON_TIME : "stores, made from the schedule (ADR-031 d1)"
     LESSON_TIME ||--o{ SEAT : "has one per skater; none when HELD"
     STUDENT ||--o{ SEAT : "holds"
-    CLIENT ||--o{ SEAT : "books, or is invited to (GSI1)"
-    CLIENT ||--o{ SEAT : "invites, owning it until accepted (invitedByClientId)"
+    CLIENT ||--o{ SEAT : "books, is invited to (GSI1), or invites and owns until accepted"
     STUDENT ||--o{ RECURRENCE : "may hold"
     RECURRENCE ||--o{ SEAT : "describes (via recurrenceId)"
     SEAT ||--o| CANCELLED_LESSON : "moves to when cancelled"
@@ -248,6 +250,17 @@ erDiagram
     CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
     CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
     CHANGE_BATCH }o--o{ LESSON_TIME : "adds, removes, cancels, re-prices"
+```
+
+**Coach and schedule**
+
+```mermaid
+erDiagram
+    COACH ||--|| SCHEDULE_DEFAULT : "publishes"
+    COACH ||--o{ SCHEDULE_TEMP : "may declare"
+    SCHEDULE_TEMP ||--o{ DATE_OVERRIDE : "expands into"
+    COACH ||--o{ DATE_OVERRIDE : "may override dates with"
+    COACH ||--|| COACH_CODE : "is found by (ADR-022 d7)"
 
     COACH {
         string coachId "Cognito sub"
@@ -292,6 +305,26 @@ erDiagram
         list   blocks "empty = no lessons that day"
         number expiresAt "TTL, ADR-017"
     }
+    COACH_CODE {
+        string coachCode "the code a family types, item key"
+        string coachId
+        string coachFirstName
+        string coachLastName
+        string profilePhotoKey
+    }
+```
+
+**Families and skaters**
+
+```mermaid
+erDiagram
+    CLIENT ||--o{ SKATER : "registers"
+    SKATER ||--o{ STUDENT : "one per coach (ADR-025)"
+    SKATER ||--|| SKATER_CODE : "shared by"
+    CLIENT ||--o{ CLIENT_STUDENT_LINK : "sees each coach through"
+    CLIENT_STUDENT_LINK }o--|| STUDENT : "mirrors (ADR-021 d6)"
+    CLIENT ||--o{ STUDENT : "books and is billed for"
+
     CLIENT {
         string clientId "Cognito sub"
         string clientName
@@ -299,6 +332,20 @@ erDiagram
         string clientPhone
         enum   clientRelationship "SELF|GUARDIAN"
         bool   smsOptIn "Phase 2; ADR-007"
+    }
+    SKATER {
+        string studentId "one ID across every coach"
+        string studentName
+        bool   isMinor
+        enum   clientRelationship "SELF|GUARDIAN"
+        enum   skatingOrg "USFS|USA_HOCKEY; ADR-029"
+        string registrationNumber "cleaned-up form; ADR-029"
+        string shareCode "never changes, ADR-026 d4 (amended 2026-10-13)"
+    }
+    SKATER_CODE {
+        string code
+        string studentId
+        string displayName "first name, last initial"
     }
     STUDENT {
         string studentId
@@ -316,20 +363,23 @@ erDiagram
         int    priceMinorOverride "optional; Phase 2"
         list   otherCoaches "Phase 2; ADR-025 d4"
     }
-    SKATER {
-        string studentId "one ID across every coach"
-        string studentName
-        bool   isMinor
-        enum   clientRelationship "SELF|GUARDIAN"
-        enum   skatingOrg "USFS|USA_HOCKEY; ADR-029"
-        string registrationNumber "cleaned-up form; ADR-029"
-        string shareCode "never changes, ADR-026 d4 (amended 2026-10-13)"
+    CLIENT_STUDENT_LINK {
+        string studentName "mirrored from STUDENT"
+        enum   studentStatus "mirrored from STUDENT"
+        int    priceMinorOverride "mirrored from STUDENT; Phase 2"
+        string coachFirstName "copied from COACH_CODE at registration"
+        string coachLastName "copied from COACH_CODE at registration"
     }
-    SKATER_CODE {
-        string code
-        string studentId
-        string displayName "first name, last initial"
-    }
+```
+
+**Lesson times and seats**
+
+```mermaid
+erDiagram
+    LESSON_TIME ||--o{ SEAT : "has one per skater; none when HELD"
+    RECURRENCE ||--o{ SEAT : "describes (via recurrenceId)"
+    SEAT ||--o| SEAT_END : "moves to when declined, withdrawn or expired"
+
     LESSON_TIME {
         date   lessonDate
         time   startTime
@@ -412,6 +462,15 @@ erDiagram
         enum   recurrenceStatus "ACTIVE|ENDED; never deleted, ADR-006 d4b"
         number expiresAt "TTL, ADR-017"
     }
+```
+
+**Schedule changes and cancellations**
+
+```mermaid
+erDiagram
+    CHANGE_BATCH ||--o{ CANCELLED_LESSON : contains
+    CHANGE_BATCH ||--o{ REPRICED_LESSON : contains
+
     CHANGE_BATCH {
         string batchId
         enum   cancelledBy "CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable"
@@ -470,20 +529,6 @@ erDiagram
         list   channels
         string failureReason
         number expiresAt "TTL, ADR-017"
-    }
-    CLIENT_STUDENT_LINK {
-        string studentName "mirrored from STUDENT"
-        enum   studentStatus "mirrored from STUDENT"
-        int    priceMinorOverride "mirrored from STUDENT; Phase 2"
-        string coachFirstName "copied from COACH_CODE at registration"
-        string coachLastName "copied from COACH_CODE at registration"
-    }
-    COACH_CODE {
-        string coachCode "the code a family types, item key"
-        string coachId
-        string coachFirstName
-        string coachLastName
-        string profilePhotoKey
     }
 ```
 
