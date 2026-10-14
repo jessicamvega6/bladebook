@@ -381,7 +381,7 @@ flowchart LR
     end
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
-        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email to families,&lt;br/&gt;and the coach&#x27;s morning email&quot;]
         L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
@@ -421,7 +421,7 @@ flowchart LR
     end
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
-        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email&quot;]
+        L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email to families,&lt;br/&gt;and the coach&#x27;s morning email&quot;]
         L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
@@ -550,6 +550,7 @@ erDiagram
         string paypalHandle &quot;optional&quot;
         bool   acceptsCash &quot;default false; adds Cash to how-paid, ADR-016 d7&quot;
         string themeId &quot;Phase 2; Harbor for MVP&quot;
+        date   morningEmailSentOn &quot;morning email idempotency guard, ADR-023&quot;
     }
     SCHEDULE_DEFAULT {
         string scheduleName &quot;optional label&quot;
@@ -610,6 +611,7 @@ erDiagram
         string paypalHandle &quot;optional&quot;
         bool   acceptsCash &quot;default false; adds Cash to how-paid, ADR-016 d7&quot;
         string themeId &quot;Phase 2; Harbor for MVP&quot;
+        date   morningEmailSentOn &quot;morning email idempotency guard, ADR-023&quot;
     }
     SCHEDULE_DEFAULT {
         string scheduleName &quot;optional label&quot;
@@ -1213,7 +1215,6 @@ sequenceDiagram
           <span class="ttl">6.2 Day-of reminders</span>
           <span class="kind">Sequence</span>
         </figcaption>
-        <p class="cap">Only BOOKED, CHECKED_IN and NO_SHOW seats are on GSI2: a seat gets its GSI2 keys only when it becomes BOOKED (ADR-031 d14). A pending leave on the lesson time is always settled before the lesson day, because its answer-by is no later than the start of the…</p>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
@@ -1227,6 +1228,12 @@ sequenceDiagram
         R-&gt;&gt;R: skip if remindedOn == target date
         R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
         R-&gt;&gt;DB: set remindedOn = target date on the seat
+    end
+    loop each coach with seats that day (ADR-023, amended 2026-10-13)
+        R-&gt;&gt;DB: GetItem the coach&#x27;s profile
+        R-&gt;&gt;R: skip if morningEmailSentOn == target date
+        R-&gt;&gt;N: morning email to the coach - the rinkside link first,&lt;br/&gt;then the day&#x27;s lessons
+        R-&gt;&gt;DB: set morningEmailSentOn = target date on the coach&#x27;s profile
     end</pre>
         </div>
         <details>
@@ -1242,6 +1249,12 @@ sequenceDiagram
         R-&gt;&gt;R: skip if remindedOn == target date
         R-&gt;&gt;N: email (SMS is Phase 2, ADR-007)
         R-&gt;&gt;DB: set remindedOn = target date on the seat
+    end
+    loop each coach with seats that day (ADR-023, amended 2026-10-13)
+        R-&gt;&gt;DB: GetItem the coach&#x27;s profile
+        R-&gt;&gt;R: skip if morningEmailSentOn == target date
+        R-&gt;&gt;N: morning email to the coach - the rinkside link first,&lt;br/&gt;then the day&#x27;s lessons
+        R-&gt;&gt;DB: set morningEmailSentOn = target date on the coach&#x27;s profile
     end</code></pre>
         </details>
       </figure>

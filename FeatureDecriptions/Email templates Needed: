@@ -64,6 +64,8 @@ Shared lesson no longer available — to Family B, when the coach accepts their 
   (ADR-026)
 
 To the coach:
+Morning email — to the coach, around 7 AM on days with lessons: the rinkside link first, then today's lessons. Sent by the
+  day-of reminder job; the on/off switch is Phase 2. (ADR-023, 2026-10-13)
 Lessons that passed before they could be cancelled — to the coach, when a stuck schedule change finishes after some of
   its lessons' times: "These lessons were due to be cancelled, but their time passed before the cancellation could be
   applied." The coach can waive them and contact the families. (ADR-010)
@@ -88,10 +90,11 @@ Cancellation reasons — separate "Cancelled by the coach" versions the coach pi
   (ADR-009, cancelation.md)
 
 Mentioned but not decided:
-Morning email to the coach with a link to the rinkside app. ADR-023 asks whether this is how a coach reaches rinkside;
-  no morning email is defined anywhere else.
-A daily email to the coach listing the lessons scheduled, which the coach can switch on and off. Kim's idea
-  (Talking with Kim), not picked up by any ADR. It may be the same as the morning email.
+~~Morning email to the coach with a link to the rinkside app. ADR-023 asks whether this is how a coach reaches rinkside;
+  no morning email is defined anywhere else.~~
+~~A daily email to the coach listing the lessons scheduled, which the coach can switch on and off. Kim's idea
+  (Talking with Kim), not picked up by any ADR. It may be the same as the morning email.~~
+*Decided 2026-10-13 by the owner (ADR-023): these are one email, now listed under "To the coach".*
 *Added 2026-10-13 (ADR-031):*
 Kept at full price — a confirmation to the family who stays when they keep one date, or choose "Keep all remaining
   dates". ADR-031 names an email only for "Cancel all remaining dates", so whether keeping sends one is undecided.

@@ -726,6 +726,11 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
 .bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }
 
+/* Today: the large rinkside link (ADR-023, amended 2026-10-13) */
+.bb .rink-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
+.bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.bb .rink-cta__text b { font-size: 17px; }
+
 /* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
 .bb .cal-scroll { overflow-x: auto; }
 .bb .cal-scroll .week { min-width: 860px; }

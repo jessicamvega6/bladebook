@@ -184,6 +184,7 @@ SCREENS.today = () => {
   const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since) + (kids.some(k => k.invitedBy) ? ` · invited by ${esc(kids.find(k => k.invitedBy).invitedBy)} to share a lesson` : '');
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
+    ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
     ${waiting.map(inv => { const z = student(inv.skater), host = student(inv.fromSkater);
       return banner('warning', `A shared lesson on ${inviteWhen(inv)} is waiting for you to accept ${esc(z.name.split(' ')[0])}`,
         `${esc(z.client)} accepted ${esc(inv.from)}’s invitation for ${esc(z.name)} to join ${esc(shortName(host.name))}’s lesson. If you don’t accept ${esc(z.name.split(' ')[0])} before it starts, it goes ahead as a private lesson. <a class="link" href="${href('pending')}">Review sign-ups</a>`); }).join('')}
@@ -218,6 +219,6 @@ PRESETS.push(
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm.', setup: st => { st.screen = 'signup'; st.auth.signup = 3; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve (Tom Okafor was invited to share a lesson), the warning for a shared lesson waiting on the coach (ADR-026 d5a), and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve (Tom Okafor was invited to share a lesson), the warning for a shared lesson waiting on the coach (ADR-026 d5a), and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
 );
 

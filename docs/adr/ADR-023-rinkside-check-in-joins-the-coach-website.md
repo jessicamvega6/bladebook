@@ -33,6 +33,19 @@ expected to add the rinkside page to the home screen**. Decision 1's *"Add to Ho
 works"* is withdrawn as a design assumption: the page is built and tested as an ordinary
 browser tab. A manifest may stay, but nothing may depend on it. The iPhone home-screen storage
 check (Open) is dropped, and a browser-tab consequence is added (Open).
+
+**Amended — 2026-10-13.** *Decided by the owner.* **The coach reaches the rinkside page two
+ways**, and neither needs a home-screen icon or a bookmark:
+
+- **A large link at the top of the coach website's Today page** (the dashboard), above the
+  day's numbers.
+- **A link at the top of a new morning email to the coach.** The ~7:00am day-of reminder job,
+  which already reads every seat booked for the day, also sends each coach with lessons that
+  day one email listing them, with the rinkside link first. No new function or schedule. The
+  link is a plain address with no sign-in token in it; the page asks the coach to sign in as
+  usual. A coach with no lessons that day gets no email. MVP has no off switch; turning it off
+  arrives with the email templates page in Phase 2. This adopts Kim's "daily email about
+  lessons scheduled" (`docs/Talking with Kim:.md.md`).
 ---
 
 ## Context
@@ -255,8 +268,10 @@ it, and a refreshed token keeps its original `auth_time`.
   owner:** offline capture stays and the gap is guarded. If the page opens with signal and its
   offline copy is gone, it says so and reloads it; queued entries are sent as soon as there is
   signal. See [ADR-014](ADR-014-check-in-app-and-offline-capture.md)'s amendment of 2026-10-13.
-- **How the coach gets to the rinkside page** without a home-screen icon: a link in the
-  morning email, a large link on the coach website's home page, a bookmark. *Added 2026-10-12.*
+- ~~**How the coach gets to the rinkside page** without a home-screen icon: a link in the
+  morning email, a large link on the coach website's home page, a bookmark. *Added 2026-10-12.*~~
+  *Settled 2026-10-13 by the owner:* a large link on the Today page and a link in a new
+  morning email to the coach (see the amendment of 2026-10-13).
 
 ---
 

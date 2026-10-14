@@ -399,8 +399,11 @@ the home screen: BladeBook's users are older (ADR-023, amended).*
   2026-10-13:* keep offline capture and guard the gap. The page says so and reloads its copy
   when it opens with signal after being cleared; queued entries are sent as soon as there is
   signal (ADR-014, amended 2026-10-13).
-- **Open question: How does the coach get to the rinkside page** without an icon: a link in
-  the morning email, a link on the coach website's home page, a bookmark? (ADR-023 Open)
+- ~~**Open question: How does the coach get to the rinkside page** without an icon: a link in
+  the morning email, a link on the coach website's home page, a bookmark?~~ *Settled 2026-10-13
+  by the owner:* a large link at the top of the coach website's Today page, and a link at the
+  top of a new morning email to the coach listing the day's lessons, sent by the ~7:00am
+  day-of reminder job. (ADR-023, amended 2026-10-13)
 
 ## 7. Notifications and SMS
 

@@ -174,7 +174,7 @@ after confirmation; for the daily report it re-runs each message's date. It refu
 ### 3. `Booking.remindedOn` — the day-of reminder guard
 
 *Decided by the owner, 2026-08-28.* The guard is keyed on **(booking, date)**, not on the
-booking alone. *ADR-031 decision 2 (2026-10-13): `remindedOn` now sits on each seat.*
+booking alone. *ADR-031 decision 2 (2026-10-13): `remindedOn` now sits on each seat.* *Amended 2026-10-13 (ADR-023): the same run stamps `morningEmailSentOn` on the coach's profile, keyed on (coach, date), so a retry never sends the coach's morning email twice.*
 
 The other guards are booleans on an item because their event happens once in a booking's
 life. This one runs per date across every coach, so the reminder job reads `remindedOn`,

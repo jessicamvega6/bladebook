@@ -5,6 +5,7 @@ Shows the lessons for that day.
 *Design (today.html):* each lesson today with its time, skater, length, price and attendance; the next one is marked
 "Next". A held slot shows as "Held slot, not bookable". A note says attendance comes from the rinkside app and mistakes
 are fixed on Lessons. Links to the day and week views.
+*Design (today.html, 2026-10-13):* a "Heading to the rink?" card under the greeting, with a large "Open the rinkside app" button (ADR-023).
 Figures across the top: this week's lessons and amount booked, unpaid total for past lessons, skaters waiting for approval.
 When families are waiting, a "New families to approve" card lists them with a "Review sign-ups" button.
 

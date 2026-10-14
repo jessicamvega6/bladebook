@@ -190,7 +190,7 @@ flowchart LR
     end
 
     subgraph OnSchedule["Run on a schedule"]
-        L_Remind["λ Day-of reminder<br/>table read/write · email"]
+        L_Remind["λ Day-of reminder<br/>table read/write · email to families,<br/>and the coach's morning email"]
         L_Report["λ End-of-day report<br/>reads table · email · S3 reports bucket"]
         L_Unpaid["λ Unpaid-lesson reminder (weekly, to the coach)<br/>table read/write · email"]
         L_Drift["λ Nightly drift check<br/>reads table · operator alert topic"]
@@ -286,6 +286,7 @@ erDiagram
         string paypalHandle "optional"
         bool   acceptsCash "default false; adds Cash to how-paid, ADR-016 d7"
         string themeId "Phase 2; Harbor for MVP"
+        date   morningEmailSentOn "morning email idempotency guard, ADR-023"
     }
     SCHEDULE_DEFAULT {
         string scheduleName "optional label"
@@ -662,7 +663,7 @@ reserved, which is why each carries a prefix.
 
 | Entity | PK | SK | Notable attributes |
 |---|---|---|---|
-| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24, editable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, cashapp/venmo/paypal handles, **acceptsCash / acceptsCashapp / acceptsVenmo / acceptsPaypal** (one switch per payment type, ADR-016 d7, 2026-10-12), themeId *(Phase 2)* (ADR-016) |
+| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24, editable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, cashapp/venmo/paypal handles, **acceptsCash / acceptsCashapp / acceptsVenmo / acceptsPaypal** (one switch per payment type, ADR-016 d7, 2026-10-12), **morningEmailSentOn** (the date the coach's morning email went out; retry guard, ADR-023, 2026-10-13), themeId *(Phase 2)* (ADR-016) |
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `scheduleName` (optional), `days` — weekday → ordered blocks, **scheduleVersion** (goes up on every save, default or temporary; each lesson time records the version that made it — ADR-031 d14) |
 | Temp schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName` (optional), `startDate`, `endDate` |
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `tempId`, `blocks` — empty list means no lessons that day |
@@ -873,7 +874,18 @@ sequenceDiagram
         R->>N: email (SMS is Phase 2, ADR-007)
         R->>DB: set remindedOn = target date on the seat
     end
+    loop each coach with seats that day (ADR-023, amended 2026-10-13)
+        R->>DB: GetItem the coach's profile
+        R->>R: skip if morningEmailSentOn == target date
+        R->>N: morning email to the coach - the rinkside link first,<br/>then the day's lessons
+        R->>DB: set morningEmailSentOn = target date on the coach's profile
+    end
 ```
+
+*Added 2026-10-13 (ADR-023):* the same run also sends each coach with lessons that day **one
+morning email** listing them, with the rinkside link first. It is marked as sent on the coach's
+profile (`morningEmailSentOn`), the way `remindedOn` marks a seat, so a retry never sends it
+twice.
 
 Only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats are on GSI2: a seat gets its GSI2 keys only
 when it becomes `BOOKED` (ADR-031 d14). A pending leave on the lesson time is always settled
@@ -2330,7 +2342,7 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 
 | Job | Trigger | What it does |
 |---|---|---|
-| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today` on GSI2, notify each seat's client by email (SMS is Phase 2). |
+| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today` on GSI2, notify each seat's client by email (SMS is Phase 2). *Since 2026-10-13 (ADR-023):* also email each coach with lessons that day one list of them, with the rinkside link first; no lessons, no email. |
 | End-of-day report | EventBridge Scheduler, ~9:00pm | Query `DATE#today` on GSI2, split the seats into checked-in, no-show and pending (§6.4), archive to S3 (writes nothing to the table), email the coach. |
 | Unpaid-lesson reminder | EventBridge Scheduler, weekly (Monday morning, proposed) | Scan GSI3 for seats still unpaid longer than the threshold, email each coach one list asking them to mark each paid or waived, stamp `settleReminderSentOn` so each lesson is listed once. **Off until the threshold is set** (ADR-018). |
 | Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for lesson times that don't match the current schedule. **Read-only**: pages for a batch stuck over an hour or a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
@@ -2438,7 +2450,7 @@ delivery confirmation needs SES event destinations and is not in MVP.
 | 8 | **Client cancellation** — per-lesson cancel with confirmation, plus recurrence management (move the end date earlier, reduce the frequency, or cancel all future lessons; while a series is shared, only cancel one lesson or cancel the series) | ADR-009, ADR-031 d9 |
 | 9 | **Coach week view** — the week by timeslot, showing *Open*, the student's name, or a held lesson time | ADR-009, ADR-031 |
 | 10 | **Coach cancellation** — one lesson, one day, or one week, from the week view or the rinkside check-in page, choosing release-or-hold per lesson | ADR-009 |
-| 11 | Day-of email reminders | §6.2 |
+| 11 | Day-of email reminders to families, and the coach's morning email with the rinkside link (ADR-023, 2026-10-13) | §6.2 |
 | 12 | **Attendance on the rinkside check-in page**, a mobile-first section of the coach website at `/coach/rinkside` (ADR-023) — check-in *and* no-show, recorded rinkside on a phone, capturing offline and replaying when signal returns; guardian contact details on a tap, only with signal and never cached (ADR-014 d9b); lesson cancellation. Same sign-in as the coach website; routes in `api-coach` | §6.3, ADR-014, ADR-023 |
 | 13 | **Payments surface**: price and currency on each lesson time, plus a **coach payment dashboard** — lessons in a required date range, mark as paid with **how the client paid** (the payment types on the coach's profile, including Cash if the coach turned it on, plus *Other*; no free text; optional, editable, seen only by the coach), **mark as waived**, filter by unpaid — plus a **coach lesson list** over the same date range where attendance can be corrected to attended or no-show | ADR-003, ADR-014 |
 | 14 | End-of-day report email to coach | §6.4 |
