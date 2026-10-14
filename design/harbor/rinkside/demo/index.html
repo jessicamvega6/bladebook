@@ -1012,14 +1012,14 @@ add('Family · Booking', 'Confirmation', '4 · Result', 1280, () => familyApp('B
 const famHelp = help('How signing up works', 'Your coach gives you a code. You create an account, add the skater (you or your child), and your coach approves them. Booking opens as soon as they do — usually within a day.');
 add('Family · Sign up', 'ClientCodeEmpty', '1a · Coach code — empty', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
-  ${field('Coach code', 'e.g. ABCD-1234', { placeholder: true, focus: true, mono: true, hint: 'It links your account to your coach’s lessons.' })}
+  ${field('Coach code', 'e.g. K7QM-4X9T', { placeholder: true, focus: true, mono: true, hint: 'It links your account to your coach’s lessons.' })}
   <div class="empty-coach">${ic('user', 20)}<span>Your coach will appear here so you can check it’s the right one.</span></div>
   ${btn('Continue', 'primary', { block: true, lg: true, disabled: true })}
   <p class="fine center">No code? Ask your coach — every coach has their own.</p>`), famHelp), 'One font, one primary action, one help panel. The disabled button tells you what’s missing instead of a separate warning line.');
 
 add('Family · Sign up', 'ClientCode', '1b · Coach code — found', 1280, () => wizard('Family sign up', FAM_STEPS, 0, card(`
   <h1 class="h1">Join your coach on BladeBook</h1><p class="lede">Enter the code your coach gave you.</p>
-  ${field('Coach code', 'DANA-7K2Q', { mono: true, ok: true })}
+  ${field('Coach code', '7K2Q-M9XT', { mono: true, ok: true })}
   <div class="found">${avatar('DW', 'lg')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub">Pelham Civic Center · Figure skating</div></div>${badge('Code found', 'success', 'check')}</div>
   ${btn('Continue with Dana', 'primary', { block: true, lg: true, iconR: 'arrowR' })}
   <p class="fine center">Wrong coach? Check the code with them.</p>`), famHelp), 'Confirmation of the coach is a clear identity card; the button names who you’re continuing with.');
@@ -1033,7 +1033,7 @@ add('Family · Sign up', 'ClientDetails', '2 · Your details', 1280, () => wizar
   <div class="fieldset"><div class="label">Who are the lessons for?</div>${seg(['Me', 'My child (parent)', 'My child (guardian)'], 1, { block: true })}<div class="hint">You’ll add your child on step 4.</div></div>
   ${check('Text me reminders too', true, 'Email reminders always go out. Texts arrive the morning of a lesson. Msg & data rates may apply; reply STOP to stop.')}
   ${actions(btn('Back', 'ghost', { icon: 'arrowL' }), btn('Create account', 'primary', { lg: true }))}`),
-  `<div class="stack">${card(`${eyebrow('Signing up with')}<div class="found found--plain">${avatar('DW')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub mono">DANA-7K2Q</div></div></div>`)}${help('Signing up for your child?', 'Sign up as yourself. You add your child as a skater on the next step.')}</div>`),
+  `<div class="stack">${card(`${eyebrow('Signing up with')}<div class="found found--plain">${avatar('DW')}<div><div class="found__name">Coach Dana Whitfield</div><div class="found__sub mono">7K2Q-M9XT</div></div></div>`)}${help('Signing up for your child?', 'Sign up as yourself. You add your child as a skater on the next step.')}</div>`),
   'Name and phone share a row, password rules tick off live, and the “who is it for” choice is one segmented control instead of three stacked buttons.');
 
 const verify = (ctx, steps, idx, email, extra, aside) => wizard(ctx, steps, idx, card(`
@@ -1156,7 +1156,7 @@ const bizHelp = help('Why a business email?', 'It’s the only address families 
 add('Coach · Sign up', 'CoachBusiness', '3 · Business details — different email', 1280, () => wizard('Coach sign up', COACH_STEPS, 2, bizForm(false), bizHelp), 'The same-vs-different email choice is an explicit toggle up front, so the confirmation step that follows is expected.');
 add('Coach · Sign up', 'CoachBusinessSame', '3 · Business details — same email', 1280, () => wizard('Coach sign up', COACH_STEPS, 2, bizForm(true), bizHelp), 'Same layout, with a verified badge — and the button changes to “Finish setup” because step 4 is skipped.');
 
-const codeCard = () => `<div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">DANA-7K2Q</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>${btn('Copy', 'secondary', { icon: 'copy' })}</div>`;
+const codeCard = () => `<div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">7K2Q-M9XT</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>${btn('Copy', 'secondary', { icon: 'copy' })}</div>`;
 add('Coach · Sign up', 'CoachConfirm', '4 · Confirm business email', 1280, () => wizard('Coach sign up', COACH_STEPS, 3, card(`
   <div class="mailicon">${ic('mail', 26)}</div>
   <h1 class="h1 center">Confirm your business email</h1><p class="lede center">We sent a link (not a code) to<br><b>lessons@danawhitfieldskating.com</b></p>
@@ -1457,19 +1457,19 @@ const specialOn = iso => SPECIALS.find(s => iso >= s.sd && iso <= s.ed);
 
 function freshStudents() {
   return [
-    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7Q' },
-    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOAH-9WD2' },
-    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELLA-3HTV' },
-    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZB' },
-    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXM' },
-    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRIYA-7CJ4' },
-    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWEN-5NFK' },
-    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQW' },
-    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JACK-4MVD' },
-    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLIV-9KRB' },
+    { id: 's1', name: 'Mia Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 0, orgNum: '3318102', since: '2025-09-02', shareCode: 'MIA-4K7QX' },
+    { id: 's2', name: 'Noah Chen', minor: true, rel: 'Guardian', client: 'Grace Chen', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, status: 'ACTIVE', org: 1, orgNum: '2027KQ4815MX3T', since: '2025-09-02', shareCode: 'NOA-9WD2K' },
+    { id: 's3', name: 'Ella Alvarez', minor: true, rel: 'Guardian', client: 'Marco Alvarez', email: 'm.alvarez@example.com', phone: '(205) 555-0134', sms: false, status: 'ACTIVE', since: '2026-01-10', shareCode: 'ELL-3HTVP' },
+    { id: 's4', name: 'Sam Rivera', minor: true, rel: 'Guardian', client: 'Dee Rivera', email: 'dee.rivera@example.com', phone: '(205) 555-0172', sms: true, status: 'ACTIVE', since: '2024-10-01', shareCode: 'SAM-6RZBQ' },
+    { id: 's5', name: 'Leo Martin', minor: true, rel: 'Guardian', client: 'Kate Martin', email: 'kate.martin@example.com', phone: '(205) 555-0188', sms: false, status: 'ACTIVE', since: '2026-03-15', shareCode: 'LEO-2PXMA' },
+    { id: 's6', name: 'Priya Rao', minor: false, rel: 'Self', client: 'Priya Rao', email: 'priya.rao@example.com', phone: '(205) 555-0145', sms: true, status: 'ACTIVE', since: '2025-11-20', shareCode: 'PRI-7CJ4H' },
+    { id: 's7', name: 'Owen Brooks', minor: false, rel: 'Self', client: 'Owen Brooks', email: 'owen.b@example.com', phone: '(205) 555-0161', sms: false, status: 'ACTIVE', since: '2026-08-04', shareCode: 'OWE-6NFKZ' },
+    { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQWD' },
+    { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JAC-4MVDN' },
+    { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLI-9KRBT' },
     // Zoe skates with another coach. Grace invited her to share Mia's Friday lesson; Tom confirmed, so Zoe now waits for
     // Coach Dana like any sign-up, and joins the lesson when Dana approves her (pendingJoins, ADR-026 d5).
-    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3P',
+    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3PW',
       pendingJoins: [{ iso: '2026-10-16', t: 510, invite: 'i2' }], invitedBy: 'Grace Chen' },
   ];
 }
@@ -1562,7 +1562,7 @@ const PAID_BY_LABEL = { CASH: 'Cash', VENMO: 'Venmo', CASHAPP: 'Cash App', PAYPA
 function freshProfile() {
   return {
     first: 'Dana', last: 'Whitfield', loginEmail: 'dana.whitfield@gmail.com', businessEmail: 'lessons@danawhitfieldskating.com',
-    phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: 'DANA-7K2Q', photo: true,
+    phone: '(205) 555-0142', tz: 'Central — Chicago', currency: 'USD', notice: 24, code: '7K2Q-M9XT', photo: true,
     showPhone: true, showEmail: true, smsCancel: false,
     instructions: 'Venmo @dana-skates, or cash at the rink. Please pay within a week of the lesson.',
     venmo: '@dana-skates', cashapp: '$danaskates', paypal: '',   // handles; a handle is kept when its type is switched off

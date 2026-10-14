@@ -1514,7 +1514,7 @@ sequenceDiagram
     participant SES as SES
     participant B as Family B (web)
     participant AC as api-coach λ
-    A->>API: look up skater code MIA-4K7Q (only on a time with maxSkaters ≥ 2)
+    A->>API: look up skater code MIA-4K7QX (only on a time with maxSkaters ≥ 2)
     API->>DB: GetItem SKATERCODE#35;<shareCode> - studentId and display name
     API-->>A: "Mia R." - the display name only (ADR-026 d4)
     A->>API: book with the share code (§6.1)

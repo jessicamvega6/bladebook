@@ -95,6 +95,16 @@ doesn't.
 "a family can issue a new code" is withdrawn: a skater keeps one share code for good, and the
 family profile shows it with Copy only.
 
+**Amended — 2026-10-13.** *Decided by the owner.* **The share code's shape** (decision 4). The
+first **3 letters of the skater's first name**, a dash, then **5 random characters** from the
+coach code's look-alike-free set ([ADR-002](ADR-002-client-registration.md), amended
+2026-10-13): `MIA-4K7QX`. Names are uppercased with accents dropped (Zoë → `ZOE`) and letters
+outside A–Z skipped; a first name shorter than 3 letters is filled from the last name (Bo Li →
+`BOL`). Only the random part avoids look-alikes; the name letters can be any letter. A skater
+renamed later keeps their code, old letters included. Typing ignores case and the dash. Each
+three-letter start has about 17.2 million possible codes, so at the lookup's rate limit guessing
+a skater takes millions of tries, years from one address, and a hit returns only a display name.
+
 **Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. The invitation's text pointing to the email waits for
 it; in MVP the invited family gets the email only.
 
@@ -237,7 +247,7 @@ confirmed at the same moment.
 
 ### 4. A skater is invited with a share code
 
-**Every skater gets a short share code**, for example `MIA-4K7Q`, shown on their profile in the
+**Every skater gets a short share code**, for example `MIA-4K7QX`, shown on their profile in the
 family website. A family gives it to the family they want to share with, the same way a coach
 gives out their coach code.
 
@@ -256,7 +266,8 @@ gives out their coach code.
 - ~~**A family can issue a new code** for a skater, which retires the old one.~~ *Withdrawn
   2026-10-13 by the owner:* a skater's share code never changes; there is no way to refresh it.
 
-Code length and alphabet follow the coach-code decision (blocker #7), so they're settled once.
+*Settled 2026-10-13 (amendment above):* the first 3 letters of the skater's first name and 5 random
+characters from the coach code's character set, `MIA-4K7QX`.
 
 ### 5. The invitation flow
 

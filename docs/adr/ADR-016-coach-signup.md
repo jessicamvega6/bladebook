@@ -334,13 +334,16 @@ consumer: make the second attempt finish the first rather than undo it.
 
 ## Open
 
-- **Rate-limiting the `coachCode` lookup.** Client Sign Up validates on focus-out at five
+- ~~**Rate-limiting the `coachCode` lookup.** Client Sign Up validates on focus-out at five
   characters and returns a coach's name and photo. Five characters is an enumerable
   keyspace, so without a throttle this harvests coach names and photos. **Severity is lower
   than it first appears** — ADR-002 already treats the code as a shared secret rather than a
   credential, and `PENDING` means an enumerated code cannot produce a bookable student — so
   this is a scraping and privacy concern, not an account-takeover one. §7 lists API Gateway
-  throttling generally; this route needs a specific number.
+  throttling generally; this route needs a specific number.~~
+  **Settled.** ADR-019 (2026-09-30) limits code lookups to 20 per 5 minutes per address, and
+  since 2026-10-13 the code is **8 random characters** (`7K2Q-M9XT`, ADR-002 amended), about
+  378 billion possibilities, so it can't be enumerated.
 - **How licensing actually works.** Undecided by the owner and deliberately not designed
   here: what a licence costs, whether it renews, what happens to a coach's data when one
   lapses, whether a licence is per-coach or per-organisation, and whether the gate sits in

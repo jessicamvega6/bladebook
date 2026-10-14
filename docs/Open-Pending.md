@@ -51,10 +51,11 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **Open question: How licensing works** — price, renewal, per coach or per organisation,
   where the gate sits, and above all **what happens to a coach's families when a licence
   lapses**. Nothing in the model expresses a suspended tenant. (ADR-016)
-- **Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
-  expiry. The client sign-up note checks at 8 characters, ADR-016 says 5, the designs show 8. *Deferred by the owner, 2026-09-30.*
-  (ADR-002, ADR-016) *The registration-number idea was dropped 2026-10-12 (§2b); the code
-  stays BladeBook-generated.*
+- ~~**Open question: Coach code format and lifetime** — length, ambiguity-safe characters,
+  expiry.~~ **Settled 2026-10-13 by the owner:** 8 random characters from a set with no
+  look-alikes (`7K2Q-M9XT`), no part of the coach's name; never expires; the coach can rotate it
+  (ADR-002, amended). Share codes: the first 3 letters of the skater's first name and 5 random
+  characters, `MIA-4K7QX` (ADR-026 d4).
 - **Open question: Photo moderation.** Nothing inspects or lets anyone report a coach's photo.
   (ADR-016)
 - **Open question: What a coach sees on first login** — an empty grey month, designed together
@@ -184,8 +185,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 - ~~**Pending decision: Is the coach code the coach's registration number, or a random BladeBook
   code?**~~ **Settled 2026-10-12 by the owner:** BladeBook generates the coach code, as
   ADR-016 decision 2 and ADR-002 decision 2a already have it. It is never the coach's
-  registration number. That removes the lockout and guessing risks. Length and alphabet still
-  follow blocker #7.
+  registration number. That removes the lockout and guessing risks. Length and alphabet were
+  settled 2026-10-13 (blocker #7).
 - ~~**Open question — needs Kim (§9): Is a skater's number required?**~~ **Settled 2026-10-12
   by the owner:** yes. In Phase 1 every skater needs a US Figure Skating (USFSA) or USA Hockey
   number. It belongs to each skater, not the family account. **Still open, for Kim (§9):**

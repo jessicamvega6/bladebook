@@ -13,7 +13,7 @@ Details:
     they enter the coach code. *Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.*
   Currency: read-only (USD or CAD). Every lesson is priced in it. Changing currency comes in Phase 2.
   Coach code: shown with Copy and "Rotate code". Rotating asks for confirmation, then gives the coach a new
-    code. The old code stops working for new sign-ups; families already signed up aren't affected.
+    code (8 random characters, e.g. 7K2Q-M9XT; it never expires on its own, ADR-002). The old code stops working for new sign-ups; families already signed up aren't affected.
 
 Business email:
   The reply address on every automatic email. Families' replies go here.
