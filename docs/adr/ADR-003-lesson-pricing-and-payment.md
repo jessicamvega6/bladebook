@@ -67,12 +67,12 @@ coach's Students list has no price column. The shape of a personal price or disc
 coach's) and a **seat** for each skater in it. The price stamps (`priceMinor`, `currency`,
 `missedLessonFeeMinor`) now live on the lesson time, which is created from the schedule, so they
 are stamped by existing (ADR-031 decision 1). Payment status, how-paid, paid and waived are now
-**per seat** (decisions 2 and 14). A shared lesson's one price is split evenly among its booked
+**per seat** (decisions 2 and ~~14~~ 15). A shared lesson's one price is split evenly among its booked
 seats, with odd cents going one each to the earliest-joined seats (decision 7). Every behaviour
 rule still holds unless ADR-031 says otherwise. *Revised 2026-10-13 (ADR-031 revision): the
 total price is stored only on the lesson time (`priceMinor`). A share is worked out as
-`priceMinor ÷ shareCount` (a lesson-time attribute), not stored on the seat. A seat gets a
-fixed `amountMinor` only at check-in, at a no-show, or when marked paid or waived.*
+`priceMinor ÷ shareCount` (a lesson-time attribute), not stored on the seat. ~~A seat gets a
+fixed `amountMinor` only at check-in, at a no-show, or when marked paid or waived.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 
 **Accepted** — 2026-07-29. Closes the gap where MVP feature #6 (payment-reminder
 email on check-in) had no amount to send: `BOOKING` carried only
@@ -132,8 +132,8 @@ the old number.
 **seat** carries `shareMinor`, its part of that price:~~ Each skater's share is the full price for
 a private lesson, an even split for a shared one (decision 7). The stamping principle is
 unchanged.* *Revised 2026-10-13 (ADR-031 revision): the share is worked out from the lesson
-time (`priceMinor ÷ shareCount`), not stored. The seat's `amountMinor` is fixed only at check-in,
-at a no-show, or when marked paid or waived. Once fixed, it never changes.*
+time (`priceMinor ÷ shareCount`), not stored. ~~The seat's `amountMinor` is fixed only at check-in,
+at a no-show, or when marked paid or waived. Once fixed, it never changes.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 
 ### 3. Price is flat per lesson, independent of duration
 
@@ -183,12 +183,12 @@ their calendar.
 Every booking is independently owed, and there is no running balance, no account
 credit, and no partial payment.
 
-*Replaced by ADR-031 decisions 2 and 14 (2026-10-13): payment is tracked **per seat**. Each
+*Replaced by ADR-031 decisions 2 and 15 (2026-10-13): payment is tracked **per seat**. Each
 skater's seat carries `paymentStatus`, `paidAt`, `markedPaidBy`, `paidVia`, `waivedAt`,
 `waivedBy` and `paymentReminderSent`, and is owed its own ~~`shareMinor`~~ share. In a shared
 lesson each family's seat is marked paid or waived on its own. No ledger, as before.* *Revised
-2026-10-13 (ADR-031 revision): the share is worked out from the lesson time until it is fixed
-on the seat as `amountMinor` — at check-in, at a no-show, or when marked paid or waived.*
+2026-10-13 (ADR-031 revision): the share is worked out from the lesson time ~~until it is fixed
+on the seat as `amountMinor` — at check-in, at a no-show, or when marked paid or waived~~.* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Marking paid or waived writes no amount.*
 
 The coach website gets a **mark as paid** action. This is the only way a booking becomes
 `PAID` — nothing else in the system can set it, because nothing else observes money
@@ -265,7 +265,7 @@ the index entirely.
 
 *Note — 2026-10-13: under ADR-031 decision 2 these keys are written on the **seat** while it is
 `UNPAID`, one entry per skater.* *Revised 2026-10-13 (ADR-031 revision): the unpaid list shows
-each seat's `amountMinor`.*
+~~each seat's `amountMinor`~~.* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *The unpaid list shows each seat's share, worked out from its lesson time.*
 
 That gives "every outstanding lesson for this coach, oldest first" as a single
 query over an index containing *only* unpaid bookings — which stays small
@@ -300,7 +300,8 @@ plus the coach's `paymentInstructions`. Not "payment is due"; a number.
 
 *Replaced by ADR-031 decisions 2 and 7 (2026-10-13): the amount is the seat's ~~`shareMinor`~~
 share — the full price for a private lesson, the skater's even share for a shared one.* *Revised
-2026-10-13 (ADR-031 revision): the amount is the seat's `amountMinor`, fixed at check-in.*
+2026-10-13 (ADR-031 revision): ~~the amount is the seat's `amountMinor`, fixed at check-in.~~*
+*Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 
 Consistent with ADR-002 §7, this is **one email per lesson**. A client with two
 children checked in on the same day receives two reminders, each with its own

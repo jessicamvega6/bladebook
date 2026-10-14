@@ -91,7 +91,7 @@ decision 1 (2026-10-13): one `Query` on `SK between LESSON#<from> and LESSON#<to
   background; a booked one is cancelled only through the preview.*
 - "A change only affects lessons that are not already booked" is true by
   construction. Bookings are independent records that carry their own time,
-  duration and price; nothing recomputes them.
+  duration ~~and price~~; nothing recomputes them. *Revised 2026-10-13 (ADR-031): the price is on the lesson time; shares are worked out (ADR-031 d7).*
 - ~~Switching to a temporary pattern and back is two writes, not ~240.~~ *Replaced by ADR-031
   decision 11 (2026-10-13): it is two schedule writes plus the lesson-time rewrites they cause.*
 
@@ -161,8 +161,8 @@ a coach who wants a different pattern should replace the existing override rathe
 than layer one on top.
 
 The default is stored as a single current item, not a version history. Bookings
-carry their own time, duration and price, so no historical pattern is needed to
-interpret them correctly.
+carry their own time, duration ~~and price~~, so no historical pattern is needed to
+interpret them correctly. *Revised 2026-10-13 (ADR-031): the price is on the lesson time; shares are worked out (ADR-031 d7).*
 
 ### 3a. A single-day blackout is a one-day temporary schedule
 
@@ -191,6 +191,8 @@ Resolution when a booking is created:
 booking.priceMinor  ←  student.priceMinorOverride            (if set)
                     ←  priceMinor of the block that generated the slot
 ```
+
+*Revised 2026-10-13 (ADR-031): the price is on the lesson time; shares are worked out (ADR-031 d7).*
 
 **ADR-003 decision 2 (stamping) becomes essential rather than merely prudent.**
 With price living on a pattern that varies by date, resolving price lazily at email

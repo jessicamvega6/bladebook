@@ -18,9 +18,10 @@ changes, and how far ahead families book.
 - A lesson's price is set on each block of time in the coach's schedule. Changing a price
   means editing the schedule and changing the lesson cost — not rebuilding it — and it cancels
   nothing.
-- **A lesson keeps the price it was booked at.** Raising the price only affects lessons booked
+- ~~**A lesson keeps the price it was booked at.** Raising the price only affects lessons booked
   after the change. A family with a weekly recurring booking made in September pays the
-  September price for every lesson up to 12 months ahead.
+  September price for every lesson up to 12 months ahead.~~ *Revised 2026-10-13 (ADR-031): a
+  price change reaches upcoming lessons — a drop at once, a rise only beyond the notice period.*
 - The booking page shows three months ahead. Recurring bookings can run up to 12 months. ~~A
   single lesson has no limit at all behind the scenes.~~ *Changed 2026-10-13 (ADR-031): the
   system now checks the three months too. A single lesson can't be booked further ahead; a
@@ -101,7 +102,7 @@ A lesson can also be **marked waived** — free — which already covers a one-o
   fixed price would not. (ADR-003, ADR-004 decision 4)
 - ~~**Whether hand-editing one booking's price stays.** If it goes, re-pricing needs no
   exceptions. If it stays, ADR-020 needs a way to mark hand-set prices so they are never
-  re-priced. (ADR-003 decision 2, ADR-020)
+  re-priced. (ADR-003 decision 2, ADR-020)~~ *Answered by the owner, 2026-10-13: it goes.*
 - **Whether changing a family's discount re-prices lessons they have already booked**, under
   ADR-020's rules — likely yes, since that is the point of the discount.
 - **What "no discount" looks like**: an empty field, so that `0` can mean free if free
@@ -246,7 +247,8 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    from the moment the lesson is booked, so there is always room (ADR-031, 2026-10-13).* If you don't accept them, the lesson goes
    ahead private. (ADR-026 decision 5)
 5. ~~If the family who booked the lesson cancels, what should happen to the skater they invited?~~
-   **Answered by the owner, 2026-10-13:** the same as anyone dropping out (question 3).
+   **Answered by the owner, 2026-10-13:** the same as anyone dropping out (question 3). If the
+   inviting family cancels before the other skater has joined, the invitation simply ends.
 6. ~~If the invited family hasn't said yes by the day before, should the invitation lapse and the
    lesson go ahead private?~~ **Answered by the owner, 2026-10-13:** no cutoff. The invitation stays
    open until the lesson starts, then expires, and the lesson goes ahead private.
@@ -267,7 +269,9 @@ question 7 added (ADR-031).*
   2026-10-07: 2.** (ADR-026 P1)
 - ~~**How each skater's price is stamped**, and whether anyone is re-priced when a skater joins or
   leaves (questions 2 and 3).~~ **Answered by the owner, 2026-10-13:** the set price split evenly;
-  both skaters re-stamped when the second joins (ADR-026). (ADR-026 P2, ADR-003, ADR-020)
+  ~~both skaters re-stamped when the second joins~~ (ADR-026). (ADR-026 P2, ADR-003, ADR-020)
+  *Revised 2026-10-13 (ADR-031 d7): no amount is stored; each share is worked out from the lesson
+  time.*
 - ~~**Whether an invited skater must be approved first** (question 4).~~ **Answered by the owner,
   2026-10-07:** invited first, accepted by the coach before joining. (ADR-026 P3, ADR-024)
 - ~~**What the booking family cancelling does** (question 5)~~ *answered 2026-10-13: same as anyone

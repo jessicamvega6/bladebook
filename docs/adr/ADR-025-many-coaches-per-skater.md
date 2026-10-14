@@ -240,7 +240,11 @@ edits become two steps:
    which the Pipe derives from a `CLIENT#` `PROFILE` or `SKATER#` item being modified. Its
    role: `GetItem` and `Query` on the family's partition, `UpdateItem` on the table. It goes
    through the Pipe and bus like `consumer-student-link`, idempotent, with a dead-letter queue
-   (ADR-010 decision 2).
+   (ADR-010 decision 2). *Amended 2026-10-13 (owner, ADR-031 d14): a skater's name change also
+   updates `studentName` on their upcoming seats. For each of the skater's coaches it queries that
+   coach's upcoming `SEAT#` items and keeps the skater's, so its role also needs `Query` on the
+   coaches' partitions; it gets no index across families. Name changes are rare, so the extra
+   reads don't matter.*
 
 **The lag is about a second.** A reminder sent in that window uses the old phone or email.
 That's acceptable for a contact change; it doesn't widen anyone's access.

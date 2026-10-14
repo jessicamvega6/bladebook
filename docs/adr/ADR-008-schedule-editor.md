@@ -125,7 +125,8 @@ place a price or a duration lives, which is what ADR-004 decision 4 wanted and w
 retained defaults quietly undermined.
 
 *Currency is stamped onto each booking alongside `priceMinor` (ADR-003, amended
-2026-08-20), so a coach who later changes currency cannot reinterpret historical amounts.*
+2026-08-20), so a coach who later changes currency cannot reinterpret historical amounts.* *Revised
+2026-10-13: on the lesson time since ADR-031.*
 
 ### 2. The form
 

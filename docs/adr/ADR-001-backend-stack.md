@@ -50,8 +50,9 @@ not in the data-loading stack. The **data-loading stack** in the production acco
 AWS Step Functions workflow and the **transform Lambda** that masks each export, with its role
 (ADR-027 decision 9, amended 2026-10-09; [ADR-028](ADR-028-dev-table-built-from-one-import.md)).
 Like the PII access-log aggregator, the scanner and the transform Lambda are operational
-functions outside the request path and **outside the fourteen-function count**, which is
-unchanged.
+functions outside the request path and **outside the ~~fourteen~~-function count**, which is
+unchanged. *Revised 2026-10-13 (ADR-031): the count is now **sixteen** functions; these operational
+functions are still outside it.*
 
 **Amended** — 2026-10-09. [ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 5a: `consumer-invite` also runs
 nightly on a schedule, after the end-of-day report, and gains `Query` on GSI2. Still fourteen
@@ -73,8 +74,8 @@ function list that means:
   (ADR-031 decision 6). *Revised 2026-10-13 (ADR-031 revision): `consumer-invite` writes them,
   reacting to seat changes, about a second later. No family writes them. It also writes two more
   read-only copies: `invitedClientId` with GSI1 keys, so the invited family sees the invitation,
-  and `choiceAnswerBy` on the staying family's seat. So `consumer-invite` now needs a narrow write
-  permission on `SEAT#` items across coaches — only those attributes. ~~Its role isn't written yet
+  and `choiceAnswerBy` on the staying family's seat. ~~So `consumer-invite` now needs a narrow write
+  permission on `SEAT#` items across coaches — only those attributes.~~ ~~Its role isn't written yet
   (ADR-031 decision 14, Open).~~* *Revised 2026-10-13 (option B): its role is settled (ADR-031
   Consequences) — reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the
   key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and
@@ -86,12 +87,15 @@ function list that means:
   `ANSWER` deadline sits on the lesson time's pending leave, not on a seat.* *Revised 2026-10-13
   (option B): it also ends an accepted invitation as `WITHDRAWN` when the inviting family
   cancelled first (`INVITER_LEFT`, ADR-031 decisions 5 and 12), and is the one function that can
-  delete records across coaches.*
+  delete records across coaches.* *Revised 2026-10-13 (ADR-031 d5, d12): the `INVITER_LEFT`
+  deadline sits on the **lesson time**, naming the invited seat; the inviting family's cancel
+  never writes that seat.*
 - **`sched-lesson-roller`** is a new **nightly** scheduled function. It keeps lesson times stored
   to the end of the booking window plus 12 months, about 15 months ahead (ADR-031 decision 1).
 - **What else `consumer-invite` did is not reassigned by ADR-031:** emailing Family B straight
   away when they are invited, and telling families the outcome when the coach accepts or declines
-  an invited skater (`StudentChanged`). ~~Whether `consumer-invite` stays for those emails only, or
+  an invited skater (`StudentChanged`). *Revised 2026-10-13 (ADR-031): now on seat changes: the
+  coach's Accept or decline changes the seats themselves (ADR-031 d6).* ~~Whether `consumer-invite` stays for those emails only, or
   the work moves elsewhere, is open. **Sixteen functions** if it stays, fifteen if it goes.~~
   *Settled in ADR-031 Consequences (2026-10-13): `consumer-invite` stays, ~~for those emails
   only~~. With the two new scheduled functions that makes **sixteen functions**.* *Revised
@@ -511,6 +515,8 @@ Locally, `api-coach` runs on `:8080` and `api-client` on `:8081` as ordinary `ma
 
 *Replaced by ADR-031 decision 1 (2026-10-13): `startsAtUtc` and `coachTz` are on the **lesson
 time** (`LESSON#`), written when it is created from the schedule. The rule is unchanged.*
+*Revised 2026-10-13 (ADR-031): seats carry copies of `startsAtUtc` and `coachTz`; the 7am and
+9pm jobs read the seat's copy.*
 
 **Keep unchanged:** `SLOT#<date>#<startTime>#<slotId>` and `GSI2PK = DATE#<yyyy-mm-dd>` remain the coach's *local* date. "Everyone with a lesson today" means the coach's today; that is the correct partition and it does not change.
 

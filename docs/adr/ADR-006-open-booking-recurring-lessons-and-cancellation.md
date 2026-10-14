@@ -150,17 +150,21 @@ temporary schedules exist for.
 
 ## Decision
 
-### 1. There is no booking horizon
+### 1. ~~There is no booking horizon~~
 
-Availability is computed for any date requested, and a booking is accepted for any
+*Revised 2026-10-13 (ADR-031): superseded by ADR-031 decisions 1 and 3 — a 3-month window on
+picks, and stored lesson times.*
+
+~~Availability is computed for any date requested~~, and a booking is accepted for any
 date the pattern in effect generates a slot for. There is no release day, no rolling
 window, no batch, ~~and no server-side date ceiling on an individual booking.~~ *Replaced by
 ADR-031 decisions 1 and 3 (2026-10-13): open times are stored as lesson times, and each picked
 time must fall inside the booking window — today to the end of the month two months ahead.*
 
-The only bound anywhere in the system is the 12-month ceiling on a **recurrence**
+~~The only bound anywhere in the system is the 12-month ceiling on a **recurrence**
 (decision 4), which exists to cap a single write amplification, not to limit how far
-ahead a person may book.
+ahead a person may book.~~ *Revised 2026-10-13 (ADR-031): ADR-031 d3: picks are checked against
+the 3-month window.*
 
 ~~ADR-005's second justification for the horizon — that it removed the need for an
 activation job — survives the deletion intact, because nothing was ever activated.
@@ -369,7 +373,8 @@ would make a retry report the client's own lessons as taken by someone else.
 
 **2. Each booking records the interval it was booked under, so a missing header can be
 rebuilt.** Every occurrence is stamped with **`bookedIntervalWeeks`** at creation. It is a
-fixed fact about the moment of booking — like `priceMinor`, it is never updated — and it is
+fixed fact about the moment of booking — ~~like~~ unlike `priceMinor` *(Revised 2026-10-13: a re-price
+changes the lesson time's `priceMinor`, ADR-020/ADR-031)*, it is never updated — and it is
 **not** the current frequency. The header is the only source of that.
 
 - A frequency change (ADR-009 decision 4) updates the header only. The remaining lessons
@@ -459,7 +464,7 @@ produce, and sorts each into add, remove, cancel or re-price.*
 
 *Diagram updated 2026-10-13 for ADR-031.* *Revised 2026-10-13 (ADR-031 revision): the
 re-price step no longer re-splits shares on the seats. It sets only the lesson time's
-`priceMinor`; each share not yet fixed is worked out from it.*
+`priceMinor`; ~~each share not yet fixed~~ every share is worked out from it.*
 
 ```mermaid
 sequenceDiagram
@@ -479,16 +484,16 @@ sequenceDiagram
     Bus->>X: route
     X->>DB: Query lesson times and seats in the affected range
     X->>X: same diff as the preview
-    X->>DB: write the CHANGEBATCH header and every planned line, PLANNED
+    Note over X,DB: Adding and removing open times is part of the save, not batch lines
+    X->>DB: put each new OPEN lesson time with its scheduleVersion
+    X->>DB: delete each removed lesson time only if still OPEN, else it becomes a cancel line
+    X->>DB: delete each HELD lesson time the new schedule no longer makes
+    X->>DB: write the CHANGEBATCH header and every cancel and re-price line, PLANNED
     loop each line, re-checked first
-        alt add
-            X->>DB: put the new OPEN lesson time with its scheduleVersion
-        else remove, if still OPEN
-            X->>DB: delete the lesson time
-        else cancel, or a remove that was booked since the preview
+        alt cancel, or a remove that was booked since the preview
             X->>DB: move each seat to a CANCELLED line and delete the lesson time, in one transaction
         else re-price
-            X->>DB: set the lesson time's new price (shares not yet fixed follow it)
+            X->>DB: set the lesson time's new priceMinor - every share follows it
         end
         X->>DB: mark the line EXECUTED (or SKIPPED)
     end
@@ -499,6 +504,8 @@ sequenceDiagram
     N->>N: SES email to each client (SMS is Phase 2)
     N->>DB: stamp notification state on that client's lines
 ```
+
+*Amended 2026-10-13: diagram updated — every share follows a re-price; adding and removing open lesson times is part of the save, not batch lines; held times the new schedule doesn't make are removed (ADR-031).*
 
 *Amended 2026-10-13: diagram updated to ADR-010 decision 5 (the plan is written first; one `LessonsChanged` per batch, driven by the header), ADR-020 re-pricing and the consumer rename. SMS to families is Phase 2 (ADR-007). [architecture.md §6.5](../architecture.md) has the full flow.*
 

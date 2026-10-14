@@ -51,7 +51,7 @@ stores bookable times as **lesson times** (`LESSON#`) and each skater's place as
 - **A new nightly job, `sched-lesson-roller`** (ADR-031 decision 1), keeps lesson times stored
   about 15 months ahead. As a scheduled function it gets decision 4's missed-run alarm.
 - **ADR-026's nightly invitation sweep becomes `sched-deadline-sweep`, every hour** (ADR-031
-  decision 12). It finds due seats through a new sparse global secondary index (GSI), GSI4. Its completion metric
+  decision 12). It finds ~~due seats~~ due records (invited seats and lesson times) *[Revised 2026-10-13 (ADR-031)]* through a new sparse global secondary index (GSI), GSI4. Its completion metric
   drives a missed-run alarm; a missed hour catches up on the next run.
 - **Decision 5's batch now acts on lesson times and seats.** Its steps are unchanged — claim,
   write the whole plan, re-check each line, mark executed last, notify after — but a cancel
@@ -130,6 +130,8 @@ Guards required, per consumer:
 | `sched-day-reminder` | **`remindedOn`** — see decision 3 | **To build** |
 | `sched-daily-report` | the report's `(coach, date)` S3 key is naturally idempotent; the **email** is not | **To build** |
 | Schedule-change cancellation | see decision 5 — the hard one | **To build** |
+| `sched-deadline-sweep` *(Amended 2026-10-13 (ADR-031 d12))* | re-checks each record before acting; no dead-letter queue, by design | **To build** |
+| `sched-lesson-roller` *(Amended 2026-10-13 (ADR-031 d12))* | creates only lesson times that don't exist; no dead-letter queue | **To build** |
 
 ### 2a. When a dead-letter queue fills: replay, discard, or re-run for a date
 
@@ -146,6 +148,8 @@ Whether replaying is still **useful** depends on what the message was for:
 | `sched-daily-report` | **Re-run for that date** | The report for the 14th is still wanted on the 15th |
 | `sched-unpaid-reminder` | Discard | Next week's run includes the same lessons |
 | `sched-drift-check` | Discard | Tomorrow night's run covers it; repeated failure trips its missed-run alarm |
+| `sched-deadline-sweep` *(Amended 2026-10-13 (ADR-031 d12))* | *No queue, by design* | A scheduled job that re-checks each record; a missed hour catches up on the next run, and its missed-run alarm pages |
+| `sched-lesson-roller` *(Amended 2026-10-13 (ADR-031 d12))* | *No queue* | It creates only lesson times that don't exist, so the next night's run fills any gap; its missed-run alarm pages after 3 missed nights |
 | `consumer-ttl-archiver` | *No queue to replay* | It reads the stream directly, so a failure leaves no message. The stream-age alarm (decision 6) and PITR's 35 days are the recovery — fix within 24 hours |
 
 Only the notifier's and the schedule-change consumer's queues page (decision 4). The rest are
@@ -209,6 +213,9 @@ a second email channel adds a failure mode and buys nothing.
 - *Added 2026-09-30 (5j, 5k):* the schedule-change consumer's DLQ depth > 0; a change batch
   unfinished for more than an hour; a lesson that should have been cancelled and was not.
 - The 7am reminder did not fire.
+- *Amended 2026-10-13 (ADR-031 d12):* `sched-deadline-sweep` has no completed run for 2 hours.
+- *Amended 2026-10-13 (ADR-031 d12):* `sched-lesson-roller` missed 3 nights (it shows on the
+  dashboard after 1).
 - DynamoDB Streams iterator age climbing — see decision 6.
 
 Everything else is a dashboard read in the morning.
@@ -423,7 +430,7 @@ role — and runs in two stages:
 is also the recovery for an event lost outright — the stream holds records for 24 hours, and
 a delivery outage longer than that drops `ScheduleChanged` with nothing left to retry.
 
-*Dependency:* stage 2's re-pricing waits on the same question as ADR-020 itself — whether a
+~~*Dependency:* stage 2's re-pricing waits on the same question as ADR-020 itself — whether a
 coach can hand-edit one booking's price. Until that is settled, a reconcile could overwrite a
 hand-edited price. Cancellations do not depend on it.~~ *Settled 2026-10-13 (owner, ADR-031):
 per-lesson price editing is removed, so a reconcile has no hand-set price to overwrite.*

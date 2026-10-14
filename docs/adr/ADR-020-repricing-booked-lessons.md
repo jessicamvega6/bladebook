@@ -49,9 +49,9 @@ stores every bookable time as a **lesson time** (`LESSON#`) and gives each skate
   ~~Then the **shares are re-split** among the booked seats (ADR-031 decision 7).~~
   *Revised 2026-10-13 (ADR-031 revision): a re-price changes **only** the lesson time's
   `priceMinor`. No seat is written. A share is worked out as `priceMinor ÷ shareCount`, so every
-  share not yet fixed follows the new price. A seat with a fixed `amountMinor` (checked in, no-show,
+  share ~~not yet fixed~~ follows the new price. ~~A seat with a fixed `amountMinor` (checked in, no-show,
   paid or waived) keeps it. So the amounts can add up to a little more or less than the new
-  price, and that's accepted (ADR-031 decision 7).*
+  price, and that's accepted (ADR-031 decision 7).~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 - **Remove** deletes an `OPEN` lesson time **only if it is still `OPEN`**. If a family booked it
   after the preview, that line becomes **cancel** in the same batch, and the family gets the
   ordinary cancellation email. This is how the 2026-10-08 and 2026-10-09 amendments' "booking
@@ -95,13 +95,15 @@ upcoming booking that block produces is re-priced to the new amount, subject to 
   booking is never both. *Replaced by ADR-031 decision 11 (2026-10-13): the comparison is of
   **lesson times**. A lesson time whose price differs is re-priced; ~~each of its seats follows
   decision 2, and the shares are re-split among the booked seats~~.* *Revised 2026-10-13
-  (ADR-031 revision): only the lesson time's `priceMinor` changes; shares not yet fixed follow
-  it.*
+  (ADR-031 revision): only the lesson time's `priceMinor` changes; shares ~~not yet fixed~~ follow
+  it.* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 - **Past lessons never change.** Neither does any lesson already marked paid or waived, even
   if it is in the future: its money question is settled. *Since ADR-031 (2026-10-13) this is
   judged per seat: a paid or waived seat never changes, even when the other seat in a shared
-  lesson is re-priced.* *Revised 2026-10-13 (ADR-031 revision): such a seat has a fixed
-  `amountMinor`, which a re-price never touches.*
+  lesson is re-priced.* *Revised 2026-10-13 (ADR-031 revision): ~~such a seat has a fixed
+  `amountMinor`, which a re-price never touches.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Under ADR-031 a lesson paid in
+  advance and then re-priced isn't handled: it would show the new amount, not what was paid
+  (ADR-031 Revisit if).*
 - **A student's personal price override** (`priceMinorOverride`) is left alone. The coach set
   it deliberately, and a block's price change does not reach it. *(Phase 2 since 2026-10-13, ADR-003.)*
 - **Dates covered by a temporary schedule** follow that temporary schedule's blocks, so a
@@ -197,7 +199,7 @@ and apply the same rules with no control over which runs first. One could re-pri
 the other is about to delete, and the family would be told both "your lesson is now $60" and
 "your lesson is cancelled". One consumer classifies each booking once.
 
-**The re-price line** (`REPRICED#<isoTs>#<batchId>#<bookingId>`) records the ~~booking~~ *seat
+**The re-price line** (~~`REPRICED#<isoTs>#<batchId>#<bookingId>`~~ `REPRICED#<isoTs>#<batchId>#<seatKey>` *(Revised 2026-10-13 (ADR-031))*) records the ~~booking~~ *seat
 (ADR-031, 2026-10-13)*, the student, the client, the date and time, the old and new price, the old and new fee, the
 direction, `executionStatus` and `notificationStatus` — the same notification fields a
 cancellation line carries, so "was this family told" has the same answer for both.

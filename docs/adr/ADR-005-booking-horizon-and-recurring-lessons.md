@@ -185,6 +185,8 @@ The horizon must be enforced in the API, not just the UI, or it is not a constra
 > pulled recurring lessons into MVP, so the questions about horizon length, batch cadence
 > and booking outside the horizon no longer describe the system. They are kept as the
 > record of what was unresolved when the horizon existed.
+>
+> *Revised 2026-10-13 (ADR-031): ADR-031 d3 brings back a 3-month window on picks.*
 
 - **Rolling daily or weekly batch?** MVP is rolling (`today` … `today + 7`) because it
   is the simpler thing and nothing depends on the distinction yet. Recurring lessons

@@ -67,11 +67,13 @@ Price:
       and $22.50.
     Shares are worked out again whenever who's paying changes: a skater joins, a freed place is filled, the staying
       family keeps a lesson at the full price, or the coach changes the price.
-    A lesson already marked paid or waived never changes.
+    ~~A lesson already marked paid or waived never changes.~~ *Revised 2026-10-13 (ADR-031): its price follows the
+    lesson time; a lesson paid in advance and then re-priced isn't handled (ADR-031 Revisit if).*
     *Revised 2026-10-13 (ADR-031 revision, decision 7): a share isn't stored. Only the lesson's total price is kept,
-      with the number of skaters splitting it, and each share is worked out from those. A skater's amount is fixed
+      with the number of skaters splitting it, and each share is worked out from those. ~~A skater's amount is fixed
       only when they're checked in, marked a no-show, or marked paid or waived. After that it never changes, even if
-      the coach changes the price. Nothing on one family's lesson changes because of the other family.*
+      the coach changes the price.~~ Nothing on one family's lesson changes because of the other family.*
+    *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 
 A skater calls out (either family; the booking family is not a special case):
   In time (before the coach's notice period): the other family is told and chooses to keep the lesson as a private
@@ -85,6 +87,7 @@ A skater calls out (either family; the booking family is not a special case):
   Late (inside the notice period) or a no-show: the one who called out may be charged
     their share of the late-cancellation fee (half, for two skaters).
     The other skater keeps their share.
+  *Added 2026-10-13 (ADR-031 decision 5, option B):* If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted. Withdrawing is only possible before the other family answers.
 
 *Added 2026-10-13 (ADR-031 decisions 9 and 10):*
 A shared repeating lesson:

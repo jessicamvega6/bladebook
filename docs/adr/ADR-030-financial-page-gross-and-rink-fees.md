@@ -15,13 +15,14 @@ no-show is collected by marking it paid) and [ADR-017](ADR-017-data-retention-tt
 
 **Note — 2026-10-13.** [ADR-031](ADR-031-lessons-and-seats.md) replaces the booking with a
 **lesson time** (the coach's, `LESSON#`) and a **seat** for each skater (`SEAT#`). For this page:
-a paid lesson counts at its ~~**seat's `shareMinor`**~~ **seat's `amountMinor`** — the full price for a private lesson, the
+a paid lesson counts at its ~~**seat's `shareMinor`**~~ ~~**seat's `amountMinor`**~~ **share** — the full price for a private lesson, the
 skater's share for a shared one — and the year's figures are a range query on the coach's
 `SEAT#<date>` items. Payment is per seat, so a shared lesson where one family has paid and the
 other hasn't counts only the paid share. The ice type is stamped on the lesson time
 (`iceType`). Decisions 1–7 are unchanged. *Revised 2026-10-13 (ADR-031 revision): a seat no longer stores `shareMinor`. Its share
-is worked out from the lesson time until it is fixed as `amountMinor` — at check-in, at a
-no-show, or when marked paid or waived. A paid seat always has `amountMinor`, so gross uses it.*
+is worked out from the lesson time ~~until it is fixed as `amountMinor` — at check-in, at a
+no-show, or when marked paid or waived. A paid seat always has `amountMinor`, so gross uses it~~.*
+*Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Gross works each paid seat's share out from its lesson time.*
 
 ---
 
@@ -53,10 +54,11 @@ coach's currency (ADR-016).
 *Decided by the owner, 2026-10-12.* Gross counts:
 
 - lessons **marked paid** (`paymentStatus = PAID`), at the ~~booking's stamped `priceMinor`~~
-  *seat's ~~`shareMinor`~~ `amountMinor` (ADR-031 decisions 2 and 7, 2026-10-13; revised the
+  *seat's ~~`shareMinor`~~ ~~`amountMinor`~~ share, worked out from its lesson time (ADR-031 decisions 2 and 7, 2026-10-13; revised the
   same day by the ADR-031 revision)*;
 - **missed-lesson fees actually collected.** In MVP that is a no-show marked paid, at its full
-  lesson price (ADR-015 decision 4). Charging a late cancellation is Phase 2 (ADR-015), and its
+  lesson price — the skater's share worked out from the lesson time (the full price, unless the
+  lesson is shared) *(Revised 2026-10-13 (ADR-031))* (ADR-015 decision 4). Charging a late cancellation is Phase 2 (ADR-015), and its
   collected fee joins gross then.
 
 Gross leaves out **waived** and **unpaid** lessons. A lesson counts once it is marked paid; if a

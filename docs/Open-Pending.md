@@ -125,22 +125,28 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - ~~**Open question: What amount the unpaid list and weekly reminder show for a past seat with
   attendance not recorded.** It has no fixed `amountMinor` yet, and the unpaid index (GSI3)
   doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
-  *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): the 9pm report job fixes
-  `amountMinor` for any of that day's seats still without one.*
+  *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031 decision 7): ~~the 9pm report job fixes
+  `amountMinor` for any of that day's seats still without one.~~*
+  *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *The unpaid list and weekly reminder work the share out from the seat's lesson
+  time, so no seat needs a stored amount; the 9pm report job writes nothing.*
 - ~~**To-do: Write `consumer-invite`'s narrow write permission** — only `partnerName`,
   `partnerStatus`, `invitedClientId`, its GSI1 keys and `choiceAnswerBy` on `SEAT#` items, across
   coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031, option
   B): reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields
   and those attributes; no `PutItem` or `DeleteItem`. It no longer ends seats — the inviting
   family's own cancel or the sweep's `INVITER_LEFT` does.*
+- **Open question: The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`** — only the
+  sweep may read GSI4 (ADR-031 d14). *Added 2026-10-13.*
 - ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
   `design/harbor` (family and coach sites).*
-- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — warnings sent early, `warnedAt`, expiry of ~~`SENT`~~ *`INVITED`*
+- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — ~~warnings sent early, `warnedAt`~~ warnings sent at the 9pm run before they're due *(Revised 2026-10-13 (ADR-031))*, expiry of ~~`SENT`~~ *`INVITED`*
   and `AWAITING_COACH` invitations. (ADR-026 d5a) *Changed 2026-10-13 (ADR-031 decision 12):
   the sweep runs every hour and also cancels unanswered staying-family choices at their
   answer-by time. The warning waits for the 9pm run before it's due; urgent emails go at once.
-  Its missed-run alarm is part of ADR-010.*
+  Its missed-run alarm is part of ADR-010.* *Revised 2026-10-13 (ADR-031 d5, d12): it also acts
+  on `INVITER_LEFT`, which sits on the lesson time and names an accepted invited seat: it ends
+  that seat as `WITHDRAWN` and the lesson time goes back to `OPEN`.*
 - **To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)
 - ~~**Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
   at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
@@ -153,7 +159,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - ~~**Open question: Is ADR-025's clash warning enough** when an invited skater joins a lesson
   that overlaps their lesson with another coach? (ADR-026)~~ **Settled 2026-10-07** (ADR-026
   decision 5): the confirm page shows clashes and the family chooses.
-- **To-do: Include participants everywhere a lesson is walked** — the schedule-change consumer's
+- **To-do: Include ~~participants~~ every seat everywhere a lesson is walked** (participants are
+  seats since ADR-031) — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
   end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
   *2026-10-13 (ADR-031 decision 2): each skater now has their own seat in the lesson, so this
@@ -218,7 +225,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 
 - **Open question (Phase 2): What the missed-lesson fee is charged against when
   `missedLessonFeeMinor` ≠ `priceMinor`** — client-facing wording on the outstanding view and
-  the reminder. For MVP a no-show shows its full lesson price. (ADR-015)
+  the reminder. For MVP a no-show shows ~~its full lesson price~~ its share worked out from the lesson time (the
+  full price, unless shared) *(Revised 2026-10-13 (ADR-031))*. (ADR-015)
 - **Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
   2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
@@ -272,8 +280,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   on. No other types are added: cheques and Interac e-transfer are *Other*. (ADR-003 decision 4,
   ADR-016 decision 7, both amended 2026-10-12)
 - ~~**Open question: How-paid details.**~~ **Settled 2026-10-12 by the owner:** optional when
-  marking a lesson paid, editable afterwards, and **seen only by the coach** for now. Stored on
-  the booking as a fixed value (`CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
+  marking a lesson paid, editable afterwards, and **seen only by the coach** for now. Stored ~~on
+  the booking~~ on the seat *(Revised 2026-10-13 (ADR-031))* as a fixed value (`CASH`, `CASHAPP`, `VENMO`, `PAYPAL`, `OTHER`), so removing a
   payment type from the profile later doesn't change past records. A waived lesson has none.
   (ADR-003)
 - ~~**To-do: Design the cash switch and the how-paid picker in Harbor.**~~ **Done 2026-10-12:**
@@ -713,6 +721,9 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   a freed place. Also decide whether keeping a freed date sends a confirmation (listed under
   "Mentioned but not decided"). *Added 2026-10-13.* (ADR-031 decisions 9 and 10;
   `FeatureDecriptions/Email templates Needed:`)
+- **Pending decision: Two shared-lesson emails ADR-031 leaves undecided** — a confirmation for
+  cancelling one freed date, and "the other skater can't make it": once per date or once per
+  series. *Added 2026-10-13.* (`FeatureDecriptions/Email templates Needed:`, "Mentioned but not decided")
 - **To-do: Write the pending-student decline email.**
   (`FeatureDecriptions/Coach Dashboard on website.md`)
 - **To-do: Fill in the empty Non-Functional Requirements sections** (durability,

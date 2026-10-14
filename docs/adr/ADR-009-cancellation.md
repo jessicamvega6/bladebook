@@ -88,7 +88,7 @@ tracked showing who cancelled."*
 
 The header gains `cancelledBy` (`CLIENT | COACH | SCHEDULE_CHANGE`) and the acting
 identity. Lines gain `cancelledAt` and `noticeHours` — the gap between cancellation and
-the lesson's start (decision 3).
+the lesson's start (decision 3). *Amended 2026-10-13 (ADR-031): `cancelledBy` gains `NO_ANSWER` (the sweep cancelling an unanswered keep-or-cancel; never chargeable; notified like `CLIENT` with enough notice) — ADR-031 d14.*
 
 ### 2. Client cancellation
 
@@ -439,6 +439,8 @@ the triggering event is one decision that happened to touch several lessons.
 | `COACH` | Each affected client, once per batch |
 | `SCHEDULE_CHANGE` | Each affected client, once per batch |
 | `CLIENT` | The **coach** — the client already knows. *Amended 2026-10-08: only inside `requiredNoticeHours`.* |
+
+*Amended 2026-10-13 (ADR-031): `cancelledBy` gains `NO_ANSWER` (the sweep cancelling an unanswered keep-or-cancel; never chargeable; notified like `CLIENT` with enough notice) — ADR-031 d14.*
 
 Messages state that the lesson is cancelled and offer a link to book a different time
 (ADR-006 decision 5). SMS form is constrained by ADR-007 — one 160-character GSM-7
