@@ -738,7 +738,11 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   move the cancellation consumer's orchestration into `core/` instead. (ADR-013)
 - **To-do: Build the first CI pipeline** — test enforcement switches on with it. ~~Waits on the
   CI system choice in §1.~~ *Since 2026-10-15:* on GitHub Actions (ADR-032). Nothing deploys
-  until the §1 lock-down to-do is done. (ADR-013)
+  until the §1 lock-down to-do is done. Every merge into `main` builds, tests and tags a version;
+  production deploys only a tagged build; the pipeline doesn't build dev (ADR-032, amended
+  2026-10-15). (ADR-013)
+- **To-do: Keep deploy roles away from personal data** — no reading the table's data or the
+  access log; narrow CDK's bootstrap role if CDK is chosen. (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: Keep pinned GitHub Actions current with Dependabot, or check by hand on a
   schedule?** (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: How long to keep CI run logs, and whether to copy them anywhere.**

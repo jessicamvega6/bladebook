@@ -78,6 +78,9 @@ build-dev --masked --coaches <id>,… [--clients <id>,…] [--as-of <timestamp>]
 `build-dev` replaces ADR-027's `load-dev`. Coaches are still named on every masked build, and
 naming a client still brings in all their coaches (ADR-025).
 
+*Amended 2026-10-15 (ADR-032): `build-dev` may run from the owner's machine with their IAM
+Identity Center sign-in, or from a workflow.*
+
 ### 3. One source per table: seed data and production data are never mixed
 
 **A dev table holds seed data or masked production data, never both.** This follows from

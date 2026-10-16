@@ -29,7 +29,8 @@ dedicated test coach and family.
 database-level tenant gate tests run in the on-demand dev stack.
 
 **Amended — 2026-10-15.** [ADR-032](ADR-032-ci-on-github-actions.md): decision 2's pipeline runs on GitHub
-Actions. Nothing deploys until ADR-032 decision 2's security setup is in place.
+Actions. Nothing deploys until ADR-032 decision 2's security setup is in place. *Amended later
+2026-10-15 (ADR-032): this covers workflows; dev may also be built by hand with `build-dev`.*
 
 ---
 

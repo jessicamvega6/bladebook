@@ -160,7 +160,7 @@ pre.src{
 <div class="wrap">
   <p class="eyebrow">BladeBook · generated from docs/architecture.md</p>
   <h1>Architecture Diagrams</h1>
-  <p class="lede">All 28 mermaid diagrams from <code>architecture.md</code>, rendered.
+  <p class="lede">All 29 mermaid diagrams from <code>architecture.md</code>, rendered.
   <strong>Nothing here is hand-drawn</strong> — each one is lifted verbatim from the document,
   so re-running <code>design/render-diagrams.py</code> after an edit regenerates this page
   rather than letting it drift. Every diagram keeps its source one click away.</p>
@@ -191,9 +191,10 @@ pre.src{
         <a href="#d23"><span class="i">23</span>6.12 Nightly lesson-time roller</a>
         <a href="#d24"><span class="i">24</span>Authorization (data isolation)</a>
         <a href="#d25"><span class="i">25</span>Client writes into a coach&#x27;s partition</a>
-        <a href="#d26"><span class="i">26</span>Data protection</a>
-        <a href="#d27"><span class="i">27</span>Lower environments</a>
+        <a href="#d26"><span class="i">26</span>Deploys</a>
+        <a href="#d27"><span class="i">27</span>Data protection</a>
         <a href="#d28"><span class="i">28</span>Lower environments</a>
+        <a href="#d29"><span class="i">29</span>Lower environments</a>
   </nav>
 
   <div class="zoom" role="group" aria-label="Diagram size">
@@ -231,7 +232,7 @@ flowchart TB
 
     subgraph API[&quot;API Layer&quot;]
         WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
-        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer&quot;]
+        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer on every route but /health&quot;]
         L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
     end
 
@@ -243,6 +244,8 @@ flowchart TB
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
+
+    UpCheck[&quot;⏱️ Up-check&lt;br/&gt;(health checks, about once a minute)&quot;]
 
     Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
@@ -281,7 +284,11 @@ flowchart TB
     Consumers --&gt; Alerts
     Consumers -.-&gt;|on repeated failure| DLQ
 
-    DDB -.-&gt;|export, on request| DataLoadRef</pre>
+    DDB -.-&gt;|export, on request| DataLoadRef
+
+    UpCheck -.-&gt;|home page| CF
+    UpCheck -.-&gt;|/health, rate-limited| WAF
+    UpCheck -.-&gt;|no answer: alarm| Alerts</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -303,7 +310,7 @@ flowchart TB
 
     subgraph API[&quot;API Layer&quot;]
         WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
-        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer&quot;]
+        APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer on every route but /health&quot;]
         L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
     end
 
@@ -315,6 +322,8 @@ flowchart TB
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
+
+    UpCheck[&quot;⏱️ Up-check&lt;br/&gt;(health checks, about once a minute)&quot;]
 
     Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
@@ -353,7 +362,11 @@ flowchart TB
     Consumers --&gt; Alerts
     Consumers -.-&gt;|on repeated failure| DLQ
 
-    DDB -.-&gt;|export, on request| DataLoadRef</code></pre>
+    DDB -.-&gt;|export, on request| DataLoadRef
+
+    UpCheck -.-&gt;|home page| CF
+    UpCheck -.-&gt;|/health, rate-limited| WAF
+    UpCheck -.-&gt;|no answer: alarm| Alerts</code></pre>
         </details>
       </figure>
 
@@ -2493,6 +2506,76 @@ sequenceDiagram
       <figure id="d26">
         <figcaption>
           <span class="num">26</span>
+          <span class="ttl">Deploys</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant O as Owner
+    participant GH as GitHub (main, protected)
+    participant W as GitHub Actions workflow
+    participant Env as production environment
+    participant PrR as Production deploy role
+    participant SM as Secrets Manager
+    participant Prod as Production
+    O-&gt;&gt;GH: merge a pull request - ADR-013 checks must pass (ADR-032 d2.5)
+    GH-&gt;&gt;W: the push to main starts the workflow
+    Note over O,GH: earlier, while working: the browser flows run in dev
+    Note over W: actions pinned to commit hashes,&lt;br/&gt;read-only token by default (d2.1, d2.6)
+    W-&gt;&gt;W: build the JARs, run the unit tests, ArchUnit and mutation testing (ADR-013)
+    W-&gt;&gt;GH: tag the build with a version - production deploys only tagged builds
+    W-&gt;&gt;Env: ask to deploy to production
+    Env-&gt;&gt;O: waits for the owner&#x27;s approval
+    O-&gt;&gt;Env: approve - deploys from main only (d2.4)
+    W-&gt;&gt;PrR: OpenID Connect (OIDC) token - must come from the production environment
+    PrR--&gt;&gt;W: short-lived credentials (d2.3, d2.7)
+    W-&gt;&gt;Prod: deploy the tagged build
+    W-&gt;&gt;SM: read the test accounts&#x27; passwords - the one secret it may read
+    W-&gt;&gt;Prod: post-deploy check - as the test coach and family,&lt;br/&gt;save a schedule change that cancels a booking (ADR-013 3c flow 2)
+    alt check passes
+        Note over W: release done
+    else check fails
+        W--&gt;&gt;O: the job fails - the owner rolls back
+    end
+    Note over Prod: between releases the up-check watches -&lt;br/&gt;a scheduled canary is Phase 2 (ADR-027)</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant O as Owner
+    participant GH as GitHub (main, protected)
+    participant W as GitHub Actions workflow
+    participant Env as production environment
+    participant PrR as Production deploy role
+    participant SM as Secrets Manager
+    participant Prod as Production
+    O-&gt;&gt;GH: merge a pull request - ADR-013 checks must pass (ADR-032 d2.5)
+    GH-&gt;&gt;W: the push to main starts the workflow
+    Note over O,GH: earlier, while working: the browser flows run in dev
+    Note over W: actions pinned to commit hashes,&lt;br/&gt;read-only token by default (d2.1, d2.6)
+    W-&gt;&gt;W: build the JARs, run the unit tests, ArchUnit and mutation testing (ADR-013)
+    W-&gt;&gt;GH: tag the build with a version - production deploys only tagged builds
+    W-&gt;&gt;Env: ask to deploy to production
+    Env-&gt;&gt;O: waits for the owner&#x27;s approval
+    O-&gt;&gt;Env: approve - deploys from main only (d2.4)
+    W-&gt;&gt;PrR: OpenID Connect (OIDC) token - must come from the production environment
+    PrR--&gt;&gt;W: short-lived credentials (d2.3, d2.7)
+    W-&gt;&gt;Prod: deploy the tagged build
+    W-&gt;&gt;SM: read the test accounts&#x27; passwords - the one secret it may read
+    W-&gt;&gt;Prod: post-deploy check - as the test coach and family,&lt;br/&gt;save a schedule change that cancels a booking (ADR-013 3c flow 2)
+    alt check passes
+        Note over W: release done
+    else check fails
+        W--&gt;&gt;O: the job fails - the owner rolls back
+    end
+    Note over Prod: between releases the up-check watches -&lt;br/&gt;a scheduled canary is Phase 2 (ADR-027)</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d27">
+        <figcaption>
+          <span class="num">27</span>
           <span class="ttl">Data protection</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -2540,9 +2623,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d27">
+      <figure id="d28">
         <figcaption>
-          <span class="num">27</span>
+          <span class="num">28</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Flowchart</span>
         </figcaption>
@@ -2606,9 +2689,9 @@ flowchart LR
         </details>
       </figure>
 
-      <figure id="d28">
+      <figure id="d29">
         <figcaption>
-          <span class="num">28</span>
+          <span class="num">29</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Sequence</span>
         </figcaption>

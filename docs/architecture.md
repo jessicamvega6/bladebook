@@ -77,7 +77,7 @@ Booking is stored as **lesson times** and **seats** (ADR-031):
 
 ## 3. System Architecture
 
-*Updated 2026-10-13 for ADR-031 (lessons and seats).*
+*Updated 2026-10-13 for ADR-031 (lessons and seats); 2026-10-15 for the up-check and `/health` (ADR-027, ADR-019).*
 
 ```mermaid
 flowchart TB
@@ -98,7 +98,7 @@ flowchart TB
 
     subgraph API["API Layer"]
         WAF["🛡️ WAF web ACL<br/>(ADR-019)"]
-        APIGW["API Gateway (REST API)<br/>Cognito authorizer"]
+        APIGW["API Gateway (REST API)<br/>Cognito authorizer on every route but /health"]
         L_Api["λ api-coach / λ api-client<br/>(students, schedules, bookings, check-in)"]
     end
 
@@ -110,6 +110,8 @@ flowchart TB
         DLQ["☠️ Dead-letter queues<br/>one per consumer, except the TTL archiver<br/>and the two ADR-031 jobs (ADR-010)"]
         Alerts["🔔 Operator alert topic<br/>(SNS + CloudWatch metrics)"]
     end
+
+    UpCheck["⏱️ Up-check<br/>(health checks, about once a minute)"]
 
     Consumers["λ 14 event and scheduled consumers<br/>(each one drawn in §3.1 Event consumers)"]
 
@@ -149,6 +151,10 @@ flowchart TB
     Consumers -.->|on repeated failure| DLQ
 
     DDB -.->|export, on request| DataLoadRef
+
+    UpCheck -.->|home page| CF
+    UpCheck -.->|/health, rate-limited| WAF
+    UpCheck -.->|no answer: alarm| Alerts
 ```
 
 **Key idea:** the API Lambdas only read/write DynamoDB. All notification, cancellation
@@ -2077,7 +2083,7 @@ sequenceDiagram
 ### Least privilege
 - **One IAM role per Lambda**, granted only the specific actions it needs (e.g. the report λ gets `dynamodb:Query` on GSI2, `dynamodb:GetItem` for student names and the coach profile, `ses:SendEmail` and `s3:PutObject` scoped to the reports bucket/prefix — nothing else). The full per-function table is **ADR-001 amendment A6**. Only the three scheduled jobs that need it hold GSI2 (day-of reminder, end-of-day report, drift check), an index that crosses tenants. GSI4 crosses tenants too: `sched-deadline-sweep` reads it every hour (ADR-031 d12). The end-of-day report only reads the table; it writes nothing (ADR-014 d7, ADR-031 d7). `consumer-invite` writes across coaches, but only copies: reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem` (ADR-031 Consequences, *owner, 2026-10-13, option B*). `sched-deadline-sweep` is the one function that can delete records across coaches. *The two new jobs' roles are still open (ADR-031 d14); only `sched-deadline-sweep` should be able to read GSI4.*
 - No wildcard `dynamodb:*`, `ses:*`, or `s3:*`. `cdk-nag` fails the build on any.
-- **Deploys come only from GitHub Actions, with no stored AWS keys** (ADR-032). Each account has its own least-privilege deploy role, reached through OpenID Connect (OIDC) by a trust rule locked to this repository and, for production, its `production` environment on `main`. Every production deploy waits for the owner's approval; actions are pinned to commit hashes.
+- **Production deploys come only from GitHub Actions, with no stored AWS keys** (ADR-032). Each account has its own least-privilege deploy role, reached through OpenID Connect (OIDC) by a trust rule locked to this repository and, for production, its `production` environment on `main`. Production takes only a tagged build from `main`, and every production deploy waits for the owner's approval; actions are pinned to commit hashes. Dev may also be built by hand with `build-dev`, signed in through IAM Identity Center (ADR-032, amended 2026-10-15).
 - **A limit worth knowing before relying on this:** in a single-table design, per-function
   roles cannot separate *item types*. DynamoDB fine-grained access control conditions on the
   partition key (`dynamodb:LeadingKeys`) and on attributes — there is no sort-key condition —
@@ -2091,6 +2097,45 @@ sequenceDiagram
   for the two API functions — **which coach** or **which client**. Item-type separation still comes
   from routing and token scope (ADR-014 d10, d11a), and ADR-012's `AccessContext` and
   ADR-013's cross-tenant test still carry real weight.
+
+### Deploys
+
+*Added 2026-10-15 (ADR-032, ADR-027 amended 2026-10-15).* The only way code reaches
+production. Every merge into `main` builds, runs every test that needs no AWS, and tags a
+version; production deploys only a tagged build, after the owner's approval. The browser flows
+run in dev while the change is worked on and check production right after the deploy (ADR-032,
+amended 2026-10-15).
+
+```mermaid
+sequenceDiagram
+    participant O as Owner
+    participant GH as GitHub (main, protected)
+    participant W as GitHub Actions workflow
+    participant Env as production environment
+    participant PrR as Production deploy role
+    participant SM as Secrets Manager
+    participant Prod as Production
+    O->>GH: merge a pull request - ADR-013 checks must pass (ADR-032 d2.5)
+    GH->>W: the push to main starts the workflow
+    Note over O,GH: earlier, while working: the browser flows run in dev
+    Note over W: actions pinned to commit hashes,<br/>read-only token by default (d2.1, d2.6)
+    W->>W: build the JARs, run the unit tests, ArchUnit and mutation testing (ADR-013)
+    W->>GH: tag the build with a version - production deploys only tagged builds
+    W->>Env: ask to deploy to production
+    Env->>O: waits for the owner's approval
+    O->>Env: approve - deploys from main only (d2.4)
+    W->>PrR: OpenID Connect (OIDC) token - must come from the production environment
+    PrR-->>W: short-lived credentials (d2.3, d2.7)
+    W->>Prod: deploy the tagged build
+    W->>SM: read the test accounts' passwords - the one secret it may read
+    W->>Prod: post-deploy check - as the test coach and family,<br/>save a schedule change that cancels a booking (ADR-013 3c flow 2)
+    alt check passes
+        Note over W: release done
+    else check fails
+        W-->>O: the job fails - the owner rolls back
+    end
+    Note over Prod: between releases the up-check watches -<br/>a scheduled canary is Phase 2 (ADR-027)
+```
 
 ### Data protection
 - **At rest:** the table and every bucket are encrypted with **AWS-managed keys** —
@@ -2166,7 +2211,9 @@ sequenceDiagram
 
 **Production is the only long-running environment** (ADR-027). A **dev environment** — a full
 stack built from the same infrastructure code — is built when there is work for it and
-destroyed when that work is done; one at a time, not one per branch. It replaces the
+destroyed when that work is done; one at a time, not one per branch. The owner builds it with
+`build-dev`, from their own machine signed in through IAM Identity Center, or from a workflow
+(ADR-032, amended 2026-10-15; ADR-027 d8). It replaces the
 long-running staging environment ADR-011 created. Each dev table is **created from one import file** when the
 stack is built: **seed data** by default, or, after launch and only on request, a **masked
 subset of production** — never both (ADR-028). Because a copy of
@@ -2321,9 +2368,10 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 - **WAF, in MVP** (ADR-019): one web ACL attached to the REST API's stage and to the Cognito
   user pool — AWS managed core rules (SQLi/XSS), known bad inputs and IP reputation, an
   overall rate rule and a tighter one on the unauthenticated routes (sign-up, coach-code
-  lookup). Because it sits on the API itself, every request passes through it whatever address
+  lookup, `/health`). Because it sits on the API itself, every request passes through it whatever address
   it was sent to. Limits per address per 5 minutes: **1,000** overall, **20** for client
-  sign-up and coach-code lookup, **10** for Cognito sign-up and sign-in. **In production every
+  sign-up and coach-code lookup, **10** for Cognito sign-up and sign-in; `/health` has its own limit, number Open (ADR-019,
+  amended 2026-10-15). **In production every
   rule counts, not blocks, for the first two weeks after launch**, then blocks. The WAF is a
   pair of settings per environment (`wafEnabled`, `wafMode`). **Dev starts with it off**;
   turning it on in block mode and re-running the Playwright flows is one of the last checks
@@ -2574,7 +2622,7 @@ text — as ADR-001's A1–A5 and ADR-010's decision 5f do.
 | [029](adr/ADR-029-skater-registration-number.md) | Every skater gives a US Figure Skating or USA Hockey registration number, per skater, required at sign-up; checked for shape only; Canada is Phase 2; never a key; the coach code is never a registration number | Accepted; extends 002, 025 d1 |
 | [030](adr/ADR-030-financial-page-gross-and-rink-fees.md) | Financial page: YTD gross is money received, counted by lesson date, calendar year; a finished year is closed; the page says figures come from lessons marked paid; BladeBook calculates rink fees from terms the developer sets; a summary CSV export in MVP | Accepted in part; how rink fees are calculated is open (`Q_Rink-Fees.md`); amended 2026-10-13 by 031 |
 | [031](adr/ADR-031-lessons-and-seats.md) | Booking rebuilt as **lesson times and seats**: open times stored as `LESSON#` records by a nightly `sched-lesson-roller` (~15 months ahead); one `SEAT#` per skater, private and shared lessons on one path; GSI1–3 on seats, new sparse GSI4 for deadlines; ended seats move to `CANCELLED#` or `SEATEND#`; a three-month booking window checked by the system; retry attribution by reading the family's own seat; the invited seat holds the place; joining lesson by lesson; partner fields replace `INVITE#` copies; even split with odd cents to the earliest skaters in the lesson time's `joinOrder`; **revised later 2026-10-13 so no family's action writes another family's records** — the total price only on the lesson time with a `shareCount`, no amount copied onto a seat (every share worked out from the lesson time; owner, 2026-10-13), odd cents by the lesson time's `joinOrder`, a leave recorded as a pending leave on the lesson time, read-only copies on seats written by `consumer-invite` (partner fields, `invitedClientId` + GSI1 keys so an invitation shows before it is accepted, `choiceAnswerBy`), the invited seat the inviter's until accepted and ended by the inviting family's own cancel, or by the sweep (`INVITER_LEFT`) once accepted, so ADR-024 needs no shared-lesson exception; leaving in time or late, the answer-by rule, keep all / cancel all, a freed place takes a one-lesson invite; schedule saves add, remove, cancel and re-price lesson times with a `scheduleVersion`; the **hourly** `sched-deadline-sweep`; the odd-cents warning; details settled 2026-10-13 (d14): `LessonBooked` per seat, GSI2 keys only once `BOOKED`, batch lines only for cancel and re-price, `scheduleVersion` on `SCHEDULE#DEFAULT`, the sweep's `NO_ANSWER` batches and `DeadlineSweepCompleted`, `SEATEND#` attributes, which function sends which email, seat names kept current by `consumer-family-sync` | Accepted 2026-10-13; supersedes 004 d1–2, parts of 006, 009, 022 d8 and 026's mechanics; amends 008, 010, 015, 020; closes Open-Pending §4 (booking vs. schedule save) and ADR-026's leaving, freed-place and split-share re-pricing gaps. **Open:** the two new jobs' IAM roles; whether a coach booking for a family is held to the window; whether the 7 days in the answer-by rule is a question for Kim; ADR-026 P5 (an unanswered invitation's lapse) still waits on Kim |
-| [032](adr/ADR-032-ci-on-github-actions.md) | Continuous integration runs on **GitHub Actions**; nothing deploys to either account until its security setup is in place: actions pinned to commit hashes, AWS reached through OpenID Connect (OIDC) with a trust rule locked to the repo and branch, owner approval before production, `main` protected, fewest permissions | Accepted 2026-10-15; settles Open-Pending's CI question; names the system behind 013 d2 |
+| [032](adr/ADR-032-ci-on-github-actions.md) | Continuous integration runs on **GitHub Actions**; nothing deploys to either account until its security setup is in place: actions pinned to commit hashes, AWS reached through OpenID Connect (OIDC) with a trust rule locked to the repo and branch, owner approval before production, `main` protected, fewest permissions | Accepted 2026-10-15; settles Open-Pending's CI question; names the system behind 013 d2; amended 2026-10-15 (post-deploy check; every merge builds and tags a version, production deploys only tagged builds; dev may be built by hand) |
 
 **Every feature requires automated tests** (ADR-013), covering `backend/`, `infra/` **and**
 `web/`. Integration tests count — several of the tests that matter most, such as
@@ -2590,9 +2638,9 @@ against its own implementation, and both could drift together.
 Tooling: JUnit with DynamoDB Local for `backend/`, Jest with CDK `assertions` for `infra/`,
 **Vitest with React Testing Library** for `web/`, and **Playwright for two end-to-end flows**
 — booking a lesson, and saving a schedule change that cancels bookings. The second doubles
-as ADR-010's synthetic canary, run on a schedule **against production** as a dedicated test
-coach and test family (ADR-027 d7). *Amended 2026-10-15 (ADR-027):* in MVP it runs once at the
-end of each approved production deploy, not on a schedule (Phase 2). An always-on **up-check**
+as ADR-010's synthetic canary, run **against production** as a dedicated test coach and test
+family (ADR-027 d7): once at the end of each approved production deploy; a scheduled run is
+Phase 2 (ADR-027, amended 2026-10-15). An always-on **up-check**
 calls the home page and an API **`/health`** route (no sign-in, no data, returns "OK", rate-limited
 by the firewall — ADR-019, amended 2026-10-15) about once a minute and pages through ADR-010.
 
