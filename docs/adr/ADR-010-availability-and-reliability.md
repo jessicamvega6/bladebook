@@ -62,6 +62,10 @@ stores bookable times as **lesson times** (`LESSON#`) and each skater's place as
 
 Every behaviour rule still holds unless ADR-031 says otherwise.
 
+
+**Amended — 2026-10-15.** [ADR-027](ADR-027-on-demand-dev-environment.md): the cancellation-path
+canary runs once after each production deploy, not on a schedule; the scheduled run is Phase 2.
+An always-on up-check (home page and an API `/health` route) pages through decision 4.
 ---
 
 ## Context
@@ -127,7 +131,7 @@ Guards required, per consumer:
 | `consumer-payment-reminder` | `paymentReminderSent` | Exists (ADR-003 d4) |
 | `consumer-change-notifier` | `notificationStatus` | Exists (ADR-006 d5) |
 | `consumer-booking-confirmation` | a `confirmationSent` flag on the booking *(on the seat — ADR-031 decision 2, 2026-10-13)* | **To build** |
-| `sched-day-reminder` | **`remindedOn`** — see decision 3 | **To build** |
+| `sched-day-reminder` | **`remindedOn`** (seat) and **`morningEmailSentOn`** (coach profile, since 2026-10-13) — see decision 3 | **To build** |
 | `sched-daily-report` | the report's `(coach, date)` S3 key is naturally idempotent; the **email** is not | **To build** |
 | Schedule-change cancellation | see decision 5 — the hard one | **To build** |
 | `sched-deadline-sweep` *(Amended 2026-10-13 (ADR-031 d12))* | re-checks each record before acting; no dead-letter queue, by design | **To build** |

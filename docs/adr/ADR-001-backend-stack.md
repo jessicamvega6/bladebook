@@ -108,6 +108,10 @@ function list that means:
 - **Neither new function's role is written yet.** GSI4 is keyed `DUE` across every coach, so, like
   GSI2 and GSI3, it is a cross-tenant index that only a scheduled job should hold.
 
+**Amended — 2026-10-15.** [ADR-032](ADR-032-ci-on-github-actions.md): CI runs on GitHub Actions. A4's
+comparison now includes how each tool deploys through a deploy role in each account, reached by
+OpenID Connect with no stored keys (see the note under A4 criterion 5).
+
 ---
 
 ## Amendments
@@ -246,7 +250,7 @@ exactly how decision 2 acquired an unexamined assumption in the first place.
 | 5 | **Two environments** | ADR-011 needs staging as a full second stack. Compare CDK context flags against Terraform workspaces or a second `tfvars`. |
 | 6 | **Failure recovery** | CloudFormation can wedge a stack in `UPDATE_ROLLBACK_FAILED`; Terraform can drift or lose state. How hard is each to recover from? |
 
-*Criterion 5 amended 2026-10-07 by ADR-027: the second environment is dev, built and destroyed on demand. Compare how cleanly each tool creates it from nothing and removes it completely, while production's retained resources stay protected. Since ADR-027 decision 8, dev is also a **separate AWS account**: compare how each tool deploys to two accounts (CDK bootstraps each; Terraform uses a provider or credentials per account).*
+*Criterion 5 amended 2026-10-07 by ADR-027: the second environment is dev, built and destroyed on demand. Compare how cleanly each tool creates it from nothing and removes it completely, while production's retained resources stay protected. Since ADR-027 decision 8, dev is also a **separate AWS account**: compare how each tool deploys to two accounts (CDK bootstraps each; Terraform uses a provider or credentials per account).* *Amended 2026-10-15 (ADR-032): either tool deploys from GitHub Actions through a deploy role in each account, reached by OpenID Connect (OIDC) with no stored keys. Compare how each fits that: CDK's bootstrap roles, or Terraform's provider role per account.*
 
 **Decision rule:** criterion 1 is a gate, not a weight — an option that cannot enforce §7 in
 CI is disqualified regardless of how it scores elsewhere. Among survivors, 2 and 4 carry the
@@ -329,7 +333,7 @@ ADR-012's `AccessContext` — and by ADR-013's cross-tenant test.
 | `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | Student, coach profile (instructions, handles, Reply-To), booking (`paymentReminderSent`); client profile and students on SMS suppression | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | One batch's cancellation and re-price lines (ADR-010 d5f, ADR-020); client profiles or students for contact; coach profile (Reply-To, and the recipient when a client cancelled); lines (`notificationStatus`); suppression write-back | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `TransactWriteItems` | Schedule and overrides for the conflict and re-price tests; bookings in range — or all the coach's upcoming bookings, when invoked directly by `reconcile-schedule` (ADR-010 d5j); batch header, cancellation and re-price lines; conditional price updates on bookings (ADR-010 d5a–d5k, ADR-020) | none | none |
-| `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` + `Query` on GSI2 | Bookings for today, student, coach profile (Reply-To), booking (`remindedOn`), suppression write-back. *Amended 2026-10-13 (ADR-023): also reads and writes the coach profile's `morningEmailSentOn` for the coach's morning email.* | **GSI2** | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
+| `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` + `Query` on GSI2 | Bookings for today, student, coach profile (Reply-To), booking (`remindedOn`), suppression write-back. *Amended 2026-10-13 (ADR-023): also reads and writes the coach profile's `morningEmailSentOn` for the coach's morning email.* *Amended 2026-10-15 (ADR-023): the morning email goes to the coach's `loginEmail`.* | **GSI2** | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `sched-daily-report` | `GetItem` + `Query` on GSI2 | Bookings for today, student names, coach profile (the recipient) | **GSI2** | `ses:SendEmail`; `s3:PutObject` on `coach=*/date=*/` in the reports bucket |
 | **`sched-drift-check`** — *twelfth function, added 2026-09-30 by [ADR-010](ADR-010-availability-and-reliability.md) decision 5k* | `Query` on GSI2 and the main table, `GetItem` — **read-only, no writes** | Upcoming bookings for the next 30 days, each such coach's schedule, overrides and recent batch headers | **GSI2** — a cross-tenant read, held only by a scheduled job | `sns:Publish` to the operator alert topic only (ADR-010 decision 4); CloudWatch metrics |
 | **`sched-unpaid-reminder`** — *eleventh function, added 2026-09-30 by [ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)* | `Scan` on GSI3, `GetItem`, `UpdateItem` | Unpaid lessons across coaches, student names, coach profiles (the recipient), booking (`settleReminderSentOn`) | **GSI3, scanned** — a cross-tenant read, held only by a scheduled job | `ses:SendEmail` |

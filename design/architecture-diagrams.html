@@ -1232,7 +1232,7 @@ sequenceDiagram
     loop each coach with seats that day (ADR-023, amended 2026-10-13)
         R-&gt;&gt;DB: GetItem the coach&#x27;s profile
         R-&gt;&gt;R: skip if morningEmailSentOn == target date
-        R-&gt;&gt;N: morning email to the coach - the rinkside link first,&lt;br/&gt;then the day&#x27;s lessons
+        R-&gt;&gt;N: morning email to the coach&#x27;s login email -&lt;br/&gt;the rinkside link first, then the day&#x27;s lessons
         R-&gt;&gt;DB: set morningEmailSentOn = target date on the coach&#x27;s profile
     end</pre>
         </div>
@@ -1253,7 +1253,7 @@ sequenceDiagram
     loop each coach with seats that day (ADR-023, amended 2026-10-13)
         R-&gt;&gt;DB: GetItem the coach&#x27;s profile
         R-&gt;&gt;R: skip if morningEmailSentOn == target date
-        R-&gt;&gt;N: morning email to the coach - the rinkside link first,&lt;br/&gt;then the day&#x27;s lessons
+        R-&gt;&gt;N: morning email to the coach&#x27;s login email -&lt;br/&gt;the rinkside link first, then the day&#x27;s lessons
         R-&gt;&gt;DB: set morningEmailSentOn = target date on the coach&#x27;s profile
     end</code></pre>
         </details>
@@ -1512,6 +1512,7 @@ sequenceDiagram
     C-&gt;&gt;API: POST /schedule/preview
     Note over API: one shared evaluator compares the lesson times the old schedule makes&lt;br/&gt;with the new ones - add, remove, cancel or re-price (ADR-031 d11)
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
+    Note over C: a price change of 50% or more, up or down: a warning&lt;br/&gt;tops the preview and Accept stays off until the coach&lt;br/&gt;ticks &quot;I&#x27;ve checked the new price&quot; (ADR-020 d4)
     C-&gt;&gt;API: PUT /schedule
     Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
     API-&gt;&gt;DB: write default / date overrides - scheduleVersion + 1 on SCHEDULE#35;DEFAULT
@@ -1563,6 +1564,7 @@ sequenceDiagram
     C-&gt;&gt;API: POST /schedule/preview
     Note over API: one shared evaluator compares the lesson times the old schedule makes&lt;br/&gt;with the new ones - add, remove, cancel or re-price (ADR-031 d11)
     API--&gt;&gt;C: &quot;47 lessons cancelled, 14 re-priced $50→$60&quot; — confirm?
+    Note over C: a price change of 50% or more, up or down: a warning&lt;br/&gt;tops the preview and Accept stays off until the coach&lt;br/&gt;ticks &quot;I&#x27;ve checked the new price&quot; (ADR-020 d4)
     C-&gt;&gt;API: PUT /schedule
     Note over API: refused unless the coach signed in&lt;br/&gt;within the last 15 minutes (ADR-023)
     API-&gt;&gt;DB: write default / date overrides - scheduleVersion + 1 on SCHEDULE#35;DEFAULT

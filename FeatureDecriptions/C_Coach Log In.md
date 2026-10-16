@@ -14,7 +14,7 @@ Links and buttons:
 
 Note under the button: after five wrong passwords, wait a few minutes before trying again.
 
-"Checking in at the rink?" note beside the form: use the rinkside app on your phone. It signs in with
+"Checking in at the rink?" note beside the form: use the rinkside page on your phone — the link is at the top of your Today page and in your morning email. It signs in with
 the same email and password but can only see today's lessons (see Coach App).
 
 Messages shown above the fields:

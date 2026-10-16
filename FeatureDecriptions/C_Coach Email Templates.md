@@ -17,7 +17,7 @@ Emails families get:
   Sign-up declined: when the coach declines a new skater. Always sent.
 
 Emails the coach gets:
-  Morning email: around 7 AM on days with lessons. The rinkside link first, then the day's lessons. (ADR-023, 2026-10-13)
+  Morning email: around 7 AM on days with lessons. The rinkside link first, then the day's lessons. Sent to your login email. (ADR-023, 2026-10-13; address 2026-10-15)
   Daily report: every evening at 9 PM.
   A family cancelled late: when a family cancels inside your notice period. (ADR-009, settled 2026-10-08)
   Unpaid lessons: weekly, on Monday morning.

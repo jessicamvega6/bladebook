@@ -65,7 +65,8 @@ Shared lesson no longer available — to Family B, when the coach accepts their 
 
 To the coach:
 Morning email — to the coach, around 7 AM on days with lessons: the rinkside link first, then today's lessons. Sent by the
-  day-of reminder job; the on/off switch is Phase 2. (ADR-023, 2026-10-13)
+  day-of reminder job; the on/off switch is Phase 2. Sent to the coach's login email, like the daily report. (ADR-023,
+  2026-10-13; address decided 2026-10-15)
 Lessons that passed before they could be cancelled — to the coach, when a stuck schedule change finishes after some of
   its lessons' times: "These lessons were due to be cancelled, but their time passed before the cancellation could be
   applied." The coach can waive them and contact the families. (ADR-010)

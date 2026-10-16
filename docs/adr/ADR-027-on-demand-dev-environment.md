@@ -13,6 +13,24 @@ most of decision 7's load log.
 stack is built — seed data or masked production, never both. Decisions 2, 3, 4 and 9 are
 amended; `load-dev` becomes `build-dev`.
 
+**Amended — 2026-10-15.** *Decided by the owner.* Decision 7's canary does **not** run on a
+schedule in MVP. In its place:
+
+- **A post-deploy check.** The production deploy job (ADR-032) ends by running ADR-013 decision
+  3c's second flow once against production, as the test coach and test family. It runs inside
+  the job the owner has just approved, so it needs no second approval. A failure fails the job,
+  with the owner there to roll back.
+- **An up-check, always on.** Health checks call the website's home page and a new **`/health`**
+  route on the API about once a minute, and alarm through ADR-010's paging. `/health` needs no
+  sign-in, reads no data and returns only "OK". It catches the site or API being down, an
+  expired certificate or domain, and the firewall blocking everyone. *Decided by the owner,
+  2026-10-15:* **`/health` is rate-limited** by the firewall like the other routes that need
+  no sign-in ([ADR-019](ADR-019-waf-in-mvp.md), amended 2026-10-15).
+
+The **scheduled canary moves to Phase 2**, undecided. Between releases, a stall in the
+cancellation path that the up-check can't see goes unnoticed until a coach reports it. That gap
+is accepted for MVP.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across
@@ -165,6 +183,9 @@ a test family that exist only for this.
 - **Its cancellations are real records.** They age out under ADR-017's retention like any
   others.
 
+*Amended 2026-10-15:* in MVP this flow runs once after each production deploy, not on a
+schedule; the scheduled run is Phase 2 (see Status).
+
 ### 8. Production and dev are separate AWS accounts
 
 *Decided by the owner, 2026-10-07.* Two accounts under one AWS Organization: a **production
@@ -304,8 +325,12 @@ leaves no dev table to scan.*
   (decision 9).
 - **How long dev may hold loaded production data.** Should a dev stack with loaded data page,
   or remind the owner, after some number of days?
-- **The canary's cadence and where it runs** (a scheduled CI job or CloudWatch Synthetics), and
-  which mailbox the test accounts use.
+- ~~**The canary's cadence and where it runs** (a scheduled CI job or CloudWatch Synthetics), and
+  which mailbox the test accounts use.~~ *Settled in part 2026-10-15 (Status):* MVP runs it after
+  each production deploy. **Still open:** which mailbox the test accounts use, and, for Phase 2,
+  whether to run it on a schedule at all, and where: a GitHub Actions schedule with the test
+  passwords kept as GitHub secrets (no AWS access for GitHub), or CloudWatch Synthetics inside
+  the production account.
 - **Checking that teardown left nothing behind** (decision 5): a script or a check at the end
   of the destroy.
 

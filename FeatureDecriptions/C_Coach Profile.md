@@ -44,7 +44,7 @@ Payments:
     Past lessons keep how they were paid.
 
 Account:
-  Login email: read-only, marked verified. The coach signs in with it and gets the daily report there.
+  Login email: read-only, marked verified. The coach signs in with it and gets the daily report and the morning email there.
   Password: "Change password" opens a form for the current and new password (handled by Cognito). The
     rinkside app stays signed in until its session runs out.
   Rinkside app: a note that it uses the same email and password and can only see today's lessons.

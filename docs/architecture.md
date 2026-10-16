@@ -3,8 +3,8 @@
 > A scheduling, student-management, and payment-reminder platform for hockey / figure-skating coaches.
 
 **Status:** Design (pre-implementation)
-**Last updated:** 2026-10-13
-**Current through:** [ADR-031](adr/ADR-031-lessons-and-seats.md)
+**Last updated:** 2026-10-15
+**Current through:** [ADR-032](adr/ADR-032-ci-on-github-actions.md)
 
 > This document describes the design as it currently stands. The reasoning behind each
 > decision — and every alternative rejected along the way — lives in `docs/adr/`.
@@ -877,13 +877,13 @@ sequenceDiagram
     loop each coach with seats that day (ADR-023, amended 2026-10-13)
         R->>DB: GetItem the coach's profile
         R->>R: skip if morningEmailSentOn == target date
-        R->>N: morning email to the coach - the rinkside link first,<br/>then the day's lessons
+        R->>N: morning email to the coach's login email -<br/>the rinkside link first, then the day's lessons
         R->>DB: set morningEmailSentOn = target date on the coach's profile
     end
 ```
 
 *Added 2026-10-13 (ADR-023):* the same run also sends each coach with lessons that day **one
-morning email** listing them, with the rinkside link first. It is marked as sent on the coach's
+morning email** listing them, with the rinkside link first. It goes to the coach's **login email**, not the business email (amended 2026-10-15). It is marked as sent on the coach's
 profile (`morningEmailSentOn`), the way `remindedOn` marks a seat, so a retry never sends it
 twice.
 
@@ -1099,6 +1099,7 @@ sequenceDiagram
     C->>API: POST /schedule/preview
     Note over API: one shared evaluator compares the lesson times the old schedule makes<br/>with the new ones - add, remove, cancel or re-price (ADR-031 d11)
     API-->>C: "47 lessons cancelled, 14 re-priced $50→$60" — confirm?
+    Note over C: a price change of 50% or more, up or down: a warning<br/>tops the preview and Accept stays off until the coach<br/>ticks "I've checked the new price" (ADR-020 d4)
     C->>API: PUT /schedule
     Note over API: refused unless the coach signed in<br/>within the last 15 minutes (ADR-023)
     API->>DB: write default / date overrides - scheduleVersion + 1 on SCHEDULE#35;DEFAULT
@@ -2076,6 +2077,7 @@ sequenceDiagram
 ### Least privilege
 - **One IAM role per Lambda**, granted only the specific actions it needs (e.g. the report λ gets `dynamodb:Query` on GSI2, `dynamodb:GetItem` for student names and the coach profile, `ses:SendEmail` and `s3:PutObject` scoped to the reports bucket/prefix — nothing else). The full per-function table is **ADR-001 amendment A6**. Only the three scheduled jobs that need it hold GSI2 (day-of reminder, end-of-day report, drift check), an index that crosses tenants. GSI4 crosses tenants too: `sched-deadline-sweep` reads it every hour (ADR-031 d12). The end-of-day report only reads the table; it writes nothing (ADR-014 d7, ADR-031 d7). `consumer-invite` writes across coaches, but only copies: reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem` (ADR-031 Consequences, *owner, 2026-10-13, option B*). `sched-deadline-sweep` is the one function that can delete records across coaches. *The two new jobs' roles are still open (ADR-031 d14); only `sched-deadline-sweep` should be able to read GSI4.*
 - No wildcard `dynamodb:*`, `ses:*`, or `s3:*`. `cdk-nag` fails the build on any.
+- **Deploys come only from GitHub Actions, with no stored AWS keys** (ADR-032). Each account has its own least-privilege deploy role, reached through OpenID Connect (OIDC) by a trust rule locked to this repository and, for production, its `production` environment on `main`. Every production deploy waits for the owner's approval; actions are pinned to commit hashes.
 - **A limit worth knowing before relying on this:** in a single-table design, per-function
   roles cannot separate *item types*. DynamoDB fine-grained access control conditions on the
   partition key (`dynamodb:LeadingKeys`) and on attributes — there is no sort-key condition —
@@ -2342,7 +2344,7 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 
 | Job | Trigger | What it does |
 |---|---|---|
-| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today` on GSI2, notify each seat's client by email (SMS is Phase 2). *Since 2026-10-13 (ADR-023):* also email each coach with lessons that day one list of them, with the rinkside link first; no lessons, no email. |
+| Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today` on GSI2, notify each seat's client by email (SMS is Phase 2). *Since 2026-10-13 (ADR-023):* also email each coach with lessons that day one list of them, at their login email, with the rinkside link first; no lessons, no email. |
 | End-of-day report | EventBridge Scheduler, ~9:00pm | Query `DATE#today` on GSI2, split the seats into checked-in, no-show and pending (§6.4), archive to S3 (writes nothing to the table), email the coach. |
 | Unpaid-lesson reminder | EventBridge Scheduler, weekly (Monday morning, proposed) | Scan GSI3 for seats still unpaid longer than the threshold, email each coach one list asking them to mark each paid or waived, stamp `settleReminderSentOn` so each lesson is listed once. **Off until the threshold is set** (ADR-018). |
 | Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for lesson times that don't match the current schedule. **Read-only**: pages for a batch stuck over an hour or a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
@@ -2386,6 +2388,8 @@ directly and a minor's guardian is notified on their behalf — same code path.
 the coach profile (ADR-016 d8), which defaults to the login email. The envelope sender stays
 the application's verified domain, so SES identity and bounce handling are unaffected. This
 means the day-of and payment reminders now read the coach profile as well as the student.
+
+**Email to the coach goes to the login email.** The morning email, the end-of-day report and the weekly unpaid-lesson reminder go to `loginEmail`, the address Cognito verified, never to `businessEmail` (ADR-018, ADR-023 amended 2026-10-15).
 
 **Reminders are per lesson**, never grouped: a client with two children who both have
 lessons on the same day receives two reminders (ADR-002 decision 7).
@@ -2502,6 +2506,8 @@ delivery confirmation needs SES event destinations and is not in MVP.
   work is not the fee but the plumbing: `CANCELLED#` records gain a payment lifecycle and
   GSI3 membership, since a late cancellation moves its seat to a `CANCELLED#` line and a no-show does not (ADR-031 d2).
 - **Cancellation reasons** — distinct email templates for sick, emergency, vacation.
+- **Scheduled production canary** — whether to run the cancellation-path check on a schedule between releases, and where: a GitHub Actions schedule or CloudWatch Synthetics. MVP runs it after each deploy only (ADR-027, amended 2026-10-15).
+- **Turning off the coach's morning email** — a switch on the email templates page. MVP sends it on every lesson day with no way to turn it off (ADR-023, amended 2026-10-13).
 - **Cancelling from the week view** as a client, when the booking is theirs.
 - **In-app payments** (Stripe/AWS integration) — explicitly *not* an MVP goal. Introduces refunds/credits, which the current no-ledger payment model cannot express.
 - Waitlists / package plans.
@@ -2549,25 +2555,26 @@ text — as ADR-001's A1–A5 and ADR-010's decision 5f do.
 | [010](adr/ADR-010-availability-and-reliability.md) | Availability and reliability tiers, dead-letter queues, idempotency, alerting, Point-in-Time Recovery | Accepted; amends 006 d5; amended 2026-09-29 (d5f — the notifier fires when a batch finishes); amended 2026-09-30 (d5g–d5l — recovery: event-derived keys, plan-complete marker, re-check before acting, reconcile command, nightly drift check, status on the coach website; d2a — dead-letter policy per consumer); amended by 031 (nightly lesson roller; the hourly sweep's missed-run alarm) |
 | [011](adr/ADR-011-staging-environment.md) | Staging environment; production data masked before it lands there | Accepted; supersedes 010's "no staging"; amended 2026-09-29 (masking list follows ADR-016; containment disables both app clients, *one since 023*; subset remapped onto test accounts, d8; photo placeholder, d9); **d1, d7a, d8a's default list and d8c superseded by 027** — masking carried over to dev |
 | [012](adr/ADR-012-pii-access-logging.md) | Who read what — application logging, CloudTrail data events, cron aggregation | Accepted; answers monitoring §2 |
-| [013](adr/ADR-013-testing-requirement.md) | Every feature requires automated tests, across all three packages | Accepted; **enforcement deferred to the first CI pipeline** |
+| [013](adr/ADR-013-testing-requirement.md) | Every feature requires automated tests, across all three packages | Accepted; **enforcement deferred to the first CI pipeline** (GitHub Actions, ADR-032) |
 | [014](adr/ADR-014-check-in-app-and-offline-capture.md) | Attendance as an MVP surface; offline capture, device timestamps, idempotent replay, explicit no-show, `PENDING` report default | Accepted; amends 001 (A3); **d10–11 superseded by 023** (no separate app client or function); amended 2026-10-13 by 031 |
 | [015](adr/ADR-015-late-cancellation-and-no-show-charges.md) | Late cancellation and no-show both charged, one rule; fee per block, stamped on the booking | Accepted; **charge is Phase 2**; supersedes 009 d3 and d11 in part, amends 014 d3; amended 2026-09-29 (d1a — only the client's own late cancellation is charged, from any screen); d3 amended by 020; amended by 026 2026-10-13 (in a shared lesson, the leaver may be charged their share of the late-cancellation fee); d4 amended by 031 (the charge lives on the seat's cancellation line) |
 | [016](adr/ADR-016-coach-signup.md) | Coach signup — **ungated for now**, licence gate intended; Cognito-owned credentials; the coach profile | Accepted; closes §11's oldest open thread; extends 002; amended 2026-09-29 (`requiredNoticeHours` on the profile); amended 2026-10-01, 2026-10-05 (photo to Phase 2), 2026-10-12 (`acceptsCash`) |
 | [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f; amended 2026-10-12 (16-month floor for lesson and payment records; archived-history message; restores logged under 012); amended 2026-10-13 by 031 |
 | [018](adr/ADR-018-unpaid-lesson-reminder-to-coach.md) | A weekly email telling each coach which lessons are still unpaid after a threshold, asking them to mark each paid or waived | Accepted; **threshold to be set — off until then**; answers 017's open question; amended 2026-10-13 by 031 |
-| [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023 |
-| [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; **large-change warning threshold undecided**; amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (a re-price changes only the lesson time's total; every share follows it, a `REPRICED#` line per seat whose share changes) |
+| [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023; amended 2026-10-15 (`/health` is rate-limited) |
+| [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; large-change warning at 50% or more of the old price, up or down (amended 2026-10-13); amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (a re-price changes only the lesson time's total; every share follows it, a `REPRICED#` line per seat whose share changes) |
 | [021](adr/ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database as well as in code: per-request tenant roles tagged with the coach for `api-coach` (and `api-checkin` until 023); `api-coach` drops GSI1; a stream consumer writes the client's link item | Accepted; database-gate tests **passed 2026-10-05** (d7); reverses 014 d11a's second point; amends 001 (A8), 002, 012, 013; extended to clients by 022; extended by 025 (`otherCoaches`, Phase 2); amended 2026-10-08 (d7 tests run in dev; `StudentChanged` also triggers `consumer-invite` (no longer, since ADR-031)); amended 2026-10-13 by 031 |
 | [022](adr/ADR-022-client-isolation-at-the-database.md) | Client isolation at the database: a per-request `client-tenant` role; GSI1 re-keyed by client; recurrence headers move to the client's partition; coach-partition reads limited to an attribute allowlist; writes confined to the client's coach | Accepted; client-gate tests **passed 2026-10-05** (d9); amends 001 (A9), 002, 006, 009, 012, 013, 016, 021; **d8's retry lookup through GSI1 superseded by 031** (a read of the family's own seat) |
-| [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021 |
+| [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021; amended 2026-10-05 (session lengths), 2026-10-07 (dev address), 2026-10-12 (no home-screen use), 2026-10-13 (reached from the Today page and the coach's morning email; amends 001 A6 and 010 d3); 2026-10-15 (the morning email goes to the coach's login email) |
 | [024](adr/ADR-024-client-write-link-check.md) | The client write link check: a `LinkedSkater` type only `core.data` creates, a `clientId` ownership condition on existing items, an ArchUnit rule; failures split by reason, logged, and paged on configurable thresholds | Accepted; amends 010, 012, 013, 022; amended 2026-10-13 by 031 (the shared-lesson exception was withdrawn) |
 | [025](adr/ADR-025-many-coaches-per-skater.md) | Skaters and coaches are many-to-many: one `studentId` per skater across coaches, a family-owned `SKATER#` item, per-coach approval and `linkStatus`, other coaches' names shown to each coach (Phase 2); no limit on coaches; clashing bookings warned about, family changes copied by a consumer | Accepted; supersedes 002 d4–5; amends 001, 011, 021, 022; amended twice 2026-10-13 (booking with several coaches; several coach codes at sign-up in MVP; one Home card per coach; coach filter on My bookings; travel time between rinks is Phase 3); amended 2026-10-13 by 031 |
 | [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater *(now a seat, 031)*; the slot lock unchanged *(replaced by 031)* | Accepted; max 2 and approval decided by the owner; pricing and the booking family cancelling decided by the owner 2026-10-13 (set price split evenly; leaving rules; share codes never change); lapse still partly pending Kim; a skater not yet with the coach joins via a consent link and the coach's Accept; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP); 2026-10-12 (`maxSkaters` never lowered on a booked lesson); **d2, d3 and d5's mechanics and d5a's nightly sweep superseded by 031** (seats, partner fields, hourly sweep) — every behaviour rule still holds |
-| [027](adr/ADR-027-on-demand-dev-environment.md) | Production is the only long-running environment: an on-demand dev stack, built from the same code and destroyed when done, replaces staging; a masked production subset is loaded only on request; no teardown while a scanner finding is open; the scheduled canary runs against production as a test coach and family; production and dev are separate AWS accounts; masking job and surviving logs in a data-loading stack | Accepted; supersedes 011 d1, d7a, d8a (default list), d8c; amends 001, 010, 012, 013, 017, 019, 021, 023, 024, 025; amended 2026-10-09 (a Step Functions workflow runs each load); amended by 028 (dev built from one import) |
+| [027](adr/ADR-027-on-demand-dev-environment.md) | Production is the only long-running environment: an on-demand dev stack, built from the same code and destroyed when done, replaces staging; a masked production subset is loaded only on request; no teardown while a scanner finding is open; the scheduled canary runs against production as a test coach and family; production and dev are separate AWS accounts; masking job and surviving logs in a data-loading stack | Accepted; supersedes 011 d1, d7a, d8a (default list), d8c; amends 001, 010, 012, 013, 017, 019, 021, 023, 024, 025; amended 2026-10-09 (a Step Functions workflow runs each load); amended by 028 (dev built from one import); amended 2026-10-15 (canary runs after each deploy, scheduled run Phase 2; always-on up-check and `/health`) |
 | [028](adr/ADR-028-dev-table-built-from-one-import.md) | The dev table is created from one import file when the stack is built: seed data (default) or masked production (on request), never both; dev is two stacks, test accounts first; a build fails if the import doesn't match the file | Accepted; amends 027 d2, d3, d4, d9 |
 | [029](adr/ADR-029-skater-registration-number.md) | Every skater gives a US Figure Skating or USA Hockey registration number, per skater, required at sign-up; checked for shape only; Canada is Phase 2; never a key; the coach code is never a registration number | Accepted; extends 002, 025 d1 |
 | [030](adr/ADR-030-financial-page-gross-and-rink-fees.md) | Financial page: YTD gross is money received, counted by lesson date, calendar year; a finished year is closed; the page says figures come from lessons marked paid; BladeBook calculates rink fees from terms the developer sets; a summary CSV export in MVP | Accepted in part; how rink fees are calculated is open (`Q_Rink-Fees.md`); amended 2026-10-13 by 031 |
 | [031](adr/ADR-031-lessons-and-seats.md) | Booking rebuilt as **lesson times and seats**: open times stored as `LESSON#` records by a nightly `sched-lesson-roller` (~15 months ahead); one `SEAT#` per skater, private and shared lessons on one path; GSI1–3 on seats, new sparse GSI4 for deadlines; ended seats move to `CANCELLED#` or `SEATEND#`; a three-month booking window checked by the system; retry attribution by reading the family's own seat; the invited seat holds the place; joining lesson by lesson; partner fields replace `INVITE#` copies; even split with odd cents to the earliest skaters in the lesson time's `joinOrder`; **revised later 2026-10-13 so no family's action writes another family's records** — the total price only on the lesson time with a `shareCount`, no amount copied onto a seat (every share worked out from the lesson time; owner, 2026-10-13), odd cents by the lesson time's `joinOrder`, a leave recorded as a pending leave on the lesson time, read-only copies on seats written by `consumer-invite` (partner fields, `invitedClientId` + GSI1 keys so an invitation shows before it is accepted, `choiceAnswerBy`), the invited seat the inviter's until accepted and ended by the inviting family's own cancel, or by the sweep (`INVITER_LEFT`) once accepted, so ADR-024 needs no shared-lesson exception; leaving in time or late, the answer-by rule, keep all / cancel all, a freed place takes a one-lesson invite; schedule saves add, remove, cancel and re-price lesson times with a `scheduleVersion`; the **hourly** `sched-deadline-sweep`; the odd-cents warning; details settled 2026-10-13 (d14): `LessonBooked` per seat, GSI2 keys only once `BOOKED`, batch lines only for cancel and re-price, `scheduleVersion` on `SCHEDULE#DEFAULT`, the sweep's `NO_ANSWER` batches and `DeadlineSweepCompleted`, `SEATEND#` attributes, which function sends which email, seat names kept current by `consumer-family-sync` | Accepted 2026-10-13; supersedes 004 d1–2, parts of 006, 009, 022 d8 and 026's mechanics; amends 008, 010, 015, 020; closes Open-Pending §4 (booking vs. schedule save) and ADR-026's leaving, freed-place and split-share re-pricing gaps. **Open:** the two new jobs' IAM roles; whether a coach booking for a family is held to the window; whether the 7 days in the answer-by rule is a question for Kim; ADR-026 P5 (an unanswered invitation's lapse) still waits on Kim |
+| [032](adr/ADR-032-ci-on-github-actions.md) | Continuous integration runs on **GitHub Actions**; nothing deploys to either account until its security setup is in place: actions pinned to commit hashes, AWS reached through OpenID Connect (OIDC) with a trust rule locked to the repo and branch, owner approval before production, `main` protected, fewest permissions | Accepted 2026-10-15; settles Open-Pending's CI question; names the system behind 013 d2 |
 
 **Every feature requires automated tests** (ADR-013), covering `backend/`, `infra/` **and**
 `web/`. Integration tests count — several of the tests that matter most, such as
@@ -2584,7 +2591,10 @@ Tooling: JUnit with DynamoDB Local for `backend/`, Jest with CDK `assertions` fo
 **Vitest with React Testing Library** for `web/`, and **Playwright for two end-to-end flows**
 — booking a lesson, and saving a schedule change that cancels bookings. The second doubles
 as ADR-010's synthetic canary, run on a schedule **against production** as a dedicated test
-coach and test family (ADR-027 d7).
+coach and test family (ADR-027 d7). *Amended 2026-10-15 (ADR-027):* in MVP it runs once at the
+end of each approved production deploy, not on a schedule (Phase 2). An always-on **up-check**
+calls the home page and an API **`/health`** route (no sign-in, no data, returns "OK", rate-limited
+by the firewall — ADR-019, amended 2026-10-15) about once a minute and pages through ADR-010.
 
 The gate is an ArchUnit rule — every public class in `core/` has a test class — plus
 **mutation testing (PIT) on `core/` only**, where an assertion-free test is most dangerous.
@@ -2675,6 +2685,7 @@ pipeline.
 | **Route 53 hosted zone + domain** (~$15–20/year) | ~$2 |
 | Encryption keys — **AWS-managed**, no monthly fee (§7) | ~$0 |
 | CloudTrail data events, Secrets Manager (including the production canary's test-account credentials, ~$0.40 — ADR-027 d7), WAF logs | under $1 |
+| Up-check: two health checks, home page and API `/health` (ADR-027, amended 2026-10-15) | about $1 |
 | **Production subtotal** | **~$20–32** |
 
 **Dev** (ADR-027 — built on demand, destroyed when done)

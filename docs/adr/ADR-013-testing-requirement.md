@@ -28,6 +28,9 @@ dedicated test coach and family.
 **Amended — 2026-10-08.** [ADR-027](ADR-027-on-demand-dev-environment.md): decision 4's
 database-level tenant gate tests run in the on-demand dev stack.
 
+**Amended — 2026-10-15.** [ADR-032](ADR-032-ci-on-github-actions.md): decision 2's pipeline runs on GitHub
+Actions. Nothing deploys until ADR-032 decision 2's security setup is in place.
+
 ---
 
 ## Decision
@@ -57,6 +60,8 @@ threshold chosen now would be a guess about the shape of code nobody has written
 gate can exist at all, and before enough code accumulates to make retrofitting painful.
 ADR-001 already puts `cdk-nag` in CI as the §7 checklist, so the pipeline is coming
 regardless; this attaches to it.
+
+*Amended 2026-10-15 (ADR-032): the pipeline is GitHub Actions.*
 
 **The honest risk of deferring is that "later" never arrives.** It is recorded here with a
 trigger rather than an intention so that the trigger is the thing that gets checked.
@@ -202,7 +207,8 @@ path stalling — a failure no per-service metric shows, because every write sti
 Flow 2 *is* that check. Run in continuous integration (CI) it is a test; run on a schedule
 against staging it is a canary. One artefact, two jobs. *Amended 2026-10-07 by ADR-027
 decision 7:* the canary runs against production, signed in as a dedicated test coach and test
-family whose emails reach a mailbox the owner controls.
+family whose emails reach a mailbox the owner controls. *Amended 2026-10-15 by ADR-027:* in MVP
+it runs once after each production deploy, not on a schedule; the scheduled run is Phase 2.
 
 ### 4. The list of things this system has already identified as needing tests
 

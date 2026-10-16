@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-13
+**As of:** 2026-10-15
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -16,12 +16,25 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **Pending decision: Infrastructure as Code (IaC) — AWS Cloud Development Kit (CDK) or
   Terraform?** Undecided; ADR-001 amendment A4 lists the criteria. Switching gets expensive
   once anything is deployed. (ADR-001 A4)
-- **Pending decision: Which continuous integration (CI) system?** No ADR names one. The repo
+- ~~**Pending decision: Which continuous integration (CI) system?** No ADR names one. The repo
   is on GitHub, so GitHub Actions is the obvious candidate; AWS CodePipeline/CodeBuild is the
   AWS-native alternative. It must build the JARs before every deploy (no stale-JAR deploys),
   run ADR-013's ArchUnit and mutation-testing gates, build a dev stack to test in before deploying to production (ADR-027), and
   reach AWS without long-lived access keys. Blocks the to-do in §11. (ADR-013, ADR-001 A4,
-  Blockers-Before-Coding #3)
+  Blockers-Before-Coding #3)~~ *Settled 2026-10-15 by the owner:* GitHub Actions
+  ([ADR-032](adr/ADR-032-ci-on-github-actions.md)).
+- **To do before the first deployment: lock down the CI pipeline.** Nothing deploys to either
+  AWS account until all of ADR-032 decision 2 is in place:
+  - every action pinned to a full commit hash;
+  - AWS reached through OpenID Connect (OIDC) only, with no stored access keys;
+  - the AWS trust rule locked to this repository and, for production, its `production`
+    environment on `main`;
+  - the owner's approval required before every production deploy;
+  - `main` protected, with two-factor authentication on the account;
+  - workflows given the fewest permissions;
+  - separate deploy roles for dev and production, each with least privilege.
+
+  *Added 2026-10-15.* (ADR-032, Blockers-Before-Coding #3)
 - **Pending decision: How student data is deleted on request.** §7 promises it; nothing
   implements it. Two approaches drafted (erasure by constant, erasure by token), neither
   chosen. *Deferred 2026-08-25.* (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
@@ -651,7 +664,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   coach website with the same sign-in and its routes move into `api-coach`, so there is
   nothing to refuse and no Lambda authorizer. (ADR-019 decision 3, ADR-001 A7)
 - **Pending decision (ADR-023 Open): Which actions besides a schedule save need a recent
-  sign-in** — day or week cancellation, removing a student, approve/decline, changing contact
+  sign-in** — day or week cancellation, ~~removing a student~~ (Phase 2 since 2026-10-13), approve/decline, changing contact
   or payment details.
 - ~~**Pending decision (ADR-023 Open): The coach website's refresh-token lifetime**~~ **Settled
   2026-10-05 (ADR-023 d6):** 60 minutes on the coach and family websites, 4 hours on the
@@ -702,9 +715,20 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   (ADR-011 decision 6c, ADR-027 decision 4)
 - **Open question: How long may dev hold loaded production data?** Should a dev stack with
   loaded data page, or remind the owner, after some number of days? (ADR-027 Open)
-- **Pending decision: The production canary's cadence and runner** (a scheduled CI job or
+- ~~**Pending decision: The production canary's cadence and runner** (a scheduled CI job or
   CloudWatch Synthetics), and which mailbox the test coach and family use. (ADR-027 decision 7
-  and Open)
+  and Open)~~ *Settled in part 2026-10-15 by the owner:* in MVP the canary runs once at the end
+  of each approved production deploy, plus an always-on up-check. (ADR-027, amended 2026-10-15)
+- **Open question: Which mailbox the test coach and family use.** Still needed: the post-deploy
+  check sends real email. (ADR-027 Open)
+- **To-do: Add the `/health` route and the up-check.** A route on the API that needs no
+  sign-in, reads no data and returns "OK"; health checks on it and the home page, alarming
+  through ADR-010's paging. *Decided 2026-10-15:* `/health` is rate-limited, with its own
+  firewall rule; its number is set when it's built (ADR-019 Open). (ADR-027, ADR-019, amended
+  2026-10-15) *Added 2026-10-15.*
+- **Phase 2: A scheduled production canary** — whether to have one, and where: a GitHub
+  Actions schedule with the test passwords as GitHub secrets, or CloudWatch Synthetics.
+  (ADR-027 Open) *Added 2026-10-15.*
 - **To-do: Mark the canary's test accounts and keep them out of anything summed across
   coaches.** (ADR-027 decision 7)
 - **To-do: Check that teardown left nothing behind** — a script or a check at the end of the
@@ -712,8 +736,13 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   deletion-protected. (ADR-027 decision 5 and Open)
 - **Pending decision: Should the ArchUnit test rule reach beyond `core/`?** Recommendation:
   move the cancellation consumer's orchestration into `core/` instead. (ADR-013)
-- **To-do: Build the first CI pipeline** — test enforcement switches on with it. Waits on the
-  CI system choice in §1. (ADR-013)
+- **To-do: Build the first CI pipeline** — test enforcement switches on with it. ~~Waits on the
+  CI system choice in §1.~~ *Since 2026-10-15:* on GitHub Actions (ADR-032). Nothing deploys
+  until the §1 lock-down to-do is done. (ADR-013)
+- **Pending decision: Keep pinned GitHub Actions current with Dependabot, or check by hand on a
+  schedule?** (ADR-032 Open) *Added 2026-10-15.*
+- **Pending decision: How long to keep CI run logs, and whether to copy them anywhere.**
+  (ADR-032 Open) *Added 2026-10-15.*
 
 ## 12. Feature descriptions — gaps to fill
 

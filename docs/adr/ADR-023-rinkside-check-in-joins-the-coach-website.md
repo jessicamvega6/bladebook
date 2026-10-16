@@ -45,7 +45,17 @@ ways**, and neither needs a home-screen icon or a bookmark:
   link is a plain address with no sign-in token in it; the page asks the coach to sign in as
   usual. A coach with no lessons that day gets no email. MVP has no off switch; turning it off
   arrives with the email templates page in Phase 2. This adopts Kim's "daily email about
-  lessons scheduled" (`docs/Talking with Kim:.md.md`).
+  lessons scheduled" (`docs/Talking with Kim:.md.md`). The run stamps `morningEmailSentOn` on
+  the coach's profile, keyed on (coach, date), so a retry never sends the email twice.
+  **Amends** [ADR-001](ADR-001-backend-stack.md) amendment **A6** and
+  [ADR-010](ADR-010-availability-and-reliability.md) decision **3**.
+
+**Amended — 2026-10-15.** *Decided by the owner.* The coach's morning email goes to the
+coach's **login email**, the same verified address as the daily report — not the business
+email on the profile. The weekly unpaid-lesson reminder already goes there
+([ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)). **Amends** [ADR-001](ADR-001-backend-stack.md)
+amendment **A6**.
+
 ---
 
 ## Context
@@ -255,7 +265,8 @@ it, and a refreshed token keeps its original `auth_time`.
 - **Whether other actions need a recent sign-in too.** Candidates: day or week cancellation
   (from the week view or rinkside), removing a student, approve and decline, and changing
   the coach's contact or payment details. Each is less destructive than a schedule save but
-  still worth asking about.
+  still worth asking about. *2026-10-13: removing a student is Phase 2 (Blockers #17), so it is
+  no longer an MVP candidate.*
 - ~~**The website's refresh-token lifetime.**~~ **Settled 2026-10-05, decision 6:** 60 minutes
   on the coach and family websites, 4 hours on the rinkside page, from sign-in.
 - ~~**Confirm the iPhone home-screen storage behaviour** in decision 1 on a real device.~~

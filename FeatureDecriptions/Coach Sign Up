@@ -7,7 +7,7 @@ Coach Sign Up:
     last name (step 1)
     password (step 1), with the password rules listed under it (at least 8 characters)
     <!-- business EIN / tbd Canada's version -->
-    login email (step 1): private; the coach logs in with it and gets the daily report there.
+    login email (step 1): private; the coach logs in with it and gets the daily report and the morning email there.
                     Step 2 verifies it with a 6-digit emailed code, with Resend code and Change email links.
     business email ~~(optional and will be login email if left blank)~~ *(step 3: "Use my login email" or "Use a different email". A different address gets a confirmation link, not a code, on step 4, with Resend link, Change address and "Use my login email instead". Families can't reach the coach until it's confirmed.)*
                     (will be what a client responds to if they click reply within an automated email)

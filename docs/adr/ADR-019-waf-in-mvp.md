@@ -25,6 +25,12 @@ Lambda authorizer. The built-in Cognito authorizer is enough.
 replaces staging. Its firewall is still off by default and switched on to rehearse block mode,
 and it is now paid for only while dev exists — production's ~$10 a month is the steady cost.
 
+**Amended — 2026-10-15.** *Decided by the owner.* [ADR-027](ADR-027-on-demand-dev-environment.md)
+adds an API route that needs no sign-in, **`/health`**, for the always-on up-check. **It is
+rate-limited.** Decision 2's 1,000-per-5-minutes rule already covers it. It also gets its own
+rate-based rule, like the sign-up and code-lookup rule; the number is set when it's built, high
+enough for the health checkers' own calls (Open).
+
 ---
 
 ## Context
@@ -231,6 +237,9 @@ delivered — cents a month here, nothing while off.
 - **Firewall log retention.** 30 days for now (decision 4b). The logs record source addresses
   and request paths — personal data about whoever made the request — so the final window
   belongs on the legal review's agenda with the access log.
+- **The `/health` rate limit's number** (amended 2026-10-15): low enough to stop abuse, high
+  enough for the up-check's health checkers, which call from several addresses about once a
+  minute each.
 
 ---
 
