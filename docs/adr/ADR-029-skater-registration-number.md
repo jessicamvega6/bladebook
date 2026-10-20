@@ -84,6 +84,14 @@ coach's `STUDENT#` record for that skater, as it does the skater's name (ADR-025
 Each coach the skater is with can see it, so a coach who wants to check it with the organisation
 can.
 
+*Added 2026-10-20 (owner):* the coach sees it on the **Students list**, in a "Skater number"
+column showing the number and its organisation for each skater, and on **Waiting for
+approval**, beside each skater waiting to be approved (`design/harbor/coach/static/students.html`,
+`pending.html`). The number is required at sign-up (decision 1), so every skater on either list
+has one; neither screen has a "no number" state. The list doesn't search by number (*owner*).
+The lists are already logged reads of students under ADR-012 decision 5a, so showing the number
+there adds no new logging.
+
 ### 4. Checked for shape, never for membership
 
 The number is typed into a free-text box, so it is cleaned up and checked before it's saved, by
@@ -132,7 +140,10 @@ else.
   access logging and ADR-022's client isolation protect. §7's data minimisation needs the
   stated purpose (Open).
 - **The sign-up and profile screens need the organisation picker and the number box.** The
-  Harbor design already has them (`design/harbor/client/screens-account.js`).
+  Harbor design already has them (`design/harbor/client/screens-account.js`). The coach's
+  Students list and Waiting for approval show each skater's number and organisation (*added
+  2026-10-20*, `design/harbor/coach/screens-students.js`). The sign-up and profile pickers offer
+  all three Phase 1 organisations (*Learn to Skate USA added to the design 2026-10-20*).
 - **`consumer-family-sync` copies two more attributes.** No new function, event or permission.
 - **USA Hockey families must update the number every season.** Nothing forces it in MVP; what
   happens when a number lapses is Open.

@@ -26,6 +26,10 @@ function stuApproveOne(s) {
   return joined.map(l => ` ${s.name.split(' ')[0]} joined ${shortName(nameOf(l))}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)}.`).join('');
 }
 const stuTabs = on => SEG([`Students <span class="stu-count">${active().length}</span>`, `Waiting for approval <span class="stu-count${pending().length ? ' stu-count--attn' : ''}">${pending().length}</span>`], on, 'stuTab');
+/** The skater's organization and number from sign-up (ADR-029 d3), copied onto the coach's STUDENT# record. Required at
+    sign-up (ADR-029 d1), so every skater has one. Order matches the client's SKATE_ORGS. */
+const STU_ORGS = ['U.S. Figure Skating', 'USA Hockey', 'Learn to Skate USA'];
+const stuOrg = s => `<span class="mono">${esc(s.orgNum)}</span><span class="stu-sub">${STU_ORGS[s.org]}</span>`;
 const stuContact = s => `<div class="stu-contact"><span>${ic('mail', 13)}${esc(s.email)}</span><span>${ic('phone', 13)}${esc(s.phone)}</span><span>${ic('msg', 13)}${s.sms ? 'Texts on' : 'Email only'}</span></div>`;
 
 SCREENS.students = () => {
@@ -35,6 +39,7 @@ SCREENS.students = () => {
     const n = stuNext(s);
     return `<tr>
       <td><span class="cellname">${avatar(initials(s.name), 'sm')}<span><b>${esc(s.name)}</b><span class="stu-sub">${s.minor ? 'Minor' : 'Adult'}</span></span></span></td>
+      <td>${stuOrg(s)}</td>
       <td><b>${esc(s.client)}</b><span class="stu-sub">${s.rel === 'Self' ? 'Books for themselves' : s.rel}</span>${stuContact(s)}</td>
       <td class="num">${n ? `${dDow(n.iso)}<span class="stu-sub">${fmtT(n.t)} · ${n.len} min</span>` : '<span class="muted">Nothing booked</span>'}</td>
       <td class="r"><span class="cellbtns">${B('Edit contact', 'ghost', 'stuEditOpen', { sm: true, icon: 'pencil', args: [s.id] })}</span></td></tr>`;
@@ -42,8 +47,8 @@ SCREENS.students = () => {
   return shell(`
     ${pageHead('Students', 'Everyone you coach, and how to reach their family.', stuTabs(0))}
     <div class="stu-search">${INP('stu-search', 'Search', 'ui.stu.search', { live: true, placeholder: 'Name, family, email or phone' })}</div>
-    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Family contact</th><th>Next lesson</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
-      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Changing them here changes them for every skater in that family.</div>`
+    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Skater number</th><th>Family contact</th><th>Next lesson</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Changing them here changes them for every skater in that family. Skater numbers are entered by the family and checked for shape only, not with the organization.</div>`
       : `<div class="pempty"><span class="pempty__icon">${ic('users', 22)}</span><b>No students match “${esc(u.search)}”</b><span class="muted">Try a first name, a family name or a phone number.</span></div>`,
       { pad: false, title: plural(list.length, 'student'), sub: q ? `Matching “${esc(u.search)}”` : `${plural(families(active()).length, 'family', 'families')}` })}`, { width: 'wide' });
 };
@@ -54,7 +59,7 @@ SCREENS.pending = () => {
     const kids = pend.filter(s => s.client === f), c = kids[0];
     return card(`
       <div class="stu-family">${stuContact(c)}<span class="muted-sm">Signed up ${dShort(c.since)}</span></div>
-      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}<div>${rowTitle(esc(k.name), k.minor ? 'Minor' : 'Adult · booking for themselves')}${stuJoinNote(k)}</div>`,
+      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}<div>${rowTitle(esc(k.name), `${k.minor ? 'Minor' : 'Adult · booking for themselves'} · ${STU_ORGS[k.org]} <span class="mono">${esc(k.orgNum)}</span>`)}${stuJoinNote(k)}</div>`,
         `${B('Decline', 'ghost', 'stuDeclineOpen', { sm: true, args: [k.id] })}${B('Approve', 'primary', 'stuApprove', { sm: true, icon: 'check', args: [k.id] })}`)).join('')}`,
       { pad: false, title: esc(f), sub: c.rel === 'Self' ? 'Signing up for themselves' : `${c.rel} · ${plural(kids.length, 'skater')}`, action: kids.length > 1 ? B('Approve all', 'secondary', 'stuApproveFamily', { sm: true, icon: 'check', args: [f] }) : '' });
   }).join('');
@@ -156,11 +161,11 @@ Object.assign(ACTIONS, {
 
 /* ---------- presets ---------- */
 PRESETS.push(
-  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their family’s contact details and next lesson, searchable. Everyone pays the schedule’s prices; personal prices are Phase 2 (owner, 2026-10-13).', setup: st => { st.screen = 'students'; } },
+  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their skating organization and number from sign-up (ADR-029 d3), their family’s contact details and next lesson, searchable by name or contact. Everyone pays the schedule’s prices; personal prices are Phase 2 (owner, 2026-10-13).', setup: st => { st.screen = 'students'; } },
   { id: 'CoachStudentsEdit', file: 'students-edit', group: 'Students', title: 'Student list — edit contact', note: 'New. Contact details belong to the family, so an edit applies to every skater in it.', setup: st => { st.screen = 'students'; const e = st.students.find(x => x.id === 's3'); st.ui.stu = { search: '', draft: { client: e.client, email: e.email, phone: e.phone } }; st.modal = { kind: 'stuEdit', id: 's3' }; } },
   { id: 'CoachStudentsPrice', file: 'students-price', group: 'Phase 2', title: 'Student list — personal price', note: 'Phase 2 (moved by the owner, 2026-10-13: every skater pays the schedule’s prices in MVP). New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
   { id: 'CoachStudentsRemove', file: 'students-remove', group: 'Phase 2', title: 'Student list — remove', note: 'Phase 2 (moved by the owner, 2026-10-13: MVP has no Remove button). New. One reading of an open decision (Open-Pending.md): upcoming lessons cancelled, no more booking, history kept.', setup: st => { st.screen = 'students'; st.modal = { kind: 'stuRemove', id: 's7' }; } },
-  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, approve per skater or all at once; pending families see only their own account (ADR-022 d6). Zoe Okafor was invited by Grace Chen to share Mia’s Friday lesson and joins it automatically when approved, if it still exists, hasn’t started and has room (ADR-026 d5).', setup: st => { st.screen = 'pending'; } },
+  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, each skater with their organization and number from sign-up (ADR-029), approve per skater or all at once; pending families see only their own account (ADR-022 d6). Zoe Okafor was invited by Grace Chen to share Mia’s Friday lesson and joins it automatically when approved, if it still exists, hasn’t started and has room (ADR-026 d5).', setup: st => { st.screen = 'pending'; } },
   { id: 'CoachPendingApproved', file: 'pending-approved-shared', group: 'Students', title: 'Waiting for approval — invited skater approved', note: 'New state. Approving Zoe joins her to Mia’s Fri, Oct 16 8:30 lesson in the same step (ADR-026 d5).', setup: st => { st.screen = 'pending'; ACTIONS.stuApprove('p4'); } },
   { id: 'CoachPendingDecline', file: 'pending-decline', group: 'Students', title: 'Waiting for approval — decline', note: 'New. Declining emails the family and deletes the student outright (ADR-002 2b).', setup: st => { st.screen = 'pending'; st.modal = { kind: 'stuDecline', id: 'p3' }; } },
   { id: 'CoachPendingEmpty', file: 'pending-empty', group: 'Students', title: 'Waiting for approval — nobody waiting', note: 'New. Empty state that reminds the coach of their code.', setup: st => { st.screen = 'pending'; st.students = st.students.filter(s => s.status !== 'PENDING'); } },

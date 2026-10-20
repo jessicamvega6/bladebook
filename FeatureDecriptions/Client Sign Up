@@ -59,8 +59,8 @@ Step 4, Skaters:
 
 Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization. USA Hockey numbers change each season; US Figure Skating members seem to keep theirs.
     Check to see if there is an API to check if the number is valid for the year/season.  *No way to verify it is valid as of now. Coach can verify themselves if they care*
-    *Design:* the number is per skater, not per account. Each skater picks U.S. Figure Skating (member number) or
-    USA Hockey (registration number) and enters the number. The hint says USA Hockey numbers change every season.
+    *Design:* the number is per skater, not per account. Each skater picks U.S. Figure Skating (member number),
+    USA Hockey (registration number) or Learn to Skate USA (member number; added to the design 2026-10-20) and enters the number. The hint says USA Hockey numbers change every season.
     *Decided 2026-10-12:* required for every skater. Phase 1 takes USFSA or USA Hockey only; Skate Canada and Hockey Canada are Phase 2.
     *Validation:* the number is a free-text box, so it must be checked and cleaned up before it's saved:
         trim spaces, uppercase, check it against a pattern for its organization (allowed characters only), cap the length,

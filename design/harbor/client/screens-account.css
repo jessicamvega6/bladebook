@@ -34,3 +34,9 @@
 .bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
 .bb .ac-coachcard .found--plain { padding-top: 0; }
 .bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
+
+/* skating organization picker: three names don't fit side by side on a phone, so they stack */
+@media (max-width: 560px) {
+  .bb .ac-org .seg { flex-direction: column; border-radius: var(--r-lg); }
+  .bb .ac-org .seg__opt { border-radius: var(--r-md); }
+}

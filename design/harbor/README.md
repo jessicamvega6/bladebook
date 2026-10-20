@@ -32,7 +32,7 @@ node design/harbor/coach/build.mjs
 |---|---|
 | `app.js`, `app.css` | Sample data (coach Dana Whitfield; today is Wed, Oct 14, 2026, 8:15 AM), the shell and navigation, interactive helpers, log in, forgot password, sign-up, and the Today dashboard |
 | `screens-calendar.*` | Month, week and day views, and the cancel preview (release or hold per lesson) |
-| `screens-students.*` | Student list (edit contact, remove) and the pending list (approve, decline) |
+| `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; edit contact, remove) and the pending list (each skater's number; approve, decline) |
 | `screens-money-profile.*` | Lessons (attendance corrections), Payments, Profile (five tabs) and Email templates (Phase 2) |
 | `schedule.html` | The schedule section: weekly editor, time off, special schedules, review and save status. A copy of `redesign/harbor-schedule-creator-demo.html` with the shared navigation and October sample dates |
 | `build.mjs` | Writes `demo/` and `static/`. Static pages are rendered from each screen file's `PRESETS` and from fixed states of `schedule.html` |

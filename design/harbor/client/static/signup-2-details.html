@@ -758,6 +758,12 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-coachcard .found--plain { padding-top: 0; }
 .bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
 
+/* skating organization picker: three names don't fit side by side on a phone, so they stack */
+@media (max-width: 560px) {
+  .bb .ac-org .seg { flex-direction: column; border-radius: var(--r-lg); }
+  .bb .ac-org .seg__opt { border-radius: var(--r-md); }
+}
+
 /* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
 .bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
 .bb button.cal__cell--open:hover { border-color: var(--primary); }

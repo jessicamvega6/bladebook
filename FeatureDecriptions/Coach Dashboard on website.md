@@ -25,7 +25,9 @@ students-remove.html is in the Phase 2 group.*
 *Design (students-remove.html, Phase 2), the design's reading of this open decision (docs/Open-Pending.md):* upcoming lessons are
 cancelled and the family is emailed, the student can no longer book with the coach, and past lessons and payments stay
 in the coach's records.
-*Design (students.html):* a search box (name, family, email or phone). Each row: skater (minor or adult), family contact
+*Design (students.html):* a search box (name, family, email or phone). Each row: skater (minor or adult),
+  skater number (the organization and registration number the family entered at sign-up, ADR-029 d3; added 2026-10-20;
+  required at sign-up, so every skater has one; not searchable), family contact
 (email, phone, texts on or email only), ~~price,~~ next lesson, and an Edit contact button (~~Remove~~, Phase 2 since 2026-10-13). *Phase 2 (2026-10-12): all client SMS deferred.*
   Contact details belong to the family, so an edit applies to every skater in it.
   ~~Price: "Schedule price" or a personal price.~~ *Phase 2 (owner, 2026-10-13): personal prices move to Phase 2, and the
@@ -45,7 +47,8 @@ On the coach profile page is a form that allows the coach to update their email,
 The Pending student list is a page that displays the potential students of the coach. The coach needs to either accecpt or decline the student. 
 On decline an email goes out to the client, saying something like the coach does not have availabilitiy to take on new students. 
 *Design (pending.html, pending-decline.html, pending-empty.html):*
-  Sign-ups are grouped by family, with the family's contact details and sign-up date. Approve or Decline per skater,
+  Sign-ups are grouped by family, with the family's contact details and sign-up date. Each skater shows their
+  organization and number from sign-up (ADR-029; added 2026-10-20). Approve or Decline per skater,
   and "Approve all" when a family has more than one.
   A banner explains that waiting families can't see the coach's times, open times or contact details until approved
   (ADR-022 d6), and that approving is how the coach checks they know them.
