@@ -18,36 +18,50 @@ Client booking:
   Note in the box: skater 2's family must accept before skater 2 can join the lesson.
   On entering a skater code, the system checks the skater exists and shows first name and last initial (e.g. Mia R.).
   The booking only continues once skater 2 is validated as existing.
+  *Changed 2026-10-20 (ADR-033 d2, d2a): the code must also belong to a skater the coach has accepted (ACTIVE). As soon
+    as the code is entered, the booking page asks the share-check endpoint. If skater 2 isn't the coach's student, the
+    booking stops at the share step with: "Mia R. isn't one of Coach Dana's students yet. Mia's family can sign up with
+    Coach Dana's code, and once Coach Dana accepts Mia you can share a lesson." Nothing is booked. The booking itself
+    checks again in the database, so a skater declined in between is still refused.*
 
 Coach acceptance:
   A student must always be accepted by the coach before any lessons are booked for that student.
-  A client can invite a skater the coach hasn't accepted, but nothing is booked for skater 2 until the coach accepts them.
-  If the coach does not accept skater 2 (or doesn't act before the lesson), the lesson proceeds as a private lesson.
+  ~~A client can invite a skater the coach hasn't accepted, but nothing is booked for skater 2 until the coach accepts them.~~
+  ~~If the coach does not accept skater 2 (or doesn't act before the lesson), the lesson proceeds as a private lesson.~~
+  *Changed 2026-10-20:* Only a skater the coach has accepted can be invited or added as a sibling (ADR-033).
   *Added 2026-10-13 (ADR-031 decision 5): skater 2's place is held from the moment the lesson is booked, so no other
-  family can take it while they're invited or waiting for the coach. Skater 2 pays nothing until they join. If they
+  family can take it while they're invited~~ or waiting for the coach~~. Skater 2 pays nothing until they join. If they
   never join, the lesson stays private at the full price.*
 
 Invitation (changed 2026-10-07):
   When a family splits a lesson, an email is sent to family B straight away.
   If skater B is already the coach's student, the email is a normal invite to accept or decline.
-  If skater B is not part of that coach, the email says something like:
-    "Coach XXX needs to accept you first. By clicking the link below you agree to be added to Coach XXX's roster of students."
-  The link opens a confirmation page. Family B must sign in and confirm on the page.
+  ~~If skater B is not part of that coach, the email says something like:~~
+    ~~"Coach XXX needs to accept you first. By clicking the link below you agree to be added to Coach XXX's roster of students."~~
+  ~~The link opens a confirmation page.~~ Family B must sign in and confirm on the page.
   The confirmation page shows skater B any conflicting bookings they would have. They can go ahead or cancel.
-  If they go ahead, the request follows the same flow as if they had entered the coach code at sign up.
-  When the coach accepts skater B, skater B joins the lesson automatically.
+  ~~If they go ahead, the request follows the same flow as if they had entered the coach code at sign up.~~
+  ~~When the coach accepts skater B, skater B joins the lesson automatically.~~
+  *Changed 2026-10-20 (ADR-033): the email is always a normal invite to accept or decline; inviting a skater new to the
+    coach, and the consent link, are Phase 2. Family B's own accept joins the lesson.*
   Before writing anything, the job checks that the lesson slot still exists and hasn't happened yet.
-    *Per ADR-026 d5: done by the coach's Accept itself, which also checks ~~there's room and~~ that the booking named this skater.*
+    *Per ADR-026 d5: ~~done by the coach's Accept itself, which also checks~~ ~~there's room and~~ ~~that the booking named this skater.~~*
   If those aren't true it does nothing, and family B is notified that the booking didn't happen.
     *Changed 2026-10-13 (ADR-031 decision 6): the place is already held, so there is always room. The Accept only checks
     that the lesson is still there and hasn't started.*
+    *Changed 2026-10-20 (ADR-033 d3): the check is made by family B's own accept, after confirming skater B is still the
+    coach's student; the coach's Accept no longer touches lessons. If skater B is no longer the coach's student, family B
+    sees "no longer available".*
   Recurring booking: the code shares every lesson in the series.
     *Added 2026-10-13 (ADR-031 decision 6): a series joins lesson by lesson. Each date succeeds or fails on its own, and
     family B gets the dates that work.*
-  Sibling (same family): just booked, no confirmation needed (still needs coach acceptance first).
-  *Added 2026-10-13 (ADR-031 decision 12):* the "not yet accepted" warning is sent at the 9pm run before it's due, so
-    it's never late and never sent at night. Expiry when the lesson starts is checked every hour, and its email goes
+  Sibling (same family): just booked, no confirmation needed ~~(still needs coach acceptance first)~~.
+  *Changed 2026-10-20 (ADR-033): only a sibling the coach has already accepted can be added. A sibling not yet accepted
+    shows as "not available to add until Coach Dana accepts them" and can't be picked.*
+  *Added 2026-10-13 (ADR-031 decision 12):* ~~the "not yet accepted" warning is sent at the 9pm run before it's due, so
+    it's never late and never sent at night.~~ Expiry when the lesson starts is checked every hour, and its email goes
     at once.
+  *Changed 2026-10-20 (ADR-033 d5): there is no "not yet accepted" warning; it is Phase 2 with the consent link.*
 
 See docs/adr/ADR-026-shared-lessons-by-invitation.md.
 
@@ -61,7 +75,7 @@ Price:
   Personal prices are Phase 2, so the split is always of the schedule's price.
   The invitation page and My bookings show each family their own share.
   *Added 2026-10-13 (ADR-031 decision 7):*
-    The price is split evenly between the skaters who have joined. An invited skater, or one waiting for the coach,
+    The price is split evenly between the skaters who have joined. An invited skater~~, or one waiting for the coach,~~
       pays nothing yet.
     Odd cents go one each to the skaters who joined first (owner: "I don't care which"). $45.01 for two is $22.51
       and $22.50.
@@ -87,7 +101,9 @@ A skater calls out (either family; the booking family is not a special case):
   Late (inside the notice period) or a no-show: the one who called out may be charged
     their share of the late-cancellation fee (half, for two skaters).
     The other skater keeps their share.
-  *Added 2026-10-13 (ADR-031 decision 5, option B):* If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted. Withdrawing is only possible before the other family answers.
+  *Added 2026-10-13 (ADR-031 decision 5, option B):* ~~If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted.~~ Withdrawing is only possible before the other family answers.
+  *Changed 2026-10-20 (ADR-033 d4):* If the inviting family cancels while the invitation is still unanswered, it ends at
+    once. If the invited family has already accepted, the cancel is an ordinary leave, in time or late (ADR-033 d4).
 
 *Added 2026-10-13 (ADR-031 decisions 9 and 10):*
 A shared repeating lesson:
@@ -104,5 +120,6 @@ A freed place:
   It works like sharing while booking: the new skater's place is held at once, the staying family pays the full
     price until the new skater joins, then the price is split.
   It covers that one lesson only, never a series.
-  The new skater goes through the same steps: their family accepts, the coach approves them if they're new, they join.
+  The new skater goes through the same steps: their family accepts~~, the coach approves them if they're new~~, they join.
+    *Changed 2026-10-20 (ADR-033): the new skater must already be the coach's student.*
   Filling a freed date in a series makes the series shared again until that lesson is over.

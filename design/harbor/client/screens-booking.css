@@ -48,6 +48,8 @@
 .bb .bk-share__head .label__opt { margin-left: auto; }
 .bb .bk-share .fine { margin: 0; }
 .bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-share__sibs { display: flex; flex-direction: column; gap: 6px; }
+.bb .bk-share__sibs .listbox { background: var(--surface); border-radius: var(--r-md); }
 .bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
 @media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {

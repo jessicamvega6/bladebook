@@ -88,3 +88,9 @@ Lessons can be split: reference 'Schedule lesson split' for details
   one else can take it. The booking family pays the full price until the invited skater joins. One invitation covers
   every date of a repeating booking. Sharing is offered only here, while booking, and on a freed place in My bookings
   (see 'Schedule lesson split').
+*Changed 2026-10-20 (ADR-033 d2, d2a):* only a skater the coach has accepted can be invited. As soon as the share code
+  is entered, the booking page checks it with the share-check endpoint. If the skater isn't the coach's student, the
+  share step stops with: "Mia R. isn't one of Coach Dana's students yet. Mia's family can sign up with Coach Dana's
+  code, and once Coach Dana accepts Mia you can share a lesson." Nothing is booked.
+  A sibling the coach hasn't accepted yet shows as "not available to add until Coach Dana accepts them" and can't be
+  picked.

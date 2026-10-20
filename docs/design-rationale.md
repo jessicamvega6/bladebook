@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** ~~2026-10-12~~ 2026-10-13 · **Current through:** ~~ADR-030~~ ADR-031 *(booking entries only)*
+**As of:** ~~2026-10-12~~ ~~2026-10-13~~ 2026-10-20 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -101,13 +101,13 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 **What it is.** Anyone can create a coach account; the login email must be verified; password recovery is Cognito's one-time code.
 
-**Why.** A fraudulent coach account is empty: student data only arrives when a family enters a code handed over in person, or through a shared-lesson invitation the family accepts while signed in, and the coach must then confirm them. Knowledge-based recovery would have been an account-takeover path.
+**Why.** A fraudulent coach account is empty: student data only arrives when a family enters a code handed over in person, and the coach must then confirm them. A shared-lesson invitation reaches only a skater the coach already accepted (ADR-033). Knowledge-based recovery would have been an account-takeover path.
 
 **Turned down:**
 - *An EIN gate* — Can't be validated without a paid vendor, and excludes Canada.
 - *A custom forgot-password form* — Name and business ID are discoverable — a takeover path.
 
-*Full reasoning:* ADR-016 decisions 1–4, 9
+*Full reasoning:* ADR-016 decisions 1–4, 9; ADR-033
 
 ### API Gateway (REST) with a Cognito authorizer
 
@@ -205,7 +205,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Added 2026-10-13 (ADR-031).*
 
-**What it is.** Every bookable time is stored as a **lesson time**, made from the schedule about 15 months ahead by a nightly job. Each skater in a lesson has a **seat**: a private lesson has one, a shared lesson two. Booking changes the lesson time and adds the seat in one step. An invited skater's seat holds their place at once. When a skater leaves a shared lesson in time, the other family chooses to keep it at the full price or cancel with no charge; an hourly sweep acts on anything left unanswered, and on the other deadlines. Revised the same day: no family's action writes another family's records, except answering an invitation addressed to their own skater; the price lives only on the lesson time; `consumer-invite` only copies; ADR-024 needs no other exception.
+**What it is.** Every bookable time is stored as a **lesson time**, made from the schedule about 15 months ahead by a nightly job. Each skater in a lesson has a **seat**: a private lesson has one, a shared lesson two. Booking changes the lesson time and adds the seat in one step. An invited skater's seat holds their place at once. When a skater leaves a shared lesson in time, the other family chooses to keep it at the full price or cancel with no charge; an hourly sweep acts on anything left unanswered, and on the other deadlines. Revised the same day: no family's action writes another family's records, except answering an invitation addressed to their own skater; the price lives only on the lesson time; `consumer-invite` only copies; ADR-024 needs no other exception. *Amended 2026-10-20 (ADR-033):* only a skater the coach has accepted can be invited or added as a sibling, checked by the database in the booking transaction and by a share-check endpoint at the share step; no seat waits for the coach, and the sweep has two deadlines (expiry and answer-by).
 
 **Why.** Private and shared lessons follow one path, so sharing stops being special cases added to a private booking. Either family can leave by the same rules, because neither owns the lesson. A booking and a schedule save change the same record, so a booking can't land on a time the new schedule removed. Retry checks read the family's own seat directly.
 
@@ -214,8 +214,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 - *Keep computing availability* — Less to keep in step, but double-booking and the schedule-save race each need their own lock.
 - *Rolling series* (a job books a few weeks ahead) — A family could lose a date long after booking.
 - *One-off timers* (EventBridge Scheduler) instead of a sweep — Every seat change must move timers, a failed create loses a deadline, and nothing here needs better than an hour.
+- *A consent link that joins a new skater to the coach's roster* (ADR-026 d5) — Most of the shared-lesson complexity, and it let a stranger with a share code reach a child's details. Phase 2 (ADR-033).
 
-*Full reasoning:* ADR-031
+*Full reasoning:* ADR-031; ADR-033
 
 ### No booking horizon; recurrences written at booking time
 

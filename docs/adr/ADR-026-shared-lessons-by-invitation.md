@@ -147,6 +147,14 @@ staying family's **answer-by** time is whichever comes first, the start of the n
 **Every behaviour rule here still holds** — share codes, consent, the coach's acceptance, the
 warning, the banner, siblings, coaches seeing every skater — unless ADR-031 says otherwise.
 
+**Superseded in part — 2026-10-20** by [ADR-033](ADR-033-invite-only-accepted-skaters.md). *Decided by the owner.* In MVP only a skater
+`ACTIVE` with the coach can be invited or added as a sibling. Moved to Phase 2: decision 5's rule
+underneath (*"A family can invite a skater the coach hasn't accepted"*), step 2's consent-link
+email, step 5, the `AWAITING_COACH` cases and how they close, all of decision 5a (the warning,
+the banners and the late-confirmation rule), and P3's answer. The text below is kept as the Phase 2
+record. A share-check endpoint tells the booking page whether the invited skater is on the coach's
+student list (ADR-033 decision 2a).
+
 ---
 
 ## Context
@@ -282,7 +290,7 @@ characters from the coach code's character set, `MIA-4K7QX`.
 
 ### 5. The invitation flow
 
-*Rewritten 2026-10-07, decided by the owner.* **The rule underneath:** the coach always accepts a
+*Phase 2 since ADR-033 (2026-10-20): only a skater `ACTIVE` with the coach can be invited or added as a sibling; the rule below is the Phase 2 record.* *Rewritten 2026-10-07, decided by the owner.* **The rule underneath:** the coach always accepts a
 skater before any lesson is booked for them. A family can invite a skater the coach hasn't
 accepted, but nothing is booked for that skater until the coach does.
 
@@ -319,7 +327,7 @@ accepted, but nothing is booked for that skater until the coach does.
    *Revised 2026-10-13 (ADR-031 decision 14): `consumer-invite` sends it.*
    - **Skater B is already the coach's accepted student:** the email is an ordinary invitation
      to accept or decline.
-   - **Skater B isn't:** the email says, in substance, *"Coach Dana needs to accept you first. By
+   - *Phase 2 since ADR-033 (2026-10-20): in MVP the invited skater is always the coach's student, so this consent-link version is Phase 2.* **Skater B isn't:** the email says, in substance, *"Coach Dana needs to accept you first. By
      following the link below you agree to be added to Coach Dana's roster of students, and Mia
      will join the lesson on Tue 14 Oct at 4:00 once Coach Dana accepts."*
 3. **The link opens a confirm page that needs Family B to sign in.** Opening the link does
@@ -334,7 +342,7 @@ accepted, but nothing is booked for that skater until the coach does.
    *Revised 2026-10-13 (ADR-031 revision): accepting is Family B's own write, after the link
    check. Its condition: the seat has no `clientId`, is `INVITED`, and its `studentId` is Family
    B's skater. It sets the seat's `clientId` to Family B. Family A's seat isn't touched.*
-5. **For a skater who isn't,** Go ahead sends skater B down **exactly the route a coach code at
+5. *Phase 2 since ADR-033 (2026-10-20): step 5 is the Phase 2 consent-link route. In MVP the booking stops at the share step instead (ADR-033 d2, d2a).* **For a skater who isn't,** Go ahead sends skater B down **exactly the route a coach code at
    sign-up takes** (ADR-002 decisions 1–2, ADR-025 decision 2): skater B becomes a `PENDING`
    student with the coach, with Family B's contact details, because Family B has now agreed to
    that. ~~The pending `STUDENT#` item also carries **`pendingJoins`**: one entry per lesson to
@@ -417,7 +425,7 @@ owner 2026-10-08: the first state was `PENDING`, which read too much like a stud
 `AWAITING_COACH` means Family B has confirmed and the skater is waiting for the coach's
 acceptance. *Added 2026-10-07.*
 
-**How an `AWAITING_COACH` invitation closes** (*decided by the owner, 2026-10-08*), so it never
+*Phase 2 since ADR-033 (2026-10-20): there is no `AWAITING_COACH` seat in MVP.* **How an `AWAITING_COACH` invitation closes** (*decided by the owner, 2026-10-08*), so it never
 waits forever:
 
 - **The coach accepts and skater B joins:** `CONFIRMED`.
@@ -437,7 +445,7 @@ lesson starts, with no earlier cutoff.*
 **A recurring booking shares every lesson in the series.** One invitation covers them all, and one
 confirmation joins skater B to each lesson in it.
 
-**A sibling is added directly.** If the code belongs to a skater in Family A's own family, there is
+*Phase 2 since ADR-033 (2026-10-20): a sibling must already be `ACTIVE` with the coach and is added `BOOKED`; one not yet accepted can't be picked.* **A sibling is added directly.** If the code belongs to a skater in Family A's own family, there is
 no invitation and no confirmation: Family A's session joins the sibling itself, since it holds both
 skaters (ADR-024). The coach-acceptance rule still applies: a sibling who isn't the coach's student
 yet goes to the coach first ~~with `pendingJoins` on their pending item, Family A's booking carries
@@ -457,6 +465,8 @@ while signed in and that name skater B as invited.~~ *Revised 2026-10-13 (ADR-03
 the coach's Accept is the coach's own write (ADR-031 d5).*
 
 ### 5a. Before and after the lesson: the warning, the banner and the nightly sweep
+
+*Phase 2 since ADR-033 (2026-10-20).* The warning, both families' banners and the late-confirmation rule exist only for a seat waiting on the coach. In MVP the sweep handles `EXPIRE` and `ANSWER` only, and an invitation unanswered at the lesson's start expires with the ordinary "no longer available" email (ADR-033 d5, d6).
 
 *Decided by the owner, 2026-10-09.*
 
@@ -549,7 +559,7 @@ which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P
 |---|---|---|
 | **P1** | ~~The **most skaters** a coach may allow in one lesson~~ | **Answered by the owner, 2026-10-07: 2**, as a setting that may be raised (decision 1) |
 | **P2** | ~~**How a shared lesson is priced**~~ | **Answered by the owner, 2026-10-13:** the lesson's set price is split between the skaters; a skater leaving in time leaves the other family to choose full price or cancel; leaving late, the other keeps their share (amendment 2026-10-13) |
-| **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval |
+| **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval *Superseded for MVP 2026-10-20 by ADR-033: the skater must already be `ACTIVE` with the coach to be invited.* |
 | **P4** | ~~If the **booking family cancels**, what happens to the invited skaters?~~ | **Answered by the owner, 2026-10-13:** the same as either skater leaving (amendment 2026-10-13) |
 | **P5** | ~~If an invitation **isn't confirmed in time**~~ | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. **Answered by the owner, 2026-10-13:** an invitation the family hasn't accepted has no cutoff before the lesson; it expires when the lesson starts, and the lesson goes ahead private. ~~Leaning towards the coach's notice period (24 hours by default)~~ |
 
@@ -590,7 +600,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   partitions.~~ *Revised 2026-10-13 (ADR-031): `consumer-invite` reacts to seat changes only;
   the coach's Accept or decline changes the seats themselves (ADR-031 d6).* *Revised 2026-10-13 (ADR-031): reads, plus `UpdateItem` limited to the copied
   fields; no Put or Delete (ADR-031 Consequences).*
-- **No new database permission for the automatic join.** It runs in `api-coach` under
+- *Phase 2 since ADR-033 (2026-10-20): the coach's Accept no longer touches seats.* **No new database permission for the automatic join.** It runs in `api-coach` under
   `coach-tenant` (ADR-001 A8), which already writes and updates items in the coach's own
   partition. ~~The booking gains **`invitedStudentId`**; the pending `STUDENT#` item gains
   **`pendingJoins`**.~~ *Since ADR-031 (2026-10-13): neither exists; the Accept updates
@@ -635,7 +645,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
 - ~~A `pendingJoins` entry for a lesson whose `invitedStudentId` isn't that skater writes nothing.~~
   *Obsolete since ADR-031 (2026-10-13): there are no `pendingJoins`. The Accept changes only that
   skater's own `AWAITING_COACH` seats.*
-- A coach accepting after the lesson has started writes nothing, and Family B is told.
+- *Phase 2 since ADR-033 (2026-10-20): no Accept joins seats; see ADR-033 Consequences for MVP's tests.* A coach accepting after the lesson has started writes nothing, and Family B is told.
 
 ---
 

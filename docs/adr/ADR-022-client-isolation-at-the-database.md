@@ -79,6 +79,11 @@ strongly consistent: present means *already booked*, absent means *unavailable* 
 
 Every behaviour rule still holds unless ADR-031 says otherwise.
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the booking transaction adds a `ConditionCheckItem`
+on `COACH#<coachId>/STUDENT#<studentId>` (`studentStatus = ACTIVE`), which decision 8 already
+allows. Decision 6's read allowlist gains **`studentStatus`** on `STUDENT#` items, read by key
+only, for the share-check endpoint (ADR-033 decision 2a). Decision 9 gains rows 12 and 13.
+
 ---
 
 ## Context
@@ -373,6 +378,8 @@ Runs against a real table, alongside ADR-021 decision 7:
 | 9 | A failing conditional put with `ReturnValuesOnConditionCheckFailure = ALL_OLD` | **record what comes back** — if non-allowlisted attributes are returned, the ArchUnit rule in decision 8 is the only guard |
 | 10 | The first session (no `coachId` tag) reading `COACH#X` | denied |
 | 11 | The `code-lookup` role: `GetItem CODE#K` with the decision 7 attributes; then with any other attribute, no projection, a `Query`, or any read of `COACH#` or `CLIENT#` | allowed; then all denied |
+| 12 | *Added 2026-10-20 (ADR-033).* A booking `TransactWriteItems` whose invited seat names a skater not `ACTIVE` with coach X (`ConditionCheckItem` on `COACH#X/STUDENT#…`, `studentStatus = ACTIVE`) | whole transaction refused, nothing returned |
+| 13 | *Added 2026-10-20 (ADR-033 d2a).* `GetItem COACH#X/STUDENT#…` with projection `studentStatus` only, as an `ACTIVE` session; then with any other attribute, no projection, or as a `PENDING` session | allowed; then all denied |
 
 *Note — 2026-10-13: [ADR-031](ADR-031-lessons-and-seats.md) needs rows here for `LESSON#`,
 `SEAT#`, `SEATEND#` and GSI4 — at least: `LESSON#` items readable with the allowlisted

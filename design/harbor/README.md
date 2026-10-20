@@ -16,7 +16,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 54 pages. |
+| `client/` | The family website: 55 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
 ## Coach website — `coach/`
@@ -32,7 +32,7 @@ node design/harbor/coach/build.mjs
 |---|---|
 | `app.js`, `app.css` | Sample data (coach Dana Whitfield; today is Wed, Oct 14, 2026, 8:15 AM), the shell and navigation, interactive helpers, log in, forgot password, sign-up, and the Today dashboard |
 | `screens-calendar.*` | Month, week and day views, and the cancel preview (release or hold per lesson) |
-| `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; edit contact, remove) and the pending list (each skater's number; approve, decline) |
+| `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; edit contact, remove) and the pending list (each skater's number; approve, decline). Approving changes only the skater’s record; no shared lesson waits on it (ADR-033) |
 | `screens-money-profile.*` | Lessons (attendance corrections), Payments, Profile (five tabs) and Email templates (Phase 2) |
 | `schedule.html` | The schedule section: weekly editor, time off, special schedules, review and save status. A copy of `redesign/harbor-schedule-creator-demo.html` with the shared navigation and October sample dates |
 | `build.mjs` | Writes `demo/` and `static/`. Static pages are rendered from each screen file's `PRESETS` and from fixed states of `schedule.html` |
@@ -48,13 +48,13 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 | Sign in | Log in, forgot password (email a code; code and new password) — new |
 | Sign up | Account, verify login email, business details (different / same email), confirm business email, all set — redesigned |
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub) |
-| Calendar | Month — new; week — redesigned; day — new; day with a shared-lesson invitation — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
+| Calendar | Month — new; week — redesigned; day — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
-| Students | Student list, edit contact, remove, pending list (an invited skater joins their shared lesson on approval), decline, nobody waiting, after approving an invited skater — new |
+| Students | Student list, edit contact, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
 | Profile | Details and coach code, business email, visibility and texts — redesigned; payments, account — new |
-| Phase 2 | Email templates, with the shared-lesson emails — new; personal price (moved to Phase 2, 2026-10-13) |
+| Phase 2 | Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
 
 ### What the demo does not do
 
@@ -68,15 +68,25 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 `client/static/index.html` (gallery) and `client/demo/index.html` (demo). Sources: `app.js`
 (families, shell), `screens-booking.*` (book, pick times, confirm and repeat, results,
-My bookings, cancel, change a repeating lesson, sharing a lesson and withdrawing an invitation) and `screens-account.*`
-(log in, forgot password, sign-up with a coach code, home, profile with share codes, the shared-lesson invitation page,
+My bookings, cancel, change a repeating lesson, sharing a lesson, the share step refusing a skater who isn’t the coach’s student, a sibling not yet accepted, and withdrawing an invitation) and `screens-account.*`
+(log in, forgot password, sign-up with a coach code, home, profile with share codes, the shared-lesson invitation page and its accepted state,
 payments in Phase 2). Texts to families are Phase 2, so the SMS opt-ins show as Phase 2.
 
 The demo bar switches between **Grace Chen** (approved; parent of Mia and Noah) and
 **Sarah Park** (waiting for approval). A waiting family sees only Home and Profile: no
-schedule, open times or coach contact details (ADR-022 d6). **Tom Okafor** is the invited family: Grace invited his
-Zoe, who skates with another coach, to share Mia's Friday 8:30 lesson; Tom confirmed, so Zoe waits for Coach Dana's
-approval and both homes show the red shared-lesson banner (ADR-026 d5a).
+schedule, open times or coach contact details (ADR-022 d6). **Tom Okafor** is the invited family: his Zoe is already
+Coach Dana's student, and Grace invited her to share Mia's Friday 8:30 lesson. The invitation waits on Tom's Home; See
+the invitation, then Go ahead, and Zoe's seat is booked (invite → accept → booked). Grace's My bookings shows the
+invitation until Tom answers.
+
+**Shared lessons only with the coach's students (ADR-033).** Only a skater the coach has accepted can be invited or
+added as a sibling. At the share step the site asks the share-check endpoint whether the code's skater is on the coach's
+student list. In the demo, book a morning-ice time with Coach Dana and type `MIA-7R2LC` (Mia Reyes, who skates with
+another coach) or a waiting skater's code such as `AVA-8TQWD`: the booking stops at the share step with "isn't one of
+Coach Dana's students yet" and nothing is booked. The family's own skaters are listed under the share box; one the coach
+hasn't accepted yet (add a skater under Profile to see it) is shown as not available to add and can't be picked. Inviting
+a skater new to the coach, the consent link that joins them to the roster, a seat waiting for the coach and the red
+shared-lesson banners are Phase 2 and aren't in these designs.
 
 **More than one coach (ADR-025):** Grace's Mia and Noah also skate with **Coach Ben Ortiz** (power skating;
 48-hour notice), and Noah is waiting for **Coach Lauren Hayes**. These coaches exist only in the family demo. The

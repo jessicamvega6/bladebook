@@ -1436,10 +1436,13 @@ sequenceDiagram
 
 *Updated 2026-10-13 for ADR-031 (lessons and seats).*
 *Updated 2026-10-13 for the ADR-031 revision.*
+*Updated 2026-10-20 for ADR-033.*
 
 A shared lesson is a lesson time with **two seats**. Neither family owns it. Every ADR-026
-behaviour rule still holds — share codes, consent, the coach's acceptance, the warning, the
-banner, siblings, coaches seeing every skater. What changed is the mechanism (ADR-031 d5–d10).
+behaviour rule still holds — share codes, the invited family confirming while signed in,
+siblings, coaches seeing every skater. What changed is the mechanism (ADR-031 d5–d10). *Since
+ADR-033 (2026-10-20), only a skater `ACTIVE` with the coach can be invited or added as a
+sibling; the consent-link roster join, the warning and the banners are Phase 2.*
 
 **No family's action writes another family's records, except answering an invitation addressed to their own skater** (ADR-031, revised 2026-10-13). The
 price is stored once, on the lesson time; a leave is recorded on the lesson time; the partner
@@ -1454,24 +1457,43 @@ display name, `inviteId` and `invitedByClientId`. It has **no `clientId`** yet. 
 later `consumer-invite` adds the read-only `invitedClientId` and Family B's GSI1 keys, so the
 invitation shows on Family B's Home and My bookings before they accept (ADR-031 d6).
 
+**Only a skater `ACTIVE` with the coach can be invited or added as a sibling** (ADR-033). The
+booking transaction holds a `ConditionCheckItem` on `COACH#<coachId>/STUDENT#<studentId>`,
+`studentStatus = ACTIVE`; a failed check fails that date's transaction (ADR-033 d2). It needs no
+policy change: `client-tenant` already allows `ConditionCheckItem` in the coach's partition
+(ADR-022 d8).
+
+**The share-check** (ADR-033 d2a) tells the booking page as soon as the code is entered.
+`POST /api/client/share-check` on `api-client`, with `{ shareCode, coachId }`, answers
+`200 { displayName, onCoachRoster }`, or `404` if the code doesn't exist. The sender comes from
+the verified token, never the body, and must have a skater `ACTIVE` with that coach; anything
+else is the ordinary 404. `api-client` resolves the code to B's `studentId` (never returned),
+then reads `COACH#<coachId>/STUDENT#<studentId>` with `Select = SPECIFIC_ATTRIBUTES` and the
+projection `studentStatus`, in the family's tagged session. `onCoachRoster` is true only for
+`ACTIVE`; a `PENDING` skater and one the coach has never had both answer false, so the response
+doesn't say whether a request is waiting. The firewall's share-code rate rule covers the route
+(ADR-019), and it writes an access-log line (ADR-012). It is advice for the screen: the
+transaction's check stays the authority. When the answer is false, the share step shows
+*"Mia R. isn't one of Coach Dana's students yet. Mia's family can sign up with Coach Dana's
+code, and once Coach Dana accepts Mia you can share a lesson."* and nothing is booked.
+
 - **The invited seat holds the place at once.** Nobody can join without an invitation anyway.
-- **Family A pays the full price until B joins.** An `INVITED` or `AWAITING_COACH` seat doesn't
-  count in the lesson time's `shareCount`, which stays 1.
+- **Family A pays the full price until B joins.** An `INVITED` seat doesn't count in the
+  lesson time's `shareCount`, which stays 1.
 - **One invitation covers a whole series:** each date gets its own invited seat with the
   same `inviteId`.
-- **Siblings:** the seat is created `BOOKED` directly, or `AWAITING_COACH` if the sibling isn't
-  approved yet.
-- **The invitation email** (ADR-026 d5) — an invitation, or a consent link if B isn't the
-  coach's student yet — still goes to Family B. `consumer-invite` sends it, reacting to the
-  seat change (ADR-031 d14). It also sends every outcome email: joined, declined, withdrawn,
-  no longer available after the coach's Accept, and "the other skater can't make it — keep or
-  cancel". *The stream event's name is still to be set.*
+- **Siblings:** added directly, `BOOKED`. A sibling not yet accepted is shown as **not
+  available to add until Coach Dana accepts them**, and can't be picked. No invitation.
+- **The invitation email** (ADR-026 d5) still goes to Family B. `consumer-invite` sends it,
+  reacting to the seat change (ADR-031 d14). It also sends every outcome email: joined,
+  declined, withdrawn, expired ("no longer available"), and "the other skater can't make it —
+  keep or cancel". *The stream event's name is still to be set.*
 
 **Who owns the invited seat** (ADR-031 d5). It is **Family A's** record until Family B accepts.
 Family B reaches it through the emailed link, Home or My bookings.
 
-- **Accepting is Family B's own write**, after ADR-024's link check on their skater (or, for a
-  skater new to the coach, the check that the skater is in their own family). Its condition:
+- **Accepting is Family B's own write**, always after ADR-024's link check on their skater
+  (`ClientLinks.requireActive`, ADR-033 d3). Its condition:
   the seat has **no `clientId`**, is `INVITED`, and its `studentId` is the caller's skater. It
   sets the seat's `clientId` to Family B and moves it on (below). From then on it is theirs,
   like any seat.
@@ -1479,32 +1501,24 @@ Family B reaches it through the emailed link, Home or My bookings.
   `studentId` = the caller's skater): the seat moves to `SEATEND#` with `seatOutcome =
   DECLINED`.
 - **Withdrawing** is Family A's, and only while the seat is `INVITED` (`invitedByClientId` = the
-  caller). Once Family B has accepted (`AWAITING_COACH`), only they, the coach or the deadline
-  sweep can end it.
-- **If Family A cancels their own seat** while the invited seat is still `INVITED` or
-  `AWAITING_COACH`, nobody is paying for the lesson yet, so the invitation ends (*owner,
-  2026-10-13, option B*). Still `INVITED`, it is Family A's own record, so **their cancel ends
-  it** as `WITHDRAWN` in the same transaction. Already `AWAITING_COACH`, it is Family B's, so the
-  cancel doesn't touch it: it records an `INVITER_LEFT` deadline, due at once, on the **lesson
-  time**, naming B's seat. **The hourly sweep ends that seat** as `WITHDRAWN` (§6.10); it was the
-  last seat, so the lesson time goes back to `OPEN`; and `consumer-invite` emails Family B that
-  the lesson was cancelled, up to an hour later.
+  caller). Once Family B has accepted, the seat is `BOOKED` and theirs, like any seat.
+- **If Family A cancels their own seat** while the invited seat is still `INVITED`, nobody else
+  is paying yet, and it is Family A's own record, so **their cancel ends it** as `WITHDRAWN` in
+  the same transaction. Once Family B has accepted, the seat is `BOOKED`, and Family A's cancel
+  is an ordinary leave of a shared lesson, in time or late (ADR-033 d4).
   `consumer-invite` never ends a seat — it only copies.
-- The coach's Accept is the coach's own write in their own partition.
 
 **Joining** (ADR-031 d6). Family B confirms on the signed-in page. **Each date is one
 transaction**, so a series joins lesson by lesson and Family B gets the dates that work.
 
-- **Already the coach's student:** B's seat goes `INVITED → BOOKED`, if the lesson hasn't
+- **Accepted:** after `requireActive`, B's seat goes `INVITED → BOOKED`, if the lesson hasn't
   started, and the lesson time's `shareCount` goes up by one. Nothing on Family A's seat
-  changes; both shares follow from the new `shareCount`.
-- **New to the coach:** B's seat goes `INVITED → AWAITING_COACH`, and B goes `PENDING` with the
-  coach (the sign-up route, §6.7). The coach's **Accept** turns every one of B's
-  `AWAITING_COACH` seats into `BOOKED` in the same request, each only if its lesson hasn't
-  started, raising each lesson's `shareCount`. This replaces ADR-026's `pendingJoins` list.
-- **Declined** (by Family B, under the accept condition, or by the coach), **withdrawn** (by Family A, by Family A's own
-  cancel while still `INVITED`, or by the sweep's `INVITER_LEFT` once accepted) or **expired** (the lesson starts first): the seat moves to `SEATEND#`, `seatsTaken` drops, and the lesson stays
-  private at the full price.
+  changes; both shares follow from the new `shareCount`. A skater no longer `ACTIVE` with the
+  coach (in MVP, one the coach declined since the invitation) is refused with ADR-024's
+  ordinary "no longer available" message (ADR-033 d3).
+- **Declined** (by Family B, under the accept condition), **withdrawn** (by Family A, or by
+  Family A's own cancel while still `INVITED`) or **expired** (the lesson starts first): the seat
+  moves to `SEATEND#`, `seatsTaken` drops, and the lesson stays private at the full price.
 
 **Each family sees the other skater through its own seat.** `partnerName` + `partnerStatus`
 on each seat show the *other* skater's display name and status. **`consumer-invite` writes
@@ -1660,7 +1674,7 @@ naming their skater.
 while booking. It works like inviting at booking: a new invited seat holds the place, and the
 staying family pays the full price until the new skater joins, then `shareCount` goes up and
 both pay their share. **It covers that one lesson only** — never a series. The new skater goes
-through the same steps: accepts, is approved by the coach if new, joins.
+through the same steps: must already be `ACTIVE` with the coach, accepts, joins.
 
 **Leaving and answering, step by step:**
 
@@ -1716,20 +1730,13 @@ sequenceDiagram
 
 *Updated 2026-10-13 for ADR-031 (lessons and seats): replaces ADR-026 d5a's nightly invitation sweep.*
 *Updated 2026-10-13 for the ADR-031 revision.*
+*Updated 2026-10-20 for ADR-033.*
 
 **`sched-deadline-sweep` runs every hour** (ADR-031 d12). A record with a pending deadline
 carries `dueAt` and `dueKind`, and sits in **GSI4** only while it has one
-(`GSI4SK = <dueAtUtc>#<coachId>#<itemKey>`). There are four kinds:
+(`GSI4SK = <dueAtUtc>#<coachId>#<itemKey>`). There are two kinds (ADR-033 d5):
 
-- **`WARN`** — the shared-lesson warning, due 24 hours plus the notice period before the
-  lesson (ADR-026 d5a). On the **invited seat**.
-- **`EXPIRE`** — an invitation still `INVITED` or `AWAITING_COACH` at the lesson's start. On
-  the **invited seat**.
-- **`INVITER_LEFT`** — an accepted invitation whose inviting family cancelled their own seat
-  first (§6.9), due at once. On the **lesson time**, naming the invited seat, which is already
-  `AWAITING_COACH` and so the invited family's — the cancel never writes that seat. The sweep
-  ends the seat it names as `WITHDRAWN`, up to an hour later; it was the last seat, so the lesson
-  time goes back to `OPEN` (ADR-031 d5, d12, *owner, 2026-10-13, option B*).
+- **`EXPIRE`** — an invitation still `INVITED` at the lesson's start. On the **invited seat**.
 - **`ANSWER`** — the staying family's `answerBy` (§6.9). On the **lesson time's** pending
   leave.
 
@@ -1739,22 +1746,17 @@ is a system function, so its writes are no family's.
 
 - **Urgent emails go at once** — expired (sent by `consumer-invite` when the seat moves to
   `SEATEND#`) and cancelled with no answer (sent by the change notifier).
-- **The warning waits for a friendly hour**: the 9pm run before it's due, so it's never late
-  and never sent at night.
-- **A late confirmation gets its warning at once.** If a seat becomes `AWAITING_COACH` when
-  its warning is already due, or due before the next 9pm run, the warning is sent straight
-  away (ADR-026 d5a, ADR-031 d12).
 - **The sweep's cancellations go through a change batch of their own**, with
   `cancelledBy = NO_ANSWER`, so the change notifier sends the "cancelled, no answer" email
   exactly as for any cancellation. `NO_ANSWER` is never chargeable (ADR-031 d14).
 - **An expiry moves the seat to `SEATEND#`** with `seatOutcome = EXPIRED` and
-  `endedBy = SWEEP`; an `INVITER_LEFT` does the same to the seat the lesson time names, with
-  `seatOutcome = WITHDRAWN`, and clears the lesson time's deadline.
-  `consumer-invite` sends the outcome email — the *expired* email, or the withdrawn one (d14).
-- **The sweep is the one function that can delete records in every coach's area.**
+  `endedBy = SWEEP`. `consumer-invite` sends the *expired* email — the ordinary "no longer
+  available" (d14, ADR-033 d6).
+- **The sweep is one of three functions whose execution role can delete in any coach's
+  partition** (with `consumer-schedule-change` and `consumer-student-link`).
   `consumer-invite` only copies (§7).
 - **Screens work out *expired* and *cancelled, no answer* from the time itself**, so families
-  never see a stale state between runs (ADR-026 d5a's banner rule).
+  never see a stale state between runs (ADR-031 d12).
 - **A missed hour catches up on the next run.** The sweep emits **`DeadlineSweepCompleted`**,
   and ADR-010's missed-run alarm pages when no run has completed for **2 hours** (a default
   that can be changed).
@@ -1884,15 +1886,15 @@ sequenceDiagram
 | `ScheduleChanged` | Schedule / date-override write | Schedule change λ — adds, removes, cancels and re-prices lesson times (ADR-031 d11) |
 | `CheckInRecorded` | Attendance write, `CHECKED_IN` only | Payment reminder |
 | `NoShowRecorded` | Attendance write, `NO_SHOW` only | Payment reminder — **Phase 2**, when ADR-015's charge switches on. A separate event from `CheckInRecorded` because the reminder wording differs: a missed lesson is not an attended one. |
-| `StudentChanged` | `STUDENT#` item under `COACH#` modified (`studentStatus`, `studentName` or, from Phase 2, `priceMinorOverride` changed) or removed | Student link sync λ — mirrors the change onto the client's link item (ADR-021 d6). The Invite λ no longer reacts to it: the coach's Accept joins the skater's `AWAITING_COACH` seats inside `api-coach` (ADR-031 d6), and the resulting seat changes drive its outcome emails, including any lesson no longer available (d14). |
+| `StudentChanged` | `STUDENT#` item under `COACH#` modified (`studentStatus`, `studentName` or, from Phase 2, `priceMinorOverride` changed) or removed | Student link sync λ — mirrors the change onto the client's link item (ADR-021 d6). The Invite λ doesn't react to it: the coach's Accept changes only the `STUDENT#` item (ADR-033). |
 | `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` item modified | Family sync λ — copies contact and skater details to every coach's `STUDENT#` record (ADR-025 d6); also issues each new skater's share code (ADR-026 d4); and, since ADR-031 d14, updates `studentName` on the skater's upcoming seats (`consumer-invite` then refreshes `partnerName` on the seats sharing a lesson with them) |
-| *(name to be set)* — replaces `InviteChanged` | A shared-lesson seat change: a seat written `INVITED`, accepted, joined, moved to `SEATEND#` (declined, withdrawn, expired) or to a `CANCELLED#` line (a leave, or the inviting family cancelling), or its `studentName` changed; or a lesson time's `pendingLeave` written or cleared — both through the change stream. There is no `INVITE#` item any more (ADR-031 d5, d6). *ADR-031 names the consumer but not the event.* | Invite λ — writes the read-only copies on the seats in that lesson, about a second later (ADR-031 d6): `partnerName` + `partnerStatus`, `invitedClientId` + GSI1 keys on an invited seat, and `choiceAnswerBy` on the staying seat while a pending leave waits; and sends the shared-lesson emails that aren't deadlines: the invitation (or, for a skater not yet with the coach, a consent link to join the coach's roster, ADR-026 d5) and every outcome email — joined, declined, withdrawn, expired, no longer available after the coach's Accept, and "the other skater can't make it — keep or cancel" (ADR-031 d14). A system function, so its writes are no family's. It never ends a seat: the inviting family's own cancel, or the hourly sweep's `INVITER_LEFT`, does (d5, *option B*). |
+| *(name to be set)* — replaces `InviteChanged` | A shared-lesson seat change: a seat written `INVITED`, accepted, joined, moved to `SEATEND#` (declined, withdrawn, expired) or to a `CANCELLED#` line (a leave, or the inviting family cancelling), or its `studentName` changed; or a lesson time's `pendingLeave` written or cleared — both through the change stream. There is no `INVITE#` item any more (ADR-031 d5, d6). *ADR-031 names the consumer but not the event.* | Invite λ — writes the read-only copies on the seats in that lesson, about a second later (ADR-031 d6): `partnerName` + `partnerStatus`, `invitedClientId` + GSI1 keys on an invited seat, and `choiceAnswerBy` on the staying seat while a pending leave waits; and sends the shared-lesson emails that aren't deadlines: the invitation and every outcome email — joined, declined, withdrawn, expired ("no longer available"), and "the other skater can't make it — keep or cancel" (ADR-031 d14, ADR-033 d6). A system function, so its writes are no family's. It never ends a seat: the inviting family's own cancel, or the hourly sweep's `EXPIRE`, does (ADR-031 d5, ADR-033 d4). |
 | `DailyReminderDue` (scheduled) | Scheduler | Day-of reminder λ |
 | `DailyReportDue` (scheduled) | Scheduler | End-of-day report λ |
 | `UnpaidReminderDue` (scheduled) | Scheduler, weekly | Unpaid-lesson reminder λ (ADR-018) |
 | `DriftCheckDue` (scheduled) | Scheduler, nightly | Drift check λ (ADR-010 d5k) — read-only, alerts only |
 | *(name to be set)* (scheduled) | Scheduler, nightly | Lesson roller λ (`sched-lesson-roller`, ADR-031 d1) — keeps lesson times stored to the end of the booking window plus 12 months |
-| *(name to be set)* (scheduled) | Scheduler, every hour | Deadline sweep λ (`sched-deadline-sweep`, ADR-031 d12) — acts on `WARN` and `EXPIRE` deadlines (invited seats) and `ANSWER` and `INVITER_LEFT` deadlines (lesson times) through GSI4; replaces the Invite λ's nightly run; emits `DeadlineSweepCompleted` (ADR-031 d14) |
+| *(name to be set)* (scheduled) | Scheduler, every hour | Deadline sweep λ (`sched-deadline-sweep`, ADR-031 d12) — acts on `EXPIRE` deadlines (invited seats) and `ANSWER` deadlines (lesson times) through GSI4; replaces the Invite λ's nightly run; emits `DeadlineSweepCompleted` (ADR-031 d14) |
 
 ---
 
@@ -1938,13 +1940,14 @@ sequenceDiagram
   client), reads of the coach's partition **limited to an attribute allowlist** — schedule,
   `LESSON#` attributes for availability (and, for any lesson time — an attribute list can't be limited to their own; not yet written in the policy (ADR-022) — `priceMinor`,
   `shareCount` and `joinOrder`, never `pendingLeave` — ADR-031 d1), the family's own `SEAT#` key for retry attribution
-  (ADR-031 Consequences) and public profile fields, never another family's student or seat
+  (ADR-031 Consequences), `studentStatus` on `STUDENT#` items, by key only, for the share-check
+  (ADR-033 d2a), and public profile fields, never another family's student or seat
   — **and only for an `ACTIVE` family**: a family with no approved skater reads
   nothing of the coach's, only their own account — and writes confined to that one coach's
   partition. The coach-code lookup before sign-in runs under a separate, untagged
   `code-lookup` role that can read only the `CODE#` item's display fields. The consumers and
   the scheduled jobs stay on their execution roles (ADR-021 d9).
-- **One check is enforced only in code:** a client **write** into the coach's partition — booking, cancelling, editing a student — must verify that the target `studentId` appears in the caller's link set. The database confines the write to the right coach but cannot confine it to the right family (ADR-022 d8). Reads no longer depend on this check: GSI1 is keyed by client. This is the natural place for an authorization test (ADR-002). **Enforced structurally by ADR-024:** new writes take a `LinkedSkater` that only `core.data` creates after checking the family's links; writes to an existing seat carry a `clientId = :caller` condition, so DynamoDB refuses another family's. An invited seat has no `clientId` yet (ADR-031 d5): withdrawing it is conditioned on `invitedByClientId = :caller` and `seatStatus = INVITED`; accepting it is the invited family's own write, after the link check on the invited skater (or, for a skater new to the coach, the check that the skater is in their own family), conditioned on the seat having no `clientId`, being `INVITED`, and its `studentId` being the caller's skater. Declining is the invited family's response under the same condition. A never-linked failure is a logged security event, and repeated ones page (3+ in 15 minutes for one family, 10+ a day overall; both configurable).
+- **One check is enforced only in code:** a client **write** into the coach's partition — booking, cancelling, editing a student — must verify that the target `studentId` appears in the caller's link set. The database confines the write to the right coach but cannot confine it to the right family (ADR-022 d8). Reads no longer depend on this check: GSI1 is keyed by client. This is the natural place for an authorization test (ADR-002). **Enforced structurally by ADR-024:** new writes take a `LinkedSkater` that only `core.data` creates after checking the family's links; writes to an existing seat carry a `clientId = :caller` condition, so DynamoDB refuses another family's. An invited seat has no `clientId` yet (ADR-031 d5): withdrawing it is conditioned on `invitedByClientId = :caller` and `seatStatus = INVITED`; accepting it is the invited family's own write, after the link check on the invited skater, conditioned on the seat having no `clientId`, being `INVITED`, and its `studentId` being the caller's skater. Declining is the invited family's response under the same condition. Inviting is checked by the database too: the booking transaction's `ConditionCheckItem` requires the invited skater's `studentStatus = ACTIVE` (ADR-033 d2). A never-linked failure is a logged security event, and repeated ones page (3+ in 15 minutes for one family, 10+ a day overall; both configurable).
 - Clients see only whether a lesson time is free — never who holds a taken one. A client sees
   their own lessons as theirs; every other taken lesson time, whether `BOOKED` by another
   family or `HELD` by the coach, looks identical (ADR-009, settled 2026-09-30; ADR-031 d1).
@@ -1953,9 +1956,9 @@ sequenceDiagram
   skater's other coaches, and only once the skater is `ACTIVE` with both. It is a copy written by
   `consumer-student-link`, not a read permission, so no coach can read another coach's partition.
   The family is told when they add a coach. ***Phase 2*** *since 2026-10-07: not in MVP.*
-- **Two ways onto a coach's roster** (ADR-002, ADR-026 d5): the coach code, or an invitation to
-  share a lesson. The invitation's consent link needs the family to sign in and confirm, and
-  then follows the coach code's route: the skater is `PENDING` until the coach accepts.
+- **One way onto a coach's roster** (ADR-002, ADR-033): the coach code. An invitation reaches
+  only a skater already `ACTIVE` with the coach, so it can't put a family on a stranger's
+  roster. The consent-link roster join is Phase 2.
 - **No family's action writes another family's records, except answering an invitation
   addressed to their own skater** (accept or decline; ADR-024, ADR-031 revised 2026-10-13), so
   ADR-024 needs no other exception for shared lessons:
@@ -1978,15 +1981,13 @@ sequenceDiagram
     `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem`. The condition can't
     limit it to `SEAT#` items, but a lesson time has none of those fields, so a stray write
     could only add a meaningless copy.
-  - **Ending an invited seat when the inviting family cancels first** (d5): still `INVITED`,
-    it is their own record and their cancel ends it as `WITHDRAWN` in the same transaction;
-    already `AWAITING_COACH`, the cancel doesn't touch it: it records an `INVITER_LEFT` deadline
-    on the lesson time, naming the seat, and the hourly sweep ends it. The sweep's writes are a system function's (d12), and **it is the one
-    function that can delete records in every coach's area.**
-  - **The coach's Accept is the coach's own write.** When the coach accepts an invited skater,
-    `api-coach`, in the coach's own session, turns every one of that skater's
-    `AWAITING_COACH` seats into `BOOKED`, each only if its lesson hasn't started, raising each
-    lesson time's `shareCount`. The database confines it to that coach's partition.
+  - **Ending an invited seat when the inviting family cancels first** (d5): the inviting
+    family's cancel ends an invited seat still `INVITED` as `WITHDRAWN` in the same
+    transaction; once accepted, the seat is `BOOKED` and the cancel is an ordinary leave
+    (ADR-033 d4). An invitation still unanswered at the lesson's start is ended by the hourly
+    sweep. The sweep's writes are a system function's (d12), and it is **one of three
+    functions whose execution role can delete in any coach's partition** (with
+    `consumer-schedule-change` and `consumer-student-link`).
 - **A family's read of its own lesson time** may include `priceMinor`, `shareCount` and
   `joinOrder`, which they need to work out their share — **never `pendingLeave`**; the
   keep-or-cancel question is read from their own seat's `choiceAnswerBy` (ADR-031 d1, d6).
@@ -1995,7 +1996,10 @@ sequenceDiagram
 - **Residual, unchanged** (ADR-022 d8, ADR-031 Consequences): a family's writes land in the
   coach's partition, and only the code check keeps one family off another family's seat with
   the same coach. Gate tests (ADR-021, ADR-022) need rows for `LESSON#`, `SEAT#`, `SEATEND#`
-  and GSI4.
+  and GSI4, and, for ADR-033: a booking transaction whose invited seat names a skater who isn't
+  `ACTIVE` with the coach is refused whole; a `GetItem` of a `STUDENT#` item projecting only
+  `studentStatus` is allowed for an `ACTIVE` session; any other `STUDENT#` attribute is still
+  refused; and a `PENDING` session is refused.
 - A coach's phone, email and payment types (one switch per type, ADR-016 d7) are shown to
   families only if the coach switches each on, and **only to families the coach has confirmed** — never to a `PENDING` family,
   since a coach code can be passed around or guessed (ADR-016 d7a).
@@ -2093,7 +2097,7 @@ sequenceDiagram
 ```
 
 ### Least privilege
-- **One IAM role per Lambda**, granted only the specific actions it needs (e.g. the report λ gets `dynamodb:Query` on GSI2, `dynamodb:GetItem` for student names and the coach profile, `ses:SendEmail` and `s3:PutObject` scoped to the reports bucket/prefix — nothing else). The full per-function table is **ADR-001 amendment A6**. Only the three scheduled jobs that need it hold GSI2 (day-of reminder, end-of-day report, drift check), an index that crosses tenants. GSI4 crosses tenants too: `sched-deadline-sweep` reads it every hour (ADR-031 d12). The end-of-day report only reads the table; it writes nothing (ADR-014 d7, ADR-031 d7). `consumer-invite` writes across coaches, but only copies: reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem` (ADR-031 Consequences, *owner, 2026-10-13, option B*). `sched-deadline-sweep` is the one function that can delete records across coaches. *The two new jobs' roles are still open (ADR-031 d14); only `sched-deadline-sweep` should be able to read GSI4.*
+- **One IAM role per Lambda**, granted only the specific actions it needs (e.g. the report λ gets `dynamodb:Query` on GSI2, `dynamodb:GetItem` for student names and the coach profile, `ses:SendEmail` and `s3:PutObject` scoped to the reports bucket/prefix — nothing else). The full per-function table is **ADR-001 amendment A6**. Only the three scheduled jobs that need it hold GSI2 (day-of reminder, end-of-day report, drift check), an index that crosses tenants. GSI4 crosses tenants too: `sched-deadline-sweep` reads it every hour (ADR-031 d12). The end-of-day report only reads the table; it writes nothing (ADR-014 d7, ADR-031 d7). `consumer-invite` writes across coaches, but only copies: reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields and `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK` and `choiceAnswerBy`; no `PutItem` or `DeleteItem` (ADR-031 Consequences, *owner, 2026-10-13, option B*). `sched-deadline-sweep` is one of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *The two new jobs' roles are still open (ADR-031 d14); only `sched-deadline-sweep` should be able to read GSI4.*
 - No wildcard `dynamodb:*`, `ses:*`, or `s3:*`. `cdk-nag` fails the build on any.
 - **Production deploys come only from GitHub Actions, with no stored AWS keys** (ADR-032). Each account has its own least-privilege deploy role, reached through OpenID Connect (OIDC) by a trust rule locked to this repository and, for production, its `production` environment on `main`. Production takes only a tagged build from `main`, and every production deploy waits for the owner's approval; actions are pinned to commit hashes. Dev may also be built by hand with `build-dev`, signed in through IAM Identity Center (ADR-032, amended 2026-10-15).
 - **A limit worth knowing before relying on this:** in a single-table design, per-function
@@ -2383,7 +2387,7 @@ Because a coach's roster can mix both, the safe default is to treat a student as
   overall rate rule and a tighter one on the unauthenticated routes (sign-up, coach-code
   lookup, `/health`). Because it sits on the API itself, every request passes through it whatever address
   it was sent to. Limits per address per 5 minutes: **1,000** overall, **20** for client
-  sign-up and coach-code lookup, **10** for Cognito sign-up and sign-in; `/health` has its own limit, number Open (ADR-019,
+  sign-up and coach-code lookup, **10** for Cognito sign-up and sign-in; the share-code rule, **20**, covers the share-code lookup and the share-check (`/share-check`, ADR-033 d2a); `/health` has its own limit, number Open (ADR-019,
   amended 2026-10-15). **In production every
   rule counts, not blocks, for the first two weeks after launch**, then blocks. The WAF is a
   pair of settings per environment (`wafEnabled`, `wafMode`). **Dev starts with it off**;
@@ -2410,14 +2414,14 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 | Unpaid-lesson reminder | EventBridge Scheduler, weekly (Monday morning, proposed) | Scan GSI3 for seats still unpaid longer than the threshold, email each coach one list asking them to mark each paid or waived, stamp `settleReminderSentOn` so each lesson is listed once. **Off until the threshold is set** (ADR-018). |
 | Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for lesson times that don't match the current schedule. **Read-only**: pages for a batch stuck over an hour or a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
 | **Lesson roller** (`sched-lesson-roller`) | EventBridge Scheduler, nightly | Keeps lesson times stored to the end of the booking window **plus 12 months** — about 15 months ahead — so every date a series can reach already exists, creating only lesson times that don't exist (ADR-031 d1). Reports a completion metric: a missed night shows on the dashboard after one night and pages after **3** (defaults that can be changed). No dead-letter queue (ADR-031 d12). |
-| **Deadline sweep** (`sched-deadline-sweep`) | EventBridge Scheduler, **every hour** | Queries GSI4 for invited seats and lesson times whose deadline is due, re-checks each, and acts: sends the shared-lesson warning (held to the 9pm run), expires invitations not joined by the lesson's start, ends an accepted invitation as `WITHDRAWN` when the inviting family cancelled first (`INVITER_LEFT`, recorded on the lesson time; the lesson time goes back to `OPEN`), cancels the staying seat with no charge where the staying family didn't answer a pending leave by `answerBy`. Sets each record's next deadline or removes it. Its `DeadlineSweepCompleted` metric drives ADR-010's missed-run alarm, which pages after **2 hours** with no completed run (a default that can be changed). Its no-answer cancellations go through a change batch with `cancelledBy = NO_ANSWER`. No dead-letter queue (§6.10, ADR-031 d12, d14). |
+| **Deadline sweep** (`sched-deadline-sweep`) | EventBridge Scheduler, **every hour** | Queries GSI4 for invited seats and lesson times whose deadline is due, re-checks each, and acts: expires invitations not accepted by the lesson's start (`EXPIRE`), cancels the staying seat with no charge where the staying family didn't answer a pending leave by `answerBy`. Sets each record's next deadline or removes it. Its `DeadlineSweepCompleted` metric drives ADR-010's missed-run alarm, which pages after **2 hours** with no completed run (a default that can be changed). Its no-answer cancellations go through a change batch with `cancelledBy = NO_ANSWER`. No dead-letter queue (§6.10, ADR-031 d12, d14, ADR-033 d5). |
 
 **These are the only six cron jobs.** The third exists because a lesson only expires once
 settled (ADR-017), so an unsettled one would otherwise sit forever unnoticed. The fourth
 exists because a lost event raises no error and leaves nothing retrying (ADR-010 d5k). The
 fifth exists because open times are now **stored**, not computed, so something must keep
-them stored ahead of the families (ADR-031 d1). The sixth exists because a warning, an expiry
-and an answer-by are due at a time, not on an event. It runs hourly, replacing ADR-026 d5a's
+them stored ahead of the families (ADR-031 d1). The sixth exists because an expiry and an
+answer-by are due at a time, not on an event. It runs hourly, replacing ADR-026 d5a's
 nightly invitation sweep on `consumer-invite`, because nothing here needs better than an hour
 and one-off timers would each need creating, moving and cancelling (ADR-031 d12,
 Alternatives). Neither new job has a dead-letter queue: each is safe to run twice, and a
@@ -2502,6 +2506,7 @@ delivery confirmation needs SES event destinations and is not in MVP.
 ### MVP (Phase 1)
 
 *Updated 2026-10-13 for ADR-031 (lessons and seats).*
+*Updated 2026-10-20 for ADR-033.*
 
 | # | Feature | Source |
 |---|---|---|
@@ -2509,7 +2514,7 @@ delivery confirmation needs SES event destinations and is not in MVP.
 | 2 | Client **self-registration with a `coachCode`**, including multiple children in one sign-up, **one or more coach codes at sign-up** (ADR-025 h), and **adding further coaches** later; a skater can have several coaches, each approving separately (ADR-025) | ADR-002, ADR-025 |
 | 3 | Coach **schedule editor**, reached from two dashboard buttons — *Edit weekly schedule* and *Add time off or a special schedule*. Time off is a name and a date range, nothing else; a special schedule is the tabbed form (SOD, EOD, lesson length, cost, **rink** — fixed to Pelham Civic Center (PCC) in Phase 1 — and **ice type**, required and never shown to families) with a live slot calendar and per-slot selection | ADR-008; `FeatureDecriptions/Schedule Creater.md` |
 | 4 | **Monthly calendar + Sun–Sat week view**, for both coach and client, with prev/next navigation | ADR-006 |
-| 5 | Clients book open lesson times **up to three months ahead** (the months the booking page shows, checked by the system) — **single or recurring with an end date** (≤12 months after the first pick), partial success reported per skipped date. Every booking is private; the booking family can **invite another family's skater by share code** to share it, up to the block's `maxSkaters` (default 1, at most 2 — a setting that may be raised; the lesson's set price is split evenly between the skaters, ADR-026 amended 2026-10-13). A skater not yet with the coach joins the coach's roster through the invitation and is added once the coach accepts. Either family can leave under the same rules; after an in-time leave the staying family keeps the lesson at the full price or cancels with no charge — for a series, **Keep all** or **Cancel all remaining dates**, or date by date — and a kept lesson is a **freed place** that can take a one-lesson invite. Deadlines (the warning, expiry, the answer-by time, the inviter-left case) are acted on by an **hourly sweep** | ADR-006, ADR-026, ADR-031 |
+| 5 | Clients book open lesson times **up to three months ahead** (the months the booking page shows, checked by the system) — **single or recurring with an end date** (≤12 months after the first pick), partial success reported per skipped date. Every booking is private; the booking family can **invite another family's skater by share code** to share it, up to the block's `maxSkaters` (default 1, at most 2 — a setting that may be raised; the lesson's set price is split evenly between the skaters, ADR-026 amended 2026-10-13). Only a skater the coach has accepted can be invited or added as a sibling (ADR-033). Either family can leave under the same rules; after an in-time leave the staying family keeps the lesson at the full price or cancels with no charge — for a series, **Keep all** or **Cancel all remaining dates**, or date by date — and a kept lesson is a **freed place** that can take a one-lesson invite. Deadlines (expiry and the answer-by time) are acted on by an **hourly sweep** | ADR-006, ADR-026, ADR-031, ADR-033 |
 | 6 | **Validation, impact preview and explicit acceptance** before any schedule save — covering default *and* temporary changes, cancellations *and* re-pricing, with a large-price-change warning, an **odd-cents warning** when a shared block's price doesn't split evenly, and the change's status shown until it finishes | ADR-008, ADR-020, ADR-010 d5l, ADR-031 d13 |
 | 7 | **Cancellation records** + notification with send/failure state, routed by actor | ADR-006, ADR-009 |
 | 8 | **Client cancellation** — per-lesson cancel with confirmation, plus recurrence management (move the end date earlier, reduce the frequency, or cancel all future lessons; while a series is shared, only cancel one lesson or cancel the series) | ADR-009, ADR-031 d9 |
@@ -2573,6 +2578,10 @@ delivery confirmation needs SES event destinations and is not in MVP.
   work is not the fee but the plumbing: `CANCELLED#` records gain a payment lifecycle and
   GSI3 membership, since a late cancellation moves its seat to a `CANCELLED#` line and a no-show does not (ADR-031 d2).
 - **Cancellation reasons** — distinct email templates for sick, emergency, vacation.
+- **The consent-link roster join for shared lessons**: inviting a skater new to the coach,
+  `AWAITING_COACH` seats, the warning and its 9pm timing, the banners, the late-confirmation
+  rule, `INVITER_LEFT`, the coach's Accept joining seats, and their emails. Answer review gap
+  G16 first, for example with rotatable share codes (ADR-033).
 - **Scheduled production canary** — whether to run the cancellation-path check on a schedule between releases, and where: a GitHub Actions schedule or CloudWatch Synthetics. MVP runs it after each deploy only (ADR-027, amended 2026-10-15).
 - **Turning off the coach's morning email** — a switch on the email templates page. MVP sends it on every lesson day with no way to turn it off (ADR-023, amended 2026-10-13).
 - **Cancelling from the week view** as a client, when the booking is theirs.
@@ -2616,7 +2625,7 @@ amended.
 | ADR | Decides | Status |
 |---|---|---|
 | [001](adr/ADR-001-backend-stack.md) | Backend stack, IaC language, repo layout, timezone handling | Accepted; amended (SnapStart withdrawn; check-in as a third frontend, A3, *superseded by 023*; **IaC re-opened, CDK or Terraform undecided, A4**; sixteen functions since ADR-031 (`consumer-invite` kept, copy-only); tenant roles A8–A9; **execution roles restated, A6**; **REST API, A7**) |
-| [002](adr/ADR-002-client-registration.md) | Client registration, the client↔student link, coach codes | Accepted; **d5 (one coach) superseded by 025**; amended 2026-10-07 (an invitation is a second way onto a roster, 026) and 2026-10-08 (Kim confirms the `PENDING` step stays in MVP); amended 2026-10-09 (siblings need approval too; no reminder; pending count on the Students tab) |
+| [002](adr/ADR-002-client-registration.md) | Client registration, the client↔student link, coach codes | Accepted; **d5 (one coach) superseded by 025**; amended 2026-10-07 (an invitation is a second way onto a roster, 026) and 2026-10-08 (Kim confirms the `PENDING` step stays in MVP); amended 2026-10-09 (siblings need approval too; no reminder; pending count on the Students tab); *parts moved to Phase 2 by 033* |
 | [003](adr/ADR-003-lesson-pricing-and-payment.md) | Lesson pricing and payment tracking | Partially superseded by 004; d2 amended by 020 (the stamp protects past lessons only); amended 2026-10-09 (how the client paid, d4); amended 2026-10-12 (Cash, how-paid optional/editable/coach-only; unpaid history to client is Phase 2); amended 2026-10-13 (personal prices move to Phase 2); amended 2026-10-13 by 031 |
 | [004](adr/ADR-004-schedule-patterns.md) | Computed availability, schedule blocks, pattern-bound pricing | Partially superseded by 006; **d1–2 superseded by 031** (open times are stored; the lesson time is the lock) |
 | [005](adr/ADR-005-booking-horizon-and-recurring-lessons.md) | 7-day booking horizon; recurring lessons deferred | Largely superseded by 006 |
@@ -2624,29 +2633,30 @@ amended.
 | [007](adr/ADR-007-sms-message-constraints.md) | SMS length, encoding, and content constraints | Accepted; amends 003; amended 2026-10-12 (client SMS is Phase 2; only the coach's late-cancellation text is MVP) |
 | [008](adr/ADR-008-schedule-editor.md) | The schedule editor; signup defaults removed; temp headers restored | Accepted; supersedes parts of 003, amends 004 and 006; amended 2026-09-29 (missed-lesson fee field, Phase 2); extended by 026 (`maxSkaters`); amended 2026-10-08 (booking counter checked at save, "just booked" email, no slot holds); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (odd-cents warning) |
 | [009](adr/ADR-009-cancellation.md) | Client, coach and schedule-driven cancellation; coach-held slots; rinkside app as a second cancel surface | Accepted; extends 006; amended 2026-09-22 (d5a), 2026-10-01 (d4c header in the client's partition), 2026-10-08 (coach told of a client cancellation only inside `requiredNoticeHours`); **d2's "cancelling deletes the booking" and d5's `COACH_HELD` booking superseded by 031** (a held lesson time); d4 limited on a shared series |
-| [010](adr/ADR-010-availability-and-reliability.md) | Availability and reliability tiers, dead-letter queues, idempotency, alerting, Point-in-Time Recovery | Accepted; amends 006 d5; amended 2026-09-29 (d5f — the notifier fires when a batch finishes); amended 2026-09-30 (d5g–d5l — recovery: event-derived keys, plan-complete marker, re-check before acting, reconcile command, nightly drift check, status on the coach website; d2a — dead-letter policy per consumer); amended by 031 (nightly lesson roller; the hourly sweep's missed-run alarm) |
+| [010](adr/ADR-010-availability-and-reliability.md) | Availability and reliability tiers, dead-letter queues, idempotency, alerting, Point-in-Time Recovery | Accepted; amends 006 d5; amended 2026-09-29 (d5f — the notifier fires when a batch finishes); amended 2026-09-30 (d5g–d5l — recovery: event-derived keys, plan-complete marker, re-check before acting, reconcile command, nightly drift check, status on the coach website; d2a — dead-letter policy per consumer); amended by 031 (nightly lesson roller; the hourly sweep's missed-run alarm); *amended by 033* |
 | [011](adr/ADR-011-staging-environment.md) | Staging environment; production data masked before it lands there | Accepted; supersedes 010's "no staging"; amended 2026-09-29 (masking list follows ADR-016; containment disables both app clients, *one since 023*; subset remapped onto test accounts, d8; photo placeholder, d9); **d1, d7a, d8a's default list and d8c superseded by 027** — masking carried over to dev |
-| [012](adr/ADR-012-pii-access-logging.md) | Who read what — application logging, CloudTrail data events, cron aggregation | Accepted; answers monitoring §2 |
+| [012](adr/ADR-012-pii-access-logging.md) | Who read what — application logging, CloudTrail data events, cron aggregation | Accepted; answers monitoring §2; *amended by 033* |
 | [013](adr/ADR-013-testing-requirement.md) | Every feature requires automated tests, across all three packages | Accepted; **enforcement deferred to the first CI pipeline** (GitHub Actions, ADR-032) |
 | [014](adr/ADR-014-check-in-app-and-offline-capture.md) | Attendance as an MVP surface; offline capture, device timestamps, idempotent replay, explicit no-show, `PENDING` report default | Accepted; amends 001 (A3); **d10–11 superseded by 023** (no separate app client or function); amended 2026-10-13 by 031 |
 | [015](adr/ADR-015-late-cancellation-and-no-show-charges.md) | Late cancellation and no-show both charged, one rule; fee per block, stamped on the booking | Accepted; **charge is Phase 2**; supersedes 009 d3 and d11 in part, amends 014 d3; amended 2026-09-29 (d1a — only the client's own late cancellation is charged, from any screen); d3 amended by 020; amended by 026 2026-10-13 (in a shared lesson, the leaver may be charged their share of the late-cancellation fee); d4 amended by 031 (the charge lives on the seat's cancellation line) |
 | [016](adr/ADR-016-coach-signup.md) | Coach signup — **ungated for now**, licence gate intended; Cognito-owned credentials; the coach profile | Accepted; closes §11's oldest open thread; extends 002; amended 2026-09-29 (`requiredNoticeHours` on the profile); amended 2026-10-01, 2026-10-05 (photo to Phase 2), 2026-10-12 (`acceptsCash`) |
 | [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f; amended 2026-10-12 (16-month floor for lesson and payment records; archived-history message; restores logged under 012); amended 2026-10-13 by 031 |
 | [018](adr/ADR-018-unpaid-lesson-reminder-to-coach.md) | A weekly email telling each coach which lessons are still unpaid after a threshold, asking them to mark each paid or waived | Accepted; **threshold to be set — off until then**; answers 017's open question; amended 2026-10-13 by 031 |
-| [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023; amended 2026-10-15 (`/health` is rate-limited) |
+| [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023; amended 2026-10-15 (`/health` is rate-limited); *amended by 033* |
 | [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; large-change warning at 50% or more of the old price, up or down (amended 2026-10-13); amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (a re-price changes only the lesson time's total; every share follows it, a `REPRICED#` line per seat whose share changes) |
-| [021](adr/ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database as well as in code: per-request tenant roles tagged with the coach for `api-coach` (and `api-checkin` until 023); `api-coach` drops GSI1; a stream consumer writes the client's link item | Accepted; database-gate tests **passed 2026-10-05** (d7); reverses 014 d11a's second point; amends 001 (A8), 002, 012, 013; extended to clients by 022; extended by 025 (`otherCoaches`, Phase 2); amended 2026-10-08 (d7 tests run in dev; `StudentChanged` also triggers `consumer-invite` (no longer, since ADR-031)); amended 2026-10-13 by 031 |
-| [022](adr/ADR-022-client-isolation-at-the-database.md) | Client isolation at the database: a per-request `client-tenant` role; GSI1 re-keyed by client; recurrence headers move to the client's partition; coach-partition reads limited to an attribute allowlist; writes confined to the client's coach | Accepted; client-gate tests **passed 2026-10-05** (d9); amends 001 (A9), 002, 006, 009, 012, 013, 016, 021; **d8's retry lookup through GSI1 superseded by 031** (a read of the family's own seat) |
+| [021](adr/ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database as well as in code: per-request tenant roles tagged with the coach for `api-coach` (and `api-checkin` until 023); `api-coach` drops GSI1; a stream consumer writes the client's link item | Accepted; database-gate tests **passed 2026-10-05** (d7); reverses 014 d11a's second point; amends 001 (A8), 002, 012, 013; extended to clients by 022; extended by 025 (`otherCoaches`, Phase 2); amended 2026-10-08 (d7 tests run in dev; `StudentChanged` also triggers `consumer-invite` (no longer, since ADR-031)); amended 2026-10-13 by 031; *amended by 033* |
+| [022](adr/ADR-022-client-isolation-at-the-database.md) | Client isolation at the database: a per-request `client-tenant` role; GSI1 re-keyed by client; recurrence headers move to the client's partition; coach-partition reads limited to an attribute allowlist; writes confined to the client's coach | Accepted; client-gate tests **passed 2026-10-05** (d9); amends 001 (A9), 002, 006, 009, 012, 013, 016, 021; **d8's retry lookup through GSI1 superseded by 031** (a read of the family's own seat); *amended by 033* |
 | [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021; amended 2026-10-05 (session lengths), 2026-10-07 (dev address), 2026-10-12 (no home-screen use), 2026-10-13 (reached from the Today page and the coach's morning email; amends 001 A6 and 010 d3); 2026-10-15 (the morning email goes to the coach's login email) |
-| [024](adr/ADR-024-client-write-link-check.md) | The client write link check: a `LinkedSkater` type only `core.data` creates, a `clientId` ownership condition on existing items, an ArchUnit rule; failures split by reason, logged, and paged on configurable thresholds | Accepted; amends 010, 012, 013, 022; amended 2026-10-13 by 031 (the shared-lesson exception was withdrawn) |
-| [025](adr/ADR-025-many-coaches-per-skater.md) | Skaters and coaches are many-to-many: one `studentId` per skater across coaches, a family-owned `SKATER#` item, per-coach approval and `linkStatus`, other coaches' names shown to each coach (Phase 2); no limit on coaches; clashing bookings warned about, family changes copied by a consumer | Accepted; supersedes 002 d4–5; amends 001, 011, 021, 022; amended twice 2026-10-13 (booking with several coaches; several coach codes at sign-up in MVP; one Home card per coach; coach filter on My bookings; travel time between rinks is Phase 3); amended 2026-10-13 by 031 |
-| [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater *(now a seat, 031)*; the slot lock unchanged *(replaced by 031)* | Accepted; max 2 and approval decided by the owner; pricing and the booking family cancelling decided by the owner 2026-10-13 (set price split evenly; leaving rules; share codes never change); lapse still partly pending Kim; a skater not yet with the coach joins via a consent link and the coach's Accept; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP); 2026-10-12 (`maxSkaters` never lowered on a booked lesson); **d2, d3 and d5's mechanics and d5a's nightly sweep superseded by 031** (seats, partner fields, hourly sweep) — every behaviour rule still holds |
+| [024](adr/ADR-024-client-write-link-check.md) | The client write link check: a `LinkedSkater` type only `core.data` creates, a `clientId` ownership condition on existing items, an ArchUnit rule; failures split by reason, logged, and paged on configurable thresholds | Accepted; amends 010, 012, 013, 022; amended 2026-10-13 by 031 (the shared-lesson exception was withdrawn); *amended by 033* |
+| [025](adr/ADR-025-many-coaches-per-skater.md) | Skaters and coaches are many-to-many: one `studentId` per skater across coaches, a family-owned `SKATER#` item, per-coach approval and `linkStatus`, other coaches' names shown to each coach (Phase 2); no limit on coaches; clashing bookings warned about, family changes copied by a consumer | Accepted; supersedes 002 d4–5; amends 001, 011, 021, 022; amended twice 2026-10-13 (booking with several coaches; several coach codes at sign-up in MVP; one Home card per coach; coach filter on My bookings; travel time between rinks is Phase 3); amended 2026-10-13 by 031; *parts moved to Phase 2 by 033* |
+| [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater *(now a seat, 031)*; the slot lock unchanged *(replaced by 031)* | Accepted; max 2 and approval decided by the owner; pricing and the booking family cancelling decided by the owner 2026-10-13 (set price split evenly; leaving rules; share codes never change); lapse still partly pending Kim; a skater not yet with the coach joins via a consent link and the coach's Accept; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP); 2026-10-12 (`maxSkaters` never lowered on a booked lesson); **d2, d3 and d5's mechanics and d5a's nightly sweep superseded by 031** (seats, partner fields, hourly sweep) — every behaviour rule still holds; *parts moved to Phase 2 by 033* |
 | [027](adr/ADR-027-on-demand-dev-environment.md) | Production is the only long-running environment: an on-demand dev stack, built from the same code and destroyed when done, replaces staging; a masked production subset is loaded only on request; no teardown while a scanner finding is open; the scheduled canary runs against production as a test coach and family; production and dev are separate AWS accounts; masking job and surviving logs in a data-loading stack | Accepted; supersedes 011 d1, d7a, d8a (default list), d8c; amends 001, 010, 012, 013, 017, 019, 021, 023, 024, 025; amended 2026-10-09 (a Step Functions workflow runs each load); amended by 028 (dev built from one import); amended 2026-10-15 (canary runs after each deploy, scheduled run Phase 2; always-on up-check and `/health`) |
 | [028](adr/ADR-028-dev-table-built-from-one-import.md) | The dev table is created from one import file when the stack is built: seed data (default) or masked production (on request), never both; dev is two stacks, test accounts first; a build fails if the import doesn't match the file | Accepted; amends 027 d2, d3, d4, d9 |
 | [029](adr/ADR-029-skater-registration-number.md) | Every skater gives a US Figure Skating or USA Hockey registration number, per skater, required at sign-up; checked for shape only; Canada is Phase 2; never a key; the coach code is never a registration number | Accepted; extends 002, 025 d1; amended 2026-10-16 (Kim: the rinks require it, no lapse check, renewal reminder Phase 3; Learn to Skate USA numbers accepted; a rink download on the Students tab) |
 | [030](adr/ADR-030-financial-page-gross-and-rink-fees.md) | Financial page: YTD gross is money received, counted by lesson date, calendar year; a finished year is closed; the page says figures come from lessons marked paid; BladeBook calculates rink fees from terms the developer sets; a summary CSV export in MVP | Accepted in part; how rink fees are calculated is open (`Q_Rink-Fees.md`); amended 2026-10-13 by 031 |
-| [031](adr/ADR-031-lessons-and-seats.md) | Booking rebuilt as **lesson times and seats**: open times stored as `LESSON#` records by a nightly `sched-lesson-roller` (~15 months ahead); one `SEAT#` per skater, private and shared lessons on one path; GSI1–3 on seats, new sparse GSI4 for deadlines; ended seats move to `CANCELLED#` or `SEATEND#`; a three-month booking window checked by the system; retry attribution by reading the family's own seat; the invited seat holds the place; joining lesson by lesson; partner fields replace `INVITE#` copies; even split with odd cents to the earliest skaters in the lesson time's `joinOrder`; **revised later 2026-10-13 so no family's action writes another family's records** — the total price only on the lesson time with a `shareCount`, no amount copied onto a seat (every share worked out from the lesson time; owner, 2026-10-13), odd cents by the lesson time's `joinOrder`, a leave recorded as a pending leave on the lesson time, read-only copies on seats written by `consumer-invite` (partner fields, `invitedClientId` + GSI1 keys so an invitation shows before it is accepted, `choiceAnswerBy`), the invited seat the inviter's until accepted and ended by the inviting family's own cancel, or by the sweep (`INVITER_LEFT`) once accepted, so ADR-024 needs no shared-lesson exception; leaving in time or late, the answer-by rule, keep all / cancel all, a freed place takes a one-lesson invite; schedule saves add, remove, cancel and re-price lesson times with a `scheduleVersion`; the **hourly** `sched-deadline-sweep`; the odd-cents warning; details settled 2026-10-13 (d14): `LessonBooked` per seat, GSI2 keys only once `BOOKED`, batch lines only for cancel and re-price, `scheduleVersion` on `SCHEDULE#DEFAULT`, the sweep's `NO_ANSWER` batches and `DeadlineSweepCompleted`, `SEATEND#` attributes, which function sends which email, seat names kept current by `consumer-family-sync` | Accepted 2026-10-13; supersedes 004 d1–2, parts of 006, 009, 022 d8 and 026's mechanics; amends 008, 010, 015, 020; closes Open-Pending §4 (booking vs. schedule save) and ADR-026's leaving, freed-place and split-share re-pricing gaps. **Open:** the two new jobs' IAM roles; whether a coach booking for a family is held to the window; whether the 7 days in the answer-by rule is a question for Kim; ADR-026 P5 (an unanswered invitation's lapse) still waits on Kim |
+| [031](adr/ADR-031-lessons-and-seats.md) | Booking rebuilt as **lesson times and seats**: open times stored as `LESSON#` records by a nightly `sched-lesson-roller` (~15 months ahead); one `SEAT#` per skater, private and shared lessons on one path; GSI1–3 on seats, new sparse GSI4 for deadlines; ended seats move to `CANCELLED#` or `SEATEND#`; a three-month booking window checked by the system; retry attribution by reading the family's own seat; the invited seat holds the place; joining lesson by lesson; partner fields replace `INVITE#` copies; even split with odd cents to the earliest skaters in the lesson time's `joinOrder`; **revised later 2026-10-13 so no family's action writes another family's records** — the total price only on the lesson time with a `shareCount`, no amount copied onto a seat (every share worked out from the lesson time; owner, 2026-10-13), odd cents by the lesson time's `joinOrder`, a leave recorded as a pending leave on the lesson time, read-only copies on seats written by `consumer-invite` (partner fields, `invitedClientId` + GSI1 keys so an invitation shows before it is accepted, `choiceAnswerBy`), the invited seat the inviter's until accepted and ended by the inviting family's own cancel, or by the sweep (`INVITER_LEFT`) once accepted, so ADR-024 needs no shared-lesson exception; leaving in time or late, the answer-by rule, keep all / cancel all, a freed place takes a one-lesson invite; schedule saves add, remove, cancel and re-price lesson times with a `scheduleVersion`; the **hourly** `sched-deadline-sweep`; the odd-cents warning; details settled 2026-10-13 (d14): `LessonBooked` per seat, GSI2 keys only once `BOOKED`, batch lines only for cancel and re-price, `scheduleVersion` on `SCHEDULE#DEFAULT`, the sweep's `NO_ANSWER` batches and `DeadlineSweepCompleted`, `SEATEND#` attributes, which function sends which email, seat names kept current by `consumer-family-sync` | Accepted 2026-10-13; supersedes 004 d1–2, parts of 006, 009, 022 d8 and 026's mechanics; amends 008, 010, 015, 020; closes Open-Pending §4 (booking vs. schedule save) and ADR-026's leaving, freed-place and split-share re-pricing gaps. **Open:** the two new jobs' IAM roles; whether a coach booking for a family is held to the window; whether the 7 days in the answer-by rule is a question for Kim; ADR-026 P5 (an unanswered invitation's lapse) still waits on Kim; *parts moved to Phase 2 by 033* |
 | [032](adr/ADR-032-ci-on-github-actions.md) | Continuous integration runs on **GitHub Actions**; nothing deploys to either account until its security setup is in place: actions pinned to commit hashes, AWS reached through OpenID Connect (OIDC) with a trust rule locked to the repo and branch, owner approval before production, `main` protected, fewest permissions | Accepted 2026-10-15; settles Open-Pending's CI question; names the system behind 013 d2; amended 2026-10-15 (post-deploy check; every merge builds and tags a version, production deploys only tagged builds; dev may be built by hand) |
+| [033](adr/ADR-033-invite-only-accepted-skaters.md) | Only a skater `ACTIVE` with the coach can be invited or added as a sibling, checked by the database at booking and by a share-check endpoint at the share step; consent-link roster join to Phase 2 | Accepted 2026-10-20; supersedes for MVP parts of 026 d5/d5a, 031 d5, d6, d12 and 002/025's 2026-10-07 amendments; amends 010, 012, 019, 021, 022, 024 |
 
 **Every feature requires automated tests** (ADR-013), covering `backend/`, `infra/` **and**
 `web/`. Integration tests count — several of the tests that matter most, such as

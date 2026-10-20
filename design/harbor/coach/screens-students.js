@@ -1,30 +1,14 @@
-/* Students — the roster and the pending sign-ups (FeatureDecriptions/Coach Dashboard; ADR-002, ADR-022 d6;
-   ADR-026 d5: an invited skater joins their shared lesson when approved).
+/* Students — the roster and the pending sign-ups (FeatureDecriptions/Coach Dashboard; ADR-002, ADR-022 d6).
+   Approving changes only the skater's record: only a coach's accepted skaters can share a lesson, so no seat waits on
+   the coach's Accept (ADR-033).
    Registers SCREENS students / pending, ACTIONS stu*, MODALS stu*, and the Students PRESETS. */
 
 const stuUi = () => (state.ui.stu ??= { search: '', draft: null });
 const stuIn = (l, s) => skatersIn(l).some(p => p.sid === s.id);
 const stuNext = s => state.lessons.find(l => stuIn(l, s) && !isStarted(l));
 const stuUpcoming = s => state.lessons.filter(l => stuIn(l, s) && !isStarted(l));
-/** The lessons a pending skater was invited to share, and whether each can still be joined: it exists, hasn't started and has room. */
-const stuJoins = s => (s.pendingJoins || []).map(j => {
-  const l = state.lessons.find(x => x.iso === j.iso && x.t === j.t && x.sid && x.invited === s.id);
-  const slot = l && slotsOn(l.iso).find(x => x.t === l.t);
-  return { ...j, lesson: l, ok: !!(l && !isStarted(l) && skatersIn(l).length < (slot ? slot.maxSkaters : 1)) };
-});
-const stuJoinNote = s => stuJoins(s).map(j => `<div class="stu-join">${ic('users', 14)}<span>Invited by ${esc(s.invitedBy)} to share ${j.lesson ? esc(shortName(nameOf(j.lesson))) + '’s' : 'a'} lesson on ${dDow(j.iso)} at ${fmtT(j.t)}. ${j.ok ? `${esc(s.name.split(' ')[0])} joins it automatically when you approve.` : 'That lesson is no longer available, so approving won’t add them to it.'}</span></div>`).join('');
-/** Approving runs each pending join (ADR-026 d5): a lesson that fails a check gets nothing, and the invitation ends EXPIRED. */
-function stuApproveOne(s) {
-  s.status = 'ACTIVE';
-  const joined = [];
-  for (const j of stuJoins(s)) {
-    const inv = state.invites.find(i => i.id === j.invite);
-    if (j.ok) { (j.lesson.with ??= []).push({ sid: s.id, status: 'BOOKED', pay: 'UNPAID', paidBy: null, price: j.lesson.price }); splitPrice(j.lesson); delete j.lesson.invited; joined.push(j.lesson); if (inv) inv.status = 'CONFIRMED'; }
-    else if (inv) inv.status = 'EXPIRED';
-  }
-  delete s.pendingJoins;
-  return joined.map(l => ` ${s.name.split(' ')[0]} joined ${shortName(nameOf(l))}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)}.`).join('');
-}
+/** Approving makes the skater ACTIVE. */
+function stuApproveOne(s) { s.status = 'ACTIVE'; }
 const stuTabs = on => SEG([`Students <span class="stu-count">${active().length}</span>`, `Waiting for approval <span class="stu-count${pending().length ? ' stu-count--attn' : ''}">${pending().length}</span>`], on, 'stuTab');
 /** The skater's organization and number from sign-up (ADR-029 d3), copied onto the coach's STUDENT# record. Required at
     sign-up (ADR-029 d1), so every skater has one. Order matches the client's SKATE_ORGS. */
@@ -59,7 +43,7 @@ SCREENS.pending = () => {
     const kids = pend.filter(s => s.client === f), c = kids[0];
     return card(`
       <div class="stu-family">${stuContact(c)}<span class="muted-sm">Signed up ${dShort(c.since)}</span></div>
-      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}<div>${rowTitle(esc(k.name), `${k.minor ? 'Minor' : 'Adult · booking for themselves'} · ${STU_ORGS[k.org]} <span class="mono">${esc(k.orgNum)}</span>`)}${stuJoinNote(k)}</div>`,
+      ${kids.map(k => row(`${avatar(initials(k.name), 'sm')}<div>${rowTitle(esc(k.name), `${k.minor ? 'Minor' : 'Adult · booking for themselves'} · ${STU_ORGS[k.org]} <span class="mono">${esc(k.orgNum)}</span>`)}</div>`,
         `${B('Decline', 'ghost', 'stuDeclineOpen', { sm: true, args: [k.id] })}${B('Approve', 'primary', 'stuApprove', { sm: true, icon: 'check', args: [k.id] })}`)).join('')}`,
       { pad: false, title: esc(f), sub: c.rel === 'Self' ? 'Signing up for themselves' : `${c.rel} · ${plural(kids.length, 'skater')}`, action: kids.length > 1 ? B('Approve all', 'secondary', 'stuApproveFamily', { sm: true, icon: 'check', args: [f] }) : '' });
   }).join('');
@@ -97,7 +81,6 @@ MODALS.stuDecline = m => {
   return `<div class="dialog__icon dialog__icon--danger">${ic('x', 22)}</div>
     <h2 class="h2">Decline ${esc(s.name)}?</h2>
     <p class="fine">${esc(s.client)} gets an email saying you don’t have availability to take on new students.</p>
-    ${stuJoins(s).filter(j => j.lesson).map(j => `<p class="fine">${esc(s.name)} won’t join ${esc(shortName(nameOf(j.lesson)))}’s shared lesson on ${dDow(j.iso)} at ${fmtT(j.t)}. It goes ahead as a private lesson, and ${esc(s.invitedBy)} is told.</p>`).join('')}
     ${banner('warning', `${esc(s.name)} is deleted`, 'Nothing about them is kept. If they sign up again, they’ll be back on this list.')}
     <div class="dialog__actions">${B('Keep waiting', 'secondary', 'closeModal')}${B('Decline and email', 'danger', 'stuDecline')}</div>`;
 };
@@ -150,12 +133,11 @@ Object.assign(ACTIONS, {
     s.status = 'REMOVED';   // kept, not deleted: past lessons and payments still name them
     state.modal = null; state.flash = `${s.name} removed.${n ? ` ${plural(n, 'lesson')} cancelled and the family emailed.` : ''}`;
   },
-  stuApprove(id) { const s = student(id), joined = stuApproveOne(s); state.flash = `${s.name} approved. ${s.client} can now book.${joined}`; },
-  stuApproveFamily(f) { const kids = pending().filter(s => s.client === f), joined = kids.map(stuApproveOne).join(''); state.flash = `${kids.map(k => k.name).join(' and ')} approved. ${f} can now book.${joined}`; },
+  stuApprove(id) { const s = student(id); stuApproveOne(s); state.flash = `${s.name} approved. ${s.client} can now book.`; },
+  stuApproveFamily(f) { const kids = pending().filter(s => s.client === f); kids.forEach(stuApproveOne); state.flash = `${kids.map(k => k.name).join(' and ')} approved. ${f} can now book.`; },
   stuDeclineOpen(id) { state.modal = { kind: 'stuDecline', id }; },
   stuDecline() {
     const s = student(state.modal.id);
-    for (const j of stuJoins(s)) { if (j.lesson) delete j.lesson.invited; const inv = state.invites.find(i => i.id === j.invite); if (inv) inv.status = 'DECLINED'; }
     state.students = state.students.filter(x => x.id !== s.id); state.modal = null; state.flash = `${s.name} declined. ${s.rel === 'Self' ? 'They’ve' : s.client + ' has'} been emailed.`; },
 });
 
@@ -165,8 +147,7 @@ PRESETS.push(
   { id: 'CoachStudentsEdit', file: 'students-edit', group: 'Students', title: 'Student list — edit contact', note: 'New. Contact details belong to the family, so an edit applies to every skater in it.', setup: st => { st.screen = 'students'; const e = st.students.find(x => x.id === 's3'); st.ui.stu = { search: '', draft: { client: e.client, email: e.email, phone: e.phone } }; st.modal = { kind: 'stuEdit', id: 's3' }; } },
   { id: 'CoachStudentsPrice', file: 'students-price', group: 'Phase 2', title: 'Student list — personal price', note: 'Phase 2 (moved by the owner, 2026-10-13: every skater pays the schedule’s prices in MVP). New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
   { id: 'CoachStudentsRemove', file: 'students-remove', group: 'Phase 2', title: 'Student list — remove', note: 'Phase 2 (moved by the owner, 2026-10-13: MVP has no Remove button). New. One reading of an open decision (Open-Pending.md): upcoming lessons cancelled, no more booking, history kept.', setup: st => { st.screen = 'students'; st.modal = { kind: 'stuRemove', id: 's7' }; } },
-  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, each skater with their organization and number from sign-up (ADR-029), approve per skater or all at once; pending families see only their own account (ADR-022 d6). Zoe Okafor was invited by Grace Chen to share Mia’s Friday lesson and joins it automatically when approved, if it still exists, hasn’t started and has room (ADR-026 d5).', setup: st => { st.screen = 'pending'; } },
-  { id: 'CoachPendingApproved', file: 'pending-approved-shared', group: 'Students', title: 'Waiting for approval — invited skater approved', note: 'New state. Approving Zoe joins her to Mia’s Fri, Oct 16 8:30 lesson in the same step (ADR-026 d5).', setup: st => { st.screen = 'pending'; ACTIONS.stuApprove('p4'); } },
+  { id: 'CoachPending', file: 'pending', group: 'Students', title: 'Waiting for approval', note: 'New. Sign-ups grouped by family, each skater with their organization and number from sign-up (ADR-029), approve per skater or all at once; pending families see only their own account (ADR-022 d6). Approving changes only the skater’s record: no shared lesson waits on it (ADR-033).', setup: st => { st.screen = 'pending'; } },
   { id: 'CoachPendingDecline', file: 'pending-decline', group: 'Students', title: 'Waiting for approval — decline', note: 'New. Declining emails the family and deletes the student outright (ADR-002 2b).', setup: st => { st.screen = 'pending'; st.modal = { kind: 'stuDecline', id: 'p3' }; } },
   { id: 'CoachPendingEmpty', file: 'pending-empty', group: 'Students', title: 'Waiting for approval — nobody waiting', note: 'New. Empty state that reminds the coach of their code.', setup: st => { st.screen = 'pending'; st.students = st.students.filter(s => s.status !== 'PENDING'); } },
 );

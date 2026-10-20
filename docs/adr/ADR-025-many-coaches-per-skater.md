@@ -100,6 +100,10 @@ the lesson time in each coach's partition, the clash check (decision 5) reads th
 through GSI1, and item e's "already booked" is found by reading the family's own seat key
 (ADR-031 decision 4).
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the 2026-10-07 amendment (an invitation to a shared
+lesson as a second way to add a coach) is Phase 2. In MVP a skater can be invited only by a coach
+they are already `ACTIVE` with; adding a coach is through the coach code.
+
 ---
 
 ## Context

@@ -59,6 +59,9 @@ data events (decision 5). Adds one Firehose stream, its role and one bucket.
 financial page's summary export holds no personal data and is **not** a PII read; a Phase 2
 per-lesson export with skater names would be.
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md) decision 2a: the share-check route returns a skater's
+display name, so it writes an access-log line like the share-code lookup.
+
 ---
 
 ## Context

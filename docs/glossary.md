@@ -122,7 +122,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **GSI2** | — | "By date, global" — the one that makes cross-coach "everyone with a lesson today" a single query instead of a table scan. `GSI2PK = DATE#<yyyy-mm-dd>`. This index is the reason DynamoDB is viable here. *Since ADR-031 (2026-10-13), one entry per seat.* |
 | **GSI3** | Global Secondary Index 3 | "Unpaid", sparse. An item carries `GSI3PK`/`GSI3SK` only while its `paymentStatus` is `UNPAID`, so the coach's outstanding-lessons view never grows with history. *Since ADR-031 (2026-10-13), it indexes unpaid seats.* |
 | **ID** | identifier | A value that names one record, such as `coachId`, `studentId` or `clientId`. |
-| **GSI4** | — | *Added 2026-10-13 (ADR-031 decision 12).* "Deadlines", sparse. `GSI4PK = DUE`, `GSI4SK = <dueAtUtc>#<coachId>#<~~seatKey~~ itemKey>`. A ~~seat~~ record sits in it only while it has a pending deadline (`WARN`, `EXPIRE`, `ANSWER` or `INVITER_LEFT`); the **hourly deadline sweep** queries it for what's due. *Revised 2026-10-13 (ADR-031 revision): `WARN` and `EXPIRE` sit on the invited seat; `ANSWER` sits on the lesson time's **pending leave**.* *Revised 2026-10-13 (option B): a fourth kind, `INVITER_LEFT`, ~~sits on an accepted invited seat~~ whose inviting family cancelled first, due at once (ADR-031 decisions 5 and 12).* *Revised 2026-10-13 (ADR-031 d5, d12): `INVITER_LEFT` sits on the **lesson time**, naming the accepted invited seat — so `WARN` and `EXPIRE` are on the invited seat, `ANSWER` and `INVITER_LEFT` on the lesson time.* |
+| **GSI4** | — | *Added 2026-10-13 (ADR-031 decision 12).* "Deadlines", sparse. `GSI4PK = DUE`, `GSI4SK = <dueAtUtc>#<coachId>#<~~seatKey~~ itemKey>`. A ~~seat~~ record sits in it only while it has a pending deadline (`EXPIRE` or `ANSWER`; `WARN` and `INVITER_LEFT` are Phase 2 since ADR-033, 2026-10-20); the **hourly deadline sweep** queries it for what's due. *Revised 2026-10-13 (ADR-031 revision): `WARN` and `EXPIRE` sit on the invited seat; `ANSWER` sits on the lesson time's **pending leave**.* *Revised 2026-10-13 (option B): a fourth kind, `INVITER_LEFT`, ~~sits on an accepted invited seat~~ whose inviting family cancelled first, due at once (ADR-031 decisions 5 and 12).* *Revised 2026-10-13 (ADR-031 d5, d12): `INVITER_LEFT` sits on the **lesson time**, naming the accepted invited seat — so `WARN` and `EXPIRE` are on the invited seat, `ANSWER` and `INVITER_LEFT` on the lesson time.* |
 | **CDC** | Change Data Capture | Deriving events from committed database writes rather than publishing them separately. DynamoDB Streams → EventBridge Pipe → bus. Avoids the dual-write problem where the DB write succeeds and the event publish fails. |
 | **`COACH#` / `STUDENT#` / `LESSON#` / `SEAT#` / `SEATEND#` / `CANCELLED#` / `REPRICED#` / `CHANGEBATCH#` / `RECURRENCE#` / `DATE#`** ~~/ `SLOT#` / `BOOKING#`~~ | *(key prefixes)* | Type tags on composite keys — the convention that lets one table hold several entity types. *Since ADR-031 (2026-10-13), bookings are `LESSON#` (lesson times) and `SEAT#` (seats); an ended invitation is `SEATEND#`.* *Revised 2026-10-13 (ADR-031): `LESSON#`, `SEAT#`, `SEATEND#`, `CANCELLED#` (one line per cancelled seat), `REPRICED#` (one line per re-priced seat), `CHANGEBATCH#` (a change batch's header) and `RECURRENCE#` (a series header) are the current prefixes; `SLOT#` and `BOOKING#` are retired and kept here only as history.* |
 
@@ -208,7 +208,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **Join order** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decision 1 and 7).* `joinOrder` on a lesson time: the skater IDs sharing the price, earliest first. When the price doesn't split evenly, the odd cents go one each to the earliest skaters in it. |
 | **choiceAnswerBy** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decision 6).* A read-only copy of the pending leave's `answerBy`, put on the staying family's own seat by `consumer-invite` and cleared once they answer. It lets their screens show *Keep or cancel?* without reading the lesson time's pending leave. |
 | **invitedClientId** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decision 6).* A read-only copy on an invited seat naming the invited family, added by `consumer-invite` with their GSI1 keys, so the invitation shows on their Home and My bookings before they accept. It isn't ownership: the seat stays the inviting family's until accepting sets `clientId`. |
-| **Hourly deadline sweep** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decision 12).* `sched-deadline-sweep`, run every hour (replacing ADR-026's nightly sweep). It reads what's due from **GSI4**, checks each ~~seat~~ record again, then acts: sends the shared-lesson warning (at the 9pm run before it's due), expires invitations whose lesson has started, and cancels unanswered choices at their **answer-by** time. *Revised 2026-10-13 (option B): it also ends an accepted invitation as `WITHDRAWN` when the inviting family cancelled first (`INVITER_LEFT`), and is the one function that can delete records across coaches.* *Revised 2026-10-13 (ADR-031 d5, d12): it reads `INVITER_LEFT` from the lesson time, ends the seat it names, and — that being the last seat — the lesson time goes back to `OPEN`.* A missed hour catches up on the next run. |
+| **Hourly deadline sweep** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decision 12).* `sched-deadline-sweep`, run every hour (replacing ADR-026's nightly sweep). It reads what's due from **GSI4**, checks each ~~seat~~ record again, then acts: ~~sends the shared-lesson warning (at the 9pm run before it's due),~~ expires invitations whose lesson has started, and cancels unanswered choices at their **answer-by** time. *Revised 2026-10-13 (option B): it also ends an accepted invitation as `WITHDRAWN` when the inviting family cancelled first (`INVITER_LEFT`), and is the one function that can delete records across coaches.* *Revised 2026-10-13 (ADR-031 d5, d12): it reads `INVITER_LEFT` from the lesson time, ends the seat it names, and — that being the last seat — the lesson time goes back to `OPEN`.* *Revised 2026-10-20 (ADR-033 d5): no warning and no `INVITER_LEFT` in MVP; it handles `EXPIRE` and `ANSWER` only. It is one of three functions whose execution role can delete in any coach's partition, with `consumer-schedule-change` and `consumer-student-link`.* A missed hour catches up on the next run. |
 | **Lesson-time roller** | *(not an acronym)* | *Added 2026-10-13 (ADR-031 decisions 1 and 12).* `sched-lesson-roller`, a nightly scheduled job that keeps lesson times stored to the end of the booking window plus 12 months, about 15 months ahead. It creates only lesson times that don't exist, so it is safe to run twice and has no dead-letter queue; it shows on the dashboard after one missed night and pages after 3. |
 
 ---
@@ -265,7 +265,7 @@ A **client** books, is billed, and is notified. This records why they hold that 
 
 | Value | Meaning |
 |---|---|
-| `PENDING` | Created by a client who entered the coach's `coachCode`, or who followed a shared-lesson invitation's consent link and confirmed (ADR-026 d5), and **not yet confirmed** by the coach. **Cannot book.** |
+| `PENDING` | Created by a client who entered the coach's `coachCode`~~, or who followed a shared-lesson invitation's consent link and confirmed (ADR-026 d5)~~ (*the consent link is Phase 2 since ADR-033, 2026-10-20*), and **not yet confirmed** by the coach. **Cannot book.** |
 | `ACTIVE` | The coach has confirmed them. They can book. |
 
 > Denormalized onto the `CLIENT#…/STUDENT#…` link item as well, so a client's own roster
@@ -281,7 +281,7 @@ A **client** books, is billed, and is notified. This records why they hold that 
 | `AWAITING_COACH` | Family B confirmed, but skater B isn't yet the coach's student: they're in the coach's pending list. Once the coach accepts, the coach's Accept joins skater B automatically. |
 | `CONFIRMED` | Skater B has joined the lesson. |
 | `DECLINED` | Family B said no, or the coach declined skater B. |
-| `WITHDRAWN` | Family A took the invitation back before Family B confirmed. |
+| `WITHDRAWN` | Family A took the invitation back before Family B confirmed. *Revised 2026-10-20 (ADR-033): no `AWAITING_COACH` seat or `INVITER_LEFT`; once the invited family accepts, the inviting family's cancel is an ordinary leave.* |
 | `EXPIRED` | Family B confirmed, but skater B never joined: the lesson passed before the coach acted, or the coach accepted and the join failed (cancelled, started or full). Family B is told. |
 
 > Not the same as `STUDENT.studentStatus` `PENDING`: an invitation's `AWAITING_COACH` is the
@@ -304,7 +304,7 @@ A **client** books, is billed, and is notified. This records why they hold that 
 | Value | Meaning |
 |---|---|
 | `INVITED` | Another family invited this skater. The place is held; the skater pays nothing yet. *Revised 2026-10-13 (ADR-031 revision): the seat is the inviting family's until the invited family accepts.* |
-| `AWAITING_COACH` | The invited family accepted, but the skater isn't yet the coach's student. The coach's Accept makes it `BOOKED`. |
+| ~~`AWAITING_COACH`~~ | ~~The invited family accepted, but the skater isn't yet the coach's student. The coach's Accept makes it `BOOKED`.~~ *Phase 2 since 2026-10-20 (ADR-033): only a skater `ACTIVE` with the coach can be invited, so `seatStatus` is `INVITED \| BOOKED \| CHECKED_IN \| NO_SHOW`.* |
 | `BOOKED` | The skater is in the lesson and pays their share. *Revised 2026-10-13 (ADR-031 revision): the share is worked out from the lesson time ~~until fixed as `amountMinor`~~.* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* |
 | ~~`YOUR_CHOICE`~~ | ~~The other skater left in time. This family must choose keep at the full price or cancel with no charge by the **answer-by** time.~~ *Revised 2026-10-13 (ADR-031 revision): not a seat status any more. The question comes from the **pending leave** on the lesson time; the staying family's seat stays `BOOKED`.* |
 | `CHECKED_IN` | The coach marked the skater present. |
@@ -316,20 +316,20 @@ On a `SEATEND#` record, written when an invited seat ends without joining.
 
 | Value | Meaning |
 |---|---|
-| `DECLINED` | The invited family, or the coach, said no. |
+| `DECLINED` | The invited family said no. *(The coach declining an invited skater is Phase 2 since ADR-033.)* |
 | `WITHDRAWN` | The booking family withdrew the invitation while it was still `INVITED`. *Revised 2026-10-13 (option B): also when the booking family cancels their own seat — their cancel ends a seat still `INVITED` in the same transaction, and the hourly sweep ends one already `AWAITING_COACH` (`INVITER_LEFT`, `endedBy = SWEEP`).* *Revised 2026-10-13 (ADR-031 d5, d12): that cancel never touches the `AWAITING_COACH` seat; it records `INVITER_LEFT` on the lesson time, naming the seat, and the sweep ends it.* |
-| `EXPIRED` | The lesson started while the seat was still `INVITED` or `AWAITING_COACH`; the hourly sweep moved it (`endedBy = SWEEP`). |
+| `EXPIRED` | The lesson started while the seat was still `INVITED`; the hourly sweep moved it (`endedBy = SWEEP`). |
 
 ### `dueKind` — which deadline a record is waiting on (ADR-031 decision 12)
 
-On a record in GSI4, beside `dueAt`. The hourly deadline sweep acts on it when it falls due.
+On a record in GSI4, beside `dueAt`. The hourly deadline sweep acts on it when it falls due. *Revised 2026-10-20 (ADR-033 d5): `EXPIRE | ANSWER` only.*
 
 | Value | Meaning |
 |---|---|
-| `WARN` | The shared-lesson warning, due 24 hours plus the notice period before the lesson; on the invited seat. |
-| `EXPIRE` | An invitation still `INVITED` or `AWAITING_COACH` at the lesson's start; on the invited seat. |
+| ~~`WARN`~~ | ~~The shared-lesson warning, due 24 hours plus the notice period before the lesson; on the invited seat.~~ *Phase 2 (ADR-033).* |
+| `EXPIRE` | An invitation still `INVITED` at the lesson's start; on the invited seat. |
 | `ANSWER` | The staying family's `answerBy`; on the lesson time's pending leave. |
-| `INVITER_LEFT` | An accepted invitation whose inviting family cancelled first, due at once; ~~on the invited seat~~. *Revised 2026-10-13 (ADR-031 d5, d12): on the **lesson time**, naming the invited seat.* |
+| ~~`INVITER_LEFT`~~ | ~~An accepted invitation whose inviting family cancelled first, due at once; on the lesson time, naming the invited seat.~~ *Phase 2 (ADR-033): once the invited family accepts, the seat is `BOOKED` and an inviting family's cancel is an ordinary leave.* |
 
 ### ~~`BOOKING.bookingStatus`~~ — what this slot actually is
 

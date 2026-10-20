@@ -35,10 +35,6 @@ const whoIn = (l, short = true) => l && l.sid ? skatersIn(l).map(p => short ? sh
 const familiesIn = l => families(skatersIn(l).map(p => student(p.sid)));
 /** One attendance badge per skater; a shared lesson labels each with the skater's first name. */
 const skaterBadges = l => isShared(l) ? skatersIn(l).map(p => `<span class="sh-badge"><small>${esc(student(p.sid).name.split(' ')[0])}</small>${statusBadge(p)}</span>`).join('') : statusBadge(l);
-/** A shared-lesson invitation waiting for the coach, once its warning has gone out (ADR-026 d5a). The nightly sweep sends
-   early, so warnedAt can be set before the warning time itself. */
-const inviteNeedsCoach = inv => inv.status === 'AWAITING_COACH' && inv.iso && !isStarted({ iso: inv.iso, t: inv.t }) && !!(inv.warnedAt || inviteWarned(inv, state.profile.notice));
-const inviteWhen = inv => `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
 
 /** Links into the schedule section (schedule.html). */
 const SCHEDULE_PAGES = { hub: 'schedule.html', weekly: 'schedule.html#weekly', away: 'schedule.html#away' };
@@ -176,18 +172,14 @@ SCREENS.today = () => {
   const ws = weekStart(TODAY), we = addDays(ws, 6);
   const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we).flatMap(skatersIn);
   const unpaid = state.lessons.filter(l => l.sid && isPast(l)).flatMap(skatersIn).filter(p => p.pay === 'UNPAID');
-  const waiting = state.invites.filter(inviteNeedsCoach);
   const pend = pending();
   const next = today.find(l => l.sid && !isStarted(l));
   const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
     `${l === next ? badge('Next', 'primary') : ''}${l.sid ? skaterBadges(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
-  const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since) + (kids.some(k => k.invitedBy) ? ` · invited by ${esc(kids.find(k => k.invitedBy).invitedBy)} to share a lesson` : '');
+  const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since);
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
     ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
-    ${waiting.map(inv => { const z = student(inv.skater), host = student(inv.fromSkater);
-      return banner('warning', `A shared lesson on ${inviteWhen(inv)} is waiting for you to accept ${esc(z.name.split(' ')[0])}`,
-        `${esc(z.client)} accepted ${esc(inv.from)}’s invitation for ${esc(z.name)} to join ${esc(shortName(host.name))}’s lesson. If you don’t accept ${esc(z.name.split(' ')[0])} before it starts, it goes ahead as a private lesson. <a class="link" href="${href('pending')}">Review sign-ups</a>`); }).join('')}
     <div class="stats">
       ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
       ${stat('Unpaid', money(unpaid.reduce((s, l) => s + l.price, 0)), plural(unpaid.length, 'past lesson'), 'card')}
@@ -219,6 +211,6 @@ PRESETS.push(
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm.', setup: st => { st.screen = 'signup'; st.auth.signup = 3; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve (Tom Okafor was invited to share a lesson), the warning for a shared lesson waiting on the coach (ADR-026 d5a), and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve, and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
 );
 

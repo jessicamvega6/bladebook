@@ -85,6 +85,12 @@ rule holds for shared lessons as written. The points below say how.*
 
 Decisions 1–3 are otherwise unchanged. The ownership condition now guards **seats**.
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): every accept goes through `requireActive`; the
+"skater in the caller's own family" check for a skater new to the coach is gone. There are no
+`AWAITING_COACH` seats, and the coach's Accept touches only the `STUDENT#` item. An invited
+skater or sibling must be `ACTIVE` with the coach, checked by a `ConditionCheckItem` in the
+booking transaction.
+
 ---
 
 ## Context

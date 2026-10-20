@@ -31,6 +31,10 @@ rate-limited.** Decision 2's 1,000-per-5-minutes rule already covers it. It also
 rate-based rule, like the sign-up and code-lookup rule; the number is set when it's built, high
 enough for the health checkers' own calls (Open).
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md) decision 2a adds `POST /api/client/share-check`, which
+resolves a share code and answers whether that skater is on the coach's student list. Decision 2's
+share-code rate rule (20 per 5 minutes per address) covers it.
+
 ---
 
 ## Context

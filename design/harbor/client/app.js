@@ -7,7 +7,8 @@
      - Grace Chen, guardian of Mia and Noah — approved (ACTIVE). The default.
      - Sarah Park, guardian of Ava and Jack — waiting for approval (PENDING). A pending family sees only
        their own account: no schedule, no open times, no coach contact details (ADR-022 d6).
-     - Tom Okafor, guardian of Zoe — invited by Grace to share Mia's Friday lesson; Zoe waits for Coach Dana (ADR-026 d5).
+     - Tom Okafor, guardian of Zoe — Zoe is already Coach Dana's student, and Grace invited her to share Mia's Friday
+       lesson. Tom accepts and Zoe's seat is booked (ADR-026 d5, ADR-033).
    Many coaches per skater (ADR-025): Grace's Mia and Noah also skate with Coach Ben Ortiz (power skating), and Noah is
    waiting for Coach Lauren Hayes. Those coaches exist only in the family demo; Coach Dana is the shared sample coach. */
 
@@ -15,9 +16,9 @@ const APP_TITLE = 'Grace Chen · BladeBook family demo';
 const FAMILIES = {
   grace: { client: 'Grace Chen', rel: 'Guardian', email: 'grace.chen@example.com', phone: '(205) 555-0110', sms: true, kids: ['s1', 's2'] },
   sarah: { client: 'Sarah Park', rel: 'Guardian', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, kids: ['p1', 'p2'] },
-  /* Tom Okafor's Zoe skates with another coach. Grace invited Zoe to share Mia's Friday lesson; Tom confirmed, so Zoe waits
-     for Coach Dana's approval like any sign-up (ADR-026 d5). */
-  tom: { client: 'Tom Okafor', rel: 'Guardian', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, kids: ['p4'] },
+  /* Tom Okafor's Zoe is already Coach Dana's student. Grace invited Zoe to share Mia's Friday lesson; Tom hasn't answered
+     yet. Only a coach's accepted skaters can be invited (ADR-033 d1). */
+  tom: { client: 'Tom Okafor', rel: 'Guardian', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, kids: ['s8'] },
 };
 
 /* ---------- other coaches (ADR-025) ----------
@@ -125,14 +126,11 @@ const priceAt = (cid, sid, slot) => slot.price;
 /** The price this family pays for a lesson: the whole price, or their share of a shared lesson (owner, 2026-10-13). */
 const myPrice = l => myKids().some(k => k.id === l.sid) ? l.price : ((l.with || []).find(w => myKids().some(k => k.id === w.sid)) || {}).price;
 
-/* ---------- shared-lesson invitations (ADR-026 d5, d5a) ---------- */
+/* ---------- shared-lesson invitations (ADR-026 d5, ADR-033) ---------- */
 /** The booking family's lessons an invitation covers: one lesson, or every lesson in the series. */
 const invLessons = inv => state.lessons.filter(l => l.sid === inv.fromSkater && l.t === inv.t && (inv.series ? dowOf(l.iso) === inv.dow && l.iso >= inv.first && l.iso <= inv.last : l.iso === inv.iso));
 const invWhen = inv => inv.series ? `${DOW_LONG[inv.dow]}s at ${fmtT(inv.t)}` : `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
 const invDates = inv => { const ls = invLessons(inv); return inv.series && ls.length ? `${dShort(ls[0].iso)} – ${dShort(ls[ls.length - 1].iso)} · ${plural(ls.length, 'lesson')}` : ''; };
-/** The red home banner shows from the warning time until the coach acts or the lesson starts (ADR-026 d5a). The nightly
-    sweep sends the warning early, so a warning already sent (warnedAt) shows the banner too. */
-const invWarned = inv => inviteWarned(inv) || (inv.status === 'AWAITING_COACH' && !!inv.warnedAt && !!inv.iso && !isStarted({ iso: inv.iso, t: inv.t }));
 /** Invitations for this family's skaters (Family B), and invitations this family sent (Family A). */
 const invsToMe = () => state.invites.filter(i => myKids().some(k => k.id === i.skater));
 const invsFromMe = () => state.invites.filter(i => i.from === state.me.name);
@@ -166,6 +164,6 @@ function authShell(main, aside = '', o = {}) {
 
 /* ---------- demo controls (in the demo bar) ---------- */
 Object.assign(ACTIONS, {
-  /** Switch which family is signed in: 'grace' (approved), 'sarah' (waiting for approval) or 'tom' (invited to share). */
+  /** Switch which family is signed in: 'grace' (approved), 'sarah' (waiting for approval) or 'tom' (invited to share a lesson). */
   asFamily(who) { state = freshState(who); state.screen = 'home'; },
 });

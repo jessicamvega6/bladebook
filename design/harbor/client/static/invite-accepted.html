@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Day view — skater invited to share · BladeBook coach (Harbor)</title>
+<title>Invitation — accepted, seat booked · BladeBook client website (Harbor)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
 <style>
@@ -677,7 +677,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .h1 { font-size: 24px; }
 }
 
-/* Coach website — additions to harbor.css for app.js (shell, sign-in, Today). Harbor tokens only. */
+/* Client website — additions to harbor.css shared with the coach shell (nav, auth frame, inputs). Harbor tokens only. */
 .bb a.btn, .bb a.nav__item, .bb a.nav__user, .bb a.brand, .bb a.quick__item { text-decoration: none; }
 .bb a.nav__user { color: inherit; border-radius: 999px; padding: 2px 6px 2px 2px; }
 .bb a.nav__user:hover { background: var(--surface-2); }
@@ -721,160 +721,136 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* shared lessons: one attendance badge per skater */
-.bb .sh-badge { display: inline-flex; align-items: center; gap: 5px; }
-.bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
-.bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }
-
-/* Today: the large rinkside link (ADR-023, amended 2026-10-13) */
-.bb .rink-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
-.bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
-.bb .rink-cta__text b { font-size: 17px; }
-
-/* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
-.bb .cal-scroll { overflow-x: auto; }
-.bb .cal-scroll .week { min-width: 860px; }
-
-/* month: week links in the first column, then Sun–Sat */
-.bb .cal-month { display: grid; grid-template-columns: 112px repeat(7, minmax(0, 1fr)); gap: 8px; min-width: 760px; margin-top: 14px; }
-.bb .cal-month__h { font-size: 12px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 0 10px 2px; }
-.bb .cal-wk { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); text-align: left; font: inherit; color: var(--text); cursor: pointer; }
-.bb .cal-wk b { font-size: 13.5px; }
-.bb .cal-wk small { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.bb .cal-wk:hover, .bb .cal-day:hover { border-color: var(--primary); }
-.bb .cal-wk.is-now { background: var(--primary-tint); border-color: var(--primary-border); }
-.bb .cal-day { min-height: 88px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 9px 10px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border-strong); text-align: left; font: inherit; color: var(--text); cursor: pointer; }
-.bb .cal-day__num { display: flex; align-items: center; gap: 6px; font-weight: var(--w-bold); font-size: 15px; font-variant-numeric: tabular-nums; }
-.bb .cal-day__num em { font-style: normal; font-size: 10.5px; background: var(--primary); color: var(--on-primary); padding: 1px 6px; border-radius: 999px; }
-.bb .cal-day__meta { display: flex; flex-wrap: wrap; gap: 4px; }
-.bb .cal-day__none { font-size: 12px; color: var(--text-3); }
-.bb .cal-day--off { background: var(--surface-2); border-color: var(--border); }
-.bb .cal-day--off .cal-day__num { font-weight: var(--w-reg); color: var(--text-3); }
-.bb .cal-day--past { opacity: .7; }
-.bb .cal-day--out { opacity: .4; }
-.bb .cal-day.is-today { box-shadow: inset 0 0 0 2px var(--primary); }
-.bb .cal-chip { font-size: 11.5px; font-weight: var(--w-bold); padding: 2px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-soft-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bb .cal-chip--open { background: var(--surface-2); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border); }
-.bb .cal-chip--special { background: var(--alt-soft); color: var(--alt-text); }
-.bb .cal-chip--off { background: var(--warning-soft); color: var(--warning-text); }
-
-/* week: clickable heads and lessons */
-.bb button.cal-head { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--border); text-align: left; font: inherit; cursor: pointer; }
-.bb button.cal-head:hover b { color: var(--primary-text); }
-.bb button.cal-wl { width: 100%; text-align: left; font: inherit; cursor: pointer; border-top: 0; border-right: 0; border-bottom: 0; }
-.bb button.cal-wl:hover { box-shadow: 0 0 0 2px var(--danger-border); }
-.bb .cal-colnote { margin: 8px 10px 0; font-size: 11.5px; font-weight: var(--w-bold); color: var(--alt-text); background: var(--alt-soft); padding: 3px 8px; border-radius: 999px; align-self: flex-start; }
-.bb .week__empty small { font-size: 11.5px; }
-
-/* day */
-.bb .cal-slot__t { width: 76px; flex: none; font-weight: var(--w-bold); font-size: 13.5px; color: var(--text-2); }
-
+/* Client account screens (sign-up, home, profile, payments). Harbor tokens only. */
+.bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
+.bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.bb .ac-when { width: 64px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }
+.bb .ac-when b { font-size: 14px; color: var(--text); }
+.bb .ac-when small { font-size: 12px; color: var(--text-3); }
+.bb .ac-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-2); }
+.bb .ac-steps b { color: var(--text); }
+.bb .ac-wait { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .ac-add { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--border); }
+.bb .ac-tablewrap { overflow-x: auto; position: relative; }
+.bb .ac-tablewrap .table { min-width: 560px; }
+.bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
-  .bb .cal-slot__t { width: 64px; }
-  .bb .legend__note { margin-left: 0; }
+  .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
+}
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
+
+/* skating organization picker: three names don't fit side by side on a phone, so they stack */
+@media (max-width: 560px) {
+  .bb .ac-org .seg { flex-direction: column; border-radius: var(--r-lg); }
+  .bb .ac-org .seg__opt { border-radius: var(--r-md); }
 }
 
-/* Lessons, Payments, Profile, Email templates — additions to harbor.css. Harbor tokens only. */
-.bb .mp-filters { flex-wrap: wrap; }
-.bb .mp-filters .field { width: 200px; max-width: 100%; }
-.bb .mp-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 16px; }
-.bb .mp-empty__icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); color: var(--text-3); display: grid; place-items: center; }
-.bb .mp-phase { display: inline-flex; align-items: center; gap: 8px; }
-.bb .mp-tablewrap { overflow-x: auto; position: relative; }
-.bb .mp-tablewrap .table { min-width: 760px; }
-.bb .mp-tablewrap td { vertical-align: middle; }
-.bb .mp-sub { display: block; font-weight: var(--w-reg); font-size: 12.5px; color: var(--text-3); }
-.bb .table tr.mp-attn td { background: var(--warning-soft); }
-.bb .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* profile */
-.bb .mp-tabs { overflow-x: auto; }
-.bb a.tabs__t { text-decoration: none; white-space: nowrap; }
-.bb a.tabs__t:hover { color: var(--text); }
-.bb .mp-photo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.bb .mp-photo__text { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
-.bb .mp-radios { display: flex; flex-direction: column; gap: 10px; }
-.bb .mp-rrow { display: flex; align-items: center; gap: 12px; }
-.bb .mp-rrow > .rcard { flex: 1; min-width: 0; }
-.bb button.rcard { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.bb button.rcard .rcard__title, .bb button.rcard .rcard__sub { display: block; overflow-wrap: anywhere; }
-.bb .mp-rcard--pending { border-style: dashed; flex-wrap: wrap; }
-.bb .mp-rcard--pending .rcard__text { flex: 1; min-width: 180px; }
-.bb .mp-add { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
-.bb .mp-add .cellbtns { justify-content: flex-end; }
-.bb .mp-remove { flex: none; }
-.bb .mp-grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* email templates */
-.bb .mp-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
-.bb .mp-tpl { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--border); }
-.bb .mp-tpl:last-child { border-bottom: 0; }
-.bb .mp-tpl.is-on { background: var(--primary-tint); box-shadow: inset 3px 0 0 var(--primary); }
-.bb .mp-tpl__pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; }
-.bb .mp-tpl__name { font-weight: var(--w-bold); }
-.bb .mp-tpl__when { font-size: 13px; color: var(--text-3); }
-.bb .mp-mail { padding: 18px 22px; }
-.bb .mp-mail.is-off { opacity: .55; }
-.bb .mp-mail__head { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-.bb .mp-mail__head .kv__v { text-align: right; overflow-wrap: anywhere; }
-.bb .mp-mail__body { display: flex; flex-direction: column; gap: 10px; line-height: 1.55; }
-.bb .mp-mail__sig { color: var(--text-3); }
+/* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
+.bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
+.bb button.cal__cell--open:hover { border-color: var(--primary); }
+.bb .cal__cell.bk-today { box-shadow: inset 0 0 0 2px var(--primary-border); }
+.bb .bk-cellfoot { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.bb .bk-calmine { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: var(--w-bold); color: var(--success-text); }
+.bb .bk-calnote { font-size: 11px; color: var(--text-3); }
+.bb .bk-split { grid-template-columns: minmax(0, 1fr) minmax(0, 280px); }
+.bb .bk-scroll { overflow-x: auto; position: relative; }
+.bb .bk-calgrid { display: grid; grid-template-columns: 112px minmax(560px, 1fr); gap: 10px; align-items: start; }
+.bb .bk-weeks { display: flex; flex-direction: column; gap: 8px; }
+.bb .bk-weeks__h { font-size: 12px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 4px 0 8px 2px; }
+.bb .bk-week { height: 78px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface-2); font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.bb .bk-week b { font-size: 13px; }
+.bb .bk-week span { font-size: 11.5px; color: var(--text-3); }
+.bb button.bk-week:hover { border-color: var(--primary); }
+.bb .bk-week--off { cursor: default; background: transparent; border-style: dashed; color: var(--text-3); }
+.bb .bk-months { display: flex; flex-direction: column; gap: 8px; }
+.bb .bk-month { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font: inherit; color: var(--text); cursor: pointer; text-align: left; }
+.bb .bk-month span { font-size: 12.5px; color: var(--text-3); }
+.bb .bk-month.is-on { border-color: var(--primary); background: var(--primary-tint); box-shadow: 0 0 0 1px var(--primary); }
+.bb .bk-strip { overflow-x: auto; padding-top: 8px; }
+.bb .bk-strip .dchip { font: inherit; color: inherit; cursor: pointer; min-width: 64px; }
+.bb .bk-strip .dchip--sel { color: var(--on-primary); }
+.bb button.slot { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.bb button.slot--open:hover { border-color: var(--primary); }
+.bb .slot--45 { height: 63px; } .bb .slot--90 { height: 132px; } .bb .slot--120 { height: 178px; }
+.bb .slot.bk-yours { background: var(--success-soft); border-color: var(--success-border); color: var(--success-text); cursor: default; }
+.bb .slot.bk-yours .slot__time, .bb .slot.bk-yours .slot__price { color: var(--success-text); font-weight: var(--w-bold); }
+.bb .slot.bk-yours .slot__mark { opacity: 1; border-color: var(--success-border); color: var(--success); }
+.bb .sw.bk-sw-yours { background: var(--success-soft); border: 1px solid var(--success-border); }
+.bb .bk-dlist { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; text-align: left; }
+.bb .bk-dlist .row:last-child { border-bottom: 0; }
+.bb .dialog .check, .bb .dialog .summary, .bb .dialog .grid2 { text-align: left; }
+.bb .bk-hero--warn .hero__icon { background: var(--warning-soft); color: var(--warning); }
+.bb .bk-series .series { min-width: 0; }
+.bb .bk-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-dateblock--past { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
+.bb .bk-opt { display: flex; flex-direction: column; gap: 10px; }
+.bb .bk-opt + .bk-opt { margin-top: 10px; }
+.bb button.rcard { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.bb button.rcard:hover { border-color: var(--primary); }
+.bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
+.bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-share__sibs { display: flex; flex-direction: column; gap: 6px; }
+.bb .bk-share__sibs .listbox { background: var(--surface); border-radius: var(--r-md); }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
+@media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
-  .bb .mp-split, .bb .mp-grid3 { grid-template-columns: minmax(0, 1fr); }
-  .bb .mp-filters .field { width: 100%; }
-  .bb .mp-filters .seg { margin-left: 0; }
-  .bb .mp-tpl { padding: 12px 16px; }
-  .bb .mp-mail { padding: 16px; }
-  .bb .mp-rrow { flex-wrap: wrap; }
+  .bb .tl { grid-template-columns: minmax(0, 1fr); }
+  .bb .bk-optfield { padding-left: 4px; }
+  .bb .decide { flex-wrap: wrap; }
+  .bb .bk-series { grid-template-columns: minmax(0, 1fr); }
+  .bb .dialog { width: calc(100% - 24px); max-width: 440px; top: 80px; padding: 20px; }
+  .bb .dialog .grid2 { grid-template-columns: minmax(0, 1fr); }
 }
-/* how they paid (Payments) */
-.bb .mp-how { display: block; margin-top: 4px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
-.bb .mp-how .link { cursor: pointer; }
-.bb .mp-sub .ic { vertical-align: -2px; }
-.bb .mp-how-pick { text-align: left; }
-.bb .mp-how-pick .seg { flex-wrap: wrap; }
-.bb .mp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-/* financial summary */
-.bb .fin-split { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
-.bb .fin-table { min-width: 680px; }
-.bb .fin-table tfoot td { background: var(--surface-2); border-bottom: 0; }
-.bb .fin-table tr.fin-none td { color: var(--text-3); }
-.bb .fin-ice__row { display: flex; flex-direction: column; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
-.bb .fin-ice__row:first-of-type { border-top: 0; }
-@media (max-width: 980px) {
-  .bb .fin-split { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* One switch per payment type, each with its handle (ADR-016 d7, amended 2026-10-12) */
-.bb .paytype { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
-.bb .paytype:last-of-type { border-bottom: 0; }
-.bb .paytype .field { margin-top: 4px; }
-
-/* Students — roster and pending sign-ups. Harbor tokens only. */
-.bb .stu-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
-.bb .seg__opt.is-on .stu-count { background: var(--primary-soft); color: var(--primary-soft-text); }
-.bb .stu-count--attn { background: var(--alt-soft); color: var(--alt-text); }
-.bb .stu-search { max-width: 420px; }
-.bb .stu-tablewrap { overflow-x: auto; position: relative; }
-.bb .stu-table { min-width: 900px; }
-.bb .stu-table td { vertical-align: top; }
-.bb .stu-sub { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); font-weight: var(--w-reg); }
-.bb .stu-contact { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13px; color: var(--text-2); }
-.bb .stu-contact span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.bb .stu-contact .ic { color: var(--text-3); }
-.bb .stu-family { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
-.bb .stu-family .stu-contact { margin-top: 0; }
-.bb .stu-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-2); }
-.bb .dialog .field { text-align: left; }
-@media (max-width: 760px) {
-  .bb .stu-family { padding: 12px 16px; }
-  .bb .stu-search { max-width: none; }
-}
-
-.bb .stu-blocks { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); display: flex; flex-direction: column; gap: 4px; text-align: left; }
-.bb .stu-table .stu-sub .btn { margin-top: 4px; margin-left: -12px; }
-
-/* pending: a skater invited to share a lesson (ADR-026 d5) */
-.bb .stu-join { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--r-sm); background: var(--primary-tint); color: var(--text-2); font-size: 13px; line-height: 1.4; max-width: 520px; }
-.bb .stu-join .ic { flex: none; margin-top: 2px; color: var(--primary-text); }
+/* Many coaches (ADR-025): the coach dropdown, picks grouped by coach, and clashes with another coach's lessons. */
+.bb .bk-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-coachsel { width: auto; min-width: 210px; height: 40px; border-radius: 999px; font-weight: var(--w-bold); }
+.bb .bk-pickcoach { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 4px 0 6px; font-size: 13px; }
+.bb .bk-pickcoach span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .picks + .bk-pickcoach { margin-top: 14px; }
+.bb .bk-total-note { font-size: 13px; color: var(--text-2); font-weight: var(--w-med); }
+.bb .slot.bk-clash { border-color: var(--warning-border); box-shadow: inset 3px 0 0 var(--warning); }
+.bb .slot .bk-clash__note { display: inline-flex; align-items: center; gap: 4px; color: var(--warning-text, var(--text-2)); font-weight: var(--w-med); }
+.bb .slot--mine .bk-clash__note { color: var(--on-primary); }
+.bb .bk-pick--clash { box-shadow: inset 3px 0 0 var(--warning); }
+.bb .bk-dlist__h { margin: 12px 0 6px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); text-align: left; }
+.bb .bk-dlist + .bk-dlist__h { margin-top: 14px; }
+.bb .bk-clashes { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+@media (max-width: 760px) { .bb .bk-coachsel { min-width: 0; width: 100%; } .bb .bk-pickers > .picker { width: 100%; } }
+.bb .total:has(.bk-total-note) { flex-wrap: wrap; gap: 4px 12px; }
+.bb .total span { white-space: nowrap; }
+.bb .slot.bk-clash .slot__time { white-space: nowrap; }
+.bb .dialog > * { flex-shrink: 0; }
+/* Result split by coach (owner, 2026-10-13). */
+.bb .bk-rescoach { display: flex; align-items: center; gap: 12px; margin: 8px 0 -4px; }
+.bb .bk-rescoach > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bb .bk-rescoach b { font-size: 16px; }
+.bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
+.bb .dialog .summary__note + .summary__note { margin-top: 6px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -889,14 +865,17 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook coach website · Harbor · Calendar</span><b>Day view — skater invited to share</b><span class="sp-bar__note">New state. Friday, Oct 16: Grace invited Zoe Okafor to share Mia’s 8:30, and Zoe is waiting for the coach’s approval (ADR-026 d5).</span><nav class="sp-bar__nav"><a href="calendar-day.html">← Day view</a><a href="index.html">All pages</a><a href="cancel-preview.html">Cancel preview →</a></nav></header>
-<div class="sp-page"><div class="bb" data-layout="top"><div class="app app--coach">
-    <header class="nav"><a class="brand" href="today.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
-      <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today.html"><span>Today</span></a><a class="nav__item is-active" href="calendar-week.html" aria-current="page"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">4</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item" href="payments-empty.html"><span>Payments</span></a><a class="nav__item" href="profile-details.html"><span>Profile</span></a></nav>
-      <a class="nav__user" href="profile-details.html"><span class="avatar avatar--sm">DW</span><span class="nav__user-text"><b>Dana Whitfield</b><small>Coach</small></span></a></header>
-    <main class="main"><div class="page page--wide">
-    <div class="phead"><div class="phead__text"><div class="crumb"><a class="link" href="calendar-week.html" data-act="calOpenWeek" data-arg='[&quot;2026-10-16&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Week of Oct 11</a></div><h1 class="h1">Friday, October 16</h1><p class="lede">6 lessons booked · 5 open times</p></div><div class="phead__actions"><div class="seg" role="group"><button type="button" class="seg__opt" data-act="calView" data-arg='[0]' aria-pressed="false">Month</button><button type="button" class="seg__opt" data-act="calView" data-arg='[1]' aria-pressed="false">Week</button><button type="button" class="seg__opt is-on" data-act="calView" data-arg='[2]' aria-pressed="true">Day</button></div><div class="btngroup"><button type="button" class="iconbtn" aria-label="Previous day" data-act="calDay" data-arg='[-1]'><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button type="button" class="btn btn--secondary btn--sm" data-act="calDayToday"><span>Today</span></button><button type="button" class="iconbtn" aria-label="Next day" data-act="calDay" data-arg='[1]'><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div></div></div>
+<header class="sp-bar"><span>BladeBook client website · Harbor · Shared lessons</span><b>Invitation — accepted, seat booked</b><span class="sp-bar__note">New (ADR-033 d3). Tom accepted Grace’s invitation for Zoe, who is already Coach Dana’s student, so Zoe’s seat in Mia’s Fri, Oct 16 8:30 is booked straight away: invite → accept → booked, with nothing to wait for. If Grace cancels now, it’s an ordinary leave of a shared lesson (ADR-033 d4).</span><nav class="sp-bar__nav"><a href="invite.html">← Invitation to share a lesson</a><a href="index.html">All pages</a><a href="book-share-not-student.html">Confirm — skater isn’t the coach’s student →</a></nav></header>
+<div class="sp-page"><div class="bb" data-layout="top"><div class="app app--family">
+    <header class="nav"><a class="brand" href="home.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
+      <nav class="nav__items" aria-label="Main"><a class="nav__item is-active" href="home.html" aria-current="page"><span>Home</span></a><a class="nav__item" href="book-calendar.html"><span>Book a lesson</span></a><a class="nav__item" href="bookings.html"><span>My bookings</span></a><a class="nav__item" href="profile.html"><span>Profile</span></a></nav>
+      <a class="nav__user" href="profile.html"><span class="avatar avatar--sm">TO</span><span class="nav__user-text"><b>Tom Okafor</b><small>Guardian · Coach Dana</small></span></a></header>
+    <main class="main"><div class="page page--wide"><div class="crumb"><a class="link" href="home.html"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Home</a></div><div class="hero hero--success"><span class="hero__icon"><svg class="ic " width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><h1 class="h1">Zoe has joined Mia C.’s lesson</h1><p class="lede">It’s in <a class="link" href="bookings.html">My bookings</a>. Coach Dana sees both skaters.</p></div></div><div class="split split--today"><div class="stack"><section class="card"><header class="card__head"><div><h2 class="h2">The lesson</h2></div></header><div class="card__body">
+    <div class="kv"><span class="kv__k">Invited by</span><span class="kv__v">Grace Chen, for Mia C.</span></div>
+    <div class="kv"><span class="kv__k">Lesson</span><span class="kv__v">Friday, October 16 at 8:30 AM · 30 min</span></div>
     
-    <section class="card card--flush"><header class="card__head"><div><h2 class="h2">Every time on this day</h2></div><button type="button" class="btn btn--danger-outline btn--sm" data-act="calCancelDay" data-arg='[&quot;2026-10-16&quot;,&quot;calendar-day&quot;]'><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18M21 15.5V6a2 2 0 0 0-2-2H9.5M3 10h7M21 10h-5.5M16 2v4M8 2v4M2 2l20 20"/></svg><span>Cancel this day</span></button></header><div class="card__body"><div class="row"><div class="row__main"><span class="cal-slot__t num">6:00 AM</span><span class="avatar avatar--sm">LM</span><div class="row__title">Leo Martin</div><div class="row__sub">Kate Martin · repeats weekly</div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b67&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">6:30 AM</span><span class="roundicon"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div class="row__title">Open</div><div class="row__sub">Families can book this time</div></div><div class="row__side"><span class="muted num">30 min · $50</span></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">7:00 AM</span><span class="avatar avatar--sm">NC</span><div class="row__title">Noah Chen</div><div class="row__sub">Grace Chen · repeats weekly</div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b65&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">7:30 AM</span><span class="roundicon"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div class="row__title">Open</div><div class="row__sub">Families can book this time</div></div><div class="row__side"><span class="muted num">30 min · $50</span></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">8:00 AM</span><span class="avatar avatar--sm">PR</span><div class="row__title">Priya Rao</div><div class="row__sub">Priya Rao</div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b158&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">8:30 AM</span><span class="avatar avatar--sm">MC</span><div class="row__title">Mia Chen</div><div class="row__sub">Grace Chen · <a class="link" href="pending.html">Zoe Okafor invited to share, waiting for your approval</a></div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b157&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">9:00 AM</span><span class="avatar avatar--sm">EA</span><div class="row__title">Ella Alvarez</div><div class="row__sub">Marco Alvarez · repeats weekly</div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b66&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">9:30 AM</span><span class="roundicon"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div class="row__title">Open</div><div class="row__sub">Families can book this time</div></div><div class="row__side"><span class="muted num">30 min · $50</span></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">10:00 AM</span><span class="roundicon"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div class="row__title">Open</div><div class="row__sub">Families can book this time</div></div><div class="row__side"><span class="muted num">30 min · $50</span></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">10:30 AM</span><span class="avatar avatar--sm">OB</span><div class="row__title">Owen Brooks</div><div class="row__sub">Owen Brooks · repeats weekly</div></div><div class="row__side"><span class="muted num">30 min · $50</span><button type="button" class="btn btn--ghost btn--sm" data-act="calCancelOne" data-arg='[&quot;b68&quot;,&quot;calendar-day&quot;]'><span>Cancel</span></button></div></div><div class="row"><div class="row__main"><span class="cal-slot__t num">11:00 AM</span><span class="roundicon"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div class="row__title">Open</div><div class="row__sub">Families can book this time</div></div><div class="row__side"><span class="muted num">30 min · $50</span></div></div></div></section></div></main></div></div></div>
+    <div class="kv"><span class="kv__k">Coach</span><span class="kv__v">Coach Dana Whitfield · Pelham Civic Center</span></div>
+    <div class="kv"><span class="kv__k">Skater</span><span class="kv__v">Zoe Okafor</span></div>
+    <div class="kv"><span class="kv__k">Price</span><span class="kv__v">$25 for Zoe: the lesson’s $50, split between the two skaters. You pay Coach Dana directly.</span></div></div></section></div><div class="stack"><aside class="help"><div class="help__title"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Shared lessons</div><div class="help__body">Two skaters share one lesson with Coach Dana. Each skater’s attendance and payment are kept separately.</div></aside></div></div></div></main></div></div></div>
 </body>
 </html>

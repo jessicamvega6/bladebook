@@ -31,7 +31,9 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
     Cancelling all sends the family one email listing the cancelled dates. The coach isn't emailed, because none of
       these cancellations is late.
     A lesson the family keeps becomes a freed place, and can take a new skater (see 'Schedule lesson split').
-  *Added 2026-10-13 (ADR-031 decision 5, option B):* If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted. Withdrawing is only possible before the other family answers.
+  *Added 2026-10-13 (ADR-031 decision 5, option B):* ~~If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted.~~ Withdrawing is only possible before the other family answers.
+  *Changed 2026-10-20 (ADR-033 d4):* If the inviting family cancels while the invitation is still unanswered, it ends at
+    once. If the invited family has already accepted, the cancel is an ordinary leave, in time or late (ADR-033 d4).
 
 
 

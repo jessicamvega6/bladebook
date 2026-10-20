@@ -5,12 +5,8 @@ Cancelation from Coach
 Cancellation from client to coach — only inside the notice period (ADR-009, Kim 2026-10-08).
 Phase 2: "Just booked" — a family booked just as the coach's schedule change cancelled that time (ADR-008, amended 2026-10-08).
 Pending student declined by the coach (ADR-002 decision 2b).
-Shared lesson not yet accepted — to both families (ADR-026 d5a).
-Shared lesson waiting on your acceptance — to the coach (ADR-026 d5a).
-  *Changed 2026-10-13 (ADR-031 decision 12): these two warnings are sent by the hourly check, at the 9pm run before
-  they're due, so they're never late and never sent at night.*
-Shared lesson expired, skater not yet accepted — to the invited family (ADR-026 d5a).
-  *Changed 2026-10-13 (ADR-031 decision 12): sent at once by the hourly check when the lesson starts.*
+*Changed 2026-10-20 (ADR-033 d6): the two shared-lesson warnings and "Shared lesson expired, skater not yet accepted"
+  moved to Phase 2 (below). Only a skater the coach has already accepted can be invited, so nothing waits on the coach.*
 Shared lesson — the other skater can't make it — to the family who stays, when the other skater leaves before the
   notice period: keep it as a private lesson at the full price, or cancel with no charge, and the answer-by time
   ~~(the start of the notice period)~~. Always sent. (ADR-026, amended 2026-10-13)
@@ -23,9 +19,11 @@ Shared lesson dates cancelled — to the family who stays, when they choose "Can
   listing every cancelled date, with no charge. The coach isn't emailed, because none of these cancellations is late.
   *Added 2026-10-13 (ADR-031 decision 9).*
 Shared lesson joined — to both families, when the invited skater joins. *Added 2026-10-13 (ADR-031 decision 14).*
-Shared lesson cancelled because the other family cancelled first — to the invited family, when the inviting family
-  cancelled before the invited skater joined and the hourly check ends the accepted invitation (`INVITER_LEFT`).
-  *Added 2026-10-13 (ADR-031 decision 5, option B).*
+~~Shared lesson cancelled because the other family cancelled first — to the invited family, when the inviting family
+  cancelled before the invited skater joined and the hourly check ends the accepted invitation (`INVITER_LEFT`).~~
+  ~~*Added 2026-10-13 (ADR-031 decision 5, option B).*~~
+  *Changed 2026-10-20 (ADR-033 d4): gone. Once the invited family accepts, their seat is booked, so the inviting family's
+  cancel is an ordinary leave and "Shared lesson — the other skater can't make it" applies. There is no `INVITER_LEFT`.*
 
 *In the Harbor design's email list (C_Coach Email Templates.md) and not above:*
 Booking confirmation — to the family, when they book.
@@ -47,20 +45,24 @@ Price change — part of the Schedule change email above, when a schedule save r
   a price increase (applies only beyond the notice period, lists the lessons and the new price), a decrease
   ("Good news: 3 of your lessons are now $50.") and a mix. One email per family per save; a save that also cancels
   lessons sends one combined email. (ADR-020)
-Invitation to share a lesson — to Family B, when Family A enters their skater's share code while booking. Two versions:
+Invitation to share a lesson — to Family B, when Family A enters their skater's share code while booking. ~~Two versions:
   the skater is already the coach's student (accept or decline), or isn't yet ("Coach Dana needs to accept you first.
-  By following the link below you agree to be added to Coach Dana's roster..."). The link only opens a page that needs
+  By following the link below you agree to be added to Coach Dana's roster...").~~ One version: accept or decline (the
+  skater is always already the coach's student). The link only opens a page that needs
   signing in; it does nothing on its own, because mail scanners open links. Always sent. (ADR-026 d5)
+  *Changed 2026-10-20 (ADR-033 d6): the consent-link version moved to Phase 2 (below).*
   *Added 2026-10-13 (ADR-031 decision 10): the same invitation is sent when the staying family uses "Invite a skater"
   on a freed place, for that one date only.*
 Shared lesson invitation declined — to Family A, when Family B declines. The lesson goes ahead as a private lesson. (ADR-026)
 Shared lesson invitation withdrawn — to Family B, when Family A withdraws the invitation. (Harbor client My bookings)
-Shared lesson, invited skater not accepted — to Family A, when the coach declines the invited skater or doesn't act
-  before the lesson. The lesson goes ahead as a private lesson; the email says whose "no" it was. Family B gets the
-  "Pending student declined" email above. (ADR-026)
-Shared lesson no longer available — to Family B, when the coach accepts their skater but the lesson was cancelled, has
-  started ~~or is full~~. A skater who was already the coach's student gets this one instead of "Shared lesson expired".
+*Changed 2026-10-20 (ADR-033 d6): "Shared lesson, invited skater not accepted" (the coach declined the invited skater)
+  moved to Phase 2 (below).*
+Shared lesson no longer available — ~~to Family B, when the coach accepts their skater but the lesson was cancelled, has
+  started ~~or is full~~. A skater who was already the coach's student gets this one instead of "Shared lesson expired".~~
+  to Family B, when the invitation reaches the lesson's start unanswered, or when they try to accept and the lesson has
+  gone or their skater is no longer the coach's student.
   *Changed 2026-10-13 (ADR-031 decision 5): the invited place is held from booking, so the lesson can't be full.*
+  *Changed 2026-10-20 (ADR-033 d3, d6): reworded; the coach's Accept no longer joins lessons.*
   (ADR-026)
 
 To the coach:
@@ -89,6 +91,23 @@ Missed-lesson fee reminder — to the family, after a no-show or late cancellati
   (ADR-015, architecture.md)
 Cancellation reasons — separate "Cancelled by the coach" versions the coach picks from: sick, emergency or vacation.
   (ADR-009, cancelation.md)
+
+Phase 2 — the consent-link roster join for shared lessons (moved here 2026-10-20 by ADR-033; the design is kept):
+Invitation to share a lesson, consent-link version — to Family B when their skater isn't yet the coach's student
+  ("Coach Dana needs to accept you first. By following the link below you agree to be added to Coach Dana's
+  roster..."). The link only opens a page that needs signing in. (ADR-026 d5)
+Shared lesson not yet accepted — to both families (ADR-026 d5a).
+Shared lesson waiting on your acceptance — to the coach (ADR-026 d5a).
+  *Changed 2026-10-13 (ADR-031 decision 12): these two warnings are sent by the hourly check, at the 9pm run before
+  they're due, so they're never late and never sent at night.*
+Shared lesson expired, skater not yet accepted — to the invited family (ADR-026 d5a).
+  *Changed 2026-10-13 (ADR-031 decision 12): sent at once by the hourly check when the lesson starts.*
+Shared lesson, invited skater not accepted — to Family A, when the coach declines the invited skater or doesn't act
+  before the lesson. The lesson goes ahead as a private lesson; the email says whose "no" it was. Family B gets the
+  "Pending student declined" email above. (ADR-026)
+Shared lesson no longer available after the coach's Accept — to Family B, when the coach accepts their skater but the
+  lesson was cancelled or has started. (ADR-026, ADR-031 decision 6)
+*(The `INVITER_LEFT` "other family cancelled first" email above is gone from MVP; it would return only with this join.)*
 
 Mentioned but not decided:
 ~~Morning email to the coach with a link to the rinkside app. ADR-023 asks whether this is how a coach reaches rinkside;

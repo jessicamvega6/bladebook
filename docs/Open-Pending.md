@@ -178,10 +178,13 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   projecting only `studentStatus`; `onCoachRoster` true only for `ACTIVE`. Needs `studentStatus`
   on `client-tenant`'s read allowlist (ADR-022 d6), the firewall's share-code rate rule
   (ADR-019) and an access-log line (ADR-012). *Added 2026-10-20.*
-- **To-do: Update the Harbor screens for ADR-033** — the screens for inviting a skater new to the
+- ~~**To-do: Update the Harbor screens for ADR-033** — the screens for inviting a skater new to the
   coach (`design/harbor/client/static/invite-new-student.html` and the demos), the warning
   banners, and the coach's pending list showing shared-lesson context. (ADR-033 Consequences)
-  *Added 2026-10-20.*
+  *Added 2026-10-20.*~~ *Done 2026-10-20:* `invite-new-student`, `invite-waiting`,
+  `calendar-day-invite`, `pending-approved-shared` and `email-templates-shared-waiting` removed;
+  `book-share-not-student`, `book-share-sibling-waiting` and `invite-accepted` added; the banners
+  and the waiting state are gone (`design/harbor/README.md`).
 - *Deferred — Phase 2:* **The consent-link roster join for shared lessons** — inviting a skater
   new to the coach, `AWAITING_COACH` seats, the warning and banners, and the coach's Accept joining
   seats. The design in ADR-026 d5/d5a and ADR-031 d5, d6, d12 is kept as the record. Before it

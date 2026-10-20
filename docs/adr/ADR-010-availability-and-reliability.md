@@ -66,6 +66,10 @@ Every behaviour rule still holds unless ADR-031 says otherwise.
 **Amended — 2026-10-15.** [ADR-027](ADR-027-on-demand-dev-environment.md): the cancellation-path
 canary runs once after each production deploy, not on a schedule; the scheduled run is Phase 2.
 An always-on up-check (home page and an API `/health` route) pages through decision 4.
+
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the deadline sweep's work shrinks to `EXPIRE` and
+`ANSWER`, with no shared-lesson warning and no 9pm timing. Its missed-run alarm is unchanged.
+
 ---
 
 ## Context

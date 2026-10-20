@@ -247,6 +247,9 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    as it's still there ~~, hasn't started and has room~~ *and hasn't started. Their place is held
    from the moment the lesson is booked, so there is always room (ADR-031, 2026-10-13).* If you don't accept them, the lesson goes
    ahead private. (ADR-026 decision 5)
+   *Superseded for MVP 2026-10-20 by ADR-033: only a skater you've already accepted can be invited
+   to a shared lesson or added as a sibling. The invited family signs up with your code first.
+   Inviting a skater new to you is Phase 2. No need to ask Kim.*
 5. ~~If the family who booked the lesson cancels, what should happen to the skater they invited?~~
    **Answered by the owner, 2026-10-13:** the same as anyone dropping out (question 3). If the
    inviting family cancels before the other skater has joined, the invitation simply ends.
@@ -275,10 +278,11 @@ question 7 added (ADR-031).*
   time.*
 - ~~**Whether an invited skater must be approved first** (question 4).~~ **Answered by the owner,
   2026-10-07:** invited first, accepted by the coach before joining. (ADR-026 P3, ADR-024)
+  *Superseded 2026-10-20 (ADR-033): accepted first; only ACTIVE skaters can be invited.*
 - ~~**What the booking family cancelling does** (question 5)~~ *answered 2026-10-13: same as anyone
   leaving;* ~~and **when invitations lapse**
   (question 6)~~ *answered 2026-10-13: no cutoff; an invitation expires when the lesson starts.* (ADR-026 P4, P5) *P5 is partly answered: if the coach doesn't accept the skater,
-  the lesson goes ahead private.*
+  the lesson goes ahead private.* *(moot since ADR-033, 2026-10-20)*
 - **How long the staying family has to answer** (question 7). The owner chose 7 days; Kim's
   answer can change it. (ADR-031 decision 8, `Open-Pending.md` §2a) *Added 2026-10-13.*
 

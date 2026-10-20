@@ -1,6 +1,23 @@
 # Runbook: Database-Gate Tests
 
 **Status:** Run 2026-10-05: all checks passed, twice. Blockers #4 and #5 are cleared. Re-run whenever a tenant role's policy changes.
+
+**Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
+`client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
+
+- **Share codes** ([ADR-026](../adr/ADR-026-shared-lessons-by-invitation.md) Consequences): a
+  share-code lookup returns only the display name; any other attribute, no projection, or a
+  `Query` is refused.
+- **Lessons and seats** ([ADR-031](../adr/ADR-031-lessons-and-seats.md) Consequences and
+  revision): rows for `LESSON#`, `SEAT#` and `SEATEND#` items and the deadline index (GSI4);
+  the family's availability read of a lesson time leaves out `pendingLeave`; a family session
+  can't change another family's accepted seat in any way.
+- **Only accepted skaters can share** ([ADR-033](../adr/ADR-033-invite-only-accepted-skaters.md)
+  Consequences, decisions 2 and 2a): a booking transaction whose invited seat names a skater who
+  isn't `ACTIVE` with the coach is refused whole (its `ConditionCheckItem` on
+  `COACH#<coachId>/STUDENT#<studentId>` fails); for the share-check, a `GetItem` of a `STUDENT#`
+  item projecting only `studentStatus` is allowed for an `ACTIVE` session, refused with any other
+  `STUDENT#` attribute, and refused for a `PENDING` session.
 **Clears:** blockers **#4** and **#5** in `Blockers-Before-Coding.md`.
 **Source:** [ADR-021](../adr/ADR-021-tenant-isolation-at-the-database.md) decision 7 and
 [ADR-022](../adr/ADR-022-client-isolation-at-the-database.md) decision 9.

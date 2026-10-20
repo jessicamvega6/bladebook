@@ -80,10 +80,12 @@ function freshStudents() {
     { id: 'p1', name: 'Ava Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 0, orgNum: '3318246', since: '2026-10-12', shareCode: 'AVA-8TQWD' },
     { id: 'p2', name: 'Jack Park', minor: true, rel: 'Guardian', client: 'Sarah Park', email: 'sarah.park@example.com', phone: '(205) 555-0196', sms: true, status: 'PENDING', org: 1, orgNum: '2027HN7342PW6R', since: '2026-10-12', shareCode: 'JAC-4MVDN' },
     { id: 'p3', name: 'Olivia Grant', minor: false, rel: 'Self', client: 'Olivia Grant', email: 'olivia.grant@example.com', phone: '(205) 555-0127', sms: false, status: 'PENDING', org: 0, orgNum: '2904417', since: '2026-10-13', shareCode: 'OLI-9KRBT' },
-    // Zoe skates with another coach. Grace invited her to share Mia's Friday lesson; Tom confirmed, so Zoe now waits for
-    // Coach Dana like any sign-up, and joins the lesson when Dana approves her (pendingJoins, ADR-026 d5).
-    { id: 'p4', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'PENDING', org: 0, orgNum: '3402981', since: '2026-10-13', shareCode: 'ZOE-8M3PW',
-      pendingJoins: [{ iso: '2026-10-16', t: 510, invite: 'i2' }], invitedBy: 'Grace Chen' },
+    // Zoe is already Coach Dana's student. Grace invited her to share Mia's Friday lesson; the invitation waits for Tom's
+    // answer, and accepting books Zoe's seat (ADR-033: only a coach's accepted skaters can share a lesson).
+    { id: 's8', name: 'Zoe Okafor', minor: true, rel: 'Guardian', client: 'Tom Okafor', email: 'tom.okafor@example.com', phone: '(205) 555-0153', sms: true, status: 'ACTIVE', org: 0, orgNum: '3402981', since: '2026-06-08', shareCode: 'ZOE-8M3PW' },
+    // Mia Reyes skates with another coach and isn't Coach Dana's student, so her share code is refused at the share step
+    // (ADR-033 d2a). status NONE: she's on no list of Coach Dana's.
+    { id: 'x1', name: 'Mia Reyes', minor: true, rel: 'Guardian', client: 'Ana Reyes', email: 'ana.reyes@example.com', phone: '(205) 555-0119', sms: false, status: 'NONE', org: 0, orgNum: '3290564', since: '2026-05-02', shareCode: 'MIA-7R2LC' },
   ];
 }
 /* Recurring arrangements: [studentId, weekday, start minute, first date, last date]. */
@@ -130,8 +132,8 @@ function freshLessons(students) {
   // Shared lessons (ADR-026). Sam's Wednesday 6:00 series is shared with Leo: each skater has their own attendance and payment.
   for (const l of out.filter(x => x.sid === 's4' && dowOf(x.iso) === 3 && x.t === 360 && x.iso >= '2026-10-07'))
     { l.with = [{ sid: 's5', status: isPast(l) ? 'CHECKED_IN' : 'BOOKED', pay: isPast(l) ? 'PAID' : 'UNPAID', paidBy: isPast(l) ? 'CASH' : null, price: 50 }]; splitPrice(l); }
-  // Grace invited Zoe Okafor to share Mia's Friday 8:30; Zoe waits for Coach Dana's approval (invite i2).
-  const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 'p4';
+  // Grace invited Zoe Okafor, already Coach Dana's student, to share Mia's Friday 8:30; Tom hasn't answered yet (invite i2).
+  const mia = out.find(l => l.sid === 's1' && l.iso === '2026-10-16' && l.t === 510); if (mia) mia.invited = 's8';
   // Not recorded: Ella's lesson last Friday has no attendance.
   const ella = out.find(l => l.sid === 's3' && l.iso === '2026-10-09' && l.t === 540); if (ella) { ella.status = 'BOOKED'; ella.pay = 'UNPAID'; }
   return out.sort((a, b) => (a.iso + String(a.t).padStart(4, '0')).localeCompare(b.iso + String(b.t).padStart(4, '0')));
@@ -146,22 +148,17 @@ function splitPrice(l) {
   l.price = per; for (const w of l.with || []) w.price = per;
 }
 
-/* Shared-lesson invitations (ADR-026 d5). inviteStatus: SENT | AWAITING_COACH | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
+/* Shared-lesson invitations (ADR-026 d5, ADR-033). inviteStatus: SENT | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
+   Only a skater ACTIVE with the lesson's coach can be invited (ADR-033 d1): there is no seat waiting for the coach.
    from: the booking family; skater: the invited skater; series: one invitation covers a whole recurring series. */
 function freshInvites() {
   return [
     { id: 'i1', from: 'Owen Brooks', fromSkater: 's7', skater: 's2', dow: 3, t: 510, len: 30, first: '2026-10-21', last: '2026-12-23', series: true, status: 'SENT', sent: '2026-10-13',
       clashes: [{ when: 'Wed, Nov 4 · 8:30 AM', what: 'Noah’s lesson with Coach Ben Ortiz' }] },
-    { id: 'i2', from: 'Grace Chen', fromSkater: 's1', skater: 'p4', iso: '2026-10-16', t: 510, len: 30, series: false, status: 'AWAITING_COACH', sent: '2026-10-12', confirmed: '2026-10-13', warnedAt: '2026-10-13', clashes: [] },
+    { id: 'i2', from: 'Grace Chen', fromSkater: 's1', skater: 's8', iso: '2026-10-16', t: 510, len: 30, series: false, status: 'SENT', sent: '2026-10-13', clashes: [] },
     { id: 'i3', from: 'Dee Rivera', fromSkater: 's4', skater: 's5', dow: 3, t: 360, len: 30, first: '2026-10-07', last: '2026-12-23', series: true, status: 'CONFIRMED', sent: '2026-10-01', clashes: [] },
   ];
 }
-/** The shared-lesson warning time: 24 hours plus the coach's notice period before the lesson (ADR-026 d5a). The nightly
-   sweep sends a warning early rather than late, so one already sent (warnedAt) counts as warned. */
-const inviteWarned = (inv, notice = NOTICE_H) => { if (inv.status !== 'AWAITING_COACH' || !inv.iso) return false;
-  if (inv.warnedAt) return true;
-  const mins = Math.round((parseIso(inv.iso) - parseIso(TODAY)) / 864e5) * 1440 + inv.t - NOW_MIN; return mins > 0 && mins <= (24 + notice) * 60; };
-
 /* Payment types (ADR-016 d7, amended 2026-10-12): one switch per type. [paidVia value, label, handle key, switch key, placeholder].
    A type switched on is a how-paid option (ADR-003 d4) and is shown to approved families. Cash has no handle. */
 const PAY_TYPES = [['CASH', 'Cash', null, 'cash', ''], ['VENMO', 'Venmo', 'venmo', 'onVenmo', '@handle'],

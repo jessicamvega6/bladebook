@@ -76,6 +76,10 @@ rebuilds booking as **lesson times** and **seats**. What it means here:
 
 Decisions 1–9 are otherwise unchanged.
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): decision 7's gate tests gain rows (see ADR-022
+decision 9, rows 12–13). Seats carry only `EXPIRE` deadlines and lesson times only `ANSWER`. The
+coach's Accept no longer touches seats.
+
 ---
 
 ## Context
