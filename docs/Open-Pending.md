@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-15
+**As of:** 2026-10-20
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -35,9 +35,10 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   - separate deploy roles for dev and production, each with least privilege.
 
   *Added 2026-10-15.* (ADR-032, Blockers-Before-Coding #3)
-- **Pending decision: How student data is deleted on request.** §7 promises it; nothing
+- ~~**Pending decision: How student data is deleted on request.** §7 promises it; nothing
   implements it. Two approaches drafted (erasure by constant, erasure by token), neither
-  chosen. *Deferred 2026-08-25.* (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
+  chosen. *Deferred 2026-08-25.*~~ *Moved to Phase 2 by the owner, 2026-10-20:* no longer
+  blocks coding or launch; the decision and its to-dos are in §8. (architecture §7, ~~`design/deletion/`~~ `docs/deletion/`)
 - **Pending decision: Who sends the SMS opt-in confirmation?** Required by ADR-007 decision 8,
   but no function holds `sns:Publish` where it happens. Suggested: a stream consumer on
   `smsOptIn` changing from false to true. Blocks SMS wiring, minimum viable product (MVP)
@@ -116,6 +117,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   each share is worked out as `priceMinor ÷ shareCount`, and a re-price changes only the lesson
   time's price. A leave in time is recorded as a pending leave on the lesson time; the staying
   family's seat isn't touched. So ADR-024 needs no shared-lesson exception.*
+  *Changed 2026-10-20 (ADR-033): only a skater ACTIVE with the coach can be invited or added as a
+  sibling; inviting a skater new to the coach is Phase 2.*
 - **Open question — needs Kim (§8 Q7): Is 7 days the right limit** for the staying family to
   answer when the other skater leaves in time? The owner chose 7 days so nothing waits more
   than a week. (ADR-031 decision 8, ADR-031 Open) *Added 2026-10-13.*
@@ -135,6 +138,11 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   lesson-time attributes for availability and the family's own seat for retry checks.*
   *Revised 2026-10-13 (ADR-031 revision): the availability read must leave out a lesson time's pending leave. Add a row: a
   family session can't change another family's accepted seat in any way.*
+  *Widened 2026-10-20 (ADR-033 Consequences, d2a): add rows for a booking transaction whose
+  invited seat names a skater who isn't `ACTIVE` with the coach (its `ConditionCheckItem` fails,
+  so the whole transaction is refused); and for the share-check, a `GetItem` of a `STUDENT#` item
+  projecting only `studentStatus` is allowed for an `ACTIVE` session, refused with any other
+  attribute, and refused for a `PENDING` session.*
 - ~~**Open question: What amount the unpaid list and weekly reminder show for a past seat with
   attendance not recorded.** It has no fixed `amountMinor` yet, and the unpaid index (GSI3)
   doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
@@ -153,14 +161,33 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
   `design/harbor` (family and coach sites).*
-- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — ~~warnings sent early, `warnedAt`~~ warnings sent at the 9pm run before they're due *(Revised 2026-10-13 (ADR-031))*, expiry of ~~`SENT`~~ *`INVITED`*
-  and `AWAITING_COACH` invitations. (ADR-026 d5a) *Changed 2026-10-13 (ADR-031 decision 12):
+- **To-do: Build the ~~nightly invitation sweep~~ *hourly deadline sweep* (`sched-deadline-sweep`)** — ~~warnings sent early, `warnedAt`~~ ~~warnings sent at the 9pm run before they're due~~ *(Revised 2026-10-13 (ADR-031))*, expiry of ~~`SENT`~~ *`INVITED`*
+  ~~and `AWAITING_COACH`~~ invitations. (ADR-026 d5a) *Changed 2026-10-13 (ADR-031 decision 12):
   the sweep runs every hour and also cancels unanswered staying-family choices at their
   answer-by time. The warning waits for the 9pm run before it's due; urgent emails go at once.
   Its missed-run alarm is part of ADR-010.* *Revised 2026-10-13 (ADR-031 d5, d12): it also acts
   on `INVITER_LEFT`, which sits on the lesson time and names an accepted invited seat: it ends
   that seat as `WITHDRAWN` and the lesson time goes back to `OPEN`.*
-- **To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)
+  *Changed 2026-10-20 (ADR-033 d5): `dueKind` is `EXPIRE | ANSWER`; no warning, no 9pm timing, no
+  `INVITER_LEFT`. Stays hourly on GSI4 with its missed-run alarm.*
+- ~~**To-do: Build the shared-lesson banner** on both families' home screens. (ADR-026 d5a)~~
+  *Moved to Phase 2 2026-10-20 (ADR-033).*
+- **To-do: Build the share-check endpoint** (ADR-033 d2a) — `POST /api/client/share-check` on
+  `api-client`, so the booking page learns at the share step whether the invited skater is the
+  coach's student. Sender from the verified token; `GetItem` of `COACH#<coachId>/STUDENT#<studentId>`
+  projecting only `studentStatus`; `onCoachRoster` true only for `ACTIVE`. Needs `studentStatus`
+  on `client-tenant`'s read allowlist (ADR-022 d6), the firewall's share-code rate rule
+  (ADR-019) and an access-log line (ADR-012). *Added 2026-10-20.*
+- **To-do: Update the Harbor screens for ADR-033** — the screens for inviting a skater new to the
+  coach (`design/harbor/client/static/invite-new-student.html` and the demos), the warning
+  banners, and the coach's pending list showing shared-lesson context. (ADR-033 Consequences)
+  *Added 2026-10-20.*
+- *Deferred — Phase 2:* **The consent-link roster join for shared lessons** — inviting a skater
+  new to the coach, `AWAITING_COACH` seats, the warning and banners, and the coach's Accept joining
+  seats. The design in ADR-026 d5/d5a and ADR-031 d5, d6, d12 is kept as the record. Before it
+  returns, answer review gap G16, for example with rotatable share codes. Bring it back if
+  families or coaches find signing up with the coach code first a burden. (ADR-033 d7)
+  *Added 2026-10-20.*
 - ~~**Pending decision — after Kim's P5: How lapsing invitations are timed.** Nothing today fires
   at a per-booking time; EventBridge Scheduler's one-off schedules are the likely fit. (ADR-026)
   *Partly settled 2026-10-09 (ADR-026 d5a): a nightly sweep sends the warning and expires
@@ -209,9 +236,12 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   settled 2026-10-13 (blocker #7).
 - ~~**Open question — needs Kim (§9): Is a skater's number required?**~~ **Settled 2026-10-12
   by the owner:** yes. In Phase 1 every skater needs a US Figure Skating (USFSA) or USA Hockey
-  number. It belongs to each skater, not the family account. **Still open, for Kim (§9):**
+  number. It belongs to each skater, not the family account. ~~**Still open, for Kim (§9):**
   adults and learn-to-skate beginners who don't have a number yet, and what happens when a
-  number expires (blocked from booking, a reminder, or nothing).
+  number expires (blocked from booking, a reminder, or nothing).~~ *Settled 2026-10-16 (Kim):*
+  everyone must have a number; nothing happens when it lapses in MVP, and a renewal reminder is
+  Phase 3. *Owner:* Learn to Skate USA numbers are accepted as a third kind. (ADR-029, amended
+  2026-10-16)
 - ~~**Open question: Does this exclude Canada?**~~ **Settled 2026-10-12 by the owner:** in
   Phase 1, yes. Skate Canada and Hockey Canada numbers are **Phase 2**. The design still
   supports CAD for coaches.
@@ -228,8 +258,20 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
     they renew. Learn to Skate USA numbers are a separate series. **Get the length and
     characters from a real card or from Kim.** Until then: digits only, within a loose length
     range.
-- **Open question: Why is a skater's number needed?** It adds personal data about minors, so
-  §7's data minimisation needs a stated purpose. (Kim §9, question 2)
+- ~~**Open question: Why is a skater's number needed?** It adds personal data about minors, so
+  §7's data minimisation needs a stated purpose. (Kim §9, question 2)~~ *Settled 2026-10-16
+  (Kim):* the rinks require it; the coach passes it on and the rinks validate it. (ADR-029,
+  amended 2026-10-16)
+- **Pending decision: Is the rink download MVP or later?** A file on the coach's Students tab
+  with Student First Name, Student Last Name and Skater Number, so coaches can give the numbers
+  to their rinks (owner, 2026-10-16). Logged as a read of personal data (ADR-012). (ADR-029 Open)
+- **Pending decision: First and last name for the download.** The skater's name is one
+  `studentName` field: split it at sign-up, or when the file is made. (ADR-029 Open)
+- **Open question — needs Kim (§9, question 7): Learn to Skate USA's number format,** now that
+  those numbers are accepted. Until then, digits only within a loose length range. (ADR-029
+  Open) *Added 2026-10-16.*
+- **Phase 3: A reminder to renew a skating membership or update the number** (Kim, 2026-10-16;
+  ADR-029)
 - ~~**Settled, no action:** a coach's code changing each year doesn't affect existing families or
   recurring bookings.~~ *No longer applies (2026-10-12):* the coach code is generated by
   BladeBook and doesn't follow a yearly registration number.
@@ -520,11 +562,14 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   removing a student — from the coach's student list, from one coach or from all coaches — is
   Phase 2, so MVP has no Remove button on either website and this no longer blocks coding.
   (`FeatureDecriptions/Coach Dashboard on website.md`, ADR-002, ADR-025 n)
-- **To-do: Extend the erasure design to the archive.** An erasure request must now reach the
+- **Pending decision (Phase 2): How student data is deleted on request.** Two approaches
+  drafted (erasure by constant, erasure by token), neither chosen. *Moved to Phase 2 by the
+  owner, 2026-10-20*, with the two to-dos below. (architecture §7, `docs/deletion/`)
+- **To-do (Phase 2): Extend the erasure design to the archive.** An erasure request must now reach the
   table, the archive bucket (one object per item, keyed by coach and student) and — for 35
   days, unselectively — Point-in-Time Recovery. (ADR-017, ~~`design/deletion/`~~ `docs/deletion/`) *Added
   2026-10-12:* and the monthly backups (12 months, §10), which also can't be edited.
-- **To-do (with the erasure design): An erased-ID list.** A small record, kept outside every
+- **To-do (Phase 2, with the erasure design): An erased-ID list.** A small record, kept outside every
   backup, of each erased student and client ID and the date. It holds IDs only, no names. Any
   restore (PITR, monthly backup, archive) re-applies the erasure for every listed ID before the
   data goes live, so a restore never brings an erased child back. An entry can be dropped once
@@ -705,8 +750,9 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 - **To-do: Build the masked-build workflow** — the Step Functions workflow, the transform Lambda
   (with its item count and duplicate-key check), the export bucket and the masked bucket (each
   deletes its contents after 24 hours). (ADR-027 decision 9, ADR-028)
-- **To-do: Rewrite the seed script to write an import file**, taking each test account's `sub`
-  by email. (ADR-028 decision 4; `terraform/bladebook_seed.py`)
+- **To-do: Write a seed script that writes an import file**, taking each test account's `sub`
+  by email. It goes under `infra/` once the IaC tool is chosen (§1). *Changed 2026-10-20: the
+  old `terraform/bladebook_seed.py` was removed by the owner.* (ADR-028 decision 4)
 - **To-do: Split dev into an account stack and an application stack.** (ADR-028 decision 4)
 - **Open question: Does an import produce stream records?** Check on the first masked build.
   (ADR-028 Open)
@@ -788,4 +834,6 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 - ~~**To-do: Retire or merge `Follow Up.md`** into this document so there is one list.~~
   **Done 2026-10-05:** every item was already here or settled in an ADR, so the file was
   deleted by the owner.
-- **To-do: Commit the untracked work** — Commit `terraform/` and the uncommitted edits.
+- **To-do: Commit the untracked work** — ~~Commit `terraform/` and~~ Commit the uncommitted edits.
+  *Changed 2026-10-20: the owner removed the contents of `terraform/`; the seed script returns
+  under `infra/` (§11).*
