@@ -177,7 +177,9 @@ S3 counts whole days and removes expired files with some delay, so a file can la
   written.
 - **The seed script changes job.** `terraform/bladebook_seed.py` writes items straight into a
   table today, with fixed client IDs. It must instead write an import file and take each test
-  account's `sub` by email.
+  account's `sub` by email. *Changed 2026-10-20: the owner removed `terraform/bladebook_seed.py`.
+  A new seed script that writes an import file will be written under `infra/` once the IaC tool
+  is chosen (ADR-001 A4).*
 - **A dev table can't be topped up.** A test that needs one more record means adding it to the
   seed script and rebuilding.
 
