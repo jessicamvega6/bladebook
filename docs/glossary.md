@@ -374,6 +374,7 @@ editable afterwards, seen only by the coach; a waived lesson has none.
 |---|---|
 | `USFS` | US Figure Skating (formerly USFSA). A member number; Learn to Skate USA numbers are a separate series. |
 | `USA_HOCKEY` | USA Hockey. A 14-character registration number, new every season. |
+| `LEARN_TO_SKATE_USA` | Learn to Skate USA, for beginners. Accepted since 2026-10-16 (ADR-029); format not yet known. |
 
 Phase 2 adds `SKATE_CANADA` and `HOCKEY_CANADA`.
 

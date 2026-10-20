@@ -295,11 +295,21 @@ code families type to find them. Both numbers can change each season.
 
 1. Do all your skaters have a USFSA or USA Hockey number? What about adults skating for fun, or
    beginners in learn-to-skate?
+   Everyone must have a number. Coaches must give the number to the rink(s) but have no obligation 
+   to validate the students number. The rinks do that. 
+   *Answered by Kim, recorded 2026-10-16.*
 2. Why do you need a skater's number? Insurance, competition and test eligibility, something
-   else?
+   else? - see above
+   *Answered by Kim, recorded 2026-10-16: the rinks require it; the coach passes it on.*
 3. Do you check that a family's number is current each season? What happens if it has lapsed:
    would you still teach them?
+   Do not need to check, just need the student to give it to the coaches. 
+   --Phase 3: Have a reminder for renewing memebership/ updating skating organization number.
+   *Answered by Kim, recorded 2026-10-16.*
+
 4. Does each skater have their own number, or is it one per family?
+  --each skater their own number
+   *Answered by Kim, recorded 2026-10-16.*
 5. ~~Would you be comfortable with your own registration number being the code families use to
    find you?~~ *No need to ask. The owner decided 2026-10-12 that BladeBook generates the coach
    code.*
@@ -308,12 +318,20 @@ code families type to find them. Both numbers can change each season.
    soon it's needed.*
 7. What does a US Figure Skating member number look like: how many digits, any letters? Is a
    Learn to Skate USA number different? *Needed to check the number when a family types it in.*
+   *Still open 2026-10-16. Learn to Skate USA numbers are now accepted (question 8), so their
+   format is needed too.*
+8. ~~Should Learn to Skate USA numbers be accepted for beginners?~~ *Decided by the owner
+   2026-10-16: yes, as a third kind of number.*
+9. ~~How do coaches give the numbers to the rinks?~~ *Decided by the owner 2026-10-16: a
+   download on the coach's Students tab, with Student First Name, Student Last Name and Skater
+   Number.*
 
 **What the answers decide:**
 
 - ~~**Whether a membership number is required at all, optional, or per skater**~~ *The owner
-  decided 2026-10-12: required, per skater.* Still open: skaters who don't have a number yet,
-  and what happens when one expires (questions 1–4).
+  decided 2026-10-12: required, per skater.* ~~Still open: skaters who don't have a number yet,
+  and what happens when one expires (questions 1–4).~~ *Answered 2026-10-16: everyone must have
+  one; nothing happens when it lapses in MVP, and a renewal reminder is Phase 3.*
 - ~~**Whether a coach's registration number can safely be their coach code**~~ *Decided
   2026-10-12: no, BladeBook generates it.*
 - ~~**Whether Canadian skaters and coaches are supported**~~ *Decided 2026-10-12: Phase 2.*
@@ -372,6 +390,49 @@ added as needed, so the multi-coach screens are designed for about 10.
 
 - [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). It's complex
   enough to need its own session, so it's kept in its own document. Record her answers there.
+
+---
+
+## 12. Skating organizations and their numbers
+
+*Added 2026-10-20.* Follows on from §9.
+
+**The scenario.** When a family signs up, each skater picks the organization that issued their
+number, then types the number. In Phase 1 the list has three: **US Figure Skating**, **USA
+Hockey** and **Learn to Skate USA**. Skate Canada and Hockey Canada are Phase 2 (ADR-029). A
+skater whose organization isn't on the list can't sign up.
+
+**Other organizations that might apply, for her to confirm or rule out** (not researched in
+depth):
+
+- **Ice Sports Industry** (formerly the Ice Skating Institute): recreational skating and its
+  own competitions, popular at rink-run programs.
+- **US Speedskating**.
+- **USA Ringette**.
+- Adult or recreational hockey leagues with their own registration, if they don't go through
+  USA Hockey.
+
+**Questions:**
+
+1. Are there organizations other than US Figure Skating, USA Hockey and Learn to Skate USA
+   whose numbers your rinks ask for? Which ones?
+2. Do any of your skaters belong to Ice Sports Industry, US Speedskating or USA Ringette instead
+   of the three above?
+3. Can a skater belong to **more than one** organization (say, US Figure Skating and Ice Sports
+   Industry)? If so, does the rink want every number, or just one?
+4. Which organization's number does the rink want when a skater has several?
+5. For any new organization, what does its number look like: how many characters, digits only
+   or letters too?
+
+**What the answers decide:**
+
+- **Which organizations go on the sign-up list** (`skatingOrg`, ADR-029 decisions 2–3). Each new
+  one needs a value and a shape check.
+- **Whether a skater can have more than one number.** Today it's one number from one
+  organization per skater (ADR-029 decision 1). More than one would change the `SKATER#` item,
+  the sign-up and profile screens, and the rink download.
+- **What the rink download holds** if a skater has several numbers (ADR-029, amended
+  2026-10-16).
 
 ---
 
