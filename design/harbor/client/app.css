@@ -41,3 +41,6 @@
   .bb .wcol > .card > .card__body { padding: 20px; }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
+
+.demo-bar__opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.demo-bar__opt input { accent-color: currentColor; }

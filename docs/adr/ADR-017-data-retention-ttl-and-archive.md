@@ -30,6 +30,10 @@ once they have no seats, and the **`SEATEND#`** line for an invitation that was 
 withdrawn or expired. Seats moved to `CANCELLED#` lines follow the existing cancellation-line
 rows. The windows still wait on the legal review.
 
+**Amended — 2026-10-20.** *Decided by the owner:* deleting a student's data on request, with its
+reach into the archive, the monthly backups and point-in-time recovery, and the erased-ID list,
+is Phase 2.
+
 ---
 
 ## Context

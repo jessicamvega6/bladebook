@@ -485,10 +485,10 @@ sequenceDiagram
     X->>DB: Query lesson times and seats in the affected range
     X->>X: same diff as the preview
     Note over X,DB: Adding and removing open times is part of the save, not batch lines
+    X->>DB: write the CHANGEBATCH header and every cancel and re-price line, PLANNED -<br/>nothing else is touched before this (ADR-010 d5c)
     X->>DB: put each new OPEN lesson time with its scheduleVersion
     X->>DB: delete each removed lesson time only if still OPEN, else it becomes a cancel line
     X->>DB: delete each HELD lesson time the new schedule no longer makes
-    X->>DB: write the CHANGEBATCH header and every cancel and re-price line, PLANNED
     loop each line, re-checked first
         alt cancel, or a remove that was booked since the preview
             X->>DB: move each seat to a CANCELLED line and delete the lesson time, in one transaction
@@ -510,6 +510,8 @@ sequenceDiagram
 *Amended 2026-10-13: diagram updated to ADR-010 decision 5 (the plan is written first; one `LessonsChanged` per batch, driven by the header), ADR-020 re-pricing and the consumer rename. SMS to families is Phase 2 (ADR-007). [architecture.md §6.5](../architecture.md) has the full flow.*
 
 *Amended 2026-10-13, later: participant names changed to match architecture.md §3.1 (`Schedule change λ`, `Change notifier λ`).*
+
+*Amended 2026-10-20: diagram updated so the change batch is written before any lesson time is added or removed, matching the first 2026-10-13 note and §6.5 (ADR-010 d5c).*
 
 ~~**Conflicting bookings are deleted, not restatused.** ADR-004 decision 6 step 3's
 reasoning is unchanged and still binding: the booking item *is* the lock, so a booking

@@ -58,7 +58,7 @@ Shared lesson invitation withdrawn — to Family B, when Family A withdraws the 
 *Changed 2026-10-20 (ADR-033 d6): "Shared lesson, invited skater not accepted" (the coach declined the invited skater)
   moved to Phase 2 (below).*
 Shared lesson no longer available — ~~to Family B, when the coach accepts their skater but the lesson was cancelled, has
-  started ~~or is full~~. A skater who was already the coach's student gets this one instead of "Shared lesson expired".~~
+  started or is full. A skater who was already the coach's student gets this one instead of "Shared lesson expired".~~
   to Family B, when the invitation reaches the lesson's start unanswered, or when they try to accept and the lesson has
   gone or their skater is no longer the coach's student.
   *Changed 2026-10-13 (ADR-031 decision 5): the invited place is held from booking, so the lesson can't be full.*

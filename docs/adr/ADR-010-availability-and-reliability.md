@@ -70,6 +70,10 @@ An always-on up-check (home page and an API `/health` route) pages through decis
 **Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the deadline sweep's work shrinks to `EXPIRE` and
 `ANSWER`, with no shared-lesson warning and no 9pm timing. Its missed-run alarm is unchanged.
 
+**Amended — 2026-10-20.** *Decided by the owner:* deleting a student's data on request, with its
+reach into the archive, the monthly backups and point-in-time recovery, and the erased-ID list,
+is Phase 2. Until it ships, the restore runbook has no erased-ID list to re-apply.
+
 ---
 
 ## Context

@@ -38,7 +38,7 @@ coach the request is about, chosen from the family's links, and `linkStatus` is 
 (`ACTIVE` if any of the family's skaters is `ACTIVE` with that coach). No policy changes.
 
 **Amended — 2026-10-06.** [ADR-026](ADR-026-shared-lessons-by-invitation.md) adds one read statement to `client-tenant`: `GetItem` on
-`SKATERCODE#*`, limited to a skater's display name. Decision 9's gate tests gain rows for it.
+`SKATERCODE#*`, limited to a skater's display name. *(Widened 2026-10-20 to `studentId` and the display name; see below.)* Decision 9's gate tests gain rows for it.
 
 **Superseded in part — 2026-10-13.** *Decided by the owner.*
 [ADR-031](ADR-031-lessons-and-seats.md) replaces decision **8**'s retry attribution through GSI1
@@ -83,6 +83,16 @@ Every behaviour rule still holds unless ADR-031 says otherwise.
 on `COACH#<coachId>/STUDENT#<studentId>` (`studentStatus = ACTIVE`), which decision 8 already
 allows. Decision 6's read allowlist gains **`studentStatus`** on `STUDENT#` items, read by key
 only, for the share-check endpoint (ADR-033 decision 2a). Decision 9 gains rows 12 and 13.
+
+**Amended — 2026-10-20, later.** *Decided by the owner.* The share-code read statement (amendment
+2026-10-06) is widened by one attribute: `client-tenant`'s `GetItem` on `SKATERCODE#*` may return
+**`studentId` and the display name**, nothing else. `api-client` needs the ID to build the
+booking's `ConditionCheckItem` on `STUDENT#<studentId>` and the invited seat's key, and the
+share-check needs it to read `studentStatus` (ADR-033 decisions 2 and 2a). **The ID never leaves
+the server**: responses carry only the display name and `onCoachRoster`. The browser always sends
+the share code, never an ID, and **the booking resolves the code again itself** rather than
+reusing the share-check's answer. Decision 9 gains a row: the read returns those two attributes;
+any other attribute, no projection, or a `Query` is refused.
 
 ---
 

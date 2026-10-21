@@ -16,6 +16,12 @@
 Settles the gap in ADR-027's 2026-10-09 amendment, whose workflow started an import "in the dev
 account" with no table for it to load into.
 
+**Amended — 2026-10-20.** *Decided by the owner.* [ADR-029](ADR-029-skater-registration-number.md)'s
+**registration number** is masked like a name: the transform replaces it with a fake number in
+the right shape for the skater's `skatingOrg`, one that passes ADR-029 decision 4's shape check,
+on `SKATER#` and every `STUDENT#` copy alike, so the sign-up and profile forms work in dev. The
+seed data uses the same kind of fake numbers.
+
 ---
 
 ## Context

@@ -6,8 +6,8 @@
 `client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
 
 - **Share codes** ([ADR-026](../adr/ADR-026-shared-lessons-by-invitation.md) Consequences): a
-  share-code lookup returns only the display name; any other attribute, no projection, or a
-  `Query` is refused.
+  share-code lookup returns `studentId` and the display name only (*widened 2026-10-20,
+  ADR-022*); any other attribute, no projection, or a `Query` is refused.
 - **Lessons and seats** ([ADR-031](../adr/ADR-031-lessons-and-seats.md) Consequences and
   revision): rows for `LESSON#`, `SEAT#` and `SEATEND#` items and the deadline index (GSI4);
   the family's availability read of a lesson time leaves out `pendingLeave`; a family session

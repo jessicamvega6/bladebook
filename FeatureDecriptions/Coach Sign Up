@@ -57,7 +57,7 @@ Coach signup url will at some point be gated by a license number, the coaches wi
 
 
 coaches have USFSA/USA Hockey registration number which they will enter at sign up. 
-This number will be their coach code and will show up on their students profile page along with the coach name.  *Abandoned. no way to verify it is valid and for hockey this code changes. Implementing it adds more complexity for no reward.*
+This number will be their coach code and will show up on their students profile page along with the coach name.  *Abandoned 2026-10-12 (ADR-029): no way to verify it is valid and for hockey this code changes. Implementing it adds more complexity for no reward.*
 
 This registration number is provided by the USFSA/USA Hockey organization and changes each year. See if there is an API to hook into to validate a number.  *Abandoned. no way to verify it is valid and for hockey this code changes. Implementing it adds more complexity for no reward.* 
 

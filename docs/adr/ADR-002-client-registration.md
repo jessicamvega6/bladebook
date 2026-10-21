@@ -68,6 +68,8 @@ codes, the lookup's rate limit (ADR-019: 20 per 5 minutes per address) makes gue
 impractical. Skater share codes use the same characters in a different shape
 ([ADR-026](ADR-026-shared-lessons-by-invitation.md) decision 4).
 
+**Amended — 2026-10-16.** [ADR-029](ADR-029-skater-registration-number.md): Learn to Skate USA numbers are accepted too.
+
 **Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the 2026-10-07 amendment is superseded for MVP. An
 invitation is no longer a way onto a coach's roster; the coach code (decision 1) is the only way.
 The consent link is Phase 2.

@@ -721,6 +721,9 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
 
+.demo-bar__opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.demo-bar__opt input { accent-color: currentColor; }
+
 /* Client account screens (sign-up, home, profile, payments). Harbor tokens only. */
 .bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
 .bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
@@ -851,6 +854,8 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .bk-rescoach b { font-size: 16px; }
 .bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
 .bb .dialog .summary__note + .summary__note { margin-top: 6px; }
+
+.bb .bk-share__retry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }

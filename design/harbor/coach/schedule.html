@@ -893,7 +893,6 @@ function shell(body, width = 'narrow') {
 /* ---------- screens ---------- */
 function dashboard() {
   const days = [...new Set(state.def.blocks.flatMap(b => b.days.map((v, i) => v ? i : -1).filter(i => i >= 0)))].sort().map(i => DAYS[i]).join(' · ');
-  const up = BOOKINGS.filter(b => startOf(b) > NOW).sort((a, b) => startOf(a) - startOf(b));
   const t = (() => { const m = state.mode; state.mode = 'default'; const r = totals(); state.mode = m; return r; })();
   return shell(`
     ${state.flash ? banner('success', state.flash) : ''}
@@ -904,8 +903,6 @@ function dashboard() {
     </div>
     ${card(state.temps.map(x => row(`<span class="roundicon${x.kind === 'special' ? ' roundicon--alt' : ''}">${ic(x.kind === 'special' ? 'spark' : 'calOff', 16)}</span>${rowTitle(esc(x.name), x.kind === 'special' ? 'Special schedule' : 'No lessons')}`,
       `<span class="muted num">${rng(x.sd, x.ed)}</span>${x.kind === 'special' ? btn('Edit', 'ghost', `openTemp('${x.id}')`, { sm: true }) : ''}`)).join(''), { title: 'Time off and special schedules', flush: true })}
-    ${card(up.map(b => row(`<span class="avatar avatar--sm">${initials(b.who)}</span>${rowTitle(esc(b.who), whenOf(b))}`, `<span class="muted">${b.len} min</span><span class="money">${money(b.price)}</span>`)).join('') || '<div class="row"><span class="muted">No upcoming lessons.</span></div>',
-      { title: 'Booked lessons coming up', sub: 'Your changes are checked against these before anything is saved.', flush: true })}
     ${tryThis()}`);
 }
 function tryThis() {

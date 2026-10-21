@@ -111,7 +111,7 @@ outside A–Z skipped; a first name shorter than 3 letters is filled from the la
 `BOL`). Only the random part avoids look-alikes; the name letters can be any letter. A skater
 renamed later keeps their code, old letters included. Typing ignores case and the dash. Each
 three-letter start has about 17.2 million possible codes, so at the lookup's rate limit guessing
-a skater takes millions of tries, years from one address, and a hit returns only a display name.
+a skater takes millions of tries, years from one address, and a hit returns only a display name (to the family).
 
 **Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. The invitation's text pointing to the email waits for
 it; in MVP the invited family gets the email only.
@@ -151,9 +151,14 @@ warning, the banner, siblings, coaches seeing every skater — unless ADR-031 sa
 `ACTIVE` with the coach can be invited or added as a sibling. Moved to Phase 2: decision 5's rule
 underneath (*"A family can invite a skater the coach hasn't accepted"*), step 2's consent-link
 email, step 5, the `AWAITING_COACH` cases and how they close, all of decision 5a (the warning,
-the banners and the late-confirmation rule), and P3's answer. The text below is kept as the Phase 2
+the banners and the late-confirmation rule) *(clarified 2026-10-20: 5a's expiry at the lesson start, and screens working out "expired" from the time, stay MVP)*, and P3's answer. The text below is kept as the Phase 2
 record. A share-check endpoint tells the booking page whether the invited skater is on the coach's
 student list (ADR-033 decision 2a).
+
+**Amended — 2026-10-20, later.** *Decided by the owner.* Decision 4's share-code read returns the
+skater's **`studentId` and display name** to `api-client`, which needs the ID for the booking and the
+share-check (ADR-033); the family still sees only the display name. The booking resolves the code
+again itself. See ADR-022, amended 2026-10-20.
 
 ---
 
@@ -247,6 +252,8 @@ reads ~~`BOOKING#`~~ items for a date range. ~~Participants sort under `PARTICIP
 returned to a family looking at open times, and a determined family can't count them. *Since
 ADR-031 (2026-10-13): availability reads `LESSON#` items; seats sort under `SEAT#`.*
 
+*Since ADR-033 (2026-10-20): joining is always the invited family's own write; the coach's Accept joins no one.*
+
 **Joining is one transaction**, written by the invited family's own session, or by the coach's
 own session when the coach's Accept joins an invited skater (decision 5, which adds two more
 conditions):
@@ -279,7 +286,7 @@ gives out their coach code.
   the booking family can check it's the right skater. *Amended 2026-10-07.* It never returns the family, contact
   details or anything else. This needs **one new read statement on `client-tenant`**: `GetItem`
   on `SKATERCODE#*`, limited to the display-name attributes, like ADR-022 decision 7's coach-code
-  read. The gate tests gain rows for it (see Consequences).
+  read. *Amended 2026-10-20 (ADR-033; owner): the read returns `studentId` and the display name; `api-client` returns only the display name.* The gate tests gain rows for it (see Consequences).
 - **The same WAF rate limit as coach-code lookups** (ADR-019: 20 per 5 minutes per address)
   stops codes being guessed.
 - ~~**A family can issue a new code** for a skater, which retires the old one.~~ *Withdrawn
@@ -614,7 +621,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   accepts, and accepting sets it from Family B's own session.*
 - **`client-tenant` gains one read statement**, so the gate tests (runbook
   `database-gate-tests.md`) gain rows: a share-code lookup returns only the display name; any
-  other attribute, no projection, or a `Query` is refused.
+  other attribute, no projection, or a `Query` is refused. *(Since 2026-10-20: `studentId` and the display name, ADR-022.)*
 - **Everything that walks a lesson must include ~~participants~~ every seat (*ADR-031*):** the schedule-change consumer's
   cancel and re-price (ADR-020), the change notifier (one message per family), the drift check,
   the end-of-day report, the coach's cancellation, and erasure on request.
@@ -640,7 +647,7 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   *Revised 2026-10-13 (ADR-031 revision): Family 1's session also can't change Family 2's seat
   once Family 2 has accepted it — not ~~the share,~~ the status or the partner fields.* *Revised
   2026-10-13 (ADR-031): no share is stored; it is worked out (ADR-031 d7).*
-- A share-code lookup returns the display name and nothing else.
+- A share-code lookup returns the display name and nothing else. *(Since 2026-10-20: the family sees only the display name; the server's read also returns `studentId`, ADR-022.)*
 - A coach cancelling a shared lesson cancels every skater and notifies each family once.
 - ~~A `pendingJoins` entry for a lesson whose `invitedStudentId` isn't that skater writes nothing.~~
   *Obsolete since ADR-031 (2026-10-13): there are no `pendingJoins`. The Accept changes only that
