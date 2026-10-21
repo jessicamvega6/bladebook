@@ -85,3 +85,5 @@
 .bb .bk-rescoach b { font-size: 16px; }
 .bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
 .bb .dialog .summary__note + .summary__note { margin-top: 6px; }
+
+.bb .bk-share__retry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }

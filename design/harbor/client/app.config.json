@@ -14,5 +14,6 @@
     "Profile",
     "Phase 2"
   ],
-  "demoUrl": "https://claude.ai/artifact/2ttV1zZw51KiYbj5x8Cw4u"
+  "demoUrl": "https://claude.ai/artifact/2ttV1zZw51KiYbj5x8Cw4u",
+  "demoBarControls": " · <label class=\"demo-bar__opt\"><input type=\"checkbox\" data-act=\"bkShareFailToggle\"> Make the share-check fail</label>"
 }

@@ -721,6 +721,9 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
 
+.demo-bar__opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.demo-bar__opt input { accent-color: currentColor; }
+
 /* Client account screens (sign-up, home, profile, payments). Harbor tokens only. */
 .bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
 .bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
@@ -852,12 +855,14 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
 .bb .dialog .summary__note + .summary__note { margin-top: 6px; }
 
+.bb .bk-share__retry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+
 html, body { margin: 0; background: #F7F3EC; }
 .demo-bar a { color: inherit; font-weight: 700; }
 </style>
 </head>
 <body>
-<div class="demo-bar"><span><b>Interactive demo</b> · sample data · today is Wed, Oct 14, 8:15 AM · signed in as <a href="#home" data-act="asFamily" data-arg='["grace"]'>Grace Chen (approved)</a> or <a href="#home" data-act="asFamily" data-arg='["sarah"]'>Sarah Park (waiting for approval)</a> or <a href="#home" data-act="asFamily" data-arg='["tom"]'>Tom Okafor (invited to share Mia’s Friday lesson)</a> · signed-out pages: <a href="#login">Log in</a> · <a href="#signup">Sign up</a></span><button type="button" onclick="resetDemo()">Reset demo</button></div>
+<div class="demo-bar"><span><b>Interactive demo</b> · sample data · today is Wed, Oct 14, 8:15 AM · signed in as <a href="#home" data-act="asFamily" data-arg='["grace"]'>Grace Chen (approved)</a> or <a href="#home" data-act="asFamily" data-arg='["sarah"]'>Sarah Park (waiting for approval)</a> or <a href="#home" data-act="asFamily" data-arg='["tom"]'>Tom Okafor (invited to share Mia’s Friday lesson)</a> · signed-out pages: <a href="#login">Log in</a> · <a href="#signup">Sign up</a></span> · <label class="demo-bar__opt"><input type="checkbox" data-act="bkShareFailToggle"> Make the share-check fail</label><button type="button" onclick="resetDemo()">Reset demo</button></div>
 <div class="bb" data-layout="top"><div id="app"></div></div>
 <script>
 /* BladeBook screen library — extracted unchanged from design/redesign/option-5-harbor.html
@@ -2655,13 +2660,28 @@ const bkUntilError = u => !u.repeat ? '' : !u.until ? 'Pick an end date.' : u.un
 const bkShareable = x => (slotsFor(x.coach, x.iso).find(s => s.t === x.t) || {}).maxSkaters >= 2;
 /** The coach of the lesson being shared: the coach of the first pick that can be shared. */
 const bkShareCoach = u => (u.sel.find(bkShareable) || {}).coach || DANA;
+/* The share-check is a network call, so a whole code is first 'checking', then answered or 'failed' (ADR-033 2a, amended
+   2026-10-20). An answer counts only for the exact code and coach it was asked about: changing either asks again.
+   u.shareChk = { key: '<code>|<coach>', at: 'checking' | 'done' | 'failed' }. The demo answers after a short pause, and the
+   demo bar's "Make the share-check fail" box makes it fail. Static pages have no network: a preset that sets no shareChk
+   shows the answer. */
+let DEMO_SHARE_FAILS = false;
+const BK_SHARE_WAIT_MS = 700;
+function bkShareAsk(u, key) {
+  u.shareChk = { key, at: 'checking' };
+  setTimeout(() => { if (u.shareChk && u.shareChk.key === key && u.shareChk.at === 'checking') { u.shareChk.at = DEMO_SHARE_FAILS ? 'failed' : 'done'; render(); } }, BK_SHARE_WAIT_MS);
+}
 function bkShareState(u, k) {
   const raw = String(u.share || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
   if (!raw) return { st: 'empty' };
   if (raw.length < 8) return { st: 'typing' };   // 3 letters + 5 random (ADR-026 d4, 2026-10-13)
+  if (k.shareCode && k.shareCode.replace(/[^A-Z0-9]/g, '') === raw) return { st: 'self', s: k };   // the page knows its own skater's code; no call
+  const key = `${raw}|${bkShareCoach(u)}`, chk = u.shareChk && u.shareChk.key === key ? u.shareChk : null;
+  if (!chk && typeof document !== 'undefined') { bkShareAsk(u, key); return { st: 'checking' }; }
+  if (chk && chk.at === 'checking') return { st: 'checking' };
+  if (chk && chk.at === 'failed') return { st: 'failed' };
   const s = state.students.find(x => x.shareCode && x.shareCode.replace(/[^A-Z0-9]/g, '') === raw);
   if (!s) return { st: 'wrong' };   // share-check 404
-  if (s.id === k.id) return { st: 'self', s };
   const sibling = s.client === state.me.name, onCoachRoster = linkOf(s, bkShareCoach(u)) === 'ACTIVE';
   return { st: onCoachRoster ? 'found' : sibling ? 'siblingWaiting' : 'notStudent', s, name: shortName(s.name), sibling };
 }
@@ -2671,19 +2691,22 @@ function bkShareBox(u, k, picks) {
   const sh = bkShareState(u, k), s = sh.s, fn = s && esc(firstName(s.name)), coach = esc(coachById(can[0].coach).first);
   const err = sh.st === 'wrong' ? 'That code doesn’t match a skater. Check it with the other family.' : sh.st === 'self' ? `That’s ${esc(firstName(k.name))}’s own code. Enter the other skater’s code.`
     : sh.st === 'notStudent' ? `${esc(sh.name)} isn’t one of Coach ${coach}’s students yet. ${fn}’s family can sign up with Coach ${coach}’s code, and once Coach ${coach} accepts ${fn} you can share a lesson.`
-    : sh.st === 'siblingWaiting' ? `${fn} is not available to add until Coach ${coach} accepts them.` : '';
+    : sh.st === 'siblingWaiting' ? `${fn} is not available to add until Coach ${coach} accepts them.`
+    : sh.st === 'failed' ? 'Couldn’t check that code. Try again.' : '';
   const which = can.length < picks.length ? ` Only ${can.map(x => `${DOW[dowOf(x.iso)]} ${fmtT(x.t)}`).join(' and ')} can be shared.` : '';
   const found = sh.st !== 'found' ? '' : `<div class="found">${avatar(initials(s.name), 'sm')}<div><div class="found__name">${esc(sh.name)}</div><div class="found__sub">${!sh.sibling ? 'Their family gets an email to accept.' : `In your family, so ${fn} is added directly. No invitation.`}</div></div>${badge('Code found', 'success', 'check')}</div>`;
   return `<div class="bk-share"><div class="bk-share__head">${ic('users', 16)}<b>Share this lesson</b><span class="label__opt">Optional</span></div>
     <p class="fine">Enter another skater’s share code${sibs.length ? ', or add one of your own skaters' : ''}. Only Coach ${coach}’s students can share a lesson. Another family must accept before their skater joins. Once they join, the lesson’s price is split: each skater pays ${money(can[0].price / 2)} instead of ${money(can[0].price)}.${u.repeat ? ' Every lesson in the series is shared.' : ''}${which}</p>
-    ${INP('bk-share', 'Skater’s share code', 'ui.book.share', { live: true, mono: true, placeholder: 'e.g. LIL-6T2NB', error: err, hint: sh.st === 'typing' ? 'Keep typing. Book stays off until the whole code is in, or the box is empty.' : '' })}
+    ${INP('bk-share', 'Skater’s share code', 'ui.book.share', { live: true, mono: true, placeholder: 'e.g. LIL-6T2NB', error: err, hint: sh.st === 'typing' ? 'Keep typing. Book stays off until the whole code is in, or the box is empty.' : sh.st === 'checking' ? 'Checking the code… Book stays off until it’s checked.' : '' })}
+    ${sh.st === 'failed' ? `<div class="bk-share__retry">${B('Try again', 'secondary', 'bkShareRetry', { sm: true, icon: 'refresh' })}<span class="fine">Book stays off until the code is checked, or the box is empty.</span></div>` : ''}
     ${found}
     ${sibs.length ? `<div class="bk-share__sibs"><div class="label">Your skaters</div><div class="listbox">${sibs.map(x => { const ok = linkOf(x, can[0].coach) === 'ACTIVE', xf = esc(firstName(x.name)), on = ok && sh.s === x;
       return row(`${avatar(initials(x.name), 'sm')}${rowTitle(esc(x.name), ok ? `Coach ${coach}’s student · added directly, no invitation` : `Not available to add until Coach ${coach} accepts them`)}`,
         ok ? (on ? badge('Added', 'success', 'check') : B(`Add ${xf}`, 'secondary', 'bkShareSib', { sm: true, args: [x.id] })) : badge('Not available', 'neutral', 'lock'), { muted: !ok }); }).join('')}</div></div>` : ''}</div>`;
 }
 /** A typed code must check out before the booking can continue (ADR-026 d5): a skater not on the coach's student list
-    stops the booking at the share step, and nothing is booked (ADR-033 d2). */
+    stops the booking at the share step, and nothing is booked (ADR-033 d2). Book stays off while the code is being
+    typed, is being checked, couldn't be checked, or answered anything but 'found' (ADR-033 2a, amended 2026-10-20). */
 const bkShareBlocks = (u, k) => { const st = bkShareState(u, k).st; return u.sel.some(bkShareable) && st !== 'empty' && st !== 'found'; };
 MODALS.bkConfirm = () => {
   const u = bkUi(), k = bkKid(), occ = bkOccurrences(u), err = bkUntilError(u);
@@ -3005,6 +3028,10 @@ Object.assign(ACTIONS, {
   bkFullCancel(id) { const l = state.lessons.find(x => x.id === id); state.lessons = state.lessons.filter(x => x !== l); state.flash = `${firstName(student(l.sid).name)}’s lesson on ${dDow(l.iso)} at ${fmtT(l.t)} is cancelled, with no charge.`; },
   /** Pick one of the family's own skaters to add; only one the coach has accepted has the button (ADR-033 d1). */
   bkShareSib(id) { bkUi().share = student(id).shareCode; },
+  /** Ask the share-check again after it failed (a network error or the firewall's rate limit). */
+  bkShareRetry() { const u = bkUi(); u.shareChk = null; },
+  /** Demo bar: make the next share-checks fail, to show "Couldn't check that code". */
+  bkShareFailToggle() { DEMO_SHARE_FAILS = !DEMO_SHARE_FAILS; const u = bkUi(); if (u.shareChk && u.shareChk.at !== 'checking') u.shareChk = null; },
   bkWithdrawOpen(id) { state.modal = { kind: 'bkWithdraw', id }; },
   bkWithdraw() {
     const inv = state.invites.find(i => i.id === state.modal.id), b = student(inv.skater);
@@ -3060,6 +3087,8 @@ PRESETS.push(
   { id: 'ClientShareLeft', file: 'home-share-left', group: 'Shared lessons', title: 'Home — the other skater cancelled', note: 'New (owner, 2026-10-13). Mia shared Monday, Oct 19 at 6:00 with Owen B., and Owen cancelled in time. Grace chooses: keep it private at the full $50, or cancel with no charge. With no answer by Sunday at 6:00 AM (the start of the notice period), it’s cancelled with no charge. The same card shows on My bookings.', setup: st => { st.screen = 'home'; const l = bkShareDemo(st, 's7'); bkLeaveShared(l, 's7', false); } },
   { id: 'ClientShareConfirm', file: 'book-share-confirm', group: 'Shared lessons', title: 'Confirm — share this lesson', note: 'New (ADR-026 d5). Mia’s Monday 9:30 is on morning ice, which can be shared, so the pop-up shows the share box; the 4:00 PM power hour is private, so the box says only 9:30 can be shared. ELL-3HTVP checks out as “Ella A.”: the share-check returns only her display name and that she’s on Coach Dana’s student list (ADR-033 d2a). Below the box, Grace’s own skaters: Noah is Coach Dana’s student, so he can be added directly.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); st.ui.book.share = 'ELL-3HTVP'; st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientShareWrong', file: 'book-share-no-match', group: 'Shared lessons', title: 'Confirm — share code doesn’t match', note: 'New. A repeating booking shares every lesson in the series. The code matches no skater, so Book stays disabled until it’s fixed or cleared.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELL-3HTVR' }); st.modal = { kind: 'bkConfirm' }; } },
+  { id: 'ClientShareChecking', file: 'book-share-checking', group: 'Shared lessons', title: 'Confirm — checking the share code', note: 'New (ADR-033 2a, amended 2026-10-20). Grace has typed the whole of ELL-3HTVP and the share-check hasn’t answered yet. The box says it’s checking, and Book stays off until it answers. Changing the code, or picking another coach’s lesson, asks again.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); st.ui.book.share = 'ELL-3HTVP'; st.ui.book.shareChk = { key: `ELL3HTVP|${DANA}`, at: 'checking' }; st.modal = { kind: 'bkConfirm' }; } },
+  { id: 'ClientShareCheckFailed', file: 'book-share-check-failed', group: 'Shared lessons', title: 'Confirm — couldn’t check the share code', note: 'New (ADR-033 2a, amended 2026-10-20). The share-check didn’t answer: no signal, or too many tries from one address (the firewall allows 20 in 5 minutes). The box says “Couldn’t check that code. Try again.” with a Try again button; Book stays off until the code is checked or the box is cleared. Clearing it books a private lesson.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); st.ui.book.share = 'ELL-3HTVP'; st.ui.book.shareChk = { key: `ELL3HTVP|${DANA}`, at: 'failed' }; st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientShareOwnCode', file: 'book-share-own-code', group: 'Shared lessons', title: 'Confirm — skater’s own share code', note: 'New. Grace entered Mia’s own share code while booking for Mia. The box says so and asks for the other skater’s code; Book stays off until it’s fixed or cleared, as with a code that matches no one.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); st.ui.book.share = st.students.find(x => x.id === 's1').shareCode; st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientShareResult', file: 'book-share-result', group: 'Shared lessons', title: 'Result — invitation sent', note: 'New. Mondays at 9:30 booked for Mia as normal, private until Ella’s family accepts; their invitation email has gone.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELL-3HTVP' }); ACTIONS.bkBook(); } },
   { id: 'ClientShareBookings', file: 'bookings-shared', group: 'Shared lessons', title: 'My bookings — shared lessons', note: 'New (ADR-026 d5 step 6). Mia’s Mondays wait for Ella’s family, and her Friday 8:30 for Zoe’s; both can be withdrawn until the family answers. Once they accept, the seat is booked (ADR-033).', setup: st => { bkSel(st, 's1', [['2026-10-19', 570]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', share: 'ELL-3HTVP' }); ACTIONS.bkBook(); go('bookings'); } },

@@ -16,7 +16,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 55 pages. |
+| `client/` | The family website: 57 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
 ## Coach website — `coach/`
@@ -68,7 +68,7 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 `client/static/index.html` (gallery) and `client/demo/index.html` (demo). Sources: `app.js`
 (families, shell), `screens-booking.*` (book, pick times, confirm and repeat, results,
-My bookings, cancel, change a repeating lesson, sharing a lesson, the share step refusing a skater who isn’t the coach’s student, a sibling not yet accepted, and withdrawing an invitation) and `screens-account.*`
+My bookings, cancel, change a repeating lesson, sharing a lesson, the share step refusing a skater who isn’t the coach’s student, a sibling not yet accepted, the share-check still checking or failing (Book stays off; the demo bar’s “Make the share-check fail” box shows the failure), and withdrawing an invitation) and `screens-account.*`
 (log in, forgot password, sign-up with a coach code, home, profile with share codes, the shared-lesson invitation page and its accepted state,
 payments in Phase 2). Texts to families are Phase 2, so the SMS opt-ins show as Phase 2.
 
