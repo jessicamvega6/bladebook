@@ -54,7 +54,7 @@ rebuilds booking as **lesson times** and **seats**. What it means here:
   2026-10-13 (option B): ~~seats also carry `INVITER_LEFT`~~ (ADR-031 decision 12). The sweep is the
   one function that can delete records in every coach's area.* *Revised 2026-10-13 (ADR-031 d5,
   d12): `INVITER_LEFT` sits on the **lesson time**, naming the invited seat, so lesson times carry
-  `ANSWER` and `INVITER_LEFT` and seats carry `WARN` and `EXPIRE`.*
+  `ANSWER` and `INVITER_LEFT` and seats carry `WARN` and `EXPIRE`.* *Corrected 2026-10-20: one of three functions whose execution role can delete in any coach's partition, with `consumer-schedule-change` and `consumer-student-link`.*
 - **The coach's Accept** now turns every one of the accepted skater's `AWAITING_COACH` seats
   into `BOOKED`, in the coach's own partition and session, as ADR-026's automatic join did.
 - **Decision 7's gate tests need new rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4

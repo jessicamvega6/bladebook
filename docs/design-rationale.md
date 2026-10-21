@@ -10,7 +10,7 @@ Where this document and an ADR disagree, the ADR wins.
 
 ## The shape of the system
 
-BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$20–32 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
+BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
 
 ## What drives the choices
 
@@ -123,7 +123,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Web Application Firewall on the API and Cognito
 
-**What it is.** AWS managed rules plus per-address rate limits: 1,000 per 5 minutes overall, 20 for client sign-up and coach-code lookup, 10 for Cognito sign-up and sign-in.
+**What it is.** AWS managed rules plus per-address rate limits: 1,000 per 5 minutes overall, 20 for client sign-up and the coach-code and share-code lookups, including the share-check (one rule; ADR-026 d4, ADR-033), 10 for Cognito sign-up and sign-in.
 
 **Why.** Several routes are reachable before sign-in, and the coach-code lookup can be enumerated. It is the only per-address rate limit available. Production counts for two weeks after launch before blocking, so a misfiring rule can't lock out a real coach.
 
@@ -381,7 +381,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 **What it is.** The table can be restored to any second in the last 35 days, and can't be deleted by a stray deploy.
 
-**Why.** There is a consumer whose job is deleting bookings in bulk; nothing else could recover a term destroyed by a wrong rule.
+**Why.** There is a consumer whose job is deleting bookings in bulk; nothing else could recover a term destroyed by a wrong rule. A monthly export to S3, kept 12 months, covers corruption noticed after the 35 days (ADR-010, 2026-10-12).
 
 *Full reasoning:* ADR-010 decision 7
 
@@ -462,7 +462,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 | Item | Idle, per month |
 |---|---|
 | Compute, database, API, email, events | $2–6 |
-| WAF | ~$10 |
+| WAF | ~$12 |
 | SMS number and carrier fees (coach alerts only in MVP) | $3–12 |
 | Alarms, domain and DNS | ~$4 |
 | Production canary's credentials (Secrets Manager) | ~$0.40 |
@@ -473,4 +473,4 @@ The architecture itself is close to free when idle. Most of the bill is fixed fe
 
 ## Still open
 
-Still undecided: CDK or Terraform; how deletion requests work; the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.
+Still undecided: CDK or Terraform; how deletion requests work (Phase 2, owner 2026-10-20); the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.

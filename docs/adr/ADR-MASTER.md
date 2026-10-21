@@ -150,7 +150,7 @@ held by code and tests.
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` | *Role not yet written* | — | — |
-| `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | `ses:SendEmail` |
+| `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
@@ -194,7 +194,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Coach's skater record | `COACH#<coachId>` | `STUDENT#<studentId>` | `clientId`, `studentStatus`, `studentName`, contact copies (`clientName`, `clientEmail`, `clientPhone`), `skatingOrg`, `registrationNumber` |
 | Lesson time | `COACH#<coachId>` | `LESSON#<date>#<startTime>` | `lessonStatus`, `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `missedLessonFeeMinor`, `requiredNoticeHours`, `maxSkaters`, `seatsTaken`, `shareCount`, `joinOrder`, `blockSeq`, `iceType`, `scheduleVersion`, `pendingLeave`, `dueAt`/`dueKind` |
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
-| Ended invitation | `COACH#<coachId>` | `SEATEND#<date>#<startTime>#<studentId>#<isoTs>` | `seatOutcome`, `endedAt`, `endedBy`, `studentId`, `studentName`, `clientId`, `inviteId` |
+| Ended invitation | `COACH#<coachId>` | `SEATEND#<date>#<startTime>#<studentId>#<isoTs>` | `seatOutcome`, `endedAt`, `endedBy` (the family or `SWEEP`; the coach from Phase 2), `studentId`, `studentName`, `clientId`, `inviteId` |
 | Change batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource`, `cancelledBy`, acting identity, `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount`, `planStatus`, `executionStatus` |
 | Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
 | Re-price line | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<seatKey>` | seat, skater, family, date and time, old and new price and fee, `direction`, `executionStatus`, `notificationStatus` |
@@ -202,7 +202,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
 | Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name |
 | Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus` |
-| Share code | `SKATERCODE#<code>` | — | the skater's ID and display name |
+| Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
 
 The family profile is the **source of truth** for contact details, and the `SKATER#` item for who
 the skater is. The coach's `STUDENT#` record holds copies.
@@ -404,7 +404,9 @@ Every skater has one, for inviting them to a shared lesson (§8):
 - Issued by `consumer-family-sync` when the `SKATER#` item is created, as a `SKATERCODE#` item
   with `attribute_not_exists(PK)`, copied onto `SKATER#`.
 - **Never changes**, including on a rename. The profile shows it with **Copy** only.
-- A lookup checks only that the skater exists and returns **only a display name** (*"Mia R."*).
+- A lookup checks only that the skater exists. The server's read returns the skater's `studentId` and
+  display name; the family sees **only the display name** (*"Mia R."*). The ID never leaves
+  `api-client`, the browser sends only the code, and the booking resolves the code again itself.
 
 ---
 
@@ -556,7 +558,7 @@ ahead than you can book."*). The window only grows, so a retry is never refused 
   `studentStatus = ACTIVE`, in the same transaction (ADR-033).
 
 Checked before anything is written: the skater is linked and `ACTIVE` with that coach
-(`requireActive`, §16), the invited skater or sibling is `ACTIVE` with the coach, each pick is
+(`requireActive`, §16), the invited skater or sibling is `ACTIVE` with the coach (the share-check's answer; the transaction's `ConditionCheckItem` stays the authority), each pick is
 inside the window, a series' end date is no more than 12 months after its first pick.
 
 **A failed date is attributed by reading the family's own seat key** for that skater (strongly
@@ -639,12 +641,16 @@ presents it in that order.
   the token; the caller must have a skater `ACTIVE` with that coach, else the ordinary 404.
   `api-client` resolves the code to the skater ID (never returned) and reads that coach's
   `STUDENT#<studentId>` projecting only `studentStatus`. `onCoachRoster` is true only for
-  `ACTIVE`; `PENDING` and never-a-student both answer false. Covered by the share-code firewall
+  `ACTIVE`; `PENDING` and never-a-student both answer false. Covered by the firewall's code-lookup
   rule (§17); writes an access-log line (§18). It is advice for the screen: the booking
   transaction's `ConditionCheckItem` (§7) stays the authority.
 - **Refused at the share step:** *"Mia R. isn't one of Coach Dana's students yet. Mia's family can
   sign up with Coach Dana's code, and once Coach Dana accepts Mia you can share a lesson."*
   Nothing is booked.
+- **Book stays disabled** while the share-code box has anything in it, until the share-check for
+  that exact code and coach answers `onCoachRoster: true`. A check in flight, a failed or
+  rate-limited check, and a changed code or coach all keep it off; clearing the box allows a
+  private booking (ADR-033 2a, amended 2026-10-20).
 - **The booking transaction puts the invited seat**: `INVITED`, the invited skater's `studentId`
   and display name, `inviteId`, `invitedByClientId`; **no `clientId`, no GSI1 keys**. It holds the
   place at once.
@@ -1230,7 +1236,8 @@ notified.
     `ReturnValues` held to `NONE` — applies to `PENDING` sessions too. The booking's
     `ConditionCheckItem` on the invited skater's `STUDENT#` item (§7) needs no policy change;
   - **`CODE#*`**: `GetItem` of `coachId` and the coach's name and photo key only;
-  - **`SKATERCODE#*`**: `GetItem` of the display name only.
+  - **`SKATERCODE#*`**: `GetItem` of `studentId` and the display name only (the ID is never returned
+    to the browser).
 - **`code-lookup`** (before sign-in, untagged): `GetItem` on `CODE#*` for those attributes,
   `Select = SPECIFIC_ATTRIBUTES`, nothing else.
 - **`ReturnValuesOnConditionCheckFailure` is never used on the client path** (an ArchUnit rule on
@@ -1311,8 +1318,8 @@ same coach (held by `LinkedSkater` and the ownership condition).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
 - **Family reads are logged** with `clientRelationship`.
 - **Also logged:** contact reveals on the rinkside page, the rink-number download, archive
-  restores (who, which coach and skater, reason, when), the link-check security events, and the
-  share-check route, which returns a skater's display name (ADR-033).
+  restores (who, which coach and skater, reason, when), the link-check security events, the
+  share-code lookup and the share-check route, which return a skater's display name (ADR-012, ADR-033).
 - **Not logged:** the financial page's summary export (no personal data).
 - **Its own log group** with its own read policy. Only the owner's operator role can read it,
   through IAM Identity Center with MFA. Nothing logs reads of the access log.
@@ -1415,7 +1422,7 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 - **Monthly DynamoDB export to S3**, triggered by EventBridge Scheduler, stored in S3 Glacier
   Instant Retrieval, deleted after 12 months.
 - **Restore** goes to a new table; recovery **copies data back by default** and repoints only for
-  total loss. The runbook pauses notifications during a restore and re-applies the erased-ID list.
+  total loss. The runbook pauses notifications during a restore and, once erasure ships (Phase 2), re-applies the erased-ID list.
 
 ---
 
@@ -1442,7 +1449,7 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Change batch header | With its lines | **Never earlier than its latest line** (only ever raised) |
 | Recurrence header | Written, and when its end date moves | `endDate` + booking window |
 | Rejected `PENDING` skater | — | **Deleted immediately** |
-| Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle and erasure on request |
+| Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle; erasure on request from Phase 2 |
 
 - **Every window holding lesson or payment records is at least 16 months.** The other windows wait
   on the legal review.
@@ -1522,7 +1529,8 @@ production's.
   `CLIENT#` profile and links, `SKATER#`, `CANCELLED#` lines); the coach's `firstName`, `lastName`,
   `loginEmail`, `businessEmail`, `phone`, `paymentInstructions` (replaced wholesale), payment
   handles and `coachCode`; the `CODE#` key, rewritten to the same masked code; registration
-  numbers; names in reports.
+  numbers (a fake in the right shape for the skater's organization, ADR-028 amended 2026-10-20);
+  names in reports.
 - **Undeliverable by construction:** emails `<token>@example.com`; phones `+1 555 01XX`; names from
   a fixed word list. Masked coach codes are valid-looking.
 - **Deterministic** within a build (same input, same output), with a **salt rotated every build and
@@ -1598,7 +1606,7 @@ database-gate tests; reproducing an incident (masked build).
   never a no-show); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's
   availability, a family can't change another family's accepted seat, a share-code lookup
-  returns only the name, a coach cancel covers every seat and notifies each family once, a
+  returns only the name (to the family), a coach cancel covers every seat and notifies each family once, a
   `PENDING` skater is refused as a sibling or invitee, a booking naming a non-`ACTIVE` invitee is
   refused whole, a skater declined between invitation and answer can't accept, the inviting
   family's cancel after acceptance is an ordinary leave, the share-check answers false for a
@@ -1675,6 +1683,9 @@ database-gate tests; reproducing an incident (masked build).
   `AWAITING_COACH` seats, the warning and its 9pm timing, the banners, the late-confirmation rule,
   `INVITER_LEFT`, the coach's Accept joining seats, and their emails. Answer review gap G16 first,
   for example with rotatable share codes (ADR-033).
+- Deleting a skater's data on request (erasure): choosing between the two drafts in `docs/deletion/`,
+  reaching the table, the archive, the monthly backups and every coach the skater had, plus the
+  erased-ID list a restore re-applies (owner, 2026-10-20).
 - In-app payments; waitlists and packages; coach analytics; multi-timezone scheduling (one rule per
   timezone).
 
@@ -1697,7 +1708,8 @@ database-gate tests; reproducing an incident (masked build).
   rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4, and ADR-033's rows (the booking's
   `ConditionCheckItem` refused whole for a non-`ACTIVE` invitee; the `studentStatus`-only
   projection allowed for an `ACTIVE` session, other `STUDENT#` attributes and `PENDING` sessions
-  refused).
+  refused), and the share-code read's row (`studentId` and the display name only; any other
+  attribute, no projection, or a `Query` refused).
 - **IAM roles** for `sched-lesson-roller` and `sched-deadline-sweep`.
 - **Event names** for `consumer-invite`'s trigger and the roller's and sweep's schedules.
 - **Which function sends the coach's SMS opt-in confirmation.**
@@ -1714,6 +1726,7 @@ database-gate tests; reproducing an incident (masked build).
 - How the business-email confirmation link is built and how long it lasts.
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
 - Whether the 7-day answer-by should be checked with Kim.
+- **Whether a coach booking for a family (Phase 2) is held to the 3-month window** (ADR-031 Open).
 - Whether suppression of the coach's number should also switch off `smsCancellationAlerts`.
 - Whether other actions need a recent sign-in (day or week cancellation, approve and decline,
   changing contact or payment details).
@@ -1767,18 +1780,18 @@ Which ADRs feed which sections. Read an ADR for the reasoning and the alternativ
 | [016](ADR-016-coach-signup.md) | Coach sign-up | §4, §13 |
 | [017](ADR-017-data-retention-ttl-and-archive.md) | Retention, TTL and archive | §20 |
 | [018](ADR-018-unpaid-lesson-reminder-to-coach.md) | Unpaid-lesson reminder | §12 |
-| [019](ADR-019-waf-in-mvp.md) | Web Application Firewall | §1, §17 |
+| [019](ADR-019-waf-in-mvp.md) | Web Application Firewall | §1, §8, §17 |
 | [020](ADR-020-repricing-booked-lessons.md) | Re-pricing booked lessons | §9 |
 | [021](ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database | §16, §22 |
-| [022](ADR-022-client-isolation-at-the-database.md) | Client isolation at the database | §16, §22 |
+| [022](ADR-022-client-isolation-at-the-database.md) | Client isolation at the database | §5, §8, §16, §22 |
 | [023](ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside joins the coach website | §1, §11, §13, §15 |
 | [024](ADR-024-client-write-link-check.md) | The client write link check | §16 |
 | [025](ADR-025-many-coaches-per-skater.md) | Many coaches per skater | §5, §7 |
-| [026](ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation | §5, §8 |
+| [026](ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation | §5, §8, §16 |
 | [027](ADR-027-on-demand-dev-environment.md) | On-demand dev environment | §19, §21 |
 | [028](ADR-028-dev-table-built-from-one-import.md) | Dev table built from one import | §21 |
-| [029](ADR-029-skater-registration-number.md) | Skater registration number | §5 |
+| [029](ADR-029-skater-registration-number.md) | Skater registration number | §5, §18 |
 | [030](ADR-030-financial-page-gross-and-rink-fees.md) | Financial page | §12 |
 | [031](ADR-031-lessons-and-seats.md) | Lessons and seats | §3, §7, §8, §9 |
 | [032](ADR-032-ci-on-github-actions.md) | CI on GitHub Actions | §23 |
-| [033](ADR-033-invite-only-accepted-skaters.md) | Only a coach's accepted skaters can share a lesson | §3, §5, §7, §8, §13, §16, §22, §24 |
+| [033](ADR-033-invite-only-accepted-skaters.md) | Only a coach's accepted skaters can share a lesson | §2, §3, §5, §7, §8, §13, §16, §17, §18, §22, §24 |

@@ -23,7 +23,7 @@ Lambda authorizer. The built-in Cognito authorizer is enough.
 
 **Amended — 2026-10-07.** [ADR-027](ADR-027-on-demand-dev-environment.md): decisions 4–4b apply to the on-demand **dev** stack, which
 replaces staging. Its firewall is still off by default and switched on to rehearse block mode,
-and it is now paid for only while dev exists — production's ~$10 a month is the steady cost.
+and it is now paid for only while dev exists — production's ~$10 a month is the steady cost. *(About $12 since the 2026-10-20 recount.)*
 
 **Amended — 2026-10-15.** *Decided by the owner.* [ADR-027](ADR-027-on-demand-dev-environment.md)
 adds an API route that needs no sign-in, **`/health`**, for the always-on up-check. **It is
@@ -35,6 +35,18 @@ enough for the health checkers' own calls (Open).
 resolves a share code and answers whether that skater is on the coach's student list. Decision 2's
 share-code rate rule (20 per 5 minutes per address) covers it.
 
+**Amended — 2026-10-20.** *The cost, recounted.* The web ACL now carries **seven rules**: the
+three managed rule groups, the rate rules for everything, for client sign-up and the code
+lookups, and for Cognito, and the `/health` rule (2026-10-15). At about $5 for the ACL plus $1
+per rule, production's firewall is about **$12 a month**, not $10. (Consequences' "five rules"
+already undercounted decision 2's six.)
+
+**Amended — 2026-10-20, later.** *Decided by the owner.* There is no separate share-code rule. The
+earlier 2026-10-20 note's "decision 2's share-code rate rule" means **decision 2's client sign-up
+and coach-code rule, whose scope widens** to the share-code lookup and `POST /api/client/share-check`
+(ADR-026 decision 4, ADR-033 decision 2a). Same limit, 20 per 5 minutes per address, one counter
+across all four routes. Still seven rules.
+
 ---
 
 ## Context
@@ -42,7 +54,7 @@ share-code rate rule (20 per 5 minutes per address) covers it.
 A Web Application Firewall (WAF) inspects requests before they reach the application and
 blocks known attack patterns, known-bad sources and floods from one address. §7 has always
 recommended one "given security priority", and §2 left it optional because of cost: at
-roughly $10 a month it is the largest single line in §12.
+roughly $10 a month it is the largest single line in §12. *(About $12 by the 2026-10-20 count.)*
 
 Three things argue for it here more than in a typical small app:
 
@@ -99,7 +111,7 @@ BladeBook's volume that is cents a month.
 | AWS managed **known bad inputs** | Request patterns associated with known exploits |
 | AWS managed **IP reputation list** | Sources AWS has identified as malicious |
 | **Rate-based rule, everything** | Blocks a single address sending **more than 1,000 requests in 5 minutes** — about 3 a second sustained. Generous because a rink's or school's Wi-Fi can put many families behind one address. |
-| **Rate-based rule, client sign-up and coach-code lookup** | **20 requests per 5 minutes** per address. A family enters a code once or twice; at 20, guessing even a small share of the roughly 28 million five-character codes would take one address years. |
+| **Rate-based rule, client sign-up and coach-code lookup** *(since 2026-10-20 also the share-code lookup and `/share-check`)* | **20 requests per 5 minutes** per address. A family enters a code once or twice; at 20, guessing even a small share of the roughly 28 million five-character codes would take one address years. |
 | **Rate-based rule, Cognito sign-up and sign-in** | **10 requests per 5 minutes** per address, on the user pool's association |
 
 *Numbers decided by the owner, 2026-09-30.* Each counts requests per source address over a
@@ -173,7 +185,7 @@ being built and tested there. **Turning it on, in block mode, is one of the last
 in staging before the initial launch:** enable it, run the Playwright flows and the main coach
 and client journeys, fix any rule that misfires, and only then launch — with production in
 count mode for its first two weeks. After launch, staging's firewall can be switched off
-again to save about $10 a month, and back on before any release that changes the API's
+again to save about $10 a month *(about $12 since 2026-10-20)*, and back on before any release that changes the API's
 routes or the shape of its requests.
 
 Production's firewall is never switched off: it is the answer to code-guessing and sign-up
@@ -207,7 +219,7 @@ delivered — cents a month here, nothing while off.
 ## Consequences
 
 - **The idle budget moves.** A web ACL costs about $5 a month plus $1 per rule, so the five
-  rules above come to about **$10 a month per environment** — about $20 with staging's copy —
+  rules above come to about **$10 a month per environment** *(recounted 2026-10-20: seven rules, about $12; see Status)* — about $20 with staging's copy —
   plus $0.60 per million requests, which is negligible here. §12's idle subtotal of about
   $2–6 becomes about **$12–16 for production alone**, above §1's stated target of about
   $2–10. See Open.

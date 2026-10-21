@@ -339,7 +339,7 @@ code families type to find them. Both numbers can change each season.
 - ~~**Whether a coach's registration number can safely be their coach code**~~ *Decided
   2026-10-12: no, BladeBook generates it.*
 - ~~**Whether Canadian skaters and coaches are supported**~~ *Decided 2026-10-12: Phase 2.*
-- **The validation rule for US Figure Skating numbers** (question 7, `Open-Pending.md` §2b).
+- **The validation rule for US Figure Skating and Learn to Skate USA numbers** (question 7, `Open-Pending.md` §2b).
 
 ---
 

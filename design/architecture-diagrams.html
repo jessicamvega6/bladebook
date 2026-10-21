@@ -399,7 +399,7 @@ flowchart LR
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
         L_Roller[&quot;λ Lesson-time roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
-        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · email · DeadlineSweepCompleted&quot;]
+        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · DeadlineSweepCompleted&lt;br/&gt;(its emails go through consumer-invite and the change notifier)&quot;]
     end
 
     subgraph OnStream[&quot;Run on an expired item&quot;]
@@ -439,7 +439,7 @@ flowchart LR
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
         L_Roller[&quot;λ Lesson-time roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
-        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · email · DeadlineSweepCompleted&quot;]
+        L_Sweep[&quot;λ Deadline sweep (hourly, ADR-031)&lt;br/&gt;table read/write · DeadlineSweepCompleted&lt;br/&gt;(its emails go through consumer-invite and the change notifier)&quot;]
     end
 
     subgraph OnStream[&quot;Run on an expired item&quot;]
@@ -683,7 +683,7 @@ erDiagram
         string studentName
         bool   isMinor
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
-        enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
+        enum   skatingOrg &quot;USFS|USA_HOCKEY|LEARN_TO_SKATE_USA; ADR-029&quot;
         string registrationNumber &quot;cleaned-up form; ADR-029&quot;
         string shareCode &quot;never changes, ADR-026 d4 (amended 2026-10-13)&quot;
     }
@@ -739,7 +739,7 @@ erDiagram
         string studentName
         bool   isMinor
         enum   clientRelationship &quot;SELF|GUARDIAN&quot;
-        enum   skatingOrg &quot;USFS|USA_HOCKEY; ADR-029&quot;
+        enum   skatingOrg &quot;USFS|USA_HOCKEY|LEARN_TO_SKATE_USA; ADR-029&quot;
         string registrationNumber &quot;cleaned-up form; ADR-029&quot;
         string shareCode &quot;never changes, ADR-026 d4 (amended 2026-10-13)&quot;
     }
@@ -806,15 +806,15 @@ erDiagram
         string iceType
         int    scheduleVersion &quot;the schedule save that made it; ADR-031 d11&quot;
         map    pendingLeave &quot;leaveId, leftStudentId, leftAt, stayingStudentId, answerBy; ADR-031 d8&quot;
-        datetime dueAt &quot;answerBy, or now for INVITER_LEFT; GSI4 while set&quot;
-        enum   dueKind &quot;ANSWER|INVITER_LEFT&quot;
+        datetime dueAt &quot;answerBy; GSI4 while set&quot;
+        enum   dueKind &quot;ANSWER; ADR-033 d5&quot;
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     SEAT {
         string studentId
         string clientId &quot;GSI1 key, ADR-022; none on an invited seat until accepted&quot;
         string studentName &quot;display form, Mia R.&quot;
-        enum   seatStatus &quot;INVITED|AWAITING_COACH|BOOKED|CHECKED_IN|NO_SHOW&quot;
+        enum   seatStatus &quot;INVITED|BOOKED|CHECKED_IN|NO_SHOW; ADR-033 d1&quot;
         datetime startsAtUtc &quot;copied from the lesson time&quot;
         string coachTz &quot;copied from the lesson time&quot;
         int    durationMinutes &quot;copied from the lesson time&quot;
@@ -829,7 +829,7 @@ erDiagram
         enum   partnerStatus &quot;the other skater&#x27;s seatStatus, or LEFT; written by consumer-invite&quot;
         datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
         datetime dueAt &quot;next deadline; GSI4 while set&quot;
-        enum   dueKind &quot;WARN|EXPIRE&quot;
+        enum   dueKind &quot;EXPIRE; ADR-033 d5&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -849,7 +849,7 @@ erDiagram
     SEAT_END {
         enum   seatOutcome &quot;DECLINED|WITHDRAWN|EXPIRED&quot;
         datetime endedAt
-        string endedBy &quot;the family, the coach or SWEEP&quot;
+        string endedBy &quot;the family or SWEEP; the coach from Phase 2 (ADR-033 d6)&quot;
         string studentId
         string studentName
         string clientId
@@ -895,15 +895,15 @@ erDiagram
         string iceType
         int    scheduleVersion &quot;the schedule save that made it; ADR-031 d11&quot;
         map    pendingLeave &quot;leaveId, leftStudentId, leftAt, stayingStudentId, answerBy; ADR-031 d8&quot;
-        datetime dueAt &quot;answerBy, or now for INVITER_LEFT; GSI4 while set&quot;
-        enum   dueKind &quot;ANSWER|INVITER_LEFT&quot;
+        datetime dueAt &quot;answerBy; GSI4 while set&quot;
+        enum   dueKind &quot;ANSWER; ADR-033 d5&quot;
         number expiresAt &quot;TTL, ADR-017&quot;
     }
     SEAT {
         string studentId
         string clientId &quot;GSI1 key, ADR-022; none on an invited seat until accepted&quot;
         string studentName &quot;display form, Mia R.&quot;
-        enum   seatStatus &quot;INVITED|AWAITING_COACH|BOOKED|CHECKED_IN|NO_SHOW&quot;
+        enum   seatStatus &quot;INVITED|BOOKED|CHECKED_IN|NO_SHOW; ADR-033 d1&quot;
         datetime startsAtUtc &quot;copied from the lesson time&quot;
         string coachTz &quot;copied from the lesson time&quot;
         int    durationMinutes &quot;copied from the lesson time&quot;
@@ -918,7 +918,7 @@ erDiagram
         enum   partnerStatus &quot;the other skater&#x27;s seatStatus, or LEFT; written by consumer-invite&quot;
         datetime choiceAnswerBy &quot;copy of the pending leave&#x27;s answerBy; written by consumer-invite&quot;
         datetime dueAt &quot;next deadline; GSI4 while set&quot;
-        enum   dueKind &quot;WARN|EXPIRE&quot;
+        enum   dueKind &quot;EXPIRE; ADR-033 d5&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
         date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
@@ -938,7 +938,7 @@ erDiagram
     SEAT_END {
         enum   seatOutcome &quot;DECLINED|WITHDRAWN|EXPIRED&quot;
         datetime endedAt
-        string endedBy &quot;the family, the coach or SWEEP&quot;
+        string endedBy &quot;the family or SWEEP; the coach from Phase 2 (ADR-033 d6)&quot;
         string studentId
         string studentName
         string clientId
@@ -1109,13 +1109,10 @@ erDiagram
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 stateDiagram-v2
-    [*] --&gt; BOOKED: family books
-    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place
-    INVITED --&gt; BOOKED: accepts, already a student
-    INVITED --&gt; AWAITING_COACH: accepts, new to the coach
-    AWAITING_COACH --&gt; BOOKED: coach accepts
+    [*] --&gt; BOOKED: family books, or adds an accepted sibling
+    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place&lt;br/&gt;only a skater ACTIVE with the coach (ADR-033)
+    INVITED --&gt; BOOKED: invited family accepts
     INVITED --&gt; SEATEND: declined, withdrawn, or lesson starts
-    AWAITING_COACH --&gt; SEATEND: coach declines, lesson starts, or inviting family cancelled first (sweep)
     BOOKED --&gt; CANCELLED: family or coach cancels, or the other left and no answer
     BOOKED --&gt; CHECKED_IN: rinkside
     BOOKED --&gt; NO_SHOW: rinkside
@@ -1126,13 +1123,10 @@ stateDiagram-v2
         <details>
           <summary>Source</summary>
           <pre class="src"><code>stateDiagram-v2
-    [*] --&gt; BOOKED: family books
-    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place
-    INVITED --&gt; BOOKED: accepts, already a student
-    INVITED --&gt; AWAITING_COACH: accepts, new to the coach
-    AWAITING_COACH --&gt; BOOKED: coach accepts
+    [*] --&gt; BOOKED: family books, or adds an accepted sibling
+    [*] --&gt; INVITED: share code at booking, or one-date invite on a freed place&lt;br/&gt;only a skater ACTIVE with the coach (ADR-033)
+    INVITED --&gt; BOOKED: invited family accepts
     INVITED --&gt; SEATEND: declined, withdrawn, or lesson starts
-    AWAITING_COACH --&gt; SEATEND: coach declines, lesson starts, or inviting family cancelled first (sweep)
     BOOKED --&gt; CANCELLED: family or coach cancels, or the other left and no answer
     BOOKED --&gt; CHECKED_IN: rinkside
     BOOKED --&gt; NO_SHOW: rinkside
@@ -1167,12 +1161,12 @@ sequenceDiagram
         end
         Note over API: a recurrence expands every intervalWeeks (1–4) from the first date
         loop each date - one transaction per date
-            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation or a sibling),&lt;br/&gt;shareCount = the number of BOOKED seats (1, or 2 with a booked sibling), joinOrder lists them&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a sibling, put the sibling&#x27;s seat BOOKED, or AWAITING_COACH if not yet approved (ADR-031 d5)&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)
+            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation or a sibling),&lt;br/&gt;shareCount = the number of BOOKED seats (1, or 2 with a booked sibling), joinOrder lists them&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a sibling, put the sibling&#x27;s seat BOOKED (ADR-031 d5)&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)&lt;br/&gt;+ with either, ConditionCheckItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;their studentId&gt;,&lt;br/&gt;studentStatus = ACTIVE (ADR-033 d2)
             alt transaction succeeds
                 DB--&gt;&gt;API: booked
             else transaction cancelled
                 API-&gt;&gt;DB: GetItem the family&#x27;s own SEAT#35; key for this skater - strongly consistent
-                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4)
+                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4). A failed ACTIVE check lands here too,&lt;br/&gt;and says nothing about the skater (ADR-033 d2)
             end
         end
         opt recurring, and at least one date booked
@@ -1203,12 +1197,12 @@ sequenceDiagram
         end
         Note over API: a recurrence expands every intervalWeeks (1–4) from the first date
         loop each date - one transaction per date
-            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation or a sibling),&lt;br/&gt;shareCount = the number of BOOKED seats (1, or 2 with a booked sibling), joinOrder lists them&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a sibling, put the sibling&#x27;s seat BOOKED, or AWAITING_COACH if not yet approved (ADR-031 d5)&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)
+            API-&gt;&gt;DB: TransactWriteItems - update LESSON#35;&lt;date&gt;#35;&lt;startTime&gt; if lessonStatus = OPEN&lt;br/&gt;and startsAtUtc is in the future → BOOKED, seatsTaken 1 (2 with an invitation or a sibling),&lt;br/&gt;shareCount = the number of BOOKED seats (1, or 2 with a booked sibling), joinOrder lists them&lt;br/&gt;+ put SEAT#35;&lt;date&gt;#35;&lt;startTime&gt;#35;&lt;studentId&gt; BOOKED, idempotencyKey, if it doesn&#x27;t exist&lt;br/&gt;+ with a sibling, put the sibling&#x27;s seat BOOKED (ADR-031 d5)&lt;br/&gt;+ with a share code, put the invited seat INVITED - no clientId (ADR-031 d5)&lt;br/&gt;+ with either, ConditionCheckItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;their studentId&gt;,&lt;br/&gt;studentStatus = ACTIVE (ADR-033 d2)
             alt transaction succeeds
                 DB--&gt;&gt;API: booked
             else transaction cancelled
                 API-&gt;&gt;DB: GetItem the family&#x27;s own SEAT#35; key for this skater - strongly consistent
-                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4)
+                Note over API: this request&#x27;s idempotencyKey → booked (a retry found its own write)&lt;br/&gt;another request&#x27;s seat → already booked for this student&lt;br/&gt;no seat → unavailable (ADR-031 d4). A failed ACTIVE check lands here too,&lt;br/&gt;and says nothing about the skater (ADR-033 d2)
             end
         end
         opt recurring, and at least one date booked
@@ -1642,7 +1636,7 @@ sequenceDiagram
         Note over F,AC: confirm first - MVP wording &quot;Bookings cancelled within 24 hours may incur&lt;br/&gt;a late cancellation fee&quot; (ADR-009 d2). A recurrence change also names&lt;br/&gt;each occurrence inside requiredNoticeHours (d4)
         AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, each SEAT#35; moved to a CANCELLED#35; line&lt;br/&gt;(cancelledBy, cancelledAt, noticeHours) if clientId = caller (ADR-024 d1),&lt;br/&gt;seatsTaken drops, lesson time OPEN when its last seat goes (ADR-031 d2, d8)
         Note over AC,DB: a shared lesson - in time, the lesson time records a pending leave&lt;br/&gt;(keep or cancel?) - late, nothing is asked (§6.9)
-        Note over AC,DB: the other seat not yet joined (ADR-031 d5, option B) - still INVITED, the caller&#x27;s own invitation,&lt;br/&gt;so the cancel ends it WITHDRAWN in the same transaction (invitedByClientId = caller).&lt;br/&gt;AWAITING_COACH - the cancel records INVITER_LEFT on the lesson time, due at once,&lt;br/&gt;and the hourly sweep ends that seat (§6.10). The other family&#x27;s seat is never touched
+        Note over AC,DB: the other seat still INVITED - the caller&#x27;s own invitation, so the cancel ends it&lt;br/&gt;WITHDRAWN in the same transaction (invitedByClientId = caller, ADR-031 d5).&lt;br/&gt;Once accepted it is BOOKED and theirs - the cancel is an ordinary leave (ADR-033 d4).&lt;br/&gt;The other family&#x27;s seat is never touched
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
@@ -1690,7 +1684,7 @@ sequenceDiagram
         Note over F,AC: confirm first - MVP wording &quot;Bookings cancelled within 24 hours may incur&lt;br/&gt;a late cancellation fee&quot; (ADR-009 d2). A recurrence change also names&lt;br/&gt;each occurrence inside requiredNoticeHours (d4)
         AC-&gt;&gt;DB: CHANGEBATCH#35; header cancelledBy = CLIENT, each SEAT#35; moved to a CANCELLED#35; line&lt;br/&gt;(cancelledBy, cancelledAt, noticeHours) if clientId = caller (ADR-024 d1),&lt;br/&gt;seatsTaken drops, lesson time OPEN when its last seat goes (ADR-031 d2, d8)
         Note over AC,DB: a shared lesson - in time, the lesson time records a pending leave&lt;br/&gt;(keep or cancel?) - late, nothing is asked (§6.9)
-        Note over AC,DB: the other seat not yet joined (ADR-031 d5, option B) - still INVITED, the caller&#x27;s own invitation,&lt;br/&gt;so the cancel ends it WITHDRAWN in the same transaction (invitedByClientId = caller).&lt;br/&gt;AWAITING_COACH - the cancel records INVITER_LEFT on the lesson time, due at once,&lt;br/&gt;and the hourly sweep ends that seat (§6.10). The other family&#x27;s seat is never touched
+        Note over AC,DB: the other seat still INVITED - the caller&#x27;s own invitation, so the cancel ends it&lt;br/&gt;WITHDRAWN in the same transaction (invitedByClientId = caller, ADR-031 d5).&lt;br/&gt;Once accepted it is BOOKED and theirs - the cancel is an ordinary leave (ADR-033 d4).&lt;br/&gt;The other family&#x27;s seat is never touched
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
@@ -1754,9 +1748,6 @@ sequenceDiagram
     API--&gt;&gt;F: &quot;Waiting for Coach Dana&#x27;s approval&quot; — sees nothing of the coach,&lt;br/&gt;cannot book (ADR-002 d2, ADR-022 d6)
     alt coach accepts
         AC-&gt;&gt;DB: STUDENT#35; studentStatus = ACTIVE — only that item (ADR-021 d6)
-        opt the skater came by invitation (ADR-031 d6)
-            AC-&gt;&gt;DB: in the same request, each of their AWAITING_COACH seats → BOOKED&lt;br/&gt;if its lesson hasn&#x27;t started, and that lesson time&#x27;s shareCount goes up by one
-        end
         DB-&gt;&gt;Bus: (stream) StudentChanged
         Bus-&gt;&gt;SL: route
         SL-&gt;&gt;DB: set status ACTIVE on the link item, if it exists
@@ -1796,9 +1787,6 @@ sequenceDiagram
     API--&gt;&gt;F: &quot;Waiting for Coach Dana&#x27;s approval&quot; — sees nothing of the coach,&lt;br/&gt;cannot book (ADR-002 d2, ADR-022 d6)
     alt coach accepts
         AC-&gt;&gt;DB: STUDENT#35; studentStatus = ACTIVE — only that item (ADR-021 d6)
-        opt the skater came by invitation (ADR-031 d6)
-            AC-&gt;&gt;DB: in the same request, each of their AWAITING_COACH seats → BOOKED&lt;br/&gt;if its lesson hasn&#x27;t started, and that lesson time&#x27;s shareCount goes up by one
-        end
         DB-&gt;&gt;Bus: (stream) StudentChanged
         Bus-&gt;&gt;SL: route
         SL-&gt;&gt;DB: set status ACTIVE on the link item, if it exists
@@ -1895,50 +1883,43 @@ sequenceDiagram
     participant Inv as Invite λ
     participant SES as SES
     participant B as Family B (web)
-    participant AC as api-coach λ
-    A-&gt;&gt;API: look up skater code MIA-4K7QX (only on a time with maxSkaters ≥ 2)
-    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId and display name
-    API--&gt;&gt;A: &quot;Mia R.&quot; - the display name only (ADR-026 d4)
+    A-&gt;&gt;API: POST /api/client/share-check { shareCode MIA-4K7QX, coachId }&lt;br/&gt;(only on a time with maxSkaters ≥ 2) - WAF share-code rule, 20 per 5 min (ADR-019)
+    Note over API: the sender comes from the verified token and must have a skater ACTIVE&lt;br/&gt;with that coach - anything else, or an unknown code, is the ordinary 404 (ADR-033 d2a)
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId (never returned) and display name
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; - projection studentStatus only,&lt;br/&gt;in the family&#x27;s tagged session (ADR-022 d6) - and an access-log line (ADR-012)
+    alt Mia is ACTIVE with the coach
+        API--&gt;&gt;A: 200 { displayName &quot;Mia R.&quot;, onCoachRoster true }
+    else PENDING, or never the coach&#x27;s - the same answer
+        API--&gt;&gt;A: 200 { displayName &quot;Mia R.&quot;, onCoachRoster false }
+        Note over A: &quot;Mia R. isn&#x27;t one of Coach Dana&#x27;s students yet. Mia&#x27;s family can sign up&lt;br/&gt;with Coach Dana&#x27;s code, and once Coach Dana accepts Mia you can share a lesson.&quot;&lt;br/&gt;Nothing is booked
+    end
     A-&gt;&gt;API: book with the share code (§6.1)
     loop each date - one transaction per date
-        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)
+        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)&lt;br/&gt;+ ConditionCheckItem on Mia&#x27;s STUDENT#35;, studentStatus = ACTIVE - the authority (ADR-033 d2)
     end
     DB-&gt;&gt;Bus: (stream) a seat written INVITED (event name to be set)
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: read-only copies (ADR-031 d6) - partnerName and partnerStatus on both seats,&lt;br/&gt;invitedClientId + Family B&#x27;s GSI1 keys on Mia&#x27;s seat (shows on their Home and My bookings)
-    Inv-&gt;&gt;SES: email Family B - an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    Inv-&gt;&gt;SES: email Family B - the invitation (texts are Phase 2)
     B-&gt;&gt;API: open the link, Home or My bookings, signed in - confirm page shows Mia&#x27;s clashes (ADR-025 d5)
     B-&gt;&gt;API: Go ahead
-    Note over API: ADR-024&#x27;s link check on Mia (or, new to the coach, Mia is in Family B) -&lt;br/&gt;accepting is Family B&#x27;s own write, conditioned on no clientId, INVITED, studentId = Mia
+    Note over API: ClientLinks.requireActive on Mia (ADR-024, ADR-033 d3) - accepting is Family B&#x27;s&lt;br/&gt;own write, conditioned on no clientId, INVITED, studentId = Mia.&lt;br/&gt;Mia no longer ACTIVE (the coach declined her since) - &quot;no longer available&quot;
     loop each date - lesson by lesson
-        alt Mia is already the coach&#x27;s student
-            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
-        else Mia isn&#x27;t the coach&#x27;s student yet
-            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → AWAITING_COACH, clientId = Family B
-        end
-    end
-    opt Mia isn&#x27;t the coach&#x27;s student yet
-        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING - the sign-up route (§6.7)
-        Note over AC: Coach taps Accept on the pending list
-        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, and in the same request every one of Mia&#x27;s&lt;br/&gt;AWAITING_COACH seats → BOOKED, each if its lesson hasn&#x27;t started,&lt;br/&gt;shareCount + 1 and Mia added to joinOrder on each lesson time - the coach&#x27;s own write
+        API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
     end
     DB-&gt;&gt;Bus: (stream) the seat changes
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
-    opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
-        alt Mia&#x27;s seat still INVITED - Family A&#x27;s own record
-            API-&gt;&gt;DB: Family A&#x27;s own transaction also ends Mia&#x27;s seat - SEATEND#35; WITHDRAWN (ADR-031 d5)
-        else Mia&#x27;s seat already AWAITING_COACH - Family B&#x27;s record, not touched
-            API-&gt;&gt;DB: in the same transaction, record INVITER_LEFT on the lesson time,&lt;br/&gt;due at once, naming Mia&#x27;s seat (GSI4)
-            Note over DB: the hourly sweep ends Mia&#x27;s seat as WITHDRAWN, up to an hour later (§6.10)
-        end
+    opt Family A cancels their own seat while Mia&#x27;s is still INVITED
+        API-&gt;&gt;DB: Family A&#x27;s own transaction also ends Mia&#x27;s seat - SEATEND#35; WITHDRAWN (ADR-031 d5)
         DB-&gt;&gt;Bus: (stream) Mia&#x27;s seat moved to SEATEND#35; WITHDRAWN
         Bus-&gt;&gt;Inv: route
         Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
     end
+    Note over A,B: once Mia has joined, her seat is BOOKED and Family B&#x27;s - Family A&#x27;s cancel&lt;br/&gt;is an ordinary leave, in time or late (ADR-033 d4)
     Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
-    Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price,&lt;br/&gt;or reopens if no seat is left. A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
-    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;expired, no longer available after the coach&#x27;s Accept (ADR-031 d14)</pre>
+    Note over A,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price,&lt;br/&gt;or reopens if no seat is left. A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
+    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;expired (&quot;no longer available&quot;) (ADR-031 d14, ADR-033 d6)</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -1950,50 +1931,43 @@ sequenceDiagram
     participant Inv as Invite λ
     participant SES as SES
     participant B as Family B (web)
-    participant AC as api-coach λ
-    A-&gt;&gt;API: look up skater code MIA-4K7QX (only on a time with maxSkaters ≥ 2)
-    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId and display name
-    API--&gt;&gt;A: &quot;Mia R.&quot; - the display name only (ADR-026 d4)
+    A-&gt;&gt;API: POST /api/client/share-check { shareCode MIA-4K7QX, coachId }&lt;br/&gt;(only on a time with maxSkaters ≥ 2) - WAF share-code rule, 20 per 5 min (ADR-019)
+    Note over API: the sender comes from the verified token and must have a skater ACTIVE&lt;br/&gt;with that coach - anything else, or an unknown code, is the ordinary 404 (ADR-033 d2a)
+    API-&gt;&gt;DB: GetItem SKATERCODE#35;&lt;shareCode&gt; - studentId (never returned) and display name
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / STUDENT#35;&lt;studentId&gt; - projection studentStatus only,&lt;br/&gt;in the family&#x27;s tagged session (ADR-022 d6) - and an access-log line (ADR-012)
+    alt Mia is ACTIVE with the coach
+        API--&gt;&gt;A: 200 { displayName &quot;Mia R.&quot;, onCoachRoster true }
+    else PENDING, or never the coach&#x27;s - the same answer
+        API--&gt;&gt;A: 200 { displayName &quot;Mia R.&quot;, onCoachRoster false }
+        Note over A: &quot;Mia R. isn&#x27;t one of Coach Dana&#x27;s students yet. Mia&#x27;s family can sign up&lt;br/&gt;with Coach Dana&#x27;s code, and once Coach Dana accepts Mia you can share a lesson.&quot;&lt;br/&gt;Nothing is booked
+    end
     A-&gt;&gt;API: book with the share code (§6.1)
     loop each date - one transaction per date
-        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)
+        API-&gt;&gt;DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A&#x27;s seat BOOKED&lt;br/&gt;+ Mia&#x27;s seat INVITED (inviteId, invitedByClientId = Family A,&lt;br/&gt;no clientId - Family A&#x27;s record until accepted)&lt;br/&gt;+ ConditionCheckItem on Mia&#x27;s STUDENT#35;, studentStatus = ACTIVE - the authority (ADR-033 d2)
     end
     DB-&gt;&gt;Bus: (stream) a seat written INVITED (event name to be set)
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: read-only copies (ADR-031 d6) - partnerName and partnerStatus on both seats,&lt;br/&gt;invitedClientId + Family B&#x27;s GSI1 keys on Mia&#x27;s seat (shows on their Home and My bookings)
-    Inv-&gt;&gt;SES: email Family B - an invitation, or a consent link&lt;br/&gt;if Mia isn&#x27;t the coach&#x27;s student yet (texts are Phase 2)
+    Inv-&gt;&gt;SES: email Family B - the invitation (texts are Phase 2)
     B-&gt;&gt;API: open the link, Home or My bookings, signed in - confirm page shows Mia&#x27;s clashes (ADR-025 d5)
     B-&gt;&gt;API: Go ahead
-    Note over API: ADR-024&#x27;s link check on Mia (or, new to the coach, Mia is in Family B) -&lt;br/&gt;accepting is Family B&#x27;s own write, conditioned on no clientId, INVITED, studentId = Mia
+    Note over API: ClientLinks.requireActive on Mia (ADR-024, ADR-033 d3) - accepting is Family B&#x27;s&lt;br/&gt;own write, conditioned on no clientId, INVITED, studentId = Mia.&lt;br/&gt;Mia no longer ACTIVE (the coach declined her since) - &quot;no longer available&quot;
     loop each date - lesson by lesson
-        alt Mia is already the coach&#x27;s student
-            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
-        else Mia isn&#x27;t the coach&#x27;s student yet
-            API-&gt;&gt;DB: Mia&#x27;s seat INVITED → AWAITING_COACH, clientId = Family B
-        end
-    end
-    opt Mia isn&#x27;t the coach&#x27;s student yet
-        API-&gt;&gt;DB: put STUDENT#35;&lt;studentId&gt; PENDING - the sign-up route (§6.7)
-        Note over AC: Coach taps Accept on the pending list
-        AC-&gt;&gt;DB: STUDENT#35; ACTIVE, and in the same request every one of Mia&#x27;s&lt;br/&gt;AWAITING_COACH seats → BOOKED, each if its lesson hasn&#x27;t started,&lt;br/&gt;shareCount + 1 and Mia added to joinOrder on each lesson time - the coach&#x27;s own write
+        API-&gt;&gt;DB: Mia&#x27;s seat INVITED → BOOKED if the lesson hasn&#x27;t started,&lt;br/&gt;clientId = Family B, and the lesson time&#x27;s shareCount + 1, Mia added to joinOrder.&lt;br/&gt;Family A&#x27;s seat is not touched
     end
     DB-&gt;&gt;Bus: (stream) the seat changes
     Bus-&gt;&gt;Inv: route
     Inv-&gt;&gt;DB: refresh partnerName and partnerStatus on both seats, about a second later
-    opt Family A cancels their own seat while Mia&#x27;s is still INVITED or AWAITING_COACH
-        alt Mia&#x27;s seat still INVITED - Family A&#x27;s own record
-            API-&gt;&gt;DB: Family A&#x27;s own transaction also ends Mia&#x27;s seat - SEATEND#35; WITHDRAWN (ADR-031 d5)
-        else Mia&#x27;s seat already AWAITING_COACH - Family B&#x27;s record, not touched
-            API-&gt;&gt;DB: in the same transaction, record INVITER_LEFT on the lesson time,&lt;br/&gt;due at once, naming Mia&#x27;s seat (GSI4)
-            Note over DB: the hourly sweep ends Mia&#x27;s seat as WITHDRAWN, up to an hour later (§6.10)
-        end
+    opt Family A cancels their own seat while Mia&#x27;s is still INVITED
+        API-&gt;&gt;DB: Family A&#x27;s own transaction also ends Mia&#x27;s seat - SEATEND#35; WITHDRAWN (ADR-031 d5)
         DB-&gt;&gt;Bus: (stream) Mia&#x27;s seat moved to SEATEND#35; WITHDRAWN
         Bus-&gt;&gt;Inv: route
         Inv-&gt;&gt;SES: email Family B - the lesson was cancelled
     end
+    Note over A,B: once Mia has joined, her seat is BOOKED and Family B&#x27;s - Family A&#x27;s cancel&lt;br/&gt;is an ordinary leave, in time or late (ADR-033 d4)
     Note over B,API: declining - Family B&#x27;s response under the accept condition → SEATEND#35; DECLINED
-    Note over AC,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price,&lt;br/&gt;or reopens if no seat is left. A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
-    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;expired, no longer available after the coach&#x27;s Accept (ADR-031 d14)</code></pre>
+    Note over A,B: declined, withdrawn, or the lesson starts first - Mia&#x27;s seat moves to SEATEND#35;&lt;br/&gt;(seatOutcome, endedAt, endedBy), seatsTaken drops, the lesson stays private at the full price,&lt;br/&gt;or reopens if no seat is left. A lesson that starts first is the hourly sweep&#x27;s EXPIRE (§6.10)
+    Note over Inv,B: consumer-invite sends each outcome email - joined, declined, withdrawn,&lt;br/&gt;expired (&quot;no longer available&quot;) (ADR-031 d14, ADR-033 d6)</code></pre>
         </details>
       </figure>
 
@@ -2047,8 +2021,8 @@ sequenceDiagram
     end
     Note over API,DB: a date that has started, or was already answered or cancelled,&lt;br/&gt;is skipped and listed as no longer available
     opt kept - Invite a skater on My bookings (a freed place, ADR-031 d10)
-        S-&gt;&gt;API: share code, for that one lesson only
-        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
+        S-&gt;&gt;API: share code, for that one lesson only - the share-check first (§6.9, ADR-033 d2a)
+        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;with a ConditionCheckItem on the new skater&#x27;s STUDENT#35;, studentStatus = ACTIVE (ADR-033 d2),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
     end</pre>
         </div>
         <details>
@@ -2095,8 +2069,8 @@ sequenceDiagram
     end
     Note over API,DB: a date that has started, or was already answered or cancelled,&lt;br/&gt;is skipped and listed as no longer available
     opt kept - Invite a skater on My bookings (a freed place, ADR-031 d10)
-        S-&gt;&gt;API: share code, for that one lesson only
-        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
+        S-&gt;&gt;API: share code, for that one lesson only - the share-check first (§6.9, ADR-033 d2a)
+        API-&gt;&gt;DB: put a new INVITED seat (invitedByClientId = the staying family, no clientId),&lt;br/&gt;with a ConditionCheckItem on the new skater&#x27;s STUDENT#35;, studentStatus = ACTIVE (ADR-033 d2),&lt;br/&gt;seatsTaken 2 - the staying family pays the full price until the new skater joins,&lt;br/&gt;then shareCount goes up
     end</code></pre>
         </details>
       </figure>
@@ -2120,26 +2094,15 @@ sequenceDiagram
     participant CW as CloudWatch
     Sch-&gt;&gt;Sw: every hour (§8)
     Sw-&gt;&gt;DB: Query GSI4 - GSI4PK = DUE, everything due up to now
-    loop each due record - an invited seat (WARN, EXPIRE), or a lesson time (ANSWER, INVITER_LEFT)
+    loop each due record - an invited seat (EXPIRE), or a lesson time (ANSWER) - ADR-033 d5
         Sw-&gt;&gt;DB: re-read the record, and the lesson time and its seats
         alt the deadline no longer applies
             Note over Sw: skipped - answered, joined, cancelled or moved since
-        else WARN - the shared-lesson warning
-            alt this is the 9pm run before it&#x27;s due
-                Sw-&gt;&gt;SES: warning email to both families and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
-            else any other hour
-                Note over Sw: held for the 9pm run - never late, never at night
-            end
-        else EXPIRE - still INVITED or AWAITING_COACH at the lesson&#x27;s start
+        else EXPIRE - still INVITED at the lesson&#x27;s start
             Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome EXPIRED, endedBy SWEEP,&lt;br/&gt;seatsTaken drops, the lesson stays private at the full price
             DB-&gt;&gt;Bus: (stream) the seat change
             Bus-&gt;&gt;Inv: route
-            Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
-        else INVITER_LEFT - read from the lesson time - the inviting family cancelled after Mia&#x27;s family accepted
-            Sw-&gt;&gt;DB: the seat it names moves to SEATEND#35; - seatOutcome WITHDRAWN, endedBy SWEEP,&lt;br/&gt;seatsTaken drops - the last seat, so the lesson time goes back to OPEN&lt;br/&gt;and its INVITER_LEFT deadline is cleared
-            DB-&gt;&gt;Bus: (stream) the seat change
-            Bus-&gt;&gt;Inv: route
-            Inv-&gt;&gt;SES: email the invited family - the lesson was cancelled
+            Inv-&gt;&gt;SES: the ordinary &quot;no longer available&quot; email to both families at once&lt;br/&gt;(Reply-To the coach&#x27;s businessEmail, ADR-033 d6)
         else ANSWER - no answer by answerBy
             Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
             DB-&gt;&gt;Bus: (stream) LessonsChanged
@@ -2164,26 +2127,15 @@ sequenceDiagram
     participant CW as CloudWatch
     Sch-&gt;&gt;Sw: every hour (§8)
     Sw-&gt;&gt;DB: Query GSI4 - GSI4PK = DUE, everything due up to now
-    loop each due record - an invited seat (WARN, EXPIRE), or a lesson time (ANSWER, INVITER_LEFT)
+    loop each due record - an invited seat (EXPIRE), or a lesson time (ANSWER) - ADR-033 d5
         Sw-&gt;&gt;DB: re-read the record, and the lesson time and its seats
         alt the deadline no longer applies
             Note over Sw: skipped - answered, joined, cancelled or moved since
-        else WARN - the shared-lesson warning
-            alt this is the 9pm run before it&#x27;s due
-                Sw-&gt;&gt;SES: warning email to both families and the coach&lt;br/&gt;(the coach&#x27;s email is MVP, family texts Phase 2)
-            else any other hour
-                Note over Sw: held for the 9pm run - never late, never at night
-            end
-        else EXPIRE - still INVITED or AWAITING_COACH at the lesson&#x27;s start
+        else EXPIRE - still INVITED at the lesson&#x27;s start
             Sw-&gt;&gt;DB: seat moves to SEATEND#35; - seatOutcome EXPIRED, endedBy SWEEP,&lt;br/&gt;seatsTaken drops, the lesson stays private at the full price
             DB-&gt;&gt;Bus: (stream) the seat change
             Bus-&gt;&gt;Inv: route
-            Inv-&gt;&gt;SES: outcome email to both families at once (Reply-To the coach&#x27;s businessEmail)
-        else INVITER_LEFT - read from the lesson time - the inviting family cancelled after Mia&#x27;s family accepted
-            Sw-&gt;&gt;DB: the seat it names moves to SEATEND#35; - seatOutcome WITHDRAWN, endedBy SWEEP,&lt;br/&gt;seatsTaken drops - the last seat, so the lesson time goes back to OPEN&lt;br/&gt;and its INVITER_LEFT deadline is cleared
-            DB-&gt;&gt;Bus: (stream) the seat change
-            Bus-&gt;&gt;Inv: route
-            Inv-&gt;&gt;SES: email the invited family - the lesson was cancelled
+            Inv-&gt;&gt;SES: the ordinary &quot;no longer available&quot; email to both families at once&lt;br/&gt;(Reply-To the coach&#x27;s businessEmail, ADR-033 d6)
         else ANSWER - no answer by answerBy
             Sw-&gt;&gt;DB: its own CHANGEBATCH#35; with cancelledBy = NO_ANSWER - the staying seat to a CANCELLED#35; line,&lt;br/&gt;no charge, pending leave cleared, lesson time OPEN when its last seat goes, header EXECUTED last
             DB-&gt;&gt;Bus: (stream) LessonsChanged
@@ -2408,7 +2360,7 @@ sequenceDiagram
         alt linked and ACTIVE
             CD--&gt;&gt;API: LinkedSkater (private constructor)
             API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
-            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
+            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8). A booking with an invited skater or a sibling&lt;br/&gt;also holds a ConditionCheckItem on their STUDENT#35;, studentStatus = ACTIVE (ADR-033 d2)
         else linked, but declined or still pending (removed: Phase 2)
             CD--&gt;&gt;API: not ACTIVE - an ordinary application event
             API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
@@ -2425,18 +2377,15 @@ sequenceDiagram
             CD-&gt;&gt;CW: security event to the access-log group - identifiers only
             API--&gt;&gt;F: 404 not found
         end
-        opt the cancelled seat had invited another skater (ADR-031 d5, option B)
-            alt that seat still INVITED - the caller&#x27;s own invitation
-                CD-&gt;&gt;DB: in the same transaction, end it WITHDRAWN -&lt;br/&gt;condition invitedByClientId = :callerSub and INVITED
-            else that seat AWAITING_COACH - another family&#x27;s
-                CD-&gt;&gt;DB: in the same transaction, record INVITER_LEFT on the lesson time -&lt;br/&gt;the other seat is not touched
-            end
+        opt the cancelled seat had invited another skater, still INVITED (ADR-031 d5)
+            CD-&gt;&gt;DB: in the same transaction, end it WITHDRAWN -&lt;br/&gt;condition invitedByClientId = :callerSub and INVITED
         end
+        Note over CD,DB: once accepted, that seat is BOOKED and the other family&#x27;s -&lt;br/&gt;the cancel is an ordinary leave and doesn&#x27;t touch it (ADR-033 d4)
     else Keep after the other skater left (ADR-031 d8)
         CD-&gt;&gt;DB: update the lesson time - condition pendingLeave.stayingStudentId&lt;br/&gt;= the caller&#x27;s skater (the family never reads the pending leave)
         Note over CD,DB: ConditionalCheckFailed here - answered or cancelled since - shows as no longer available
     else answer an invitation - accept or decline (ADR-031 d5)
-        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId) - or, for a skater new to the coach,&lt;br/&gt;a check that the skater is in the caller&#x27;s own family, not an ACTIVE link
+        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId) - always (ADR-033 d3)
         CD-&gt;&gt;DB: update the invited seat, or move it to SEATEND#35; DECLINED -&lt;br/&gt;condition no clientId, INVITED, studentId = the caller&#x27;s skater
     end
     Note over API,DB: besides its own seats and invitations, a family writes only the coach&#x27;s lesson time&lt;br/&gt;(every booking and cancel updates it). The one record of another family&#x27;s it can change -&lt;br/&gt;answering an invitation addressed to its own skater, accept or decline (ADR-031)
@@ -2463,7 +2412,7 @@ sequenceDiagram
         alt linked and ACTIVE
             CD--&gt;&gt;API: LinkedSkater (private constructor)
             API-&gt;&gt;CD: repository write - takes a LinkedSkater, no String overload
-            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8)
+            CD-&gt;&gt;DB: write into the coach&#x27;s partition - the client-tenant role&lt;br/&gt;confines it to that coach (ADR-022 d8). A booking with an invited skater or a sibling&lt;br/&gt;also holds a ConditionCheckItem on their STUDENT#35;, studentStatus = ACTIVE (ADR-033 d2)
         else linked, but declined or still pending (removed: Phase 2)
             CD--&gt;&gt;API: not ACTIVE - an ordinary application event
             API--&gt;&gt;F: 409 &quot;Mia&#x27;s lessons are no longer available to book.&lt;br/&gt;Contact Coach Dana.&quot;
@@ -2480,18 +2429,15 @@ sequenceDiagram
             CD-&gt;&gt;CW: security event to the access-log group - identifiers only
             API--&gt;&gt;F: 404 not found
         end
-        opt the cancelled seat had invited another skater (ADR-031 d5, option B)
-            alt that seat still INVITED - the caller&#x27;s own invitation
-                CD-&gt;&gt;DB: in the same transaction, end it WITHDRAWN -&lt;br/&gt;condition invitedByClientId = :callerSub and INVITED
-            else that seat AWAITING_COACH - another family&#x27;s
-                CD-&gt;&gt;DB: in the same transaction, record INVITER_LEFT on the lesson time -&lt;br/&gt;the other seat is not touched
-            end
+        opt the cancelled seat had invited another skater, still INVITED (ADR-031 d5)
+            CD-&gt;&gt;DB: in the same transaction, end it WITHDRAWN -&lt;br/&gt;condition invitedByClientId = :callerSub and INVITED
         end
+        Note over CD,DB: once accepted, that seat is BOOKED and the other family&#x27;s -&lt;br/&gt;the cancel is an ordinary leave and doesn&#x27;t touch it (ADR-033 d4)
     else Keep after the other skater left (ADR-031 d8)
         CD-&gt;&gt;DB: update the lesson time - condition pendingLeave.stayingStudentId&lt;br/&gt;= the caller&#x27;s skater (the family never reads the pending leave)
         Note over CD,DB: ConditionalCheckFailed here - answered or cancelled since - shows as no longer available
     else answer an invitation - accept or decline (ADR-031 d5)
-        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId) - or, for a skater new to the coach,&lt;br/&gt;a check that the skater is in the caller&#x27;s own family, not an ACTIVE link
+        API-&gt;&gt;CD: ClientLinks.requireActive(caller, skaterId) - always (ADR-033 d3)
         CD-&gt;&gt;DB: update the invited seat, or move it to SEATEND#35; DECLINED -&lt;br/&gt;condition no clientId, INVITED, studentId = the caller&#x27;s skater
     end
     Note over API,DB: besides its own seats and invitations, a family writes only the coach&#x27;s lesson time&lt;br/&gt;(every booking and cancel updates it). The one record of another family&#x27;s it can change -&lt;br/&gt;answering an invitation addressed to its own skater, accept or decline (ADR-031)

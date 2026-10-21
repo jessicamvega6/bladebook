@@ -142,7 +142,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   invited seat names a skater who isn't `ACTIVE` with the coach (its `ConditionCheckItem` fails,
   so the whole transaction is refused); and for the share-check, a `GetItem` of a `STUDENT#` item
   projecting only `studentStatus` is allowed for an `ACTIVE` session, refused with any other
-  attribute, and refused for a `PENDING` session.*
+  attribute, and refused for a `PENDING` session.* *Widened later 2026-10-20 (ADR-022): the
+  share-code read returns `studentId` and the display name only; any other attribute, no
+  projection, or a `Query` is refused.*
 - ~~**Open question: What amount the unpaid list and weekly reminder show for a past seat with
   attendance not recorded.** It has no fixed `amountMinor` yet, and the unpaid index (GSI3)
   doesn't hold the lesson time's price or share count. (ADR-031 revision decision 7, ADR-018)
@@ -155,9 +157,10 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   coaches. (ADR-031 decision 14, Open) *Added 2026-10-13.*~~ *Settled 2026-10-13 (ADR-031, option
   B): reads, plus `UpdateItem` limited by the `dynamodb:Attributes` condition to the key fields
   and those attributes; no `PutItem` or `DeleteItem`. It no longer ends seats — the inviting
-  family's own cancel or the sweep's `INVITER_LEFT` does.*
+  family's own cancel or the sweep's `INVITER_LEFT` does.* *(`INVITER_LEFT` Phase 2 since ADR-033 d4, 2026-10-20.)*
 - **Open question: The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`** — only the
-  sweep may read GSI4 (ADR-031 d14). *Added 2026-10-13.*
+  sweep may read GSI4 (ADR-031 d14). *Added 2026-10-13.* *Changed 2026-10-20 (ADR-033 d5): the sweep
+  handles only `EXPIRE` and `ANSWER` and sends no email (no `ses:SendEmail`).*
 - ~~**To-do: Design the sharing screens** — share code on the skater profile, inviting on booking,
   confirm or decline, shared bookings on both sides. (ADR-026)~~ *Done 2026-10-13: designed in
   `design/harbor` (family and coach sites).*
@@ -176,8 +179,8 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   `api-client`, so the booking page learns at the share step whether the invited skater is the
   coach's student. Sender from the verified token; `GetItem` of `COACH#<coachId>/STUDENT#<studentId>`
   projecting only `studentStatus`; `onCoachRoster` true only for `ACTIVE`. Needs `studentStatus`
-  on `client-tenant`'s read allowlist (ADR-022 d6), the firewall's share-code rate rule
-  (ADR-019) and an access-log line (ADR-012). *Added 2026-10-20.*
+  on `client-tenant`'s read allowlist (ADR-022 d6), the firewall's code-lookup rate rule
+  (ADR-019, widened 2026-10-20) and an access-log line (ADR-012). *Added 2026-10-20.*
 - ~~**To-do: Update the Harbor screens for ADR-033** — the screens for inviting a skater new to the
   coach (`design/harbor/client/static/invite-new-student.html` and the demos), the warning
   banners, and the coach's pending list showing shared-lesson context. (ADR-033 Consequences)
@@ -205,7 +208,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **To-do: Include ~~participants~~ every seat everywhere a lesson is walked** (participants are
   seats since ADR-031) — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
-  end-of-day report, coach cancellation, and erasure on request. (ADR-026 Consequences)
+  end-of-day report, coach cancellation, and (Phase 2 since 2026-10-20) erasure on request. (ADR-026 Consequences)
   *2026-10-13 (ADR-031 decision 2): each skater now has their own seat in the lesson, so this
   means walking every seat, not participants hanging off a booking. The to-do stands.*
 - **Note:** share-code length and alphabet follow the coach-code decision (blocker #7)~~, and
@@ -273,6 +276,14 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
 - **Open question — needs Kim (§9, question 7): Learn to Skate USA's number format,** now that
   those numbers are accepted. Until then, digits only within a loose length range. (ADR-029
   Open) *Added 2026-10-16.*
+- **Open question — needs Kim (§12): Which skating organizations go on the sign-up list**, and can
+  a skater have more than one number? Each new one needs a `skatingOrg` value and a shape check;
+  more than one number changes `SKATER#`, sign-up, profile and the rink download. (ADR-029)
+  *Added 2026-10-20.*
+- **Open question: Where the USA Hockey check-digit setting lives**, and who changes it each
+  season. (ADR-029 Open)
+- **Legal review: retention of `registrationNumber`**, kept on `SKATER#` for the account's life
+  (ADR-017). (ADR-029 Open)
 - **Phase 3: A reminder to renew a skating membership or update the number** (Kim, 2026-10-16;
   ADR-029)
 - ~~**Settled, no action:** a coach's code changing each year doesn't affect existing families or
@@ -488,7 +499,8 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
 
 - **To-do: Schedule the pre-launch legal review.** Agenda: Children's Online Privacy
   Protection Act (COPPA) and state privacy laws, reportability of an exposure in the dev
-  environment (ADR-011 decision 6c, ADR-027), and every retention window below. Each window, once set, is a
+  environment (ADR-011 decision 6c, ADR-027), every retention window below, and whether launching
+  without erasure on request is acceptable (Phase 2 since 2026-10-20; architecture §7). Each window, once set, is a
   configuration value applied through Time to Live (TTL), plus a one-off backfill.
   (architecture §7, ADR-017)
 - **Open question: The retention windows ADR-017 is waiting on** — each needs the legal
@@ -632,7 +644,9 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   A's `PENDING` `STUDENT#` item is refused. Add it if missing. (`runbooks/database-gate-tests.md`,
   ADR-021)
 - **To-do: Check the approval screen shows enough to recognise the family:** guardian name and
-  email, skaters' names, and their USFSA/USA Hockey numbers. (Harbor design, ADR-002)
+  email, skaters' names, and each skater's organization and number (US Figure Skating, USA Hockey or Learn to Skate USA).
+  (Harbor design, ADR-002) *2026-10-20: the design shows organization and number (ADR-029); check
+  the rest when building.*
 - **To-do: Configure SES event destinations** for bounce, complaint and delivery. The pages
   on bounce and complaint rate are already decided (ADR-010 decision 4); they need this data
   to fire. (monitoring-questions §3)
@@ -672,7 +686,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   must:
   - **pause notifications**: stop the stream consumers, or mark restore writes so they're
     skipped, so families don't get emails for old events;
-  - **re-apply the erased-ID list** (§8) before anything goes live;
+  - **re-apply the erased-ID list** (§8) before anything goes live, once erasure ships (Phase 2);
   - re-apply what an import doesn't carry: TTL, PITR, streams and alarms, through the
     infrastructure code.
 - *Deferred (Phase 2, 2026-10-12): client SMS is Phase 2, so MVP has only the coach's text.* **To-do: Separate alert SMS from client SMS** (own topic and configuration set). (ADR-010)
@@ -752,10 +766,13 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   decision 9, ADR-028)
 - **To-do: Build the masked-build workflow** — the Step Functions workflow, the transform Lambda
   (with its item count and duplicate-key check), the export bucket and the masked bucket (each
-  deletes its contents after 24 hours). (ADR-027 decision 9, ADR-028)
+  deletes its contents after 24 hours). (ADR-027 decision 9, ADR-028) *2026-10-20 (ADR-028): the
+  transform also replaces each `registrationNumber` with a fake that passes ADR-029's shape check,
+  on `SKATER#` and every `STUDENT#` copy.*
 - **To-do: Write a seed script that writes an import file**, taking each test account's `sub`
   by email. It goes under `infra/` once the IaC tool is chosen (§1). *Changed 2026-10-20: the
-  old `terraform/bladebook_seed.py` was removed by the owner.* (ADR-028 decision 4)
+  old `terraform/bladebook_seed.py` was removed by the owner.* (ADR-028 decision 4) *Its registration numbers are shape-valid fakes
+  too (ADR-028, 2026-10-20).*
 - **To-do: Split dev into an account stack and an application stack.** (ADR-028 decision 4)
 - **Open question: Does an import produce stream records?** Check on the first masked build.
   (ADR-028 Open)

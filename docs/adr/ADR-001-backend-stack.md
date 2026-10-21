@@ -112,6 +112,17 @@ function list that means:
 comparison now includes how each tool deploys through a deploy role in each account, reached by
 OpenID Connect with no stored keys (see the note under A4 criterion 5).
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md):
+
+- `sched-deadline-sweep` handles only `EXPIRE` and `ANSWER` and sends no email itself (no
+  `ses:SendEmail`; owner, 2026-10-20).
+- There is no shared-lesson warning, 9pm timing, `INVITER_LEFT` or `AWAITING_COACH` seat in MVP.
+- `consumer-invite` has no `StudentChanged` trigger, and the coach's Accept changes only the
+  `STUDENT#` item.
+- The sweep is one of three functions whose execution role can delete in any coach's partition,
+  with `consumer-schedule-change` and `consumer-student-link`.
+- Function count unchanged.
+
 ---
 
 ## Amendments

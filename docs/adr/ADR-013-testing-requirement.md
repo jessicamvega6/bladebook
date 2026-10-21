@@ -32,6 +32,10 @@ database-level tenant gate tests run in the on-demand dev stack.
 Actions. Nothing deploys until ADR-032 decision 2's security setup is in place. *Amended later
 2026-10-15 (ADR-032): this covers workflows; dev may also be built by hand with `build-dev`.*
 
+**Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md) adds required tests: the sibling and invited-skater
+checks refuse a `PENDING` skater; a skater declined between invitation and answer can't accept;
+an inviting family's cancel after acceptance is an ordinary leave.
+
 ---
 
 ## Decision

@@ -22,7 +22,8 @@ Client booking:
     as the code is entered, the booking page asks the share-check endpoint. If skater 2 isn't the coach's student, the
     booking stops at the share step with: "Mia R. isn't one of Coach Dana's students yet. Mia's family can sign up with
     Coach Dana's code, and once Coach Dana accepts Mia you can share a lesson." Nothing is booked. The booking itself
-    checks again in the database, so a skater declined in between is still refused.*
+    checks again in the database, so a skater declined in between is still refused.
+    Book stays off while the share-code box has anything in it, until the check passes. If the check fails or is rate-limited: "Couldn't check that code. Try again." Changing the code checks again; clearing it books a private lesson. (ADR-033 2a, 2026-10-20)*
 
 Coach acceptance:
   A student must always be accepted by the coach before any lessons are booked for that student.

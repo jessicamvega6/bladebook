@@ -43,7 +43,7 @@ so anyone could claim a real coach's number, lock that coach out and receive the
 sign-ups. Registration numbers also aren't secret, and USA Hockey issues a new one every season.
 The owner dropped it on 2026-10-12.
 
-The skater half stands; why coaches need the number is still being asked of Kim (Open). It puts a new piece of personal data about minors in the table, which
+The skater half stands; why coaches need the number is still being asked of Kim (Open). *Settled 2026-10-16 (Kim):* the rinks require it. It puts a new piece of personal data about minors in the table, which
 §7's data minimisation (`architecture.md`) has to account for.
 
 What's known about the numbers (researched 2026-10-12, `Open-Pending.md` §2b):
@@ -128,7 +128,7 @@ else.
 - **Validate against the organisations.** No API, lookup service or data agreement is known
   (`Open-Pending.md` §2b, research). Revisit if one appears.
 - **Optional number.** Rejected by the owner: required in Phase 1. Skaters who don't have one yet
-  are an Open question, not a reason to make it optional.
+  are an Open question, not a reason to make it optional. *Settled 2026-10-16 (Kim):* every skater must have one.
 - **One number per family.** Rejected: numbers are issued to people, and a family's skaters can
   play different sports.
 
@@ -138,7 +138,7 @@ else.
 
 - **New personal data about minors.** The number joins the skater's name in what ADR-012's
   access logging and ADR-022's client isolation protect. §7's data minimisation needs the
-  stated purpose (Open).
+  stated purpose (Open). *Settled 2026-10-16 (Kim):* the stated purpose is that the rinks require it.
 - **The sign-up and profile screens need the organisation picker and the number box.** The
   Harbor design already has them (`design/harbor/client/screens-account.js`). The coach's
   Students list and Waiting for approval show each skater's number and organisation (*added
@@ -146,10 +146,11 @@ else.
   all three Phase 1 organisations (*Learn to Skate USA added to the design 2026-10-20*).
 - **`consumer-family-sync` copies two more attributes.** No new function, event or permission.
 - **USA Hockey families must update the number every season.** Nothing forces it in MVP; what
-  happens when a number lapses is Open.
+  happens when a number lapses is Open. *Settled 2026-10-16 (Kim):* nothing happens when a number lapses; a renewal reminder is Phase 3.
 - **The season's check digit is configuration someone has to change** each USA Hockey season.
 - **The seed data and the masking rules (ADR-028, ADR-011) need the number.** A masked build
-  must replace it, like a name.
+  must replace it, like a name. *Settled 2026-10-20 (ADR-028): a masked build replaces it with a
+  fake number in the right shape for its `skatingOrg`; the seed data uses the same kind.*
 
 ---
 
@@ -180,4 +181,4 @@ else.
 - An organisation offers a way to check a number, which would allow a real membership check.
 - Canada moves into scope (Phase 2).
 - Kim's answers show many skaters have no number, which would make the requirement block
-  sign-ups.
+  sign-ups. *Settled 2026-10-16 (Kim):* Kim says everyone has one.

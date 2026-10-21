@@ -62,6 +62,12 @@ per-lesson export with skater names would be.
 **Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md) decision 2a: the share-check route returns a skater's
 display name, so it writes an access-log line like the share-code lookup.
 
+**Amended — 2026-10-20, later.** *Decided by the owner.* **The share-code lookup is a logged read
+too.** It returns a skater's display name, a child's personal data, to another family, so every
+route that resolves a share code for a family (the share-code lookup and the share-check) writes
+a decision 2 access-log line naming the caller and the skater. The booking's own server-side
+resolve returns nothing to the browser and is covered by the booking's log line.
+
 ---
 
 ## Context

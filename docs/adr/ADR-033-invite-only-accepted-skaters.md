@@ -34,7 +34,7 @@ mechanics in the ADRs below are kept as the record of what Phase 2 builds.
 `requireActive`, with no "skater in the caller's own family" alternative),
 [ADR-022](ADR-022-client-isolation-at-the-database.md) decisions 6 (`studentStatus` on the read
 allowlist, decision 2a) and 9,
-[ADR-019](ADR-019-waf-in-mvp.md) (the share-code rate rule covers the share-check route),
+[ADR-019](ADR-019-waf-in-mvp.md) (the share-code rate rule covers the share-check route; *since 2026-10-20 that is decision 2's code-lookup rule, widened*),
 [ADR-012](ADR-012-pii-access-logging.md) (the share-check route is logged), and
 [ADR-021](ADR-021-tenant-isolation-at-the-database.md) decision 7 (one more gate-test row), and
 [ADR-010](ADR-010-availability-and-reliability.md) (the sweep's work shrinks; its alarm is
@@ -44,6 +44,13 @@ Every other behaviour rule in ADR-026 and ADR-031 still holds: share codes, the 
 times that allow 2 or more skaters, the invited seat holding the place, the invited family
 confirming while signed in, the price split, leaving in time or late, the staying family's
 answer, freed places, the hourly sweep, and the read-only copies `consumer-invite` writes.
+
+*Amended 2026-10-20, later: also amends ADR-001 (the sweep's role and triggers) and ADR-013 (the
+tests in Consequences); the supersede list also covers ADR-031 d2's `seatStatus`, d7, d10 and
+d14, and ADR-026's Consequences. ADR-021 decision 7 gains two gate-test rows, not one.*
+
+*Related owner decisions, 2026-10-20: the share-code read returns `studentId` and the display
+name to `api-client` (ADR-022, ADR-026 d4); the share-code lookup is a logged read (ADR-012).*
 
 ---
 
@@ -141,11 +148,20 @@ response doesn't say whether a request is waiting.
   tests gain rows: the projection `studentStatus` is allowed; any other `STUDENT#` attribute is
   still refused; a `PENDING` session is refused.
 - **Rate limit:** the firewall's share-code rule (ADR-019, 20 per 5 minutes per address) covers
-  the route, as it does the plain code lookup.
+  the route, as it does the plain code lookup. *(Amended 2026-10-20: that is ADR-019 decision 2's
+  code-lookup rule, widened to both share-code routes; no separate rule.)*
 - **Logging:** a display name is a child's personal data, so the route writes an access-log
   line like the share-code lookup (ADR-012).
 - **The booking transaction's check (decision 2) stays the authority.** The endpoint is advice
   for the screen; a skater declined between the check and the booking is still refused there.
+
+*Amended 2026-10-20.* *Decided by the owner.* **Book stays disabled while the share-code box has
+anything in it, until the share-check for that exact code and coach answers `onCoachRoster: true`.**
+That covers a code still being typed, a check in flight, a 404, the skater's own code,
+`onCoachRoster: false`, and a failed or rate-limited check (*"Couldn't check that code. Try
+again."*). Changing the code, or the picks' coach, clears the answer and checks again. Clearing the
+box allows a private booking. This is a screen rule only; the booking transaction's
+`ConditionCheckItem` (decision 2) stays the authority.
 
 ### 3. Accepting always goes through the link check
 
@@ -242,6 +258,9 @@ sharing a lesson is a burden.
   invited seat names a skater who isn't `ACTIVE` with the coach is refused whole; and, for
   decision 2a, a `GetItem` of a `STUDENT#` item projecting only `studentStatus` is allowed for an
   `ACTIVE` session, refused with any other attribute, and refused for a `PENDING` session.
+  *Amended 2026-10-20: and for ADR-022's widened share-code read, a `GetItem` of `SKATERCODE#`
+  returns `studentId` and the display name only; any other attribute, no projection, or a `Query`
+  is refused.*
 - **ADR-013 tests:** the sibling and invited-skater checks refuse a `PENDING` skater; a skater
   declined between invitation and answer can't accept; an inviting family's cancel after the
   invited family accepted is an ordinary leave.

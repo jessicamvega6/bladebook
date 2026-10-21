@@ -57,7 +57,7 @@ Step 4, Skaters:
   Adult skating themselves ("You're the skater"): their own name from step 2, an "I'm 18 or older" box, and their
     organization and number. A link lets them change who the lessons are for.
 
-Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization. USA Hockey numbers change each season; US Figure Skating members seem to keep theirs.
+Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization. USA Hockey numbers change each season; US Figure Skating members seem to keep theirs. *Since 2026-10-16: US Figure Skating, USA Hockey or Learn to Skate USA (ADR-029); other organizations, Kim §12.*
     Check to see if there is an API to check if the number is valid for the year/season.  *No way to verify it is valid as of now. Coach can verify themselves if they care*
     *Design:* the number is per skater, not per account. Each skater picks U.S. Figure Skating (member number),
     USA Hockey (registration number) or Learn to Skate USA (member number; added to the design 2026-10-20) and enters the number. The hint says USA Hockey numbers change every season.
@@ -68,6 +68,7 @@ Clients must have a USFSA/USA Hockey registration number to sign up. This number
         and store the cleaned-up form. This checks the shape only, not that the number is real.
         USA Hockey: 14 characters, 9 digits and 5 letters, with a check digit that changes each season (a setting, not code).
         US Figure Skating: format not yet known; get it from a real card or Kim. See ADR-029 and Open-Pending §2b.
+        Learn to Skate USA: format not yet known either; digits only within a loose length range until known (Kim §9 Q7).
 
 Step 5, Waiting for approval:
 "You're in", signed in, with each skater listed as waiting for the coach's approval.
