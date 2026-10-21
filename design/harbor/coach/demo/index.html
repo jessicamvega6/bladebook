@@ -854,7 +854,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .stu-count--attn { background: var(--alt-soft); color: var(--alt-text); }
 .bb .stu-search { max-width: 420px; }
 .bb .stu-tablewrap { overflow-x: auto; position: relative; }
-.bb .stu-table { min-width: 900px; }
+.bb .stu-table { min-width: 760px; }
 .bb .stu-table td { vertical-align: top; }
 .bb .stu-sub { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); font-weight: var(--w-reg); }
 .bb .stu-contact { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13px; color: var(--text-2); }
@@ -2683,7 +2683,6 @@ PRESETS.push(
 
 const stuUi = () => (state.ui.stu ??= { search: '', draft: null });
 const stuIn = (l, s) => skatersIn(l).some(p => p.sid === s.id);
-const stuNext = s => state.lessons.find(l => stuIn(l, s) && !isStarted(l));
 const stuUpcoming = s => state.lessons.filter(l => stuIn(l, s) && !isStarted(l));
 /** Approving makes the skater ACTIVE. */
 function stuApproveOne(s) { s.status = 'ACTIVE'; }
@@ -2697,19 +2696,15 @@ const stuContact = s => `<div class="stu-contact"><span>${ic('mail', 13)}${esc(s
 SCREENS.students = () => {
   const u = stuUi(), q = u.search.trim().toLowerCase();
   const list = active().filter(s => !q || [s.name, s.client, s.email, s.phone].some(v => v.toLowerCase().includes(q)));
-  const rowsHtml = list.map(s => {
-    const n = stuNext(s);
-    return `<tr>
+  const rowsHtml = list.map(s => `<tr>
       <td><span class="cellname">${avatar(initials(s.name), 'sm')}<span><b>${esc(s.name)}</b><span class="stu-sub">${s.minor ? 'Minor' : 'Adult'}</span></span></span></td>
       <td>${stuOrg(s)}</td>
       <td><b>${esc(s.client)}</b><span class="stu-sub">${s.rel === 'Self' ? 'Books for themselves' : s.rel}</span>${stuContact(s)}</td>
-      <td class="num">${n ? `${dDow(n.iso)}<span class="stu-sub">${fmtT(n.t)} · ${n.len} min</span>` : '<span class="muted">Nothing booked</span>'}</td>
-      <td class="r"><span class="cellbtns">${B('Edit contact', 'ghost', 'stuEditOpen', { sm: true, icon: 'pencil', args: [s.id] })}</span></td></tr>`;
-  }).join('');
+      <td class="r"><span class="cellbtns">${B('Edit contact', 'ghost', 'stuEditOpen', { sm: true, icon: 'pencil', args: [s.id] })}</span></td></tr>`).join('');
   return shell(`
     ${pageHead('Students', 'Everyone you coach, and how to reach their family.', stuTabs(0))}
     <div class="stu-search">${INP('stu-search', 'Search', 'ui.stu.search', { live: true, placeholder: 'Name, family, email or phone' })}</div>
-    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Skater number</th><th>Family contact</th><th>Next lesson</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Skater number</th><th>Family contact</th><th class="r"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
       <div class="card__note">${ic('info', 14)} Contact details are the family’s. Changing them here changes them for every skater in that family. Skater numbers are entered by the family and checked for shape only, not with the organization.</div>`
       : `<div class="pempty"><span class="pempty__icon">${ic('users', 22)}</span><b>No students match “${esc(u.search)}”</b><span class="muted">Try a first name, a family name or a phone number.</span></div>`,
       { pad: false, title: plural(list.length, 'student'), sub: q ? `Matching “${esc(u.search)}”` : `${plural(families(active()).length, 'family', 'families')}` })}`, { width: 'wide' });
@@ -2821,7 +2816,7 @@ Object.assign(ACTIONS, {
 
 /* ---------- presets ---------- */
 PRESETS.push(
-  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their skating organization and number from sign-up (ADR-029 d3), their family’s contact details and next lesson, searchable by name or contact. Everyone pays the schedule’s prices; personal prices are Phase 2 (owner, 2026-10-13).', setup: st => { st.screen = 'students'; } },
+  { id: 'CoachStudents', file: 'students', group: 'Students', title: 'Student list', note: 'New. Every active skater with their skating organization and number from sign-up (ADR-029 d3), and their family’s contact details, searchable by name or contact. Everyone pays the schedule’s prices; personal prices are Phase 2 (owner, 2026-10-13).', setup: st => { st.screen = 'students'; } },
   { id: 'CoachStudentsEdit', file: 'students-edit', group: 'Students', title: 'Student list — edit contact', note: 'New. Contact details belong to the family, so an edit applies to every skater in it.', setup: st => { st.screen = 'students'; const e = st.students.find(x => x.id === 's3'); st.ui.stu = { search: '', draft: { client: e.client, email: e.email, phone: e.phone } }; st.modal = { kind: 'stuEdit', id: 's3' }; } },
   { id: 'CoachStudentsPrice', file: 'students-price', group: 'Phase 2', title: 'Student list — personal price', note: 'Phase 2 (moved by the owner, 2026-10-13: every skater pays the schedule’s prices in MVP). New. Sets priceMinorOverride (ADR-003 d2). Two rules are one reading of open questions: the price applies to every lesson length (Kim’s list §5), and lessons already booked keep their price (ADR-020 Open).', setup: st => { st.screen = 'students'; st.ui.stu = { search: '', draft: null, price: { mode: 1, amount: '45' } }; st.modal = { kind: 'stuPrice', id: 's4' }; } },
   { id: 'CoachStudentsRemove', file: 'students-remove', group: 'Phase 2', title: 'Student list — remove', note: 'Phase 2 (moved by the owner, 2026-10-13: MVP has no Remove button). New. One reading of an open decision (Open-Pending.md): upcoming lessons cancelled, no more booking, history kept.', setup: st => { st.screen = 'students'; st.modal = { kind: 'stuRemove', id: 's7' }; } },
