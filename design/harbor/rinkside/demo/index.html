@@ -682,6 +682,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-phone { border: 10px solid var(--text); border-radius: 46px; box-shadow: var(--shadow-lg); flex: none; }
 .bb .rk-body { overflow-y: auto; }
 .bb .phone__head { gap: 12px; }
+.bb .rk-home { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: -4px 0 2px; font-size: 14px; font-weight: var(--w-bold); color: var(--link); text-decoration: none; }
 .bb .rk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: var(--w-bold); white-space: nowrap; }
 .bb .rk-pill--ok { background: var(--success-soft); color: var(--success-text); }
 .bb .rk-pill--warn { background: var(--warning-soft); color: var(--warning-text); }
@@ -1584,11 +1585,11 @@ const families = list => [...new Set(list.map(s => s.client))];
    Every control that does something carries data-act (and optional data-arg JSON).
    In the static build these attributes are inert. */
 const actAttr = (act, args) => act ? ` data-act="${act}"${args && args.length ? ` data-arg='${esc(JSON.stringify(args))}'` : ''}` : '';
-/** Button. o: {sm, lg, block, icon, iconR, disabled, args, href} */
+/** Button. o: {sm, lg, block, icon, iconR, disabled, args, href, newTab} */
 function B(label, v = 'primary', act = '', o = {}) {
   const cls = `btn btn--${v}${o.block ? ' btn--block' : ''}${o.lg ? ' btn--lg' : ''}${o.sm ? ' btn--sm' : ''}`;
   const inner = `${o.icon ? ic(o.icon, o.sm ? 14 : 16) : ''}<span>${label}</span>${o.iconR ? ic(o.iconR, 16) : ''}`;
-  if (o.href) return `<a class="${cls}" href="${o.href}">${inner}</a>`;
+  if (o.href) return `<a class="${cls}" href="${o.href}"${o.newTab ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`;
   return `<button type="button" class="${cls}"${o.disabled ? ' disabled' : actAttr(act, o.args)}>${inner}</button>`;
 }
 /** Segmented control; each option fires act(...args, index). */
@@ -1711,6 +1712,11 @@ function resetDemo() { state = freshState(); const s = location.hash.slice(1); i
    the phone, because a sheet belongs to the phone's frame rather than the page. */
 
 const APP_TITLE = 'Dana Whitfield · BladeBook rinkside demo';
+/** The way back to the coach website's Today page (the dashboard). In the product it is /coach, same tab. The demo
+    points at the coach demo; the Artifact build swaps in its published address and a new tab (artifactLinks in
+    app.config.json). */
+const COACH_HOME = { href: '../../coach/demo/index.html#today' };
+const homeLink = () => `<a class="rk-home" href="${COACH_HOME.href}"${COACH_HOME.newTab ? ' target="_blank" rel="noopener"' : ''}>${ic('arrowL', 16)}<span>Your dashboard</span></a>`;
 const CLOCK_EARLY = 6 * 60 + 35;       // 6:35 AM — the demo's "now"
 const CLOCK_LATE = 8 * 60 + 40;        // 8:40 AM — the demo-bar control that moves the morning on
 const CLOCK_BEFORE = 5 * 60 + 45;      // 5:45 AM — before the first lesson, so the shared 6:00 can still be cancelled
@@ -1784,7 +1790,7 @@ function phoneShell(body, o = {}) {
   const sheet = state.sheet && state.sheet.on === state.screen && RK_SHEETS[state.sheet.kind] ? `<div class="scrim" data-act="rkClose"></div>${RK_SHEETS[state.sheet.kind](state.sheet)}` : '';
   return `<div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">${clockText()}</span><span class="phone__status-r">${r.online ? '<span class="bars"><i></i><i></i><i></i><i></i></span>' : ic('wifiOff', 14)}<span class="batt"><i></i></span></span></div>
-    ${o.bare ? '' : `<header class="phone__head"><div><div class="phone__title">${o.title || 'Today'}</div><div class="phone__sub">${o.sub || `Wed, Oct 14 · ${RINK_SHORT}`}</div></div>${statusPill()}</header>`}
+    ${o.bare ? '' : `<header class="phone__head"><div>${homeLink()}<div class="phone__title">${o.title || 'Today'}</div><div class="phone__sub">${o.sub || `Wed, Oct 14 · ${RINK_SHORT}`}</div></div>${statusPill()}</header>`}
     ${o.progress ? `<div class="phone__progress"><div class="phone__progress-row"><span>${o.progress[0]} of ${o.progress[1]} recorded</span><span>${o.progress[2] || ''}</span></div><div class="meter"><span style="width:${o.progress[1] ? (o.progress[0] / o.progress[1]) * 100 : 0}%"></span></div></div>` : ''}
     <div class="phone__body rk-body">${r.toast ? `<div class="rk-toast" role="status">${ic('check', 16)}<span>${r.toast}</span></div>` : ''}${body}</div>
     ${o.bare ? '' : `<nav class="tabbar" aria-label="Rinkside">${TABS.map(([s, l, i]) => `<a class="tabbar__item${s === tab ? ' is-active' : ''}" href="${href(s)}"${s === tab ? ' aria-current="page"' : ''}><span class="rk-tabicon">${ic(i, 20)}${s === 'today' && badge ? `<span class="rk-badge">${badge}</span>` : ''}</span><span>${l}</span></a>`).join('')}</nav>`}
@@ -2039,7 +2045,7 @@ const SHARED = () => lid('s4', 360);   // Sam and Leo's shared 6:00
 /** Leo not recorded yet in the shared 6:00, so the card has one result and one pair of buttons. */
 const leoNotYet = () => { const p = seatOf(lessonById(SHARED()), 's5'); p.status = 'BOOKED'; delete p.at; };
 PRESETS.push(
-  { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the app’s own sign-in (ADR-014 d10); says what this app can and can’t do.', setup: st => { st.authed = false; st.screen = 'signin'; } },
+  { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.', setup: st => { st.authed = false; st.screen = 'signin'; } },
   { id: 'RinkToday', file: 'today', group: 'Today', title: 'Today’s lessons', note: 'Redesigned from Forest RinkToday. 6:35 AM: the shared 6:00 recorded for both skaters, Mia under way, later lessons show their start time instead of buttons, the held slot in place.', setup: st => { st.screen = 'today'; } },
   { id: 'RinkShared', file: 'today-shared', group: 'Today', title: 'Shared lesson — two skaters', note: 'New. Sam and Leo share the 6:00 (ADR-026 d6): one card, a row per skater, each with their own Present and No-show. Sam is recorded, Leo isn’t yet. The count counts each skater.', setup: st => { st.screen = 'today'; leoNotYet(); } },
   { id: 'RinkSharedContact', file: 'today-shared-contact', group: 'Today', title: 'Contact details — shared lesson', note: 'New. Each name in a shared lesson opens that skater’s own family: here Leo’s mother, Kate Martin. Fetched for this tap only, never stored (ADR-014 d9b).', setup: st => { st.screen = 'today'; leoNotYet(); st.sheet = { kind: 'contact', on: 'today', lid: SHARED(), sid: 's5' }; } },

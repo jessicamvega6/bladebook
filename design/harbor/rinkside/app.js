@@ -14,6 +14,11 @@
    the phone, because a sheet belongs to the phone's frame rather than the page. */
 
 const APP_TITLE = 'Dana Whitfield · BladeBook rinkside demo';
+/** The way back to the coach website's Today page (the dashboard). In the product it is /coach, same tab. The demo
+    points at the coach demo; the Artifact build swaps in its published address and a new tab (artifactLinks in
+    app.config.json). */
+const COACH_HOME = { href: '../../coach/demo/index.html#today' };
+const homeLink = () => `<a class="rk-home" href="${COACH_HOME.href}"${COACH_HOME.newTab ? ' target="_blank" rel="noopener"' : ''}>${ic('arrowL', 16)}<span>Your dashboard</span></a>`;
 const CLOCK_EARLY = 6 * 60 + 35;       // 6:35 AM — the demo's "now"
 const CLOCK_LATE = 8 * 60 + 40;        // 8:40 AM — the demo-bar control that moves the morning on
 const CLOCK_BEFORE = 5 * 60 + 45;      // 5:45 AM — before the first lesson, so the shared 6:00 can still be cancelled
@@ -87,7 +92,7 @@ function phoneShell(body, o = {}) {
   const sheet = state.sheet && state.sheet.on === state.screen && RK_SHEETS[state.sheet.kind] ? `<div class="scrim" data-act="rkClose"></div>${RK_SHEETS[state.sheet.kind](state.sheet)}` : '';
   return `<div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">${clockText()}</span><span class="phone__status-r">${r.online ? '<span class="bars"><i></i><i></i><i></i><i></i></span>' : ic('wifiOff', 14)}<span class="batt"><i></i></span></span></div>
-    ${o.bare ? '' : `<header class="phone__head"><div><div class="phone__title">${o.title || 'Today'}</div><div class="phone__sub">${o.sub || `Wed, Oct 14 · ${RINK_SHORT}`}</div></div>${statusPill()}</header>`}
+    ${o.bare ? '' : `<header class="phone__head"><div>${homeLink()}<div class="phone__title">${o.title || 'Today'}</div><div class="phone__sub">${o.sub || `Wed, Oct 14 · ${RINK_SHORT}`}</div></div>${statusPill()}</header>`}
     ${o.progress ? `<div class="phone__progress"><div class="phone__progress-row"><span>${o.progress[0]} of ${o.progress[1]} recorded</span><span>${o.progress[2] || ''}</span></div><div class="meter"><span style="width:${o.progress[1] ? (o.progress[0] / o.progress[1]) * 100 : 0}%"></span></div></div>` : ''}
     <div class="phone__body rk-body">${r.toast ? `<div class="rk-toast" role="status">${ic('check', 16)}<span>${r.toast}</span></div>` : ''}${body}</div>
     ${o.bare ? '' : `<nav class="tabbar" aria-label="Rinkside">${TABS.map(([s, l, i]) => `<a class="tabbar__item${s === tab ? ' is-active' : ''}" href="${href(s)}"${s === tab ? ' aria-current="page"' : ''}><span class="rk-tabicon">${ic(i, 20)}${s === 'today' && badge ? `<span class="rk-badge">${badge}</span>` : ''}</span><span>${l}</span></a>`).join('')}</nav>`}

@@ -682,6 +682,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-phone { border: 10px solid var(--text); border-radius: 46px; box-shadow: var(--shadow-lg); flex: none; }
 .bb .rk-body { overflow-y: auto; }
 .bb .phone__head { gap: 12px; }
+.bb .rk-home { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: -4px 0 2px; font-size: 14px; font-weight: var(--w-bold); color: var(--link); text-decoration: none; }
 .bb .rk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: var(--w-bold); white-space: nowrap; }
 .bb .rk-pill--ok { background: var(--success-soft); color: var(--success-text); }
 .bb .rk-pill--warn { background: var(--warning-soft); color: var(--warning-text); }
@@ -770,7 +771,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in</b><span class="sp-bar__note">New. Same email and password as the website, through the app’s own sign-in (ADR-014 d10); says what this app can and can’t do.</span><nav class="sp-bar__nav"><a href="account.html">← Account</a><a href="index.html">All pages</a><a href="today.html">Today’s lessons →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in</b><span class="sp-bar__note">New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.</span><nav class="sp-bar__nav"><a href="account.html">← Account</a><a href="index.html">All pages</a><a href="today.html">Today’s lessons →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     

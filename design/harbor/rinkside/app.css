@@ -3,6 +3,7 @@
 .bb .rk-phone { border: 10px solid var(--text); border-radius: 46px; box-shadow: var(--shadow-lg); flex: none; }
 .bb .rk-body { overflow-y: auto; }
 .bb .phone__head { gap: 12px; }
+.bb .rk-home { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: -4px 0 2px; font-size: 14px; font-weight: var(--w-bold); color: var(--link); text-decoration: none; }
 .bb .rk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: var(--w-bold); white-space: nowrap; }
 .bb .rk-pill--ok { background: var(--success-soft); color: var(--success-text); }
 .bb .rk-pill--warn { background: var(--warning-soft); color: var(--warning-text); }

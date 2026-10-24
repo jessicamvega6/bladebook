@@ -2,7 +2,8 @@
 //   node design/harbor/build-app.mjs <client|rinkside> [artifactDir]
 // Reads <app>/app.js, <app>/screens-*.js, <app>/app.css, <app>/screens-*.css and <app>/app.config.json.
 // Writes <app>/demo/index.html, <app>/static/*.html (one per PRESET) and <app>/static/index.html.
-// With artifactDir, also writes the demo page and the gallery shaped for publishing as Artifacts.
+// With artifactDir, also writes the demo page and the gallery shaped for publishing as Artifacts. Links to another
+// demo (cfg.artifactLinks: local path -> published address) open that Artifact in a new tab there.
 // (The coach website has its own build, coach/build.mjs, because of its schedule section.)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -93,9 +94,19 @@ if (artifactDir) {
   const d = path.join(artifactDir, `${app}-demo`), s = path.join(artifactDir, `${app}-static`);
   fs.mkdirSync(d, { recursive: true }); fs.mkdirSync(s, { recursive: true });
   // The Artifact skeleton supplies doctype/head/body for the main page; every other file keeps its own.
-  fs.writeFileSync(path.join(d, 'index.html'), `${demoHead}\n${demoBody}\n`);
+  // claude.ai won't load inside another Artifact's frame, so a link to another demo opens a new tab.
+  const links = Object.entries(cfg.artifactLinks || {});
+  const relink = (html, from, to) => {
+    if (!html.includes(from)) throw new Error(`artifactLinks: ${from} not found`);
+    return html.split(from).join(to);
+  };
+  const demoLinked = links.reduce((h, [local, url]) => relink(h, `href: '${local}'`, `href: '${url}', newTab: true`), demoBody);
+  fs.writeFileSync(path.join(d, 'index.html'), `${demoHead}\n${demoLinked}\n`);
   for (const f of fs.readdirSync(s)) fs.unlinkSync(path.join(s, f));
-  for (const f of fs.readdirSync(OUT)) if (f !== 'index.html') fs.copyFileSync(path.join(OUT, f), path.join(s, f));
+  for (const f of fs.readdirSync(OUT)) if (f !== 'index.html') {
+    const html = read(path.join(OUT, f));
+    fs.writeFileSync(path.join(s, f), links.reduce((h, [local, url]) => h.includes(local) ? relink(h, `href="${local}"`, `href="${url}" target="_blank" rel="noopener"`) : h, html));
+  }
   fs.writeFileSync(path.join(s, 'index.html'), `${galleryHead(cfg.galleryTitle)}\n${galleryBody(cfg.demoUrl || '../demo/index.html')}\n`);
 }
 console.log(`${app}: demo + ${order.length} static pages`);

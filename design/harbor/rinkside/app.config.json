@@ -12,5 +12,8 @@
     "Cancel",
     "Account"
   ],
-  "demoUrl": "https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH"
+  "demoUrl": "https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH",
+  "artifactLinks": {
+    "../../coach/demo/index.html#today": "https://claude.ai/artifact/DMhn8sn8YW29P7cCTd9k93"
+  }
 }

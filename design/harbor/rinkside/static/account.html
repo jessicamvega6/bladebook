@@ -682,6 +682,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-phone { border: 10px solid var(--text); border-radius: 46px; box-shadow: var(--shadow-lg); flex: none; }
 .bb .rk-body { overflow-y: auto; }
 .bb .phone__head { gap: 12px; }
+.bb .rk-home { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: -4px 0 2px; font-size: 14px; font-weight: var(--w-bold); color: var(--link); text-decoration: none; }
 .bb .rk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: var(--w-bold); white-space: nowrap; }
 .bb .rk-pill--ok { background: var(--success-soft); color: var(--success-text); }
 .bb .rk-pill--warn { background: var(--warning-soft); color: var(--warning-text); }
@@ -773,7 +774,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 <header class="sp-bar"><span>BladeBook rinkside app · Harbor · Account</span><b>Account</b><span class="sp-bar__note">New. Who is signed in, when the phone last synced, log out, and where everything else lives.</span><nav class="sp-bar__nav"><a href="week-confirm.html">← Cancel several — confirm</a><a href="index.html">All pages</a><a href="signin.html">Log in →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
-    <header class="phone__head"><div><div class="phone__title">Account</div><div class="phone__sub">Rinkside app</div></div><span class="rk-pill rk-pill--ok"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>All saved</span></header>
+    <header class="phone__head"><div><a class="rk-home" href="../../coach/demo/index.html#today"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Your dashboard</span></a><div class="phone__title">Account</div><div class="phone__sub">Rinkside app</div></div><span class="rk-pill rk-pill--ok"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>All saved</span></header>
     
     <div class="phone__body rk-body">
     <section class="rk-card"><div class="rk-who"><span class="avatar">DW</span><div><b>Dana Whitfield</b><span class="muted-sm">dana.whitfield@gmail.com</span></div></div>
