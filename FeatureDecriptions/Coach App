@@ -25,7 +25,9 @@ A lesson that has started can't be cancelled, and cancelling needs signal.
   No signal: see C_Rinkside Offline.md.
 
 The app needs to also have a sign in screen where the coach is validated that they are who they say they are. 
-*Design (signin.html):* the same login email and password as the website (ADR-014 d10). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
+*Design (signin.html):* the same login email and password as the website (ADR-023 d2, d7: only a coach's account gets in). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
+*"Your dashboard" link (owner, 2026-10-21; ADR-023 d8):* at the top of every screen after sign-in, back to the coach website's
+Today page in the same tab; it asks for the password if the rinkside sign-in is over 60 minutes old.
 
 
 The app also needs to display the clients contact info at checkin

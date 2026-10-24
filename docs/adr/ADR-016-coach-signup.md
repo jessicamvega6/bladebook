@@ -71,6 +71,10 @@ which decision 4 already verifies).
   it should lead to a page the coach confirms on, so a mail scanner that follows links can't
   confirm the address by itself.
 
+**Amended — 2026-10-24.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 10: a Cognito post-confirmation
+trigger adds the `Coach` group when the login email is verified, so decision **9**'s first
+signed-in session (the profile write) already carries the group ADR-023 decision 7 requires.
+
 ---
 
 ## Context

@@ -123,6 +123,13 @@ OpenID Connect with no stored keys (see the note under A4 criterion 5).
   with `consumer-schedule-change` and `consumer-student-link`.
 - Function count unchanged.
 
+**Amended — 2026-10-24.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 10 adds
+`auth-post-confirmation`, a Cognito post-confirmation trigger that adds the `Coach` or `Client`
+group, chosen by the app client the person signed up through. A plain Java handler like the
+consumers. Its role has no DynamoDB actions, only `cognito-idp:AdminAddUserToGroup` on the user
+pool. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation
+fails and the person tries again. **Seventeen functions.**
+
 ---
 
 ## Amendments
@@ -398,6 +405,8 @@ Application Firewall in MVP, and AWS WAF cannot attach to an HTTP API. It can at
   JWT authorizer. It confirms a token is genuine; unlike the JWT authorizer it cannot tell one
   Cognito app client's token from another's, which ADR-014 decision 10 needs. ADR-019's Open
   list carries the replacement (a small Lambda authorizer is recommended).
+  *Amended 2026-10-05 by ADR-023 d5: no Lambda authorizer; the built-in Cognito authorizer
+  stays. Since ADR-023 d9 the API code tells the coach and family app clients apart.*
 - **Nothing else changes.** The two-API-context split, the function list in A5 and the roles
   in A6 are unaffected. References to "the HTTP API" in the original text below — the SnapStart
   alias wiring, the day-one spike — are the historical record.

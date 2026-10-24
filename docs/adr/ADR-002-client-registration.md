@@ -74,6 +74,10 @@ impractical. Skater share codes use the same characters in a different shape
 invitation is no longer a way onto a coach's roster; the coach code (decision 1) is the only way.
 The consent link is Phase 2.
 
+**Amended — 2026-10-24.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 10: a Cognito post-confirmation
+trigger adds the `Client` group when the family's email is verified, so registration, in the
+family's first signed-in session, already carries the group ADR-023 decision 7 requires.
+
 ---
 
 ## Context

@@ -3,7 +3,7 @@
 > A scheduling, student-management, and payment-reminder platform for hockey / figure-skating coaches.
 
 **Status:** Design (pre-implementation)
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-24
 **Current through:** [ADR-033](adr/ADR-033-invite-only-accepted-skaters.md)
 
 > This document describes the design as it currently stands. The reasoning behind each
@@ -62,7 +62,7 @@ Booking is stored as **lesson times** and **seats** (ADR-031):
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| **Compute** | Java on AWS **Lambda** (sixteen functions — ADR-001 A5, ADR-017, ADR-018, ADR-010 d5k, ADR-025, ADR-026, ADR-021, ADR-023, plus ADR-031's `sched-lesson-roller` and `sched-deadline-sweep`. `consumer-invite` stays, for the shared-lesson emails and the seats' read-only copies — ADR-031 d6, Consequences) | Language you know; pay-per-use ≈ $0 at low traffic. |
+| **Compute** | Java on AWS **Lambda** (seventeen functions — ADR-001 A5, ADR-017, ADR-018, ADR-010 d5k, ADR-025, ADR-026, ADR-021, ADR-023, plus ADR-031's `sched-lesson-roller` and `sched-deadline-sweep`, and ADR-023 d10's `auth-post-confirmation`. `consumer-invite` stays, for the shared-lesson emails and the seats' read-only copies — ADR-031 d6, Consequences) | Language you know; pay-per-use ≈ $0 at low traffic. |
 | **Java runtime** | **Spring Boot 4** on the **`java25` managed runtime**, **arm64** | ADR-001. Chosen on ecosystem depth, published support policy, and AWS-managed JVM patching — *not* on latency. **SnapStart is withdrawn** (ADR-001 A1): cold start is no longer a design constraint. The async consumers use plain `RequestHandler` classes with no framework. |
 | **API** | API Gateway (**REST API**) | Chosen over the cheaper HTTP API (~$3.50/M requests vs ~$1/M — cents at this volume) because only a REST API can take a Web Application Firewall (ADR-019, ADR-001 A7). Cognito authorizer on every protected route. |
 | **Data** | **DynamoDB** (single-table, on-demand) | No VPC required → avoids ~$32/mo NAT Gateway. ~$0–2/mo at our scale. |
@@ -94,13 +94,14 @@ flowchart TB
     end
 
     subgraph Auth
-        Cognito["Cognito User Pool<br/>groups: Coach / Client"]
+        Cognito["Cognito User Pool<br/>groups: Coach / Client<br/>two app clients: coach website, family website"]
+        L_Group["λ auth-post-confirmation<br/>adds Coach or Client when the email is confirmed (ADR-023 d10)"]
     end
 
     subgraph API["API Layer"]
         WAF["🛡️ WAF web ACL<br/>(ADR-019)"]
         APIGW["API Gateway (REST API)<br/>Cognito authorizer on every route but /health"]
-        L_Api["λ api-coach / λ api-client<br/>(students, schedules, bookings, check-in)"]
+        L_Api["λ api-coach / λ api-client<br/>(students, schedules, bookings, check-in)<br/>each refuses the wrong app client or group (403)"]
     end
 
     subgraph Events["Event Backbone"]
@@ -137,6 +138,7 @@ flowchart TB
     WAF --> Cognito
     WAF --> APIGW
     APIGW --> Cognito
+    Cognito -->|email confirmed| L_Group
     APIGW --> L_Api
     L_Api <--> DDB
 
@@ -1358,6 +1360,7 @@ A family looks up one or more coach codes before it has an account, signs up thr
 sequenceDiagram
     participant F as Family (web)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-client λ
     participant DB as DynamoDB
     participant AC as api-coach λ
@@ -1369,6 +1372,9 @@ sequenceDiagram
     API-->>F: "Code found — you're signing up with Dana"
     Note over F: one or more coach codes (ADR-025 d2)
     F->>Cog: create account (email + password), verify the email
+    Cog->>PC: post-confirmation trigger - signed up through the family app client
+    PC->>Cog: add to the Client group (ADR-023 d10)
+    F->>Cog: refresh tokens - they now carry Client
     F->>API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
     API->>DB: resolve every code again in the clientId-only session (ADR-022 d7)
     API->>DB: write own partition — PROFILE, SKATER#35;<studentId> per skater,<br/>a link per skater per coach, PENDING, with the coach's name
@@ -1800,14 +1806,17 @@ A coach signs up in two steps (ADR-016): a Cognito account with a verified email
 sequenceDiagram
     participant C as Coach (website)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
     C->>Cog: sign up - login email and password (ADR-016 d3)
     Cog-->>C: one-time code to the email
     C->>Cog: confirm the code - email verified (d4)
+    Cog->>PC: post-confirmation trigger - signed up through the coach app client
+    PC->>Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,<br/>coachId is its sub (d9)
     C->>Cog: sign in
-    Cog-->>C: tokens
+    Cog-->>C: tokens, with the Coach group
     C->>API: GET profile
     API->>DB: GetItem COACH#35;<coachId> / PROFILE - tenant role tagged coachId = the token sub (§7)
     alt profile exists
@@ -1886,8 +1895,8 @@ sequenceDiagram
 ### Authentication
 - **Cognito User Pool** with two groups: `Coach` and `Client` (an adult student booking for themselves, or a guardian booking for a minor — same permissions either way).
 - API Gateway's **Cognito authorizer** validates the token on every protected request (a REST
-  API — ADR-001 A7). No custom authorizer is needed: since ADR-023 there is no second coach
-  app client to tell apart.
+  API — ADR-001 A7). No custom authorizer is needed: the rinkside page uses the coach website's app
+  client (ADR-023), and the API code tells the coach and family app clients apart (below).
 - **Two app clients:** one for the coach website (rinkside page included) and one for the
   family website (ADR-023 d9). `api-coach` and `api-client` each refuse, with 403, a token
   issued to the other website's app client. The check is in the API code, alongside the group
@@ -1904,15 +1913,22 @@ sequenceDiagram
   families share one user pool, so a family's token passes the Cognito authorizer. `api-coach`
   therefore also requires `Coach` in the token's `cognito:groups` claim, in one shared check on
   every route, and refuses a token without it with 403. `api-client` does the same for the
-  `Client` group, so a coach's token can't use the family website's routes. The rinkside page
+  `Client` group, so a coach's token can't use the family website's routes. These checks cover
+  every route that needs a sign-in; `api-client`'s coach-code lookup before sign-up and `/health`
+  take no token (ADR-023 d7, amended 2026-10-24). The rinkside page
   shows only its sign-in screen until the coach signs in, and every screen after that links
   back to the coach website's Today page (ADR-023 d8).
+- **A new account gets its group when its email is confirmed** (ADR-023 d10). A Cognito
+  post-confirmation trigger adds `Coach` to an account confirmed through the coach app client
+  and `Client` to one confirmed through the family app client, so the first signed-in request,
+  the coach's profile or the family's registration, already carries its group.
 - **Schedule saves require a recent sign-in** (ADR-023 d4). Saving a schedule change is
   refused unless the token's `auth_time` is within the last 15 minutes; the website then asks
   for the password (and MFA code, if on) and retries. This guards the most destructive action
   in the system on every device, in place of the separate rinkside token.
 - **Sessions last 60 minutes on the coach and family websites and 4 hours on the rinkside
-  page**, counted from sign-in (ADR-023 d6). Cognito's refresh token lasts 4 hours; `api-coach`
+  page**, counted from sign-in (ADR-023 d6). Cognito's refresh token lasts 4 hours on the coach app client and
+  60 minutes on the family app client (ADR-023 d9); `api-coach`
   and `api-client` refuse requests whose `auth_time` is past their route's limit.
 
 ### Authorization (data isolation)
@@ -1998,7 +2014,7 @@ sequenceDiagram
   families only if the coach switches each on, and **only to families the coach has confirmed** — never to a `PENDING` family,
   since a coach code can be passed around or guessed (ADR-016 d7a).
 
-**The database gate, step by step** (ADR-021 d2, ADR-022 d1–d2): neither API function can reach the table on its own; each request gets temporary credentials stamped with who is asking, and DynamoDB refuses any key outside that person's partition.
+**The database gate, step by step** (ADR-021 d2, ADR-022 d1–d2; the 403 check, ADR-023 d7, d9): neither API function can reach the table on its own; each request gets temporary credentials stamped with who is asking, and DynamoDB refuses any key outside that person's partition.
 
 ```mermaid
 sequenceDiagram
@@ -2011,6 +2027,10 @@ sequenceDiagram
     GW->>F: authorizer passed
     Note over F: the function's own role has no DynamoDB actions at all (ADR-021 d2, ADR-022 d1)
     F->>F: verify the token - the caller is its sub, never the request body
+    F->>F: shared check - the token's app client and group<br/>api-coach: coach app client + Coach<br/>api-client: family app client + Client
+    opt wrong app client or wrong group
+        F-->>U: 403 Forbidden - no route code runs (ADR-023 d7, d9)
+    end
     alt api-coach
         F->>STS: AssumeRole coach-tenant - tag coachId = sub,<br/>source identity sub, session name coach-sub
         STS-->>F: credentials for that coach only (cached per container)
@@ -2627,7 +2647,7 @@ amended.
 | [008](adr/ADR-008-schedule-editor.md) | The schedule editor; signup defaults removed; temp headers restored | Accepted; supersedes parts of 003, amends 004 and 006; amended 2026-09-29 (missed-lesson fee field, Phase 2); extended by 026 (`maxSkaters`); amended 2026-10-08 (booking counter checked at save, "just booked" email, no slot holds); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (odd-cents warning) |
 | [009](adr/ADR-009-cancellation.md) | Client, coach and schedule-driven cancellation; coach-held slots; rinkside app as a second cancel surface | Accepted; extends 006; amended 2026-09-22 (d5a), 2026-10-01 (d4c header in the client's partition), 2026-10-08 (coach told of a client cancellation only inside `requiredNoticeHours`); **d2's "cancelling deletes the booking" and d5's `COACH_HELD` booking superseded by 031** (a held lesson time); d4 limited on a shared series |
 | [010](adr/ADR-010-availability-and-reliability.md) | Availability and reliability tiers, dead-letter queues, idempotency, alerting, Point-in-Time Recovery | Accepted; amends 006 d5; amended 2026-09-29 (d5f — the notifier fires when a batch finishes); amended 2026-09-30 (d5g–d5l — recovery: event-derived keys, plan-complete marker, re-check before acting, reconcile command, nightly drift check, status on the coach website; d2a — dead-letter policy per consumer); amended by 031 (nightly lesson roller; the hourly sweep's missed-run alarm); *amended by 033* |
-| [011](adr/ADR-011-staging-environment.md) | Staging environment; production data masked before it lands there | Accepted; supersedes 010's "no staging"; amended 2026-09-29 (masking list follows ADR-016; containment disables both app clients, *one since 023*; subset remapped onto test accounts, d8; photo placeholder, d9); **d1, d7a, d8a's default list and d8c superseded by 027** — masking carried over to dev |
+| [011](adr/ADR-011-staging-environment.md) | Staging environment; production data masked before it lands there | Accepted; supersedes 010's "no staging"; amended 2026-09-29 (masking list follows ADR-016; containment disables both app clients, *one since 023, two again since 023 d9 (2026-10-22)*; subset remapped onto test accounts, d8; photo placeholder, d9); **d1, d7a, d8a's default list and d8c superseded by 027** — masking carried over to dev |
 | [012](adr/ADR-012-pii-access-logging.md) | Who read what — application logging, CloudTrail data events, cron aggregation | Accepted; answers monitoring §2; *amended by 033*; amended 2026-10-20 (the share-code lookup is a logged read) |
 | [013](adr/ADR-013-testing-requirement.md) | Every feature requires automated tests, across all three packages | Accepted; **enforcement deferred to the first CI pipeline** (GitHub Actions, ADR-032) |
 | [014](adr/ADR-014-check-in-app-and-offline-capture.md) | Attendance as an MVP surface; offline capture, device timestamps, idempotent replay, explicit no-show, `PENDING` report default | Accepted; amends 001 (A3); **d10–11 superseded by 023** (no separate app client or function); amended 2026-10-13 by 031 |
@@ -2639,7 +2659,7 @@ amended.
 | [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; large-change warning at 50% or more of the old price, up or down (amended 2026-10-13); amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (a re-price changes only the lesson time's total; every share follows it, a `REPRICED#` line per seat whose share changes) |
 | [021](adr/ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database as well as in code: per-request tenant roles tagged with the coach for `api-coach` (and `api-checkin` until 023); `api-coach` drops GSI1; a stream consumer writes the client's link item | Accepted; database-gate tests **passed 2026-10-05** (d7); reverses 014 d11a's second point; amends 001 (A8), 002, 012, 013; extended to clients by 022; extended by 025 (`otherCoaches`, Phase 2); amended 2026-10-08 (d7 tests run in dev; `StudentChanged` also triggers `consumer-invite` (no longer, since ADR-031)); amended 2026-10-13 by 031; *amended by 033* |
 | [022](adr/ADR-022-client-isolation-at-the-database.md) | Client isolation at the database: a per-request `client-tenant` role; GSI1 re-keyed by client; recurrence headers move to the client's partition; coach-partition reads limited to an attribute allowlist; writes confined to the client's coach | Accepted; client-gate tests **passed 2026-10-05** (d9); amends 001 (A9), 002, 006, 009, 012, 013, 016, 021; **d8's retry lookup through GSI1 superseded by 031** (a read of the family's own seat); *amended by 033*; amended 2026-10-20 (the share-code read returns `studentId` and the display name, server-side only) |
-| [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021; amended 2026-10-05 (session lengths), 2026-10-07 (dev address), 2026-10-12 (no home-screen use), 2026-10-13 (reached from the Today page and the coach's morning email; amends 001 A6 and 010 d3); 2026-10-15 (the morning email goes to the coach's login email) |
+| [023](adr/ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside check-in is a section of the coach website at `/coach/rinkside`: same sign-in, routes in `api-coach`, no separate rinkside app client, function or authorizer; schedule saves require a sign-in within 15 minutes | Accepted; supersedes 014 d10–11 and 001 A3; amends 011, 012, 013, 019, 021; amended 2026-10-05 (session lengths), 2026-10-07 (dev address), 2026-10-12 (no home-screen use), 2026-10-13 (reached from the Today page and the coach's morning email; amends 001 A6 and 010 d3); 2026-10-15 (the morning email goes to the coach's login email); 2026-10-21 (d7 only a signed-in coach can use the rinkside page; both APIs require their group, 403 in one shared check; d8 a "Your dashboard" link back to the Today page); 2026-10-22 (d9 the family website gets its own app client; each API refuses the other app client's tokens with 403; refresh token 4 hours coach, 60 minutes family; amends 011); 2026-10-24 (d7 applies to routes that need a sign-in; d10 a post-confirmation trigger adds the group; amends 002, 016) |
 | [024](adr/ADR-024-client-write-link-check.md) | The client write link check: a `LinkedSkater` type only `core.data` creates, a `clientId` ownership condition on existing items, an ArchUnit rule; failures split by reason, logged, and paged on configurable thresholds | Accepted; amends 010, 012, 013, 022; amended 2026-10-13 by 031 (the shared-lesson exception was withdrawn); *amended by 033* |
 | [025](adr/ADR-025-many-coaches-per-skater.md) | Skaters and coaches are many-to-many: one `studentId` per skater across coaches, a family-owned `SKATER#` item, per-coach approval and `linkStatus`, other coaches' names shown to each coach (Phase 2); no limit on coaches; clashing bookings warned about, family changes copied by a consumer | Accepted; supersedes 002 d4–5; amends 001, 011, 021, 022; amended twice 2026-10-13 (booking with several coaches; several coach codes at sign-up in MVP; one Home card per coach; coach filter on My bookings; travel time between rinks is Phase 3); amended 2026-10-13 by 031; *parts moved to Phase 2 by 033* |
 | [026](adr/ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation: `maxSkaters` per block, private by default, a skater share code, the invited family confirms, one `PARTICIPANT#` item per extra skater *(now a seat, 031)*; the slot lock unchanged *(replaced by 031)* | Accepted; max 2 and approval decided by the owner; pricing and the booking family cancelling decided by the owner 2026-10-13 (set price split evenly; leaving rules; share codes never change); lapse still partly pending Kim; a skater not yet with the coach joined via a consent link and the coach's Accept *(Phase 2 since 033)*; extends 006, 008; amends 001, 002, 021 d6, 022, 024, 025; amended 2026-10-09 (pre-lesson warning, banner, nightly sweep, coach email in MVP); 2026-10-12 (`maxSkaters` never lowered on a booked lesson); **d2, d3 and d5's mechanics and d5a's nightly sweep superseded by 031** (seats, partner fields, hourly sweep) — every behaviour rule still holds; *parts moved to Phase 2 by 033*; amended 2026-10-20 (the share-code read returns `studentId` to the server; the family sees only the display name) |

@@ -47,6 +47,11 @@ and coach-code rule, whose scope widens** to the share-code lookup and `POST /ap
 (ADR-026 decision 4, ADR-033 decision 2a). Same limit, 20 per 5 minutes per address, one counter
 across all four routes. Still seven rules.
 
+**Amended — 2026-10-22.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 9 adopts this ADR's third
+option, a check in each API's code, to keep coach and family tokens apart. It needs no Lambda
+authorizer. The objection recorded against it (ADR-014 decision 11) concerned a rinkside token
+reaching the website, which no longer exists.
+
 ---
 
 ## Context

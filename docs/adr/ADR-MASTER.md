@@ -100,9 +100,9 @@ bladebook/
 ## 2. Functions
 
 *Sources: ADR-001 (A5, A6, A8, A9 and later amendments), ADR-010, ADR-017, ADR-018, ADR-021,
-ADR-023, ADR-025, ADR-026, ADR-031, ADR-033.*
+ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 
-**Sixteen functions.**
+**Seventeen functions.**
 
 | Function | Trigger | Job |
 |---|---|---|
@@ -122,6 +122,7 @@ ADR-023, ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
 | `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
+| `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
 **Outside the count**, not in the request path: the personal-data access-log aggregator; the
 **dev scanner** (in dev's application stack); the **transform Lambda** (in the production
@@ -151,6 +152,7 @@ held by code and tests.
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` | *Role not yet written* | — | — |
 | `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
+| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
@@ -1167,7 +1169,7 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4, ADR-023 d2, d4–7, d9.*
+*Sources: ADR-016 d3–4, ADR-023 d2, d4–7, d9–10.*
 
 - **Two Cognito app clients in one user pool:** one for the coach website, rinkside page
   included, and one for the family website (ADR-023 d9). Each has its own sign-in return
@@ -1184,6 +1186,11 @@ notified.
 - **`api-client` requires the `Client` group** on every route, in the same kind of shared check,
   and refuses a token without it with 403 (ADR-023 d7). A coach's token can't use the family
   website's routes.
+- **These checks cover every route that needs a sign-in.** `api-client`'s coach-code lookup
+  before sign-up and `/health` take no token (ADR-023 d7, amended 2026-10-24).
+- **A new account gets its group when its email is confirmed** (ADR-023 d10): a Cognito
+  post-confirmation trigger adds `Coach` for the coach app client and `Client` for the family
+  app client, and the website refreshes its tokens before the first signed-in request.
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
@@ -1590,7 +1597,7 @@ database-gate tests; reproducing an incident (masked build).
 
 ## 22. Testing
 
-*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6–7, ADR-024, ADR-025, ADR-026, ADR-033.*
+*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6–7, d9–10, ADR-024, ADR-025, ADR-026, ADR-033.*
 
 - **No feature ships without automated tests.** Integration tests against DynamoDB Local count.
 - **Tooling:** JUnit with DynamoDB Local (`backend/`); **Vitest + React Testing Library**
@@ -1804,7 +1811,7 @@ Which ADRs feed which sections. Read an ADR for the reasoning and the alternativ
 | [020](ADR-020-repricing-booked-lessons.md) | Re-pricing booked lessons | §9 |
 | [021](ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database | §16, §22 |
 | [022](ADR-022-client-isolation-at-the-database.md) | Client isolation at the database | §5, §8, §16, §22 |
-| [023](ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside joins the coach website | §1, §11, §13, §15 |
+| [023](ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside joins the coach website | §1, §11, §13, §15, §22 |
 | [024](ADR-024-client-write-link-check.md) | The client write link check | §16 |
 | [025](ADR-025-many-coaches-per-skater.md) | Many coaches per skater | §5, §7 |
 | [026](ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation | §5, §8, §16 |
