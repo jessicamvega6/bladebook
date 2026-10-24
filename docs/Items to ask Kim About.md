@@ -440,6 +440,27 @@ depth):
 
 ---
 
+## 13. Coaches who are also parents
+
+*Added 2026-10-23.*
+
+**The scenario.** Some coaches have a child who skates, or take lessons themselves. BladeBook will
+let one account be both a coach and a family, with one email and password (owner, 2026-10-23).
+
+**Questions:**
+
+1. How common is it for a coach to have a child who skates, or to take lessons themselves?
+2. Does that child usually take lessons with their own parent, or with another coach?
+
+**What the answers decide:**
+
+- How much effort goes into the switch between the coach and family sides
+  (`FeatureDecriptions/Coach Who Is Also a Parent.md`, question 2).
+- Whether a coach can book lessons with themselves, and whether their own skater needs approval
+  (question 4).
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.

@@ -30,6 +30,8 @@ Step 2, About you (the person who books and pays for lessons):
 Contact Section:
 mobile phone number:
 email: used for logging in, confirmations and reminders.
+      *To-do (2026-10-23):* an email that already has a coach account isn't refused; the person proves they own it,
+      and the family side is added to that account. See Coach Who Is Also a Parent.md.
 
 ~~Terms and Agreements for SMS~~
 *Design:* "Text me reminders too" checkbox (SMS opt-in, ADR-007) with the terms under it: texts arrive the morning of a

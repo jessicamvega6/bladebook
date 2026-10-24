@@ -99,6 +99,13 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   slow approval need a reminder to the coach?**~~ **Settled 2026-10-09 by the owner:** the coach
   approves everyone, siblings included; no reminder email; the Students tab title shows the
   number of pending students. (ADR-002, amended)
+- **Open question: A coach who is also a parent.** *Decided by the owner 2026-10-23:* it will
+  be built, with one account in both the `Coach` and `Client` groups, so one email and password
+  serve both sides. Still open: how the coach switches sides, which side opens first, whether a
+  coach can book lessons with themselves, how family sign-up proves the person owns an existing
+  coach email without revealing who is a coach, MFA on the family side, the shared inbox, and
+  what closing one side does to the other. See `FeatureDecriptions/Coach Who Is Also a Parent.md`.
+  (ADR-016, ADR-023 d7, d9, d10)
 
 ## 2a. Shared lessons (ADR-026)
 

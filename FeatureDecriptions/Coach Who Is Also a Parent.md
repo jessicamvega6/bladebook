@@ -42,7 +42,7 @@ Questions for the owner:
   8. Deleting: if the coach closes their coach account, does the family side stay, and the other way round?
   9. Should other families or coaches ever see that a family is also a coach? (Assumed no.)
 
-Questions for Kim (not yet copied to docs/Items to ask Kim About.md):
+Questions for Kim (Kim list §13):
   How common is it for a coach to have a child who skates, or to take lessons themselves?
   Does their child usually take lessons with them, or with another coach?
 
