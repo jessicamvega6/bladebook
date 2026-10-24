@@ -35,7 +35,11 @@ const artifactDir = process.argv[2];
 if (artifactDir) {
   fs.mkdirSync(artifactDir, { recursive: true });
   // The Artifact skeleton supplies doctype/head/body for the page itself; schedule.html is a second page and keeps its own.
-  fs.writeFileSync(path.join(artifactDir, 'index.html'), `${demoHead}\n<style>html, body { background: #F7F3EC; }</style>\n${demoBody}\n`);
+  // The rinkside demo is a separate Artifact, so its link points there and opens in a new tab (claude.ai won't load in a frame).
+  const RINK_LOCAL = "href: '../../rinkside/demo/index.html'";
+  if (!demoBody.includes(RINK_LOCAL)) throw new Error('rinkside link not found in app.js');
+  const artifactBody = demoBody.replace(RINK_LOCAL, "href: 'https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH', newTab: true");
+  fs.writeFileSync(path.join(artifactDir, 'index.html'), `${demoHead}\n<style>html, body { background: #F7F3EC; }</style>\n${artifactBody}\n`);
   fs.writeFileSync(path.join(artifactDir, 'schedule.html'), scheduleSrc);
 }
 
@@ -61,7 +65,7 @@ sctx.document = { getElementById: () => ({ set innerHTML(v) { sctx.__out = v; } 
 vm.createContext(sctx);
 vm.runInContext(schedScript.replace(/\naddEventListener\('hashchange', route\);/, '\n'), sctx);
 const SCHED = [
-  ['schedule-hub', 'Schedule', 'Your schedule', 'Redesigned from CoachDashboard. The schedule hub: the two ways in, upcoming time off and special schedules, and the booked lessons a change is checked against.', 'freshState(); render();'],
+  ['schedule-hub', 'Schedule', 'Your schedule', 'Redesigned from CoachDashboard. The schedule hub: the two ways in, and upcoming time off and special schedules.', 'freshState(); render();'],
   ['schedule-weekly', 'Schedule', 'Weekly schedule editor', 'Redesigned from SchedHabit. Blocks on the left, the whole week on the right; click a time to switch it off.', 'freshState(); openWeekly();'],
   ['schedule-weekly-clash', 'Schedule', 'Weekly schedule editor — blocks overlap', 'New state. Two blocks overlap on Mondays, so Review is disabled until it is fixed.', 'freshState(); openWeekly(); state.def.blocks[1].sod = 660; state.def.active = 2; render();'],
   ['schedule-weekly-no-ice', 'Schedule', 'Weekly schedule editor — new block, no ice type', 'New state. A new block starts with no ice type, so Review is disabled until one is picked.', 'freshState(); openWeekly(); addBlock(); state.def.blocks[2].days[2] = 1; render();'],

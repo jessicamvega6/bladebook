@@ -1702,11 +1702,11 @@ const families = list => [...new Set(list.map(s => s.client))];
    Every control that does something carries data-act (and optional data-arg JSON).
    In the static build these attributes are inert. */
 const actAttr = (act, args) => act ? ` data-act="${act}"${args && args.length ? ` data-arg='${esc(JSON.stringify(args))}'` : ''}` : '';
-/** Button. o: {sm, lg, block, icon, iconR, disabled, args, href} */
+/** Button. o: {sm, lg, block, icon, iconR, disabled, args, href, newTab} */
 function B(label, v = 'primary', act = '', o = {}) {
   const cls = `btn btn--${v}${o.block ? ' btn--block' : ''}${o.lg ? ' btn--lg' : ''}${o.sm ? ' btn--sm' : ''}`;
   const inner = `${o.icon ? ic(o.icon, o.sm ? 14 : 16) : ''}<span>${label}</span>${o.iconR ? ic(o.iconR, 16) : ''}`;
-  if (o.href) return `<a class="${cls}" href="${o.href}">${inner}</a>`;
+  if (o.href) return `<a class="${cls}" href="${o.href}"${o.newTab ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`;
   return `<button type="button" class="${cls}"${o.disabled ? ' disabled' : actAttr(act, o.args)}>${inner}</button>`;
 }
 /** Segmented control; each option fires act(...args, index). */
