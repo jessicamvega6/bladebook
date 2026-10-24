@@ -1896,6 +1896,13 @@ sequenceDiagram
 - **The rinkside check-in page shares the coach website's sign-in** (ADR-023, superseding
   ADR-014 d10–11). It is a section of the coach website at `/coach/rinkside`, signs in
   through the same app client, and its routes run in `api-coach`.
+- **Only a coach can use `api-coach`, rinkside routes included** (ADR-023 d7). Coaches and
+  families share one user pool, so a family's token passes the Cognito authorizer. `api-coach`
+  therefore also requires `Coach` in the token's `cognito:groups` claim, in one shared check on
+  every route, and refuses a token without it with 403. `api-client` does the same for the
+  `Client` group, so a coach's token can't use the family website's routes. The rinkside page
+  shows only its sign-in screen until the coach signs in, and every screen after that links
+  back to the coach website's Today page (ADR-023 d8).
 - **Schedule saves require a recent sign-in** (ADR-023 d4). Saving a schedule change is
   refused unless the token's `auth_time` is within the last 15 minutes; the website then asks
   for the password (and MFA code, if on) and retries. This guards the most destructive action

@@ -56,6 +56,16 @@ email on the profile. The weekly unpaid-lesson reminder already goes there
 ([ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)). **Amends** [ADR-001](ADR-001-backend-stack.md)
 amendment **A6**.
 
+**Amended — 2026-10-21.** *Decided by the owner.* The rinkside page is a page of the coach
+website, not a separate app. Two decisions follow:
+
+- **Decision 7:** the page and its routes need a coach's sign-in **and** a coach's account. A
+  family's sign-in, from the same user pool, is refused. Until now this file said how the coach
+  signs in, but not that only a coach may use the page.
+- **Decision 8:** every rinkside screen has a link back to the coach website's Today page.
+- **The same rule on the family side:** `api-client` refuses a token without the `Client` group
+  (decision 7). *Decided by the owner, 2026-10-21.*
+
 ---
 
 ## Context
@@ -216,6 +226,52 @@ it, and a refreshed token keeps its original `auth_time`.
 
 ---
 
+### 7. Only a signed-in coach can use the rinkside page
+
+*Decided by the owner, 2026-10-21 (amendment).*
+
+**Authentication.** Nothing on the rinkside page is shown until the coach has signed in through
+the coach website's sign-in (decision 2). Without a session, the page shows only the sign-in
+screen. The page's files are public on CloudFront, like the rest of the website, but they hold
+no lesson or family data. Every piece of that data comes from an `api-coach` route, and API
+Gateway's Cognito authorizer checks the token on every request (decision 5).
+
+**Authorization.** A valid token is not enough. Coaches and families sign in to **one user
+pool**, so a family's token passes the authorizer too. Every `api-coach` route, the rinkside
+routes included, also requires the **`Coach` group** in the token's `cognito:groups` claim. A
+token without it is refused with **403 Forbidden** before any route code runs.
+
+- **Where it is enforced:** in `api-coach`, as one shared check on every route, the same way
+  decision 4's recent-sign-in check is. The REST API's Cognito authorizer only checks that the
+  token is valid.
+- **What it reaches once allowed:** only the signed-in coach's own partition. The
+  `coach-tenant` role pins every request there (decision 3,
+  [ADR-021](ADR-021-tenant-isolation-at-the-database.md)).
+- **How long:** the 4-hour limit on rinkside routes (decision 6).
+
+**The family side works the same way.** Every `api-client` route requires the **`Client`
+group** and refuses a token without it with 403, in one shared check on every route. So a
+coach's token can't use the family website's routes either. Once allowed in, a family reaches
+only the skaters linked to it ([ADR-022](ADR-022-client-isolation-at-the-database.md),
+[ADR-024](ADR-024-client-write-link-check.md)).
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): every rinkside route refuses a request
+with no token, refuses a family (`Client`) token with 403, and accepts a coach token; every
+`api-client` route refuses a coach (`Coach`) token with 403 and accepts a family token; one
+coach's token never reads another coach's lessons (already in ADR-021's tests).
+
+### 8. A way back to the coach website
+
+*Decided by the owner, 2026-10-21 (amendment).*
+
+Every rinkside screen after sign-in has a **"Your dashboard"** link at the top. It opens the
+coach website's Today page (`/coach`) in the same tab. The sign-in screen doesn't show it.
+
+If the rinkside sign-in is more than 60 minutes old, the website asks for the password first
+(decision 6).
+
+---
+
 ## Alternatives considered
 
 - **Keep all three layers, on a subdomain** (`rink.<domain>`). Discussed with the owner on
@@ -262,6 +318,15 @@ it, and a refreshed token keeps its original `auth_time`.
 
 ## Open
 
+- **The offline copy after the session ends.** *Added 2026-10-21 with decision 7.* With no
+  signal, the page shows today's cached lessons without asking the server. Two questions
+  follow. Should the page stop showing them once the 4 hours are up? Doing so would also stop
+  offline check-ins, which decision 6 lets queue past the limit. And should logging out remove
+  the cached lessons from the phone, along with the queue?
+- ~~**The same group check on `api-client`.** *Added 2026-10-21.* Decision 7 makes `api-coach`
+  refuse a token without the `Coach` group. Whether `api-client` should refuse one without
+  the `Client` group isn't yet written down.~~ **Settled 2026-10-21 by the owner:** yes.
+  `api-client` refuses a token without the `Client` group with 403 (decision 7).
 - **Whether other actions need a recent sign-in too.** Candidates: day or week cancellation
   (from the week view or rinkside), removing a student, approve and decline, and changing
   the coach's contact or payment details. Each is less destructive than a schedule save but

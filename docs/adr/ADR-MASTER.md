@@ -950,8 +950,13 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 
 - **`<domain>/coach/rinkside`**, part of the coach website, signed in through the coach website's
   sign-in. Built and tested as an **ordinary browser tab**; nothing depends on Add to Home Screen.
+- **Only a signed-in coach can use it** (ADR-023 d7). Until the coach signs in, the page shows only
+  the sign-in screen. Every rinkside route needs a valid token **and** the `Coach` group; a family's
+  token is refused with 403 (§15).
 - Reached from **a large link at the top of the coach's Today page** and **a link at the top of the
   coach's morning email** (§13).
+- **A "Your dashboard" link at the top of every screen after sign-in** goes back to the coach
+  website's Today page, in the same tab (ADR-023 d8).
 - **Offers:** today's lessons, check-in and no-show per seat, a guardian's contact details on a
   tap, and cancellation.
 - **Session:** 4 hours from sign-in (§15).
@@ -1162,10 +1167,18 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4, ADR-023 d2, d4–6.*
+*Sources: ADR-016 d3–4, ADR-023 d2, d4–7.*
 
 - **One Cognito app client for the coach website**, rinkside page included. The family website
   uses the same pool.
+- **`api-coach` requires the `Coach` group** on every route, the rinkside routes included
+  (ADR-023 d7). The Cognito authorizer only checks that a token is valid, and a family's token from
+  the same pool is valid, so `api-coach` checks `cognito:groups` in one shared check and refuses a
+  token without `Coach` with 403. The `coach-tenant` role then confines the request to that
+  coach's partition (§16).
+- **`api-client` requires the `Client` group** on every route, in the same kind of shared check,
+  and refuses a token without it with 403 (ADR-023 d7). A coach's token can't use the family
+  website's routes.
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
@@ -1571,7 +1584,7 @@ database-gate tests; reproducing an incident (masked build).
 
 ## 22. Testing
 
-*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6, ADR-024, ADR-025, ADR-026, ADR-033.*
+*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6–7, ADR-024, ADR-025, ADR-026, ADR-033.*
 
 - **No feature ships without automated tests.** Integration tests against DynamoDB Local count.
 - **Tooling:** JUnit with DynamoDB Local (`backend/`); **Vitest + React Testing Library**
@@ -1601,7 +1614,8 @@ database-gate tests; reproducing an incident (masked build).
   template's length and encoding; the access-log emitting function (right actor, fields);
   money arithmetic; `requireActive` outcomes, the ownership condition, the `LinkedSkater`
   ArchUnit rule, the security event's content; each session limit and that a refreshed token
-  keeps `auth_time`; the rinkside queue (survives reload, duplicate dropped, failed stays
+  keeps `auth_time`; every `api-coach` route, rinkside included, refuses no token and a `Client`
+  token (403), and every `api-client` route refuses a `Coach` token (403); the rinkside queue (survives reload, duplicate dropped, failed stays
   visible, future time rejected, both outcomes); the report's three-way split (no outcome is
   never a no-show); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's
