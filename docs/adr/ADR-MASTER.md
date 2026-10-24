@@ -1167,10 +1167,15 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4, ADR-023 d2, d4–7.*
+*Sources: ADR-016 d3–4, ADR-023 d2, d4–7, d9.*
 
-- **One Cognito app client for the coach website**, rinkside page included. The family website
-  uses the same pool.
+- **Two Cognito app clients in one user pool:** one for the coach website, rinkside page
+  included, and one for the family website (ADR-023 d9). Each has its own sign-in return
+  addresses and token settings.
+- **Each API checks which app client issued the token.** `api-coach` accepts only the coach app
+  client's tokens and `api-client` only the family app client's, refusing others with 403 in the
+  same shared check as the group check below. The REST API's Cognito authorizer can't tell app
+  clients apart, so the check is in the API code (ADR-023 d9).
 - **`api-coach` requires the `Coach` group** on every route, the rinkside routes included
   (ADR-023 d7). The Cognito authorizer only checks that a token is valid, and a family's token from
   the same pool is valid, so `api-coach` checks `cognito:groups` in one shared check and refuses a
@@ -1189,7 +1194,8 @@ notified.
 | Rinkside routes (`/coach/rinkside`) | **4 hours** |
 | Saving a schedule change | Sign-in within the last **15 minutes** |
 
-- Cognito's refresh-token lifetime is **4 hours**. `api-coach` and `api-client` enforce the shorter
+- Cognito's refresh-token lifetime is **4 hours** on the coach app client and **60 minutes** on the
+  family app client (ADR-023 d9). `api-coach` and `api-client` enforce the shorter
   limits on `auth_time`, returning a "sign in again" error the sites handle.
 - **A schedule save past 15 minutes** is refused with a specific error; the website asks for the
   password (and multi-factor authentication (MFA) code if on) and retries the save. The window is
@@ -1615,7 +1621,7 @@ database-gate tests; reproducing an incident (masked build).
   money arithmetic; `requireActive` outcomes, the ownership condition, the `LinkedSkater`
   ArchUnit rule, the security event's content; each session limit and that a refreshed token
   keeps `auth_time`; every `api-coach` route, rinkside included, refuses no token and a `Client`
-  token (403), and every `api-client` route refuses a `Coach` token (403); the rinkside queue (survives reload, duplicate dropped, failed stays
+  token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); the rinkside queue (survives reload, duplicate dropped, failed stays
   visible, future time rejected, both outcomes); the report's three-way split (no outcome is
   never a no-show); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's

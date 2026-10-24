@@ -17,7 +17,7 @@ bundle on its own CloudFront origin path, and A5's `api-checkin` row.
 **Amends** [ADR-021](ADR-021-tenant-isolation-at-the-database.md) decisions 1 and 2 (no
 `checkin-tenant` role), [ADR-019](ADR-019-waf-in-mvp.md) decision 3 (its open item is
 closed), [ADR-011](ADR-011-staging-environment.md) decision 6c (one coach app client to
-disable, not two), [ADR-012](ADR-012-pii-access-logging.md) decision 1 and
+disable, not two; *since decision 9, the coach and family app clients*), [ADR-012](ADR-012-pii-access-logging.md) decision 1 and
 [ADR-013](ADR-013-testing-requirement.md) decision 4 (references to `api-checkin`).
 
 **Keeps** every ADR-014 decision about working at a rink: offline capture and replay (1, 1a,
@@ -65,6 +65,11 @@ website, not a separate app. Two decisions follow:
 - **Decision 8:** every rinkside screen has a link back to the coach website's Today page.
 - **The same rule on the family side:** `api-client` refuses a token without the `Client` group
   (decision 7). *Decided by the owner, 2026-10-21.*
+
+**Amended — 2026-10-22.** *Decided by the owner.* **Decision 9:** the family website gets its
+own Cognito app client. Each API refuses a token issued to the other website's app client, as
+well as one without its group. Settles the Open item on the family website's app client, and
+amends ADR-011 decision 6c (two app clients to disable, not one).
 
 ---
 
@@ -270,6 +275,47 @@ coach website's Today page (`/coach`) in the same tab. The sign-in screen doesn'
 If the rinkside sign-in is more than 60 minutes old, the website asks for the password first
 (decision 6).
 
+### 9. The family website has its own app client
+
+*Decided by the owner, 2026-10-22 (amendment).*
+
+The user pool has **two app clients**: one for the coach website (decision 2, rinkside page
+included) and one for the family website. Cognito records in every token which app client
+issued it (`client_id` on an access token, `aud` on an ID token).
+
+**Why: what Cognito enforces, not our code.** These hold even if the API code has a mistake:
+
+- **Separate sign-in return addresses.** Each app client lists only its own website's addresses,
+  so a family's sign-in can only land on the family website, and a coach's only on the coach
+  website. A sign-in link that tries to send a family to the coach website is refused before
+  sign-in.
+- **The family session ends at 60 minutes in Cognito.** Each app client has its own
+  refresh-token lifetime. The family app client's is set to 60 minutes (decision 6), so Cognito
+  stops refreshing a family's tokens then. The coach app client stays at 4 hours for the
+  rinkside page, and the coach website's shorter limit is still enforced by the API on
+  `auth_time`.
+- **One side can be turned off alone.** Disabling the family app client stops family sign-ins
+  while coaches keep working, and the other way round.
+
+**A small extra in the API code.** `api-coach` accepts only tokens from the coach app client,
+and `api-client` only tokens from the family app client. A token from the other app client is
+refused with **403**, in the same shared check as decision 7's group check. The REST API's
+Cognito authorizer can't tell app clients apart (ADR-019 d3), so this check is in the API code;
+no Lambda authorizer is needed. It catches a mistake in the group test itself (a wrong group
+name, a reversed comparison). It does **not** add a separate layer against a route that skips
+the shared check altogether, because both tests are in that one check. Decision 7's per-route
+tests are what catch a skipped check.
+- **Dev containment disables both** ([ADR-011](ADR-011-staging-environment.md) d6c), in one
+  script, so a missed step can't leave families able to sign in.
+- **A person in both groups** (a coach who is also a parent, see
+  `FeatureDecriptions/Coach Who Is Also a Parent.md`) signs in on each website separately. Each
+  token works on its own website's API only.
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): every `api-coach` route refuses a token
+from the family app client with 403, even when it carries the `Coach` group; every
+`api-client` route refuses a token from the coach app client with 403, even when it carries
+the `Client` group.
+
 ---
 
 ## Alternatives considered
@@ -312,7 +358,8 @@ If the rinkside sign-in is more than 60 minutes old, the website asks for the pa
   ADR-014 asks of it (queue survives reload, duplicate replay dropped, and so on) is
   unchanged.
 - **Staging containment disables one coach app client** (ADR-011 d6c), plus the family
-  website's if it has its own. *Read "staging" as dev since ADR-027.*
+  website's if it has its own. *Read "staging" as dev since ADR-027.* *Amended 2026-10-22:
+  the family website has its own (decision 9), so containment disables two.*
 
 ---
 
@@ -327,6 +374,18 @@ If the rinkside sign-in is more than 60 minutes old, the website asks for the pa
   refuse a token without the `Coach` group. Whether `api-client` should refuse one without
   the `Client` group isn't yet written down.~~ **Settled 2026-10-21 by the owner:** yes.
   `api-client` refuses a token without the `Client` group with 403 (decision 7).
+- **Where the family website lives.** *Added 2026-10-22.* The coach website is at
+  `<domain>/coach` and the rinkside page at `<domain>/coach/rinkside`, but no ADR says where
+  the family website is served: `<domain>/`, `<domain>/family`, or a domain of its own. The
+  answer sets its CloudFront path, its sign-in redirect addresses, and the links in family
+  emails.
+- ~~**Whether the family website has its own Cognito app client.** *Added 2026-10-22.* The
+  Consequences above and [ADR-011](ADR-011-staging-environment.md)'s amendment of 2026-10-05
+  both say "the family website's, if it has its own." With one shared app client, the sign-in
+  redirect addresses and token settings are set once for both sites, and decision 7's group
+  checks are the only thing keeping a coach's token off the family routes. With its own app
+  client, each site's settings stay separate, and dev containment disables two app clients.~~
+  **Settled 2026-10-22 by the owner:** it has its own (decision 9).
 - **Whether other actions need a recent sign-in too.** Candidates: day or week cancellation
   (from the week view or rinkside), removing a student, approve and decline, and changing
   the coach's contact or payment details. Each is less destructive than a schedule save but

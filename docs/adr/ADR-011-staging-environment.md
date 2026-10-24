@@ -26,6 +26,10 @@ removes the check-in app's own Cognito app client, so decision **6c**'s containm
 the coach website's app client (and the family website's, if it has its own). There is no
 `api-checkin`.
 
+**Amended — 2026-10-22.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
+decision 9 gives the family website its own app client, so decision **6c**'s containment
+disables two: the coach website's and the family website's, in one script.
+
 **Amended — 2026-10-06.** [ADR-025](ADR-025-many-coaches-per-skater.md): a client can have several coaches, so naming a client in
 decision **8a** brings in **all** their coaches.
 

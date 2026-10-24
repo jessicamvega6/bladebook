@@ -1888,6 +1888,10 @@ sequenceDiagram
 - API Gateway's **Cognito authorizer** validates the token on every protected request (a REST
   API — ADR-001 A7). No custom authorizer is needed: since ADR-023 there is no second coach
   app client to tell apart.
+- **Two app clients:** one for the coach website (rinkside page included) and one for the
+  family website (ADR-023 d9). `api-coach` and `api-client` each refuse, with 403, a token
+  issued to the other website's app client. The check is in the API code, alongside the group
+  check below, because the REST API's Cognito authorizer can't tell app clients apart.
 - MFA available for coaches (they hold the most sensitive data).
 - **Coach signup is self-serve and ungated for now** (ADR-016). Cognito owns credentials and
   recovery entirely — there is no custom forgot-password form — and the login email must be
@@ -2346,7 +2350,7 @@ read dev and nothing else; a component that scans for PII must not be able to re
 real thing.
 
 **On a finding it contains automatically and destroys nothing** (ADR-011 decision 6c): the
-dev Cognito app clients are disabled (one for the coach website, which includes rinkside check-in since ADR-023), closing
+dev Cognito app clients are disabled (one for the coach website, which includes rinkside check-in since ADR-023, and one for the family website since ADR-023 d9), closing
 every authenticated path to the data, and a
 page goes out. Purge is a human action taken after triage, because deleting the data also
 deletes the evidence of how it got there. The alert records item keys and field names and
