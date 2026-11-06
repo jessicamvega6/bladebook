@@ -49,11 +49,11 @@ is one skater's place in a lesson time. Acronyms are defined in [glossary.md](..
 
 ## 1. Stack and project layout
 
-*Sources: ADR-001, ADR-013, ADR-019, ADR-023.*
+*Sources: ADR-001 (A10 for the runtime), ADR-013, ADR-019, ADR-023.*
 
 | Layer | Decision |
 |---|---|
-| Compute | AWS Lambda on the managed **`java25`** runtime, **arm64**. No SnapStart. |
+| Compute | AWS Lambda on the managed **`java17.al2023`** runtime (Java 17 on Amazon Linux 2023, deprecated 2029-06-30), **arm64**. No SnapStart. No language feature newer than Java 17. Not the plain `java17` runtime, which is on Amazon Linux 2. |
 | API functions | **Spring Boot 4** through `aws-serverless-java-container` 3.x. Two functions, `api-coach` and `api-client`, split on the trust boundary (coach versus family). |
 | Event and scheduled functions | Plain `RequestHandler` classes, no framework, all in one `consumers.jar` with one handler entry point per function. |
 | Domain code | `backend/core/` is **framework-free**: plain Java and AWS SDK v2, no Spring annotations below the controller layer. |
@@ -70,7 +70,7 @@ is one skater's place in a lesson time. Acronyms are defined in [glossary.md](..
 ```
 bladebook/
 ├── docs/                    # architecture.md, adr/, glossary.md, …
-├── backend/                 # Maven multi-module, Java 25
+├── backend/                 # Maven multi-module, Java 17
 │   ├── core/                # framework-free domain, DynamoDB access, events
 │   ├── api-coach/           # Spring Boot 4 → api-coach
 │   ├── api-client/          # Spring Boot 4 → api-client
@@ -277,7 +277,7 @@ archiver reads them.
   `ForgotPassword`. No custom recovery form.
 - **The login email must be verified** before the account can hold students.
 - **Order:** create and verify the Cognito user, then write `COACH#<sub>/PROFILE` and the
-  `CODE#` item. **First sign-in completes sign-up** if the profile is missing.
+  `CODE#` item. *The `CODE#` item waits for a confirmed business email (ADR-016, 2026-11-06).* **First sign-in completes sign-up** if the profile is missing.
 
 ### The profile
 
@@ -285,7 +285,7 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. Until then replies go to the address already in use. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. **At sign-up, families can't reach the coach until it is confirmed:** the login email is not a fallback, and **the coach code doesn't work until then**, because the `CODE#` item is written only once the coach has a confirmed business email, or at once if the coach uses the login email (ADR-016, 2026-11-06). **On the profile**, the current confirmed address stays in use until the new one is confirmed. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
@@ -296,7 +296,7 @@ archiver reads them.
 | `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional |
 | `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | Off by default. A type with a handle needs the handle before it can be switched on. Switching it off keeps the handle; switching Cash App, Venmo or PayPal back on asks the coach to confirm the kept handle. |
 | `displayPhoneToClients`, `displayEmailToClients` | Off by default |
-| `smsCancellationAlerts` | **Unticked until the coach ticks it** — *"Text me when a family cancels late."* Ticking it sends the one-off opt-in confirmation to `phone`. |
+| `smsCancellationAlerts` | **On the profile only**, not the sign-up form (ADR-016, 2026-11-06). **Unticked until the coach ticks it** — *"Text me when a family cancels late."* Ticking it sends the one-off opt-in confirmation to `phone`. |
 | `morningEmailSentOn` | Guard for the morning email (§13) |
 | `themeId` | Harbor only in MVP |
 
@@ -346,6 +346,8 @@ appears in the payment-reminder email.
 - A `PENDING` skater **cannot be booked**.
 - The coach website's **Students tab title shows the number of pending skaters.** No reminder
   email for waiting approvals.
+- **No approval email in MVP** (Phase 2, §24): the family sees the approval the next time they
+  open the website, and no screen promises an email (ADR-002, 2026-11-06).
 - **Declining deletes the skater record** (`STUDENT#` immediately; the link follows through
   `consumer-student-link`). Not archived. `consumer-student-link` emails the family
   (*"the coach does not have availability to take on new students"*) from the removed item, so
@@ -369,8 +371,10 @@ appears in the payment-reminder email.
   more can be added later). Each coach holds its own `STUDENT#` record with its own status.
 - **A signed-in family can add a coach**: enter the code, choose which skaters (existing or new)
   join. Each new link starts `PENDING`.
-- **Adding a skater on the profile** asks which coaches they join, when the family has more than
-  one.
+- **Adding a skater on the profile** always asks which coaches they join, and allows **"None of my
+  coaches yet"** (ADR-025, 2026-11-06). Such a skater has a `SKATER#` item and a share code but no
+  link or `STUDENT#` record, can't be booked, invited or added as a sibling, and joins a coach
+  through *Add a coach*. Sign-up still needs at least one coach per skater.
 - **Family edits write only the family's own partition.** `consumer-family-sync` copies contact
   and skater changes to every coach's `STUDENT#` record, and a skater's name change to their
   upcoming seats.
@@ -389,8 +393,8 @@ appears in the payment-reminder email.
   organisation's pattern, cap the length, store the cleaned form. A rejection names the expected
   shape and never suggests a lookup.
   - USA Hockey: 14 characters, 9 digits and 5 letters. The season's check digit is a **setting**.
-  - US Figure Skating and Learn to Skate USA: digits only within a loose length range, until the
-    formats are known.
+  - US Figure Skating and Learn to Skate USA: letters and digits, 1 to 20 characters, until the
+    formats are known (ADR-029, 2026-11-06).
 - **Never a key** and never in an index.
 - Nothing happens when a number lapses.
 - **Coaches can download** a file of Student First Name, Student Last Name, Skater Number from the
@@ -1258,7 +1262,8 @@ notified.
   - **GSI1**: same `LeadingKeys` condition on the index;
   - **coach's partition, reads**: `GetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
     allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist covers schedule
-    items, the coach profile's public fields and the lesson-time fields availability needs
+    items, the coach profile's public fields (the payment-type switches are `acceptsCash`,
+    `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022, 2026-11-06) and the lesson-time fields availability needs
     (`priceMinor`, `shareCount`, `joinOrder`, never `pendingLeave`), the family's own seat read,
     and `studentStatus` alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a).
     **It fails closed.**
@@ -1705,6 +1710,8 @@ database-gate tests; reproducing an incident (masked build).
 - Changing a coach's currency.
 - Applying saved, named schedule templates.
 - Coach-selectable themes.
+- The **approval email** to a family when a coach approves their skater, sent by
+  `consumer-student-link` (ADR-002, 2026-11-06). MVP screens don't promise an email.
 - Distinct cancellation email templates by reason.
 - A switch to turn off the coach's morning email.
 - A scheduled production canary.

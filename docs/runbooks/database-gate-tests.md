@@ -5,6 +5,12 @@
 **Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
 `client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
 
+- **Payment-type switches** (*added 2026-11-06*, ADR-022 amended): the allowlist now carries
+  `acceptsCash`, `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal` in place of
+  `displayPaymentTypesToClients`. The script's policy is updated. Re-run the allowlist row so an
+  `ACTIVE` family can read the four switches, and a read naming `displayPaymentTypesToClients`
+  is refused.
+
 - **Share codes** ([ADR-026](../adr/ADR-026-shared-lessons-by-invitation.md) Consequences): a
   share-code lookup returns `studentId` and the display name only (*widened 2026-10-20,
   ADR-022*); any other attribute, no projection, or a `Query` is refused.

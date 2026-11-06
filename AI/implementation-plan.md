@@ -62,7 +62,7 @@ superseded ADR text are left out. `M` = `docs/adr/ADR-MASTER.md`.
 | A6 | Coach cards show "rink · sport"; the code lookup returns only the name and photo key, and no such field exists | M:192, M:1267 | `client/screens-account.js:66,110,183,259,266` |
 | A7 | A guardian can add an adult skater; skaters a guardian adds are minors | M:335-336 | `client/screens-account.js:149,154,297` |
 | A8 | US Figure Skating / Learn to Skate USA number: the ADR says digits only within a loose length range; the screen allows letters and digits, up to 20 | M:392-393 | `client/screens-account.js:19-28` |
-| A9 | When adding a coach, a new skater can't join only that coach; the ADR lets the family choose new or existing skaters | M:370-371 | `client/screens-account.js:271,301,409` |
+| A9 | When adding a coach, a new skater can't join only that coach; the ADR lets the family choose new or existing skaters. **Resolved 2026-11-06:** ADR-025 item k amended, and the screens redrawn (see §6) | M:370-371 | `client/screens-account.js` (`profile-add-skater-*`, `profile-skater-no-coach`, `profile-add-coach-new-skater`) |
 | A10 | The screens promise an "approved" email that no ADR defines | M:1101-1117 | `client/screens-account.js:168,212,272,300` |
 | A11 | ADR-022's read allowlist lists `displayPaymentTypesToClients` but not the `accepts*` flags, so the coach card's payment types can't be read (defect inside the ADRs) | ADR-022:231-238 | `client/screens-account.js:181` |
 
@@ -237,11 +237,27 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
-**Follow-ups from the Java 17 decision (not done; each needs the owner's approval):**
+**Java 17 follow-ups, done 2026-11-06 with the owner's approval:** ADR-001 amendment A10
+(`java17.al2023`, the Java 17 runtime on Amazon Linux 2023, deprecated 2029-06-30, the same date
+as `java25`), ADR-MASTER §1, `architecture.md` §2 and the glossary. SnapStart was already
+withdrawn (ADR-001 A1), so nothing needs re-measuring. Still to prove: that
+`aws-serverless-java-container` 3.x builds and runs on Java 17 (Batch 1's first build).
 
-1. Amend ADR-001 (lines 171, 470, 518 and 573), ADR-MASTER §1 and `architecture.md` §2 from Java 25 to Java 17.
-2. Before the first deployment, check AWS's Lambda runtime-deprecation table for the `java17` runtime (Amazon Linux 2). ADR-001 chose `java25` partly for its patch window, which runs to 2029-06-30.
-3. ADR-001's SnapStart cold-start measurement gate was written for Java 25. It now needs to be measured on Java 17.
+### Rulings on the accounts and people conflicts (2026-11-06)
+
+| ID | Ruling | ADR updated |
+|---|---|---|
+| A1 photo | ADR: initials only, no upload | — |
+| A2 business-email banner | Screen: at sign-up, families can't reach the coach until a different business email is confirmed. **The coach code doesn't work until then**: `CODE#` is written only once the address is confirmed, or at once if the coach uses the login email. **Design addition:** the coach's "Your code starts working once you confirm" note isn't drawn | ADR-016, ADR-MASTER §4 |
+| A3 text-alerts switch | Screen: on the profile only | ADR-016, ADR-MASTER §4 |
+| A4 coach edits family contact | ADR: read-only for the coach | — |
+| A5 "Texts on / Email only" | ADR: left out | — |
+| A6 "rink · sport" line | ADR: coach name only | — |
+| A7 guardian adds an adult | ADR: guardians add minors only | — |
+| A8 US Figure Skating / Learn to Skate USA number | Screen: letters and digits, 1 to 20 characters | ADR-029, ADR-MASTER §5 |
+| A9 new skater with a new coach | Option (b): *Add a skater* always asks which coaches and allows "None of my coaches yet"; the skater then joins a coach through *Add a coach*. **Drawn 2026-11-06:** `profile-add-skater-no-coach`, `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater` | ADR-025, ADR-MASTER §5 |
+| A10 approval email | **Phase 2.** MVP sends none, and the six MVP messages are reworded so they don't promise an email (for example "You can book once Coach Dana approves"). **Design addition:** the reworded copy isn't drawn | ADR-002, ADR-MASTER §24 |
+| A11 allowlist lists the old payment flag | Fix the ADR: replace `displayPaymentTypesToClients` with the four `accepts*` flags. The gate-test row must be re-run on real AWS before the coach card's payment types count as done | ADR-022, ADR-MASTER §16, gate-test script and runbook |
 
 ## 7. Gaps and shortcuts log
 

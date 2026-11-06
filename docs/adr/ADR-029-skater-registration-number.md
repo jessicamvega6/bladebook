@@ -30,6 +30,13 @@ owner's decisions.*
   skaters, many of them minors, so the download is logged as a read of personal data under
   [ADR-012](ADR-012-pii-access-logging.md). Its phase and how the name is split are Open.
 
+**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
+(`design/harbor/client/screens-account.js`, `acNumError`).* **US Figure Skating and Learn to
+Skate USA numbers are letters and digits, 1 to 20 characters**, not digits only. Anything else
+is refused with *"Use letters and numbers only."* or *"That's too long for a member number."*
+The rule stays loose on purpose until the real formats are known. USA Hockey's rule is
+unchanged. Decision 4 is corrected below.
+
 ---
 
 ## Context
@@ -108,10 +115,12 @@ characters, 9 digits and 5 letters"*), never a hint that the number was looked u
 
 - **USA Hockey:** 14 characters, 9 digits and 5 letters. The season's check digit is a
   **setting**, not built into the code, because it changes every season.
-- **US Figure Skating:** **digits only, within a loose length range** until the real format is
-  known from a card or from Kim (Open).
-- **Learn to Skate USA** *(added 2026-10-16):* the same loose rule, digits only within a length
-  range, until its format is known (Open).
+- **US Figure Skating:** ~~digits only, within a loose length range~~ **letters and digits, 1 to
+  20 characters** *(amended 2026-11-06, Status)*, until the real format is known from a card or
+  from Kim (Open).
+- **Learn to Skate USA** *(added 2026-10-16):* the same loose rule, ~~digits only within a length
+  range~~ letters and digits, 1 to 20 characters *(amended 2026-11-06)*, until its format is known
+  (Open).
 
 ### 5. The number is never a key
 

@@ -154,7 +154,8 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **JVM** | Java Virtual Machine | The Java runtime. Its startup cost is the entire reason SnapStart, Quarkus, and Micronaut were debated at all. |
-| **JDK** | Java Development Kit | Compiler + tooling. We target Java 25. |
+| **JDK** | Java Development Kit | Compiler + tooling. We target **Java 17** (ADR-001 A10, 2026-11-06; was Java 25). |
+| **AL2 / AL2023** | Amazon Linux 2 / Amazon Linux 2023 | The operating systems under Lambda's managed runtimes. BladeBook uses `java17.al2023`, on AL2023; the plain `java17` runtime is on AL2, which reached end of life on 2026-06-30 (ADR-001 A10). |
 | **JAR** | Java ARchive | The deployable artifact. Three of them: `api-coach.jar`, `api-client.jar`, `consumers.jar`. |
 | **SDK** | Software Development Kit | Usually "AWS SDK v2 for Java" — the library our code uses to call DynamoDB, SES, and SNS. |
 | **DI** | Dependency Injection | How a framework supplies collaborators to your classes. Spring does it at runtime via reflection; Quarkus and Micronaut do it at compile time, which is most of their startup advantage — and most of what SnapStart makes moot. |

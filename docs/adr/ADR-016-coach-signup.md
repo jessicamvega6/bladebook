@@ -83,6 +83,31 @@ reads *"Enter this code on the BladeBook page that asked for it"* and is drawn i
 `design/harbor/email/cognito/cognito-code.html`. BladeBook stays at seventeen functions. The user
 pool sends through SES, from the same domain as BladeBook's other email.
 
+**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
+(`design/harbor/coach/app.js`, sign-up step 4).* **At sign-up, families can't reach the coach
+until a different business email is confirmed.** This replaces the 2026-10-13 amendment's
+*"the login email at sign-up"* fallback: until the link is clicked, the login email is **not**
+used as the address families reply to. Step 4's banner stands as drawn: *"Families can't
+reach you until this is confirmed."* A coach who picks *Use my login email* (or *Use my login
+email instead*) is reachable straight away, as before. **Changing the address on the profile is
+unchanged**: the current confirmed address stays in use until the new one is confirmed.
+- **What it blocks** *(owner, same day)*: **the coach code doesn't work until the address is
+  confirmed.** No family can sign up with, or add, this coach before then, so no family email is
+  ever sent without a confirmed `Reply-To`. Decision 8's *"`Reply-To` is always
+  `businessEmail`"* stands unchanged.
+- **How:** sign-up writes `PROFILE` as before, but the `CODE#` item is written **only once the
+  coach has a confirmed business email**: when the link is confirmed, or straight away if the
+  coach picks *Use my login email* (at step 3 or as *Use my login email instead* on step 4).
+  The `code-lookup` role and its allowlist are unchanged. A lookup before then finds no item, so
+  a family sees the ordinary *"That code doesn't match a coach"* message, which reveals nothing
+  about an unfinished sign-up.
+- **The coach is told:** until it's confirmed, the coach's code is shown with *"Your code starts
+  working once you confirm your business email."* This isn't drawn in `design/harbor/` yet.
+
+**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design.*
+**`smsCancellationAlerts` is on the profile only** (Profile → Visibility & texts), not on the
+sign-up form. One less question at sign-up. Decision 2's table is corrected below.
+
 ---
 
 ## Context
@@ -194,7 +219,7 @@ gate question reopens immediately, because the account stops being inert.
 | `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional; required for its type to be switched on |
 | `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | Booleans, off by default. On = a how-paid option and shown to confirmed families. *Added 2026-10-12* |
 | `acceptsCash` | Boolean, off by default. Makes *Cash* a how-paid option (ADR-003 decision 4) and, since the later 2026-10-12 amendment, shows it to confirmed families. *Added 2026-10-12* |
-| `smsCancellationAlerts` | Boolean, **false until the coach ticks it** — *"Text me when a family cancels late"* on the signup form and profile *(label amended 2026-10-09: the text goes only for cancellations inside `requiredNoticeHours`, ADR-009)*. Sends the opt-in confirmation to `phone` when first ticked (ADR-009 decision 9, ADR-007 decision 8). *Added 2026-09-30* |
+| `smsCancellationAlerts` | Boolean, **false until the coach ticks it** — *"Text me when a family cancels late"* on the ~~signup form and~~ profile *(profile only since 2026-11-06, Status)* *(label amended 2026-10-09: the text goes only for cancellations inside `requiredNoticeHours`, ADR-009)*. Sends the opt-in confirmation to `phone` when first ticked (ADR-009 decision 9, ADR-007 decision 8). *Added 2026-09-30* |
 | `themeId` | Phase 2; Harbor for MVP *(Amended 2026-10-09: Harbor replaced Forest on 2026-10-01)* |
 
 No password field. No EIN.
