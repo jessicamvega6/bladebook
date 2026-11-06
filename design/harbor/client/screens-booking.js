@@ -47,7 +47,7 @@ const bkMonthLabel = ym => { const [y, m] = ym.split('-').map(Number); return `$
 const bkShortMonth = ym => MON[Number(ym.split('-')[1]) - 1];
 
 /* Waiting families never see the booking pages (ADR-022 d6). */
-const bkPendingGate = () => shell(card(`<div class="pempty"><span class="pempty__icon">${ic('lock', 22)}</span><b>Booking opens once ${coachOr(waitingByCoach().map(w => w.cid).concat(waitingByCoach().length ? [] : [DANA]))} approves</b><span class="muted">Until then you can see your own account and skaters. We’ll email you as soon as you’re approved.</span>${B('Back to home', 'secondary', '', { href: href('home') })}</div>`));
+const bkPendingGate = () => shell(card(`<div class="pempty"><span class="pempty__icon">${ic('lock', 22)}</span><b>Booking opens once ${coachOr(waitingByCoach().map(w => w.cid).concat(waitingByCoach().length ? [] : [DANA]))} approves</b><span class="muted">Until then you can see your own account and skaters. You can book here as soon as you’re approved.</span>${B('Back to home', 'secondary', '', { href: href('home') })}</div>`));
 
 /* ---------- skater and coach pickers ---------- */
 function bkPicker() {

@@ -15,7 +15,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
+| `coach/` | The coach website: 54 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 61 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
@@ -32,7 +32,7 @@ node design/harbor/coach/build.mjs
 |---|---|
 | `app.js`, `app.css` | Sample data (coach Dana Whitfield; today is Wed, Oct 14, 2026, 8:15 AM), the shell and navigation, interactive helpers, log in, forgot password, sign-up, and the Today dashboard |
 | `screens-calendar.*` | Month, week and day views, and the cancel preview (release or hold per lesson) |
-| `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; edit contact, remove) and the pending list (each skater's number; approve, decline). Approving changes only the skater’s record; no shared lesson waits on it (ADR-033) |
+| `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; contact details read-only, families edit their own; remove is Phase 2) and the pending list (each skater's number; approve, decline). Approving changes only the skater’s record; no shared lesson waits on it (ADR-033) |
 | `screens-money-profile.*` | Lessons (attendance corrections), Payments, Profile (five tabs) and Email templates (Phase 2) |
 | `schedule.html` | The schedule section: weekly editor, time off, special schedules, review and save status. A copy of `redesign/harbor-schedule-creator-demo.html` with the shared navigation and October sample dates |
 | `build.mjs` | Writes `demo/` and `static/`. Static pages are rendered from each screen file's `PRESETS` and from fixed states of `schedule.html` |
@@ -41,7 +41,7 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 ### Pages
 
-55 static pages. New means no design existed before; redesigned means a Forest screen existed.
+54 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
@@ -50,7 +50,7 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub); Today with the coach code not working yet — new |
 | Calendar | Month — new; week — redesigned; day — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
-| Students | Student list, edit contact, pending list, decline, nobody waiting — new |
+| Students | Student list, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
 | Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new |
