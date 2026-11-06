@@ -74,6 +74,9 @@ Lessons that passed before they could be cancelled — to the coach, when a stuc
   applied." The coach can waive them and contact the families. (ADR-010)
 
 Sent by Cognito (Amazon's sign-in service); its wording can be customised but these aren't BladeBook templates:
+*Changed 2026-11-06 (owner, ADR-016 amended): no Cognito custom message trigger. The three codes below all arrive in
+  one email, Cognito's built-in verification message, which names no coach or family and states no expiry.
+  Designed in design/harbor/email/cognito/cognito-code.html.*
 Sign-up verification code — to a family (sign-up step 3) or a coach (sign-up step 2). 6-digit code; a family's expires
   in 24 hours. (ADR-016, Client Sign Up, Coach Sign Up)
 Forgot-password code — to a family or a coach, to the login email. 6-digit code, expires in 1 hour. (ADR-016,

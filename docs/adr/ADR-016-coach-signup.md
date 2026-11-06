@@ -75,6 +75,14 @@ which decision 4 already verifies).
 trigger adds the `Coach` group when the login email is verified, so decision **9**'s first
 signed-in session (the profile write) already carries the group ADR-023 decision 7 requires.
 
+**Amended — 2026-11-06.** *Decided by the owner.* **No Cognito custom message trigger.** Cognito
+sends its one built-in verification message for every code: sign-up, forgot password (decision 3)
+and a family's changed email. Cognito fills in only the code, so that email names no coach or
+family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). It
+reads *"Enter this code on the BladeBook page that asked for it"* and is drawn in
+`design/harbor/email/cognito/cognito-code.html`. BladeBook stays at seventeen functions. The user
+pool sends through SES, from the same domain as BladeBook's other email.
+
 ---
 
 ## Context
@@ -205,6 +213,9 @@ holding every student record on a system already flagged for COPPA review.
 Cognito's `ForgotPassword` / `ConfirmForgotPassword` sends a one-time code to the verified
 address and is strictly stronger than anything worth building here. Password policy is pool
 configuration, not application code.
+
+*Amended 2026-11-06 (owner):* the code arrives in Cognito's one built-in verification message,
+the same email as the sign-up code. There is no custom message trigger (see the Status section).
 
 ### 4. The login email must be verified before the account is usable
 

@@ -484,48 +484,22 @@ export const TEMPLATES = [
 ];
 
 /* =========================== Sent by Cognito =========================== */
-/* Not SES templates. Cognito fills only {####} (the code) and {username}, so no coach or family names.
-   Pasted into the user pool's message settings, or returned by a custom message trigger (see README). */
+/* Not an SES template. Cognito fills in only {####} (the code) and {username}, and with no custom message
+   trigger (owner, 2026-11-06) it sends this one message for every code: sign-up, forgot password and a
+   changed email. So it names no coach or family and states no expiry (24 hours for a sign-up code, 1 hour
+   for a password code). Pasted into the user pool's message settings (see README). */
 export const COGNITO = [
   {
-    name: 'cognito-signup-code', group: 'cognito', title: 'Sign-up verification code',
-    when: 'Family sign-up step 3 or coach sign-up step 2. A family’s code lasts 24 hours.', sender: 'Cognito (verification message)',
-    from: 'BladeBook <lessons@{domain}>', replyTo: 'no-reply@{domain}', to: 'the new account’s email',
+    name: 'cognito-code', group: 'cognito', title: 'Verification code',
+    when: 'Every code Cognito sends: sign-up (family step 3, coach step 2), forgot password, and a family’s changed email. One message for all three.', sender: 'Cognito (the user pool’s verification message)',
+    from: 'BladeBook <lessons@{domain}>', replyTo: 'no-reply@{domain}', to: 'the address being confirmed',
     subject: 'Your BladeBook code: {####}',
-    preheader: 'Enter this code to finish signing up.',
-    eyebrow: 'Sign up', headline: 'Your code to finish signing up',
+    preheader: 'Enter this code on the BladeBook page that asked for it.',
+    eyebrow: 'Your code', headline: 'Your BladeBook code',
     blocks: [
-      'Enter this code on the BladeBook sign-up page:',
+      'Enter this code on the BladeBook page that asked for it:',
       { code: '{####}' },
-      { fine: 'Didn’t sign up for BladeBook? You can ignore this email.' },
-    ],
-  },
-  {
-    name: 'cognito-forgot-password', group: 'cognito', title: 'Forgot-password code',
-    when: 'Forgot password, to the login email. The code lasts 1 hour.', sender: 'Cognito (custom message trigger)',
-    from: 'BladeBook <lessons@{domain}>', replyTo: 'no-reply@{domain}', to: 'the login email',
-    subject: 'Your BladeBook password code: {####}',
-    preheader: 'Use this code to set a new password. It works for 1 hour.',
-    eyebrow: 'Reset password', headline: 'Your code to set a new password',
-    blocks: [
-      'Enter this code on the BladeBook “Forgot password” page, then choose a new password:',
-      { code: '{####}' },
-      { fine: 'The code works for 1 hour.' },
-      { fine: 'Didn’t ask to reset your password? You can ignore this email. Your password hasn’t changed.' },
-    ],
-  },
-  {
-    name: 'cognito-change-email', group: 'cognito', title: 'Change-email code',
-    when: 'To a family’s new address when they change their email on Profile. The old address stays the login until the code is entered.', sender: 'Cognito (custom message trigger)',
-    from: 'BladeBook <lessons@{domain}>', replyTo: 'no-reply@{domain}', to: 'the new address',
-    subject: 'Confirm your new email for BladeBook: {####}',
-    preheader: 'Enter this code to start signing in with this address.',
-    eyebrow: 'New email', headline: 'Confirm your new email address',
-    blocks: [
-      'Enter this code on your BladeBook Profile page to start using this address:',
-      { code: '{####}' },
-      { fine: 'Until you enter it, you keep signing in with your old address.' },
-      { fine: 'Didn’t ask for this? You can ignore this email.' },
+      { fine: 'Didn’t ask for a code? You can ignore this email. Nothing changes without it.' },
     ],
   },
 ];

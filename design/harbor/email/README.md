@@ -18,7 +18,7 @@ copy (`design/harbor/coach/screens-money-profile.js`, `MP_TEMPLATES`) where that
 | `gallery.html` | The shell for the preview page |
 | `ses/<name>.json` | One SES template per email: `TemplateName` and `TemplateContent` (`Subject`, `Html`, `Text`) |
 | `ses/sample-data/<name>.json` | The sample `TemplateData` for each template |
-| `cognito/<name>.html`, `cognito/messages.json` | The three sign-in emails Cognito sends, with their subjects |
+| `cognito/cognito-code.html`, `cognito/messages.json` | The one code email Cognito sends, with its subject |
 | `static/index.html` | The preview gallery (generated) |
 
 Edit `templates.mjs`, then rebuild. Don't edit `ses/` or `static/` by hand.
@@ -36,7 +36,7 @@ with no answer, remaining dates cancelled.
 **To the coach (6):** morning email, daily report, a family cancelled late, unpaid lessons (weekly), lessons that
 passed before they could be cancelled, confirm your business email.
 
-**Sent by Cognito (3):** sign-up code, forgot-password code, change-email code.
+**Sent by Cognito (1):** one code email for sign-up, forgot password and a changed email.
 
 ## The layout
 
@@ -124,24 +124,28 @@ The sample data in `ses/sample-data/` is the contract: each file holds every fie
 fails if a template uses a field its sample doesn't have, and the previews were checked against the Handlebars
 library itself (4.7.8) to make sure they match what SES renders.
 
-## Cognito's three emails
+## Cognito's code email
 
-These aren't SES templates. Cognito fills in only `{####}` (the code), so they can't name a coach or family. Paste
-the HTML from `cognito/` into the user pool's message settings, with the subject from `messages.json`. Each is
-under Cognito's 20,000-character limit.
+This isn't an SES template. **BladeBook uses no Cognito custom message trigger** (owner, 2026-11-06), so Cognito
+sends the user pool's one verification message for every code: sign-up, forgot password and a changed email.
+Cognito fills in only `{####}` (the code), so the email:
 
-Cognito's own settings hold **one** verification message, used for sign-up and for confirming a changed email. To
-give forgot-password and change-email their own wording, as drawn here, needs a Cognito custom message trigger: one
-small Lambda that picks the message by its trigger source. Without that trigger, use `cognito-signup-code` for all
-three. See the open questions below.
+- works for all three cases: "Enter this code on the BladeBook page that asked for it";
+- names no coach or family;
+- states no expiry, because a sign-up code lasts 24 hours and a password code lasts 1 hour.
+
+Paste the HTML from `cognito/cognito-code.html` into the user pool's verification message, with the subject from
+`messages.json`. It is about 5,500 characters, well under Cognito's 20,000-character limit.
+
+Set the user pool to send its email through SES, from the same domain as the other emails. Left at Cognito's
+default, it sends from Cognito's own address with a low daily limit.
 
 ## Open questions
 
 1. **The sending address.** The templates assume `lessons@<domain>` for From and `no-reply@<domain>` for coach
    emails. The domain isn't chosen yet.
-2. **A custom message trigger for Cognito**, which would be an eighteenth Lambda, or one generic code email for all three.
-3. **Who sends the business-email confirmation.** `architecture.md` doesn't name a function; it's marked `api-coach` here.
-4. **The undecided emails** below.
+2. **Who sends the business-email confirmation.** `architecture.md` doesn't name a function; it's marked `api-coach` here.
+3. **The undecided emails** below.
 
 ## Not drawn
 

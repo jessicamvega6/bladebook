@@ -90,7 +90,7 @@ pre.code { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px
   <header class="top">
     <div>
       <h1>BladeBook email designs</h1>
-      <p class="lede">Every email in the first release, built as Amazon SES templates in the Harbor look. Each one is shown with the Coach Dana sample data, exactly as the template renders it.</p>
+      <p class="lede">Every email in the first release, built as Amazon SES templates and Cognito's code email, in the Harbor look. Each one is shown with the Coach Dana sample data, exactly as the template renders it.</p>
     </div>
     <div class="counts" id="counts"></div>
   </header>
@@ -122,7 +122,7 @@ pre.code { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px
 
   const ses = EMAILS.filter(e => e.group !== 'cognito').length, cog = EMAILS.length - ses;
   document.getElementById('counts').innerHTML =
-    `<span class="chip"><b>${ses}</b> SES templates</span><span class="chip"><b>${cog}</b> Cognito messages</span>`;
+    `<span class="chip"><b>${ses}</b> SES templates</span><span class="chip"><b>${cog}</b> Cognito message${cog === 1 ? '' : 's'}</span>`;
 
   const list = document.getElementById('list');
   list.innerHTML = GROUPS.map(([g, label]) => `<div class="grp">${label}</div>` + EMAILS.filter(e => e.group === g).map(e =>

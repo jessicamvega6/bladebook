@@ -1922,6 +1922,10 @@ sequenceDiagram
   post-confirmation trigger adds `Coach` to an account confirmed through the coach app client
   and `Client` to one confirmed through the family app client, so the first signed-in request,
   the coach's profile or the family's registration, already carries its group.
+- **Cognito sends one code email** (ADR-016, amended 2026-11-06). Sign-up, forgot password and a
+  changed email all get the user pool's built-in verification message, sent through SES. There is
+  no custom message trigger, so the email names no coach or family and states no expiry
+  (`design/harbor/email/cognito/cognito-code.html`).
 - **Schedule saves require a recent sign-in** (ADR-023 d4). Saving a schedule change is
   refused unless the token's `auth_time` is within the last 15 minutes; the website then asks
   for the password (and MFA code, if on) and retries. This guards the most destructive action

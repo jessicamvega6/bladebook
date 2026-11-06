@@ -1,17 +1,7 @@
 {
-  "cognito-signup-code": {
+  "cognito-code": {
     "subject": "Your BladeBook code: {####}",
-    "html": "cognito/cognito-signup-code.html",
-    "characters": 5467
-  },
-  "cognito-forgot-password": {
-    "subject": "Your BladeBook password code: {####}",
-    "html": "cognito/cognito-forgot-password.html",
-    "characters": 5784
-  },
-  "cognito-change-email": {
-    "subject": "Confirm your new email for BladeBook: {####}",
-    "html": "cognito/cognito-change-email.html",
-    "characters": 5766
+    "html": "cognito/cognito-code.html",
+    "characters": 5489
   }
 }

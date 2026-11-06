@@ -4,7 +4,7 @@
      ses/<name>.json              one SES (Simple Email Service) template per email, in the shape
                                   `aws sesv2 create-email-template --cli-input-json file://…` takes
      ses/sample-data/<name>.json  sample TemplateData, for `aws sesv2 test-render-email-template`
-     cognito/<name>.html          the three sign-in emails Cognito sends, with their subjects in
+     cognito/<name>.html          the one code email Cognito sends, with its subject in
      cognito/messages.json
      static/index.html            the preview gallery: every email rendered with its sample data
    The layout is table-based with inline styles, 600px wide, so it holds up in Gmail, Outlook and
@@ -119,7 +119,7 @@ function blockText(b) {
 const HEADERS = {
   family: { mark: '{{coachInitials}}', name: 'Coach {{coachName}}', sub: 'via BladeBook' },
   coach: { mark: 'BB', name: 'BladeBook', sub: 'For coaches' },
-  cognito: { mark: 'BB', name: 'BladeBook', sub: 'Lessons with your skating coach' },
+  cognito: { mark: 'BB', name: 'BladeBook', sub: 'Your account' },
 };
 const FOOTERS = {
   family: ['Questions? Reply to this email and it goes straight to Coach {{coachFirst}}.', 'BladeBook sends lesson emails for Coach {{coachName}}. You get them because you have a BladeBook account with Coach {{coachFirst}}.'],
@@ -269,5 +269,5 @@ const shell = readFileSync(join(HERE, 'gallery.html'), 'utf8');
 const json = JSON.stringify(gallery).replace(/</g, '\\u003c');
 writeFileSync(out('static/index.html'), shell.replace('/*__EMAILS__*/[]', json));
 
-console.log(`${TEMPLATES.length} SES templates, ${COGNITO.length} Cognito messages, gallery at static/index.html`);
+console.log(`${TEMPLATES.length} SES templates, ${COGNITO.length} Cognito message${COGNITO.length === 1 ? '' : 's'}, gallery at static/index.html`);
 if (problems.length) { console.error('Problems:\n  ' + problems.join('\n  ')); process.exitCode = 1; }

@@ -1169,7 +1169,7 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4, ADR-023 d2, d4–7, d9–10.*
+*Sources: ADR-016 d3–4 (amended 2026-11-06), ADR-023 d2, d4–7, d9–10.*
 
 - **Two Cognito app clients in one user pool:** one for the coach website, rinkside page
   included, and one for the family website (ADR-023 d9). Each has its own sign-in return
@@ -1191,6 +1191,10 @@ notified.
 - **A new account gets its group when its email is confirmed** (ADR-023 d10): a Cognito
   post-confirmation trigger adds `Coach` for the coach app client and `Client` for the family
   app client, and the website refreshes its tokens before the first signed-in request.
+- **One code email for everything Cognito sends** (ADR-016, amended 2026-11-06): sign-up, forgot
+  password and a changed email all get Cognito's built-in verification message. There is **no
+  custom message trigger**, so the email names no coach or family and states no expiry. The user
+  pool sends through SES.
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
