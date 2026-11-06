@@ -731,6 +731,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
 .bb .rink-cta__text b { font-size: 17px; }
 
+/* Coach code waiting for the business email (ADR-016, amended 2026-11-06) */
+.bb .codecard__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bb .codecard--pending { background: var(--surface-2, var(--bg)); border-style: dashed; }
+.bb .codecard--pending .codecard__code { color: var(--text-3); }
+.bb .codewait { margin-bottom: 16px; }
+.bb .codewait__links { margin: 6px 0 0 4px; }
+
 /* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
 .bb .cal-scroll { overflow-x: auto; }
 .bb .cal-scroll .week { min-width: 860px; }
@@ -1914,7 +1921,16 @@ Object.assign(ACTIONS, {
 });
 
 /* ================= Coach sign-up (ADR-016) ================= */
-const codeCardA = () => `<div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">${state.profile.code}</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>${B('Copy', 'secondary', 'copyCode', { icon: 'copy' })}</div>`;
+/* The coach code works only once the coach has a confirmed business email (ADR-016, amended 2026-11-06): the CODE# item is
+   written when the link is confirmed, or at once with the login email. Until then a family who enters the code is told it
+   doesn't match, so the card says it isn't working yet. */
+const codeSub = () => state.profile.codePending ? 'Starts working once you confirm your business email.' : 'Families enter this to sign up with you.';
+const codeLabel = () => `<div class="codecard__label">Your coach code</div>${state.profile.codePending ? badge('Not working yet', 'warning', 'clock') : ''}`;
+const codeCardA = () => `<div class="codecard${state.profile.codePending ? ' codecard--pending' : ''}"><div><div class="codecard__head">${codeLabel()}</div><div class="codecard__code">${state.profile.code}</div><div class="codecard__sub">${codeSub()}</div></div>${B('Copy', 'secondary', 'copyCode', { icon: 'copy' })}</div>`;
+/** Shown on Today and Profile while the code waits for the business email (not during sign-up, which has its own banner). */
+const codePendingBanner = () => state.profile.codePending ? `<div class="codewait">${banner('warning', 'Your code starts working once you confirm your business email',
+  `We sent a link to <b>${esc(state.profile.businessEmail)}</b>. Until you click it, families who enter your code are told it doesn’t match, and they can’t sign up with you.`, 'clock')}
+  <p class="fine codewait__links"><a class="link" data-act="codeResend">Resend link</a> · <a class="link" href="${href('profile-email')}">Change address</a> · <a class="link" data-act="codeUseLogin">Use my login email instead</a></p></div>` : '';
 SCREENS.signup = () => {
   const a = state.auth, p = state.profile, step = a.signup || 0;
   if (step === 0) return authShell(card(`
@@ -1969,12 +1985,14 @@ SCREENS.signup = () => {
     { steps: 4, ctx: 'Coach sign up', right: '' });
 };
 Object.assign(ACTIONS, {
-  signupNext() { const a = state.auth; a.signup = (a.signup || 0) + 1; if (a.signup === 3 && a.bizSame) a.signup = 4; },
+  signupNext() { const a = state.auth; a.signup = (a.signup || 0) + 1; if (a.signup === 3 && a.bizSame) a.signup = 4; if (a.signup === 3) state.profile.codePending = true; },
   signupBack() { state.auth.signup = Math.max(0, (state.auth.signup || 0) - 1); },
   signupBizSame(i) { state.auth.bizSame = i === 0; },
   signupCurrency(i) { state.profile.currency = i === 0 ? 'USD' : 'CAD'; },
-  signupUseLogin() { state.auth.bizSame = true; state.profile.businessEmail = state.profile.loginEmail; state.auth.signup = 4; },
-  signupConfirmed() { state.auth.signup = 4; },
+  signupUseLogin() { state.auth.bizSame = true; state.profile.businessEmail = state.profile.loginEmail; state.profile.codePending = false; state.auth.signup = 4; },
+  signupConfirmed() { state.profile.codePending = false; state.auth.signup = 4; },
+  codeResend() { state.flash = `Sent a new link to ${state.profile.businessEmail}.`; },
+  codeUseLogin() { const p = state.profile; p.businessEmail = p.loginEmail; p.codePending = false; state.flash = `Your code works now. Families’ replies go to ${p.loginEmail}.`; },
   signupFinish() { state.authed = true; go('today'); },
   copyCode() { state.flash = `Copied ${state.profile.code}.`; },
   noop() {},
@@ -1994,6 +2012,7 @@ SCREENS.today = () => {
   const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since);
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
+    ${codePendingBanner()}
     ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
     <div class="stats">
       ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
@@ -2024,8 +2043,9 @@ PRESETS.push(
   { id: 'CoachVerify', file: 'signup-2-verify', group: 'Sign up', title: '2 · Verify login email', note: 'From CoachVerify.', setup: st => { st.screen = 'signup'; st.auth.signup = 1; } },
   { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, one switch per payment type (Cash, Venmo, Cash App, PayPal; ADR-016 d7, amended 2026-10-12) and the optional photo from the sign-up spec.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
-  { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm.', setup: st => { st.screen = 'signup'; st.auth.signup = 3; } },
+  { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm. The coach code is shown as Not working yet: it starts working once the link is clicked (ADR-016, amended 2026-11-06).', setup: st => { st.screen = 'signup'; st.auth.signup = 3; st.profile.codePending = true; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
+  { id: 'CoachTodayCodePending', file: 'today-code-pending', group: 'Dashboard', title: 'Today — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). Dana chose a different business email at sign-up and went to her dashboard without clicking the link. Her coach code doesn’t work until she does: the CODE# item is written only once the address is confirmed. The banner says so, with Resend link, Change address and Use my login email instead (which makes the code work at once).', setup: st => { st.screen = 'today'; st.profile.codePending = true; } },
   { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve, and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
 );
 
@@ -2449,7 +2469,8 @@ SCREENS.profile = () => {
       <div class="fieldset"><div class="label">Currency</div><div class="input input--readonly"><span class="input__val">${p.currency === 'USD' ? 'USD — US dollar' : 'CAD — Canadian dollar'}</span>${ic('lock', 14)}</div><div class="hint">Every lesson is priced in this. Changing currency comes in Phase 2.</div></div>`,
       { title: 'About you' })}
     ${card(`
-      <div class="codecard"><div><div class="codecard__label">Your coach code</div><div class="codecard__code">${p.code}</div><div class="codecard__sub">Families enter this to sign up with you.</div></div>
+      ${codePendingBanner()}
+      <div class="codecard${p.codePending ? ' codecard--pending' : ''}"><div><div class="codecard__head">${codeLabel()}</div><div class="codecard__code">${p.code}</div><div class="codecard__sub">${codeSub()}</div></div>
         <span class="cellbtns">${B('Copy', 'secondary', 'copyCode', { icon: 'copy' })}${B('Rotate code', 'ghost', 'mpRotateAsk', { icon: 'refresh' })}</span></div>
       <p class="fine">Shared your code somewhere you didn’t mean to? Rotate it. The old code stops working for new sign-ups. Families already signed up aren’t affected.</p>`,
       { title: 'Coach code' })}
@@ -2665,6 +2686,7 @@ PRESETS.push(
   { id: 'CoachFinances', file: 'finances', group: 'Payments', title: 'Financial summary', note: 'New, MVP feature 16. Year-to-date gross (money received) and rink fees for 2026, month by month, with Pelham Civic Center’s terms. How rink fees are calculated is open (docs/Q_Rink-Fees.md); this shows one reading: 15% or $500 a month by the coach’s choice, a lesson counted in the month it was taught. Rink terms are added by the developer; the coach can’t edit them or enter what they paid. Only September and October have sample lessons.', setup: st => { st.screen = 'finances'; } },
   { id: 'CoachFinancesExport', file: 'finances-export', group: 'Payments', title: 'Financial summary — download', note: 'New state. The summary export (ADR-030 d7, MVP): a CSV for this year or last, one row per month, no skater names, so not a PII read.', setup: st => { st.screen = 'finances'; st.modal = { kind: 'finExport' }; st.ui.finYear = 0; } },
   { id: 'CoachProfileDetails', file: 'profile-details', group: 'Profile', title: 'Profile — details and coach code', note: 'New: name, phone, time zone, photo, read-only currency and the coach code with Rotate.', setup: st => { st.screen = 'profile'; } },
+  { id: 'CoachProfileCodePending', file: 'profile-details-code-pending', group: 'Profile', title: 'Profile — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). The business email from sign-up isn’t confirmed, so the coach code is marked Not working yet, with the same banner as Today. A family who enters it now is told it doesn’t match.', setup: st => { st.screen = 'profile'; st.profile.codePending = true; } },
   { id: 'CoachProfileEmail', file: 'profile-email', group: 'Profile', title: 'Profile — business email', note: 'Redesigned from Forest CoachProfileEmail: a new address needs a confirmation link before it can be chosen.', setup: st => { st.screen = 'profile-email'; st.profile.emails.push({ addr: 'dana@pelhamfsc.org', pending: true }); } },
   { id: 'CoachProfileVisibility', file: 'profile-visibility', group: 'Profile', title: 'Profile — visibility and texts', note: 'Redesigned from Forest CoachProfileVisibility: what approved families see, and the cancellation text.', setup: st => { st.screen = 'profile-visibility'; } },
   { id: 'CoachProfilePayments', file: 'profile-payments', group: 'Profile', title: 'Profile — payment details', note: 'Payment instructions and one switch per payment type (ADR-016 d7, amended 2026-10-12): Cash and Venmo on, Cash App off with its handle kept, PayPal not set up. A type switched on is shown to approved families and is a how-paid choice (ADR-003 d4).', setup: st => { st.screen = 'profile-payments'; } },

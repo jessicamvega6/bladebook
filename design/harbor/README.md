@@ -15,7 +15,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 53 pages, as an interactive demo and as static designs. |
+| `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 57 pages. |
 | `rinkside/` | The rinkside check-in app: 16 phone screens. |
 
@@ -41,19 +41,19 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 ### Pages
 
-53 static pages. New means no design existed before; redesigned means a Forest screen existed.
+55 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
 | Sign in | Log in, forgot password (email a code; code and new password) — new |
 | Sign up | Account, verify login email, business details (different / same email), confirm business email, all set — redesigned |
-| Dashboard | Today — new (the Forest "dashboard" was the schedule hub) |
+| Dashboard | Today — new (the Forest "dashboard" was the schedule hub); Today with the coach code not working yet — new |
 | Calendar | Month — new; week — redesigned; day — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
 | Students | Student list, edit contact, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
-| Profile | Details and coach code, business email, visibility and texts — redesigned; payments, account — new |
+| Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new |
 | Phase 2 | Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
 
 ### What the demo does not do
