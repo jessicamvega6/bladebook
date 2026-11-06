@@ -57,7 +57,7 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | ID | Conflict | ADR | Screen | Resolution |
 |---|---|---|---|---|
 | A1 | Profile photo upload is drawn for MVP; the ADRs make photos Phase 2 | M:294, M:1695 | `coach/app.js:134`, `coach/screens-money-profile.js:222-224` | ADR: initials only, no upload |
-| A2 | The sign-up banner says families can't reach the coach until the business email is confirmed; the ADR says replies go to the login email until then | ADR-016:59-61 | `coach/app.js:141` | Screen: at sign-up, families can't reach the coach until a different business email is confirmed. **The coach code doesn't work until then**: `CODE#` is written only once the address is confirmed, or at once if the coach uses the login email. **Design addition:** the coach's "Your code starts working once you confirm" note isn't drawn. *ADR updated: ADR-016, ADR-MASTER §4.* |
+| A2 | The sign-up banner says families can't reach the coach until the business email is confirmed; the ADR says replies go to the login email until then | ADR-016:59-61 | `coach/app.js:141` | Screen: at sign-up, families can't reach the coach until a different business email is confirmed. **The coach code doesn't work until then**: `CODE#` is written only once the address is confirmed, or at once if the coach uses the login email. **Drawn 2026-11-06:** `today-code-pending`, `profile-details-code-pending`, and a "Not working yet" code card on `signup-4-confirm-email`. *ADR updated: ADR-016, ADR-MASTER §4.* |
 | A3 | The SMS-alerts switch should be on the sign-up form; the screen has it on the profile only | ADR-016:189 | `coach/app.js:123-135` | Screen: on the profile only. *ADR updated: ADR-016, ADR-MASTER §4.* |
 | A4 | The coach can edit a family's contact details; the family's profile is the source of truth and `coach-tenant` can't write `CLIENT#` | M:209-210, M:374-376 | `coach/screens-students.js:25,52-61` | ADR: read-only for the coach |
 | A5 | "Texts on / Email only" shown for families; family SMS is Phase 2 | M:203 | `coach/screens-students.js:16,24,40` | ADR: left out |
@@ -140,7 +140,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Profile → Details: name, phone, time zone, currency read-only.
   - Profile → Payments.
   - Coach code: show, copy, rotate.
-- **Left out:** photo (A1), the business-email banner (A2), the SMS switch at sign-up (A3), and the business-email confirmation link (how it's built is still open, M:1753).
+- **Left out:** photo (A1) and the SMS switch at sign-up (A3), both ruled out. **Built from the rulings:** the business-email banner and the code's "Not working yet" state (A2). **Also left out:** and the business-email confirmation link (how it's built is still open, M:1753).
 
 ### Batch 2 — Weekly schedule and the coach's week and month views (MVP 3, 4, 9, part)
 

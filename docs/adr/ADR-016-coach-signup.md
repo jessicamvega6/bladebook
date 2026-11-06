@@ -102,7 +102,8 @@ unchanged**: the current confirmed address stays in use until the new one is con
   a family sees the ordinary *"That code doesn't match a coach"* message, which reveals nothing
   about an unfinished sign-up.
 - **The coach is told:** until it's confirmed, the coach's code is shown with *"Your code starts
-  working once you confirm your business email."* This isn't drawn in `design/harbor/` yet.
+  working once you confirm your business email."* Drawn 2026-11-06 in `design/harbor/coach/`
+  (`today-code-pending`, `profile-details-code-pending`, and the code card on `signup-4-confirm-email`).
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design.*
 **`smsCancellationAlerts` is on the profile only** (Profile → Visibility & texts), not on the
