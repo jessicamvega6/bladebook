@@ -140,7 +140,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Profile → Details: name, phone, time zone, currency read-only.
   - Profile → Payments.
   - Coach code: show, copy, rotate.
-- **Left out:** photo (A1) and the SMS switch at sign-up (A3), both ruled out. **Built from the rulings:** the business-email banner and the code's "Not working yet" state (A2). **Also left out:** and the business-email confirmation link (how it's built is still open, M:1753).
+- **Left out:** photo (A1) and the SMS switch at sign-up (A3), both ruled out. **Built from the rulings:** the business-email banner and the code's "Not working yet" state (A2). **Also left out:** the business-email confirmation link (how it's built is still open, M:1753).
 
 ### Batch 2 — Weekly schedule and the coach's week and month views (MVP 3, 4, 9, part)
 
