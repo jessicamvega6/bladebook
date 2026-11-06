@@ -1,0 +1,21 @@
+{
+  "coachName": "Dana Whitfield",
+  "coachFirst": "Dana",
+  "coachInitials": "DW",
+  "coachBusinessEmail": "dana@whitfieldskating.com",
+  "myBookingsUrl": "https://bladebook.app/bookings",
+  "bookUrl": "https://bladebook.app/book",
+  "homeUrl": "https://bladebook.app/",
+  "familyFirst": "Tom",
+  "noticeHours": "24",
+  "inviterName": "Grace Chen",
+  "inviterSkater": "Mia",
+  "skater": "Zoe",
+  "date": "Fri, Oct 16",
+  "time": "8:30 AM",
+  "rink": "Pelham Civic Center",
+  "length": "30 min",
+  "share": "$25",
+  "fullPrice": "$50",
+  "invitationUrl": "https://bladebook.app/invitations/8f2c1a"
+}

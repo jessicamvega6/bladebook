@@ -1,0 +1,22 @@
+{
+  "coachFirst": "Dana",
+  "rinksideUrl": "https://bladebook.app/coach/rinkside",
+  "calendarUrl": "https://bladebook.app/coach/calendar",
+  "lessonsUrl": "https://bladebook.app/coach/lessons",
+  "paymentsUrl": "https://bladebook.app/coach/payments",
+  "lessonCount": "2",
+  "lessons": [
+    {
+      "date": "Mon, Nov 2",
+      "time": "6:00 AM",
+      "skater": "Mia C.",
+      "familyName": "Grace Chen"
+    },
+    {
+      "date": "Mon, Nov 2",
+      "time": "6:30 AM",
+      "skater": "Owen B.",
+      "familyName": "Priya Banerjee"
+    }
+  ]
+}

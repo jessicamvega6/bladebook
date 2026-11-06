@@ -1,0 +1,46 @@
+{
+  "coachName": "Dana Whitfield",
+  "coachFirst": "Dana",
+  "coachInitials": "DW",
+  "coachBusinessEmail": "dana@whitfieldskating.com",
+  "myBookingsUrl": "https://bladebook.app/bookings",
+  "bookUrl": "https://bladebook.app/book",
+  "homeUrl": "https://bladebook.app/",
+  "familyFirst": "Grace",
+  "noticeHours": "24",
+  "oneLesson": false,
+  "plural": false,
+  "skaterNames": "Mia",
+  "lessonCount": "3",
+  "firstDate": "Wed, Oct 21",
+  "firstTime": "6:30 AM",
+  "rink": "Pelham Civic Center",
+  "repeats": true,
+  "repeatsUntil": "Wed, Nov 4",
+  "lessons": [
+    {
+      "date": "Wed, Oct 21",
+      "time": "6:30 AM",
+      "skater": "Mia",
+      "length": "30 min",
+      "rink": "Pelham Civic Center",
+      "price": "$50"
+    },
+    {
+      "date": "Wed, Oct 28",
+      "time": "6:30 AM",
+      "skater": "Mia",
+      "length": "30 min",
+      "rink": "Pelham Civic Center",
+      "price": "$50"
+    },
+    {
+      "date": "Wed, Nov 4",
+      "time": "6:30 AM",
+      "skater": "Mia",
+      "length": "30 min",
+      "rink": "Pelham Civic Center",
+      "price": "$50"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "coachFirst": "Dana",
+  "rinksideUrl": "https://bladebook.app/coach/rinkside",
+  "calendarUrl": "https://bladebook.app/coach/calendar",
+  "lessonsUrl": "https://bladebook.app/coach/lessons",
+  "paymentsUrl": "https://bladebook.app/coach/payments",
+  "lessonCount": "4",
+  "total": "$175",
+  "lessons": [
+    {
+      "skater": "Leo M.",
+      "date": "Fri, Sep 4",
+      "amount": "$50"
+    },
+    {
+      "skater": "Ella A.",
+      "date": "Fri, Oct 2",
+      "amount": "$25"
+    },
+    {
+      "skater": "Ella A.",
+      "date": "Fri, Oct 9",
+      "amount": "$50"
+    },
+    {
+      "skater": "Owen B.",
+      "date": "Mon, Oct 5",
+      "amount": "$50"
+    }
+  ]
+}
