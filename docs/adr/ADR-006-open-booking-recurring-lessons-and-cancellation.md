@@ -113,6 +113,11 @@ its SMS form (decision 6, the sequence diagram's SNS step) waits for it.
 
 Every behaviour rule still holds unless ADR-031 says otherwise.
 
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict S7 in the implementation plan
+(`design/harbor/coach/screens-calendar.js`).* **On the coach's month calendar, clicking a date
+opens that day**, not the week containing it (decision 3). The coach's week view, with previous
+and next, is unchanged and still reached from the calendar. The family's calendar is unchanged.
+
 ---
 
 ## Context

@@ -434,6 +434,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .alertcard__body { color: var(--text-2); margin-top: 2px; }
 .bb .alertcard__body b { color: var(--text); }
 .bb .alertcard .check { border-color: var(--danger-border); }
+.bb .alertcard--warn { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .alertcard--warn .alertcard__head { color: var(--warning); }
+.bb .alertcard--warn .alertcard__title { color: var(--warning-text); }
+.bb .alertcard--warn .check { border-color: var(--warning-border); }
 .bb .delta { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
 .bb .delta b { color: var(--success-text); font-size: 15px; }
 .bb .progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
@@ -696,8 +700,8 @@ html, body { margin: 0; background: var(--sp-bg); }
       <a class="nav__user" href="profile-details.html"><span class="avatar avatar--sm">DW</span><span class="nav__user-text"><b>Dana Whitfield</b><small>Coach</small></span></a></header>
     <main class="main"><div class="page page--narrow">
     <div class="phead"><div class="phead__text"><div class="crumb"><button type="button" class="link crumbbtn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back to editing</button></div><h1 class="h1">Review your changes</h1><p class="lede">Weekly schedule · repeats every week until you change it</p></div></div>
-    <div class="impact"><div class="stat"><div class="stat__label">Cancelled</div><div class="stat__value">0 lessons</div></div><div class="stat"><div class="stat__label">New price</div><div class="stat__value">0 lessons</div></div><div class="stat"><div class="stat__label">Families emailed</div><div class="stat__value">0</div></div></div>
     
+    <div class="impact"><div class="stat"><div class="stat__label">Cancelled</div><div class="stat__value">0 lessons</div></div><div class="stat"><div class="stat__label">New price</div><div class="stat__value">0 lessons</div></div><div class="stat"><div class="stat__label">Families emailed</div><div class="stat__value">0</div></div></div>
     <div class="banner banner--info" ><span class="banner__icon"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><div class="banner__text"><div class="banner__title">Skaters per lesson changes</div><div class="banner__body">Morning ice goes from up to 2 skaters to 1 skater. Lessons already booked keep their current setting. The change applies only to lessons booked from now on.</div></div></div>
     
     

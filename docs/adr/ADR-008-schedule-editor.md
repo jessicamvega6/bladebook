@@ -82,6 +82,12 @@ changes what a save does underneath, not what the coach sees:
   change the same lesson-time record, so a booking can no longer land on a time the save
   removed.
 
+
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict S5 in the implementation plan
+(`design/harbor/coach/schedule.html`).* **The block Name field always shows**, in a temporary
+schedule too. The rule that a temp's editor doesn't ask for a block name until a second block
+exists (decision 2's block-name note) is withdrawn. The name stays optional, HTML-escaped and
+capped at 40 characters.
 ---
 
 ## Context

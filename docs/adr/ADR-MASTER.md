@@ -485,8 +485,8 @@ editor keeps those apart.
   LL becomes 30. **Every contiguous run of selected slots becomes one block.**
 - **Block names.** `seq` is assigned once and never reused or renumbered (the next is one above
   the highest in that schedule). Every surface labels a block by its name, or *Block N* from
-  `seq`. Names are coach-only, HTML-escaped and capped at 40 characters. In a temp, the editor
-  doesn't ask for a block name until there is a second block. Overlap messages name both blocks
+  `seq`. Names are coach-only, HTML-escaped and capped at 40 characters. The Name field always
+  shows, in a temp too (ADR-008, amended 2026-11-08). Overlap messages name both blocks
   and their times: *"Monday: Morning ice (6–11:30 AM) and Block 2 (10 AM–5 PM) overlap in time."*
 - **Odd-cents warning** (not a block): when a block allows 2 or more skaters and its price
   doesn't split evenly — *"Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent
@@ -498,7 +498,8 @@ editor keeps those apart.
 ### Calendars
 
 - **The coach and the family both get a monthly calendar and a Sunday–Saturday week view** with
-  previous and next. Clicking a date opens its week. Weeks are in the coach's timezone.
+  previous and next. On the coach's calendar, clicking a date opens that day (ADR-006,
+  amended 2026-11-08); on the family's, it opens its week. Weeks are in the coach's timezone.
 - The month marks every date with an override (one range query on `SCHEDULE#DATE#`).
 - **The coach's calendar** is editable and shows who is booked. **The family's** is bookable and
   shows only free or taken.

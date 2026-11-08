@@ -1,6 +1,6 @@
 # BladeBook — Implementation Plan
 
-**Status:** Draft, waiting on the owner's answers and "go". No code is written until then.
+**Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -25,12 +25,11 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 
 - `backend/` is a Maven multi-module build: `core`, `api-coach`, `api-client` and `consumers`.
   Each module is only a skeleton: entry points, empty packages, a context-load test and ArchUnit
-  layering rules. Nothing is committed yet.
+  layering rules. The skeletons and CI were committed in `0aac88b`.
 - `web/` has three Vite entry points (coach, rinkside and family), each showing a placeholder
   `App.tsx`. `shared/api`, `shared/auth` and `shared/logic` are empty.
-- **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml`, ADR-001 and
-  ADR-MASTER §1 still say Java 25. Batch 1 changes the pom. Amending the ADRs is proposed in §6
-  and waits on the owner's approval.
+- **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml` and CI are on
+  Java 17, and the ADRs were amended (see §6). The skeleton builds and starts on Java 17.0.10.
 
 ## 3. What can't be built end to end yet (blocked outside this work)
 
@@ -72,16 +71,16 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 
 | ID | Conflict | ADR | Screen | Resolution |
 |---|---|---|---|---|
-| S1 | Price is whole dollars, USD only, with $0 allowed; the ADR wants the coach's currency and an odd-cents warning (e.g. $45.01) | M:487-489 | `coach/schedule.html:977` | **Not ruled yet** |
-| S2 | Block labels are numbered by position; the ADR requires a stored `seq` that is never reused | M:482-484 | `coach/schedule.html:763,970` | **Not ruled yet** |
-| S3 | Times run 5:00am–11:00pm; the ADR says 12:00am–11:45pm | M:471-472 | `coach/schedule.html:871` | **Not ruled yet** |
-| S4 | A new block is prefilled (6–8pm, 30 min, $50); the ADR says start, end, length and days are cleared | M:476-477 | `coach/schedule.html:1074` | **Not ruled yet** |
-| S5 | The block Name field always shows; the ADR asks for it only once a second block exists | M:484-485 | `coach/schedule.html:969-970` | **Not ruled yet** |
-| S6 | The 7pm default end, length defaulting to 30, and slots past the end time are in the ADR but not on screen | M:479-481 | `coach/schedule.html:762,1016-1019` | **Not ruled yet** |
-| S7 | Clicking a month date opens the day view; the ADR says it opens that week | M:497 | `coach/screens-calendar.js:79` | **Not ruled yet** |
+| S1 | Price is whole dollars, USD only, with $0 allowed; the ADR wants the coach's currency and an odd-cents warning (e.g. $45.01) | M:487-489 | `coach/schedule.html:977` | ADR: the price is in the coach's currency, with the odd-cents warning when a block allows 2 or more skaters (ruled 2026-11-08) |
+| S2 | Block labels are numbered by position; the ADR requires a stored `seq` that is never reused | M:482-484 | `coach/schedule.html:763,970` | ADR: each block gets a stored `seq` when created, never renumbered or reused; an unnamed block is labelled *Block N* from it (ruled 2026-11-08) |
+| S3 | Times run 5:00am–11:00pm; the ADR says 12:00am–11:45pm | M:471-472 | `coach/schedule.html:871` | ADR: 12:00 AM to 11:45 PM in 15-minute steps (ruled 2026-11-08) |
+| S4 | A new block is prefilled (6–8pm, 30 min, $50); the ADR says start, end, length and days are cleared | M:476-477 | `coach/schedule.html:1074` | ADR: a new block starts with start, end, length and days cleared (ruled 2026-11-08) |
+| S5 | The block Name field always shows; the ADR asks for it only once a second block exists | M:484-485 | `coach/schedule.html:969-970` | Screen: the block Name field always shows, in a special schedule too (ruled 2026-11-08). *ADR updated: ADR-008, ADR-MASTER (The editor).* |
+| S6 | The 7pm default end, length defaulting to 30, and slots past the end time are in the ADR but not on screen | M:479-481 | `coach/schedule.html:762,1016-1019` | ADR: the slots run to 7:00 PM when the end is blank, length becomes 30 when a slot is clicked with none set, and no slot runs past the end time (ruled 2026-11-08) |
+| S7 | Clicking a month date opens the day view; the ADR says it opens that week | M:497 | `coach/screens-calendar.js:79` | Screen: on the coach's month calendar, clicking a date opens that day (ruled 2026-11-08). *ADR updated: ADR-006, ADR-MASTER (Calendars).* |
 | S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | **Not ruled yet** |
 | S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | **Not ruled yet** |
-| S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | **Not ruled yet** |
+| S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | ADR: the warning sits at the top of the review page, in the warning colours (ruled 2026-11-08). **Redrawn 2026-11-08:** `coach/static/schedule-review.html` |
 | S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | **Not ruled yet** |
 | S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | **Not ruled yet** |
 
@@ -125,7 +124,6 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 ### Batch 1 — Walking skeleton + coach profile and coach code (MVP 1, part)
 
 - **Foundation, smallest possible:**
-  - Switch `backend/pom.xml` to Java 17 (`java.version` and `maven.compiler.release`).
   - DynamoDB Local in Docker, and the one table created by a test helper.
   - Local sign-in stand-in (Question 3).
   - `shared/api` fetch client with the single retry on a server error.
@@ -153,7 +151,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 - **Slice:** the schedule hub, then the weekly editor, then save, then lesson times written for the window.
   - The coach's month view (previous/next) and week view showing Open.
   - With no bookings yet, save skips the impact preview. Shown as a shortcut until Batch 6.
-- **Needs rulings:** S1–S7 and S10. Unruled ones are left out, which may leave the editor unbuildable. That's why Question 2 matters.
+- **Rulings (2026-11-08):** S1–S7 and S10 are all ruled (§4). S10 is in the save preview, which this batch skips until Batch 6.
 
 ### Batch 3 — Family sign-up with a coach code; coach approves or declines (MVP 1, 2)
 
