@@ -140,7 +140,8 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Profile → Details: name, phone, time zone, currency read-only.
   - Profile → Payments.
   - Coach code: show, copy, rotate.
-- **Left out:** photo (A1) and the SMS switch at sign-up (A3), both ruled out. **Built from the rulings:** the business-email banner and the code's "Not working yet" state (A2). **Also left out:** the business-email confirmation link (how it's built is still open, M:1753).
+- **Left out:** photo (A1) and the SMS switch at sign-up (A3), both ruled out. **Built from the rulings:** the business-email banner and the code's "Not working yet" state (A2). **Also left out (owner, 2026-11-08):** the business-email confirmation email and link. Batch 1 fully builds the *Use my login email* path, which writes `CODE#` at once. A different address leaves the code "Not working yet", and a **local-only "mark confirmed" action** stands in for clicking the link. That action is **listed as a shortcut** on screen and in `README.md` until batch 14 replaces it.
+- **Settled by Claude (owner may override):** time-zone labels are stored as IANA names (e.g. "Central — Chicago" → `America/Chicago`). The Cognito-owned sign-up steps (create account, verify code) aren't built; the slice starts at step 3 behind the local token stub.
 
 ### Batch 2 — Weekly schedule and the coach's week and month views (MVP 3, 4, 9, part)
 
@@ -227,6 +228,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 | 11 | Shared lessons: share code, invite, accept, leave | B2, B3, B7, B8, B10, B11, S11; the gate-test rows |
 | 12 | Financial page: gross and the summary CSV | Rink-fee method |
 | 13 | Emails and scheduled jobs (confirmations, day-of, morning, end-of-day, unpaid reminder) | Question 4, R10 |
+| 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | How the link is built and how long it lasts (ADR-MASTER §25). Proposed: a one-time random token, valid 24 hours |
 | — | Coach late-cancellation SMS; coach who is also a parent | Blocked (§3) |
 
 ## 6. Decisions and open questions
