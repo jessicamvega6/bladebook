@@ -1,0 +1,158 @@
+/* COPIED from design/harbor/coach/app.css and screens-money-profile.css (the source of truth). Re-copy when the design changes. */
+/* Coach website — additions to harbor.css for app.js (shell, sign-in, Today). Harbor tokens only. */
+.bb a.btn, .bb a.nav__item, .bb a.nav__user, .bb a.brand, .bb a.quick__item { text-decoration: none; }
+.bb a.nav__user { color: inherit; border-radius: 999px; padding: 2px 6px 2px 2px; }
+.bb a.nav__user:hover { background: var(--surface-2); }
+.bb .nav__item:not(.is-active):hover { color: var(--nav-text-strong); }
+.bb .navcount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: var(--w-bold); display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.bb .wgrid--solo { grid-template-columns: minmax(0, 480px); justify-content: center; }
+.bb .wgrid { grid-template-columns: minmax(0, 560px) minmax(0, 300px); justify-content: center; }
+.bb .ctl--area { min-height: 88px; padding: 10px 14px; line-height: 1.45; resize: vertical; }
+.bb .ctl[type="date"] { min-width: 0; }
+.bb .ctl[disabled], .bb select.ctl[disabled] { background-color: var(--surface-2); color: var(--text-3); }
+.bb .photo-pick { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
+.bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
+.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .card__foot { padding: 14px 20px 18px; }
+.bb .card--attn { border-color: var(--warning-border); }
+.bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bb .quick__item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text); font-weight: var(--w-med); font-size: 13px; line-height: 1.25; min-width: 0; }
+.bb .quick__item:hover { border-color: var(--primary); }
+.bb .quick__item small { margin-left: auto; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.bb .quick__icon { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--primary-tint); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center; }
+.bb .seg__opt { font: inherit; border: 0; cursor: pointer; }
+.bb button.switch { border: 0; padding: 0; cursor: pointer; flex: none; }
+.bb .dialog { max-height: calc(100% - 40px); overflow: auto; }
+.bb .dialog .field { text-align: left; }
+.bb .phead__actions { flex-wrap: wrap; min-width: 0; }
+.bb .stepper { max-width: 100%; }
+.bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 980px) {
+  .bb .split--today, .bb .wgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
+  .bb .phead__actions { width: 100%; }
+  .bb .wmain { padding: 20px 16px 40px; }
+  .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .bb .wbar__right { width: 100%; }
+  .bb .stepper { overflow-x: auto; }
+  .bb .wcol > .card > .card__body { padding: 20px; }
+  .bb .quick { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* shared lessons: one attendance badge per skater */
+.bb .sh-badge { display: inline-flex; align-items: center; gap: 5px; }
+.bb .sh-badge small { font-size: 12px; font-weight: var(--w-med); color: var(--text-3); }
+.bb .row__side:has(.sh-badge) { flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; }
+
+/* Today: the large rinkside link (ADR-023, amended 2026-10-13) */
+.bb .rink-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
+.bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.bb .rink-cta__text b { font-size: 17px; }
+
+/* Coach code waiting for the business email (ADR-016, amended 2026-11-06) */
+.bb .codecard__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bb .codecard--pending { background: var(--surface-2, var(--bg)); border-style: dashed; }
+.bb .codecard--pending .codecard__code { color: var(--text-3); }
+.bb .codewait { margin-bottom: 16px; }
+.bb .codewait__links { margin: 6px 0 0 4px; }
+/* Lessons, Payments, Profile, Email templates — additions to harbor.css. Harbor tokens only. */
+.bb .mp-filters { flex-wrap: wrap; }
+.bb .mp-filters .field { width: 200px; max-width: 100%; }
+.bb .mp-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 16px; }
+.bb .mp-empty__icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); color: var(--text-3); display: grid; place-items: center; }
+.bb .mp-phase { display: inline-flex; align-items: center; gap: 8px; }
+.bb .mp-tablewrap { overflow-x: auto; position: relative; }
+.bb .mp-tablewrap .table { min-width: 760px; }
+.bb .mp-tablewrap td { vertical-align: middle; }
+.bb .mp-sub { display: block; font-weight: var(--w-reg); font-size: 12.5px; color: var(--text-3); }
+.bb .table tr.mp-attn td { background: var(--warning-soft); }
+.bb .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* profile */
+.bb .mp-tabs { overflow-x: auto; }
+.bb a.tabs__t { text-decoration: none; white-space: nowrap; }
+.bb a.tabs__t:hover { color: var(--text); }
+.bb .mp-photo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bb .mp-photo__text { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.bb .mp-radios { display: flex; flex-direction: column; gap: 10px; }
+.bb .mp-rrow { display: flex; align-items: center; gap: 12px; }
+.bb .mp-rrow > .rcard { flex: 1; min-width: 0; }
+.bb button.rcard { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.bb button.rcard .rcard__title, .bb button.rcard .rcard__sub { display: block; overflow-wrap: anywhere; }
+.bb .mp-rcard--pending { border-style: dashed; flex-wrap: wrap; }
+.bb .mp-rcard--pending .rcard__text { flex: 1; min-width: 180px; }
+.bb .mp-add { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+.bb .mp-add .cellbtns { justify-content: flex-end; }
+.bb .mp-remove { flex: none; }
+.bb .mp-grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* email templates */
+.bb .mp-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+.bb .mp-tpl { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--border); }
+.bb .mp-tpl:last-child { border-bottom: 0; }
+.bb .mp-tpl.is-on { background: var(--primary-tint); box-shadow: inset 3px 0 0 var(--primary); }
+.bb .mp-tpl__pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; }
+.bb .mp-tpl__name { font-weight: var(--w-bold); }
+.bb .mp-tpl__when { font-size: 13px; color: var(--text-3); }
+.bb .mp-mail { padding: 18px 22px; }
+.bb .mp-mail.is-off { opacity: .55; }
+.bb .mp-mail__head { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.bb .mp-mail__head .kv__v { text-align: right; overflow-wrap: anywhere; }
+.bb .mp-mail__body { display: flex; flex-direction: column; gap: 10px; line-height: 1.55; }
+.bb .mp-mail__sig { color: var(--text-3); }
+@media (max-width: 760px) {
+  .bb .mp-split, .bb .mp-grid3 { grid-template-columns: minmax(0, 1fr); }
+  .bb .mp-filters .field { width: 100%; }
+  .bb .mp-filters .seg { margin-left: 0; }
+  .bb .mp-tpl { padding: 12px 16px; }
+  .bb .mp-mail { padding: 16px; }
+  .bb .mp-rrow { flex-wrap: wrap; }
+}
+/* how they paid (Payments) */
+.bb .mp-how { display: block; margin-top: 4px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.bb .mp-how .link { cursor: pointer; }
+.bb .mp-sub .ic { vertical-align: -2px; }
+.bb .mp-how-pick { text-align: left; }
+.bb .mp-how-pick .seg { flex-wrap: wrap; }
+.bb .mp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* financial summary */
+.bb .fin-split { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
+.bb .fin-table { min-width: 680px; }
+.bb .fin-table tfoot td { background: var(--surface-2); border-bottom: 0; }
+.bb .fin-table tr.fin-none td { color: var(--text-3); }
+.bb .fin-ice__row { display: flex; flex-direction: column; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.bb .fin-ice__row:first-of-type { border-top: 0; }
+@media (max-width: 980px) {
+  .bb .fin-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* One switch per payment type, each with its handle (ADR-016 d7, amended 2026-10-12) */
+.bb .paytype { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+.bb .paytype:last-of-type { border-bottom: 0; }
+.bb .paytype .field { margin-top: 4px; }
+
+/* ---- Website-only additions (not in the design) ---- */
+/* The design's dialogs sit inside a fixed-size frame; on a real page they cover the window. */
+.bb .scrim { position: fixed; }
+.bb .dialog { position: fixed; max-width: calc(100vw - 32px); }
+.bb .field--error .ctl { border-color: var(--danger); }
+.bb .wbar__right:empty { display: none; }
+.bb .nav__item.is-disabled, .bb .tabs__t.is-disabled { opacity: .5; cursor: not-allowed; }
+.bb button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-decoration: underline; cursor: pointer; }
+.bb button.link:disabled { opacity: .6; cursor: default; }
+.bb .card + .card, .bb .card + form, .bb form > .card + .card { margin-top: 16px; }
+/* A <form> inside a card or page keeps the card's spacing between fields. */
+.bb .card__body > form, .bb .page > form { display: flex; flex-direction: column; gap: 14px; }
+.bb .page > form { gap: 16px; }
+.bb .page > .card + .card, .bb .page > .banner + form, .bb .page > nav + form, .bb .page > .banner { margin-top: 16px; }
+/* A box with fixed text in front of it, such as "$" for a Cash App handle. */
+.bb .ctl-prefix { display: flex; align-items: stretch; }
+.bb .ctl-prefix__text { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border-strong); border-right: 0; border-radius: var(--r-input) 0 0 var(--r-input); background: var(--surface-2); color: var(--text-2); font-weight: 600; white-space: nowrap; }
+.bb .ctl-prefix .ctl { flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+/* One line between payment types: the row's own line is dropped, the .paytype line stays. */
+.bb .paytype .toggle-row { border-bottom: 0; }
+/* Profile tabs: still swipe sideways on a phone, but never show a scroll bar. */
+.bb .mp-tabs { scrollbar-width: none; }
+.bb .mp-tabs::-webkit-scrollbar { display: none; }

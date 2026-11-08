@@ -43,6 +43,8 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **UI / UX** | User Interface / User Experience | UX appears in the ADR to distinguish "cold start is a latency problem the user feels" from "cold start is a cost problem," which it isn't. |
 | **AI** | Artificial Intelligence | Used specifically to mean "how well an AI coding assistant can help with this framework," which the ADR treats as a real selection criterion for a solo developer. |
 | **CSV** | Comma-Separated Values | The financial page's summary export: one row per month, no personal data (ADR-030 decision 7). |
+| **CSS** | Cascading Style Sheets | The browser's styling language. Harbor's look is one stylesheet, `design/harbor/harbor.css`, copied into `web/src/shared/styles/` (Batch 1). |
+| **TDD** | Test-Driven Development | Write a failing test first (red), then the least code that makes it pass (green). Required for `backend/core/` by the implementation plan's ground rules. |
 | **YTD** | Year to Date | The financial page's totals for the calendar year: gross (money received) and rink fees, calculated by BladeBook (MVP feature 16; Open-Pending §3, `Q_Rink-Fees.md`). |
 | **PCC** | Pelham Civic Center | The one rink in Phase 1; the schedule builder's rink is fixed to it until rink selection ships (Phase 2). |
 | **FS** | Figure Skating | Used beside hockey where the two are priced differently, as in rink fees (`Q_Rink-Fees.md`). |
@@ -140,6 +142,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **REST** | Representational State Transfer | A style of web API built on resources and HTTP methods. Here it also names API Gateway's **REST API** flavour, chosen because only it can take a Web Application Firewall (ADR-001 A7, ADR-019). |
 | **JSON** | JavaScript Object Notation | Wire format for the API and for `report.json`. |
 | **JWT** | JSON Web Token | Cognito's signed token. Critically: `coachId`/`clientId` is read from the **verified JWT claim**, never from the request body — that's what makes tenant isolation structural rather than a code convention. |
+| **Token stub** | *(not an acronym)* | *Added 2026-11-08 (Batch 1).* `api-coach`'s local-only stand-in for Cognito: `POST /api/coach/local/token` signs an ID token with the same claims Cognito's would carry (`sub`, `email`, `cognito:groups`, `aud`, `token_use`, `auth_time`), and the real group, app-client and sign-in-time checks run against it. Exists only in the `local` Spring profile. A listed shortcut until the user pool exists. |
 | **Tenant role** | — | An IAM role an API function assumes **per request**, tagged with the caller's identity (`coachId`, or `clientId` + `coachId` + `linkStatus`), whose policy uses `dynamodb:LeadingKeys` so DynamoDB itself refuses any other coach's or client's partition. The database half of the two-gate isolation in ADR-021 (`coach-tenant`; `checkin-tenant` withdrawn by ADR-023) and ADR-022 (`client-tenant`). |
 | **TLS** | Transport Layer Security | Encryption in transit; `aws:SecureTransport` is enforced on the reports bucket. |
 | **MFA** | Multi-Factor Authentication | Offered to coaches, who hold the most sensitive data. |
