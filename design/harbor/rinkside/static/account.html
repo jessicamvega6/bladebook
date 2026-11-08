@@ -438,6 +438,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .alertcard__body { color: var(--text-2); margin-top: 2px; }
 .bb .alertcard__body b { color: var(--text); }
 .bb .alertcard .check { border-color: var(--danger-border); }
+.bb .alertcard--warn { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .alertcard--warn .alertcard__head { color: var(--warning); }
+.bb .alertcard--warn .alertcard__title { color: var(--warning-text); }
+.bb .alertcard--warn .check { border-color: var(--warning-border); }
 .bb .delta { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
 .bb .delta b { color: var(--success-text); font-size: 15px; }
 .bb .progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
@@ -771,7 +775,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Account</span><b>Account</b><span class="sp-bar__note">New. Who is signed in, when the phone last synced, log out, and where everything else lives.</span><nav class="sp-bar__nav"><a href="week-confirm.html">← Cancel several — confirm</a><a href="index.html">All pages</a><a href="signin.html">Log in →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Account</span><b>Account</b><span class="sp-bar__note">New. Who is signed in, when the phone last synced, log out, and where everything else lives.</span><nav class="sp-bar__nav"><a href="week-all-confirm.html">← Cancel the rest of the week — confirm</a><a href="index.html">All pages</a><a href="signin.html">Log in →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     <header class="phone__head"><div><a class="rk-home" href="../../coach/demo/index.html#today"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Your dashboard</span></a><div class="phone__title">Account</div><div class="phone__sub">Rinkside app</div></div><span class="rk-pill rk-pill--ok"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>All saved</span></header>

@@ -53,7 +53,8 @@ to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
   is **Phase 3**.
 - **c. One Repeat and one Until for the whole booking.** They apply to every pick, whichever
   coach it's with.
-- **d. Notice periods differ by coach.** Both booking pages show the selected coach's
+- **d. Notice periods differ by coach.** *Phase 2 since 2026-11-08 (Status); in MVP every
+  coach's notice period is 24 hours.* Both booking pages show the selected coach's
   cancellation notice period. The confirm pop-up doesn't list each coach's terms; when the
   family has more than one coach it says *"Coaches can have different cancellation notice
   periods."*
@@ -121,6 +122,13 @@ coach they will never skate with, and that coach's decline email.
   choice is drawn in `design/harbor/client/` (`profile-add-skater-no-coach`,
   `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater`;
   2026-11-06).
+
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict B6 in the implementation plan
+(`design/harbor/client/app.js`, `screens-booking.js`).* Item **d** is **Phase 2**. In MVP every
+coach's notice period is **24 hours**: `requiredNoticeHours` defaults to 24 and can't be edited
+([ADR-016](ADR-016-coach-signup.md)), so no two coaches differ. Both booking pages still show
+the selected coach's notice period. The confirm pop-up's *"Coaches can have different
+cancellation notice periods."* arrives in Phase 2, with editing `requiredNoticeHours`.
 
 ---
 

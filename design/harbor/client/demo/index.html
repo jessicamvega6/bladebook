@@ -1824,12 +1824,12 @@ const FAMILIES = {
 
 /* ---------- other coaches (ADR-025) ----------
    Coach Dana is state.profile, shared with the coach and rinkside demos. Every other coach a family has lives here, with
-   their own schedule, prices and notice period. A lesson with no `coach` is Dana's. A skater's status with Dana is
+   their own schedule and prices. Every coach's notice period is 24 hours in MVP (B6, 2026-11-08). A lesson with no `coach` is Dana's. A skater's status with Dana is
    `status`; with anyone else it's `links[coachId]` (ACTIVE or PENDING), approved by that coach alone (ADR-025 d2). */
 const DANA = 'dana';
 function freshCoaches() {
   return {
-    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: '4R8T-WH6C', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 48, currency: 'USD',
+    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: '4R8T-WH6C', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 24, currency: 'USD',
       blocks: [{ name: 'Early edges', days: [3], sod: 450, eod: 570, len: 60, price: 70 }, { name: 'Power skating', days: [2, 4], sod: 930, eod: 1110, len: 45, price: 65 }],
       specials: [{ name: 'Seminar', kind: 'timeoff', sd: '2026-10-29', ed: '2026-10-29' }] },
     lauren: { id: 'lauren', first: 'Lauren', last: 'Hayes', code: '3J9W-QZ7E', sport: 'Hockey skating skills', notice: 24, currency: 'USD', blocks: [], specials: [] },
@@ -2473,6 +2473,14 @@ PRESETS.push(
    pick with another coach is warned about, never refused. Booking sends one request per coach. */
 
 const BK_MONTHS = ['2026-10', '2026-11', '2026-12'];          // the booking page shows three months (UI limit only)
+/** The booking window's last day: the end of the month two months ahead (ADR-031 d3). The day view never leaves
+    TODAY..BK_LAST (B5, owner 2026-11-08). */
+const BK_LAST = (() => { const [y, m] = BK_MONTHS[BK_MONTHS.length - 1].split('-').map(Number); return toIso(new Date(y, m, 0)); })();
+const bkInWindow = iso => iso >= TODAY && iso <= BK_LAST;
+const bkClamp = iso => iso < TODAY ? TODAY : iso > BK_LAST ? BK_LAST : iso;
+/** One message for every date that couldn't be booked, whatever the cause, so no family learns about another's
+    booking (ADR-MASTER "Booking a time"; B1, owner 2026-11-08). */
+const BK_UNAVAILABLE = 'Lesson slot either does not exist or is already taken.';
 const bkUi = () => (state.ui.book ??= { sid: null, coach: null, month: BK_MONTHS[0], day: null, week: false, sel: [], repeat: false, every: 1, until: '', result: null, lastReq: null, noSchedule: false, share: '' });
 const bkState = () => (state.ui.bk ??= { arr: {}, rec: null, who: 'all', coach: 'all', all: false, seq: 0 });
 /** Skaters who can be booked: approved with at least one coach. */
@@ -2484,7 +2492,7 @@ const bkC = () => coachById(bkCid());
 const bkOpen = iso => bkUi().noSchedule ? [] : openSlotsFor(bkCid(), iso);
 const bkHasSchedule = iso => !bkUi().noSchedule && slotsFor(bkCid(), iso).length > 0;
 const bkMinutesUntil = (iso, t) => Math.round((parseIso(iso) - parseIso(TODAY)) / 864e5) * 1440 + t - NOW_MIN;
-/** Each coach sets their own notice period (Coach Ben's is 48 hours). */
+/** The coach's notice period. 24 hours for every coach in MVP; per-coach notice periods are Phase 2 (B6, owner 2026-11-08). */
 const bkNotice = l => coachById(lcoach(l)).notice || NOTICE_H;
 /** After a family cancels: the coach is told only when a lesson was inside the notice period (ADR-009 d9, owner 2026-10-12). */
 const bkToldLate = (lessons, coach) => lessons.some(l => bkInsideNotice(l)) ? ` Coach ${coachById(coach).first} has been told, because it’s a late cancellation.` : '';
@@ -2616,11 +2624,14 @@ function bkPicksPanel(u, k) {
 SCREENS['book-times'] = () => {
   if (isPendingFamily()) return bkPendingGate();
   const u = bkUi(), k = bkKid(), cid = bkCid(), c = bkC(), iso = u.day || TODAY, sun = weekStart(iso);
-  const strip = `<div class="daystrip bk-strip"><button type="button" class="iconbtn" aria-label="Previous week"${actAttr('bkDay', [addDays(iso, -7)])}>${ic('chevL', 18)}</button>${Array.from({ length: 7 }, (_, i) => {
+  // The strip and its arrows stay inside the booking window (B5): a day before today or past BK_LAST can't be opened.
+  const prevOk = sun > TODAY, nextOk = addDays(sun, 7) <= BK_LAST;
+  const strip = `<div class="daystrip bk-strip"><button type="button" class="iconbtn" aria-label="Previous week"${prevOk ? actAttr('bkDay', [bkClamp(addDays(iso, -7))]) : ' disabled'}>${ic('chevL', 18)}</button>${Array.from({ length: 7 }, (_, i) => {
     const d = addDays(sun, i), n = bkOpen(d).length, c = u.sel.filter(x => x.coach === cid && x.iso === d).length, on = d === iso;
+    if (!bkInWindow(d)) return `<button type="button" class="dchip dchip--off" disabled aria-label="${dLong(d)}: outside the booking window"><span class="dchip__dow">${DOW[dowOf(d)]}</span><span class="dchip__n">${parseIso(d).getDate()}</span><span class="dchip__s">—</span></button>`;
     const s = !bkHasSchedule(d) ? 'No ice' : n ? `${n} open` : 'Full';
     return `<button type="button" class="dchip${on ? ' dchip--sel' : !n ? ' dchip--off' : c ? ' dchip--has' : ''}"${actAttr('bkDay', [d])}><span class="dchip__dow">${DOW[dowOf(d)]}</span><span class="dchip__n">${parseIso(d).getDate()}</span><span class="dchip__s">${s}</span>${c ? `<span class="dchip__count">${c}</span>` : ''}</button>`;
-  }).join('')}<button type="button" class="iconbtn" aria-label="Next week"${actAttr('bkDay', [addDays(iso, 7)])}>${ic('chevR', 18)}</button></div>`;
+  }).join('')}<button type="button" class="iconbtn" aria-label="Next week"${nextOk ? actAttr('bkDay', [bkClamp(addDays(iso, 7))]) : ' disabled'}>${ic('chevR', 18)}</button></div>`;
   const slots = slotsFor(cid, iso), sp = specialFor(cid, iso);
   const groups = []; for (const s of slots) { const g = groups[groups.length - 1]; if (g && g.block === s.block) g.slots.push(s); else groups.push({ block: s.block, slots: [s] }); }
   const body = !bkHasSchedule(iso)
@@ -2941,7 +2952,7 @@ Object.assign(ACTIONS, {
   /** Switch coach: the times picked with other coaches stay picked (the dropdown binds ui.book.coach; this is for presets). */
   bkCoach(cid) { bkUi().coach = cid; },
   bkMonth(ym) { bkUi().month = ym; },
-  bkDay(iso) { const u = bkUi(); u.day = iso; u.week = false; if (BK_MONTHS.includes(iso.slice(0, 7))) u.month = iso.slice(0, 7); go('book-times'); },
+  bkDay(iso) { const u = bkUi(); iso = bkClamp(iso); u.day = iso; u.week = false; if (BK_MONTHS.includes(iso.slice(0, 7))) u.month = iso.slice(0, 7); go('book-times'); },
   bkPickDay(iso, cid) { if (cid) bkUi().coach = cid; ACTIONS.bkDay(iso); },
   bkWeek(sun) { const u = bkUi(); let d = sun; for (let i = 0; i < 7; i++) if (bkOpen(addDays(sun, i)).length) { d = addDays(sun, i); break; } u.day = d; u.week = true; go('book-times'); },
   bkToggle(iso, t, cid = bkCid()) {
@@ -2971,12 +2982,11 @@ Object.assign(ACTIONS, {
     let n = state.lessons.length;
     for (const o of bkOccurrences(u)) {
       const it = { coach: o.coach, iso: o.iso, t: o.t, len: o.len, series: o.series };
-      const own = myLessonAt(o.coach, o.iso, o.t), sp = specialFor(o.coach, o.iso);
+      const own = myLessonAt(o.coach, o.iso, o.t);
       const slot = slotsFor(o.coach, o.iso).find(s => s.t === o.t && s.len === o.len);
       if (o.coach === u.failCoach) it.res = 'failed';
       else if (own && own.sid === k.id) it.res = 'mine';
-      else if (!slot) { it.res = 'skipped'; it.why = sp && sp.kind === 'timeoff' ? `${coachById(o.coach).first} is away (${sp.name}).` : 'That time no longer exists on the schedule.'; }
-      else if (lessonsFor(o.coach, o.iso).some(l => l.t === o.t)) { it.res = 'skipped'; it.why = 'That time was taken.'; }
+      else if (!slot || lessonsFor(o.coach, o.iso).some(l => l.t === o.t)) { it.res = 'skipped'; it.why = BK_UNAVAILABLE; }
       else {
         it.res = 'booked';
         const l = { id: 'k' + (++n), ...(o.coach === DANA ? {} : { coach: o.coach }), sid: k.id, iso: o.iso, t: o.t, len: o.len, price: priceAt(o.coach, k.id, slot), status: 'BOOKED', pay: 'UNPAID', recurring: u.repeat, recurrenceId: seriesRid[it.series] || null };
@@ -3086,13 +3096,13 @@ const bkTwoCoaches = st => { bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-21'
 PRESETS.push(
   { id: 'ClientBookCalendar', file: 'book-calendar', group: 'Book a lesson', title: '1 · Pick a day', note: 'Redesigned from Forest Main: October with open-time counts per day, week links on the left, the three bookable months, a skater switch, and (ADR-025) a Coach dropdown listing the coaches the skater is with.', setup: st => { st.screen = 'book'; } },
   { id: 'ClientBookCoachSwitch', file: 'book-times-coach-switch', group: 'Book a lesson', title: '2 · Pick your times — switched coach', note: 'New (ADR-025 d3, d5). Grace picked two times with Coach Dana, then chose Coach Ben in the Coach dropdown. Ben’s Wednesday shows; the Dana picks are kept, and Your picks groups them by coach with a total per coach, never one total. Ben’s 7:30 overlaps Mia’s 8:00 pick with Dana, so it’s marked, not blocked. Changing skater still clears the picks.', setup: st => { st.screen = 'book-times'; bkTwoCoaches(st); } },
-  { id: 'ClientBookCoachConfirm', file: 'book-confirm-two-coaches', group: 'Book a lesson', title: '3 · Confirm — two coaches and a clash', note: 'New (ADR-025 d5). Picks with Coach Dana and Coach Ben in one pop-up, listed per coach, with a lesson count and total per coach. Repeat and Until apply to every pick, whichever coach (owner, 2026-10-13). Ben’s Wed 7:30–8:30 overlaps Dana’s 8:00, so the clash is listed and the button says Book anyway. A note says coaches can have different cancellation notice periods.', setup: st => { st.screen = 'book-times'; bkTwoCoaches(st); ACTIONS.bkToggle('2026-10-21', 450, 'ben'); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16' }); st.modal = { kind: 'bkConfirm' }; } },
+  { id: 'ClientBookCoachConfirm', file: 'book-confirm-two-coaches', group: 'Book a lesson', title: '3 · Confirm — two coaches and a clash', note: 'New (ADR-025 d5). Picks with Coach Dana and Coach Ben in one pop-up, listed per coach, with a lesson count and total per coach. Repeat and Until apply to every pick, whichever coach (owner, 2026-10-13). Ben’s Wed 7:30–8:30 overlaps Dana’s 8:00, so the clash is listed and the button says Book anyway. Every coach’s notice period is 24 hours in MVP; the “coaches can have different notice periods” note is Phase 2 (B6, 2026-11-08).', setup: st => { st.screen = 'book-times'; bkTwoCoaches(st); ACTIONS.bkToggle('2026-10-21', 450, 'ben'); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16' }); st.modal = { kind: 'bkConfirm' }; } },
   { id: 'ClientBookCoachResult', file: 'book-result-two-coaches', group: 'Book a lesson', title: '4 · Result — two coaches', note: 'New. The same request after booking, split into one section per coach, each with its own count and series cards. Ben is away at a seminar on Thu, Oct 29, but Mia’s picks are Tuesdays and Wednesdays, so nothing is skipped.', setup: st => { st.screen = 'book-times'; bkTwoCoaches(st); ACTIONS.bkToggle('2026-10-21', 450, 'ben'); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16' }); ACTIONS.bkBook(); } },
   { id: 'ClientBookCoachFailed', file: 'book-result-coach-failed', group: 'Book a lesson', title: '4 · Result — one coach didn’t go through', note: 'New (owner, 2026-10-13). The same two-coach request, but Coach Ben’s booking failed (simulated). The result is split by coach: Dana’s lessons are booked and confirmed; Ben’s section says nothing was booked with him and offers Try again, which resends only Ben’s picks, so Dana’s are never booked twice.', setup: st => { st.screen = 'book-times'; bkTwoCoaches(st); ACTIONS.bkToggle('2026-10-21', 450, 'ben'); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2026-11-16', failCoach: 'ben' }); ACTIONS.bkBook(); } },
   { id: 'ClientBookNoTimes', file: 'book-no-times', group: 'Book a lesson', title: '1 · Coach hasn’t posted times', note: 'Redesigned from Forest ClientNoTimesYet: the same page when the coach has no schedule yet, with a ghost calendar and a “No lesson times yet” message.', setup: st => { st.screen = 'book'; st.ui.book = { month: '2026-10', sel: [], noSchedule: true }; } },
   { id: 'ClientBookTimes', file: 'book-times', group: 'Book a lesson', title: '2 · Pick your times', note: 'Redesigned from Forest Timeline: Monday, Oct 19 as a measured timeline, two times picked for Mia; taken times say only “Taken”, the family’s own lessons are named.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); } },
   { id: 'ClientBookConfirm', file: 'book-confirm', group: 'Book a lesson', title: '3 · Confirm & repeat', note: 'Redesigned from Forest Recurring: the pop-up with Repeat ticked, every week until Jan 18, and the lesson count on the button.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2027-01-18' }); st.modal = { kind: 'bkConfirm' }; } },
-  { id: 'ClientBookResult', file: 'book-result', group: 'Book a lesson', title: '4 · Result — some dates skipped', note: 'Redesigned from Forest Confirmation: Mondays at 9:00 for Mia. Another family took Nov 9 while Grace was choosing, Thanksgiving week is time off, and the holiday camp week has no 30-minute times.', setup: st => {
+  { id: 'ClientBookResult', file: 'book-result', group: 'Book a lesson', title: '4 · Result — some dates skipped', note: 'Redesigned from Forest Confirmation: Mondays at 9:00 for Mia. Another family took Nov 9 while Grace was choosing, Thanksgiving week is time off, and the holiday camp week has no 30-minute times. Each skipped date shows the same message, “Lesson slot either does not exist or is already taken”, so no family learns about another’s booking (B1, 2026-11-08).', setup: st => {
     st.screen = 'book-times'; bkSel(st, 's1', [['2026-11-02', 540]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2027-01-18' });
     st.lessons.push({ id: 'k-other', sid: 's3', iso: '2026-11-09', t: 540, len: 30, price: 50, status: 'BOOKED', pay: 'UNPAID', recurring: false });
     ACTIONS.bkBook(); } },
