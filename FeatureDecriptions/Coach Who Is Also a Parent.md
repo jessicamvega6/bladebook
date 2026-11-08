@@ -33,7 +33,10 @@ Questions for the owner:
   4. Can a coach book lessons with themselves for their own skater, or only with other coaches?
      If with themselves: does their skater go through the usual approval (ADR-022 d6), or is it approved
      automatically? Is the lesson priced and reminded like any other?
-  5. Can a family account later become a coach (a parent who starts coaching), as well as the other way round?
+  5. ~~Can a family account later become a coach (a parent who starts coaching), as well as the other way round?~~
+     *Decided by the owner, 2026-11-08: yes, same account.* The family signs in on the coach website (coach
+     sign-up always offers this), POST /coach/add-coaching adds the Coach group to their own account, and the
+     ordinary sign-up steps follow (ADR-016 d12).
   6. MFA: if the coach turned MFA on, does it also apply when they use the family side? (With one account, it
      would.)
   7. Emails: the coach gets the morning email and daily report at their login email; the family side sends

@@ -277,6 +277,12 @@ cannot test any of it. Before any coach-path code is written, tests against a re
 | 7 | `AssumeRole` without the `coachId` tag, or with an extra tag key | refused by the trust policy |
 | 8 | Any DynamoDB call with the execution role's own credentials | denied |
 
+*Note — 2026-11-08: [ADR-034](ADR-034-business-emails-are-unique.md) gives `coach-tenant` a
+second narrow statement like decision 5's, for `BIZEMAIL#` claim records (put, delete and
+condition-check only; `PK`, `SK`, `coachId`; no reads), and adds two rows: coach A's session can
+put and delete a `BIZEMAIL#` claim in a transaction with `COACH#A/PROFILE`, and cannot `GetItem`
+or `Query` one.*
+
 *Note — 2026-10-13: [ADR-031](ADR-031-lessons-and-seats.md) adds `LESSON#`, `SEAT#` and
 `SEATEND#` items to the coach's partition and a cross-tenant index, GSI4. The table above needs
 rows for them — at least that coach A's session reaches its own lesson times and seats but not

@@ -87,6 +87,10 @@ sends it, since that consumer already handles the approval and sends the decline
 the six MVP messages must not promise an email; they say the family can book once the coach
 approves. The rewording is drawn in `design/harbor/client/` (2026-11-08).
 
+**Amended — 2026-11-08.** [ADR-016](ADR-016-coach-signup.md) decision 10 applies to families too:
+a family's email is saved in lowercase, and family and skater names are saved with capital first
+letters, the rest as typed. Decision 12 there lets a family add coaching to the same account.
+
 ---
 
 ## Context

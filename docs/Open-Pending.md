@@ -106,6 +106,18 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   coach email without revealing who is a coach, MFA on the family side, the shared inbox, and
   what closing one side does to the other. See `FeatureDecriptions/Coach Who Is Also a Parent.md`.
   (ADR-016, ADR-023 d7, d9, d10)
+  *Settled 2026-11-08 by the owner:* the other direction works too: a family can add coaching to
+  the same account (ADR-016 d12).
+- **Pending decision: What coach sign-up says when an email already has an account.** Cognito
+  says so, and anyone can use that to learn which emails have BladeBook accounts. Show it plainly,
+  or always answer the same way and email the address's owner instead. A coach testing business
+  emails is the same exposure (ADR-034 Open). (ADR-016 Open)
+- **To-do: Draw the add-coaching screens** in `design/harbor/coach`: the sign-in line on coach
+  sign-up and the *"Add coaching to your account"* page (ADR-016 d12).
+- **To-do: Delete unconfirmed accounts by hand** when asked, in MVP (ADR-016 d11). A scheduled
+  clean-up is Phase 2.
+- **To-do: Add `BIZEMAIL#` claims to `docs/deletion`**: closing a coach account removes them
+  (ADR-034).
 
 ## 2a. Shared lessons (ADR-026)
 

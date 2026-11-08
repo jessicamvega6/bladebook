@@ -109,6 +109,19 @@ unchanged**: the current confirmed address stays in use until the new one is con
 **`smsCancellationAlerts` is on the profile only** (Profile → Visibility & texts), not on the
 sign-up form. One less question at sign-up. Decision 2's table is corrected below.
 
+**Amended — 2026-11-08.** *Decided by the owner.* Three new decisions on accounts and email
+addresses, for coaches and families alike:
+- **Decision 10:** the user pool ignores upper and lower case in sign-in emails
+  (`signInCaseSensitive: false`), and BladeBook saves every email in lowercase and every person's
+  name with capital first letters.
+- **Decision 11:** in MVP, an account whose email was never confirmed is deleted by hand, when the
+  owner of that address asks.
+- **Decision 12:** a person who already has a family account can add coaching to it, with the
+  same email and password. **Amends** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
+  decision 10 and answers question 5 in `FeatureDecriptions/Coach Who Is Also a Parent.md`.
+
+[ADR-034](ADR-034-business-emails-are-unique.md) (same day) makes `businessEmail` unique.
+
 ---
 
 ## Context
@@ -348,6 +361,112 @@ signup if it is missing.** This turns the only partial-failure state into an ord
 resumable path, and it is the same shape ADR-010 decision 5b uses for the cancellation
 consumer: make the second attempt finish the first rather than undo it.
 
+### 10. Emails are matched without regard to case; emails and names are tidied on save
+
+*Decided by the owner, 2026-11-08 (amendment).*
+
+**The user pool is created with case sensitivity off** (`signInCaseSensitive: false` in the
+infrastructure code). `Kim@Rink.com` and `kim@rink.com` are then the same account: signing up
+with one when the other exists is refused, and either one signs in. **This can only be set when
+the pool is created**, so it goes in the first version of the pool, in production and in every
+dev pool (ADR-027). Changing it later means a new pool and moving every account.
+
+**Every email is saved in lowercase.** Leading and trailing spaces are removed, then the address
+is lowercased. This covers the login email (before the website sends it to Cognito for sign-up,
+sign-in or a password reset) and every address BladeBook stores: `loginEmail`, `businessEmail`
+and its list of addresses, and a family's email. So the address a coach sees on the profile and
+in email headers is always the lowercase one, and every comparison of two addresses (Cognito's
+own, and [ADR-034](ADR-034-business-emails-are-unique.md)'s) compares like with like.
+
+**Every person's name is saved with capital first letters.** Leading and trailing spaces are
+removed, runs of spaces become one, and the first letter of each word becomes a capital. A word
+starts at the beginning, after a space, or after a hyphen. **The other letters are left as
+typed**: `kim lee` becomes `Kim Lee`, `anne-marie` becomes `Anne-Marie`, and `McDonald`,
+`DeSouza` and `van der Berg` are left alone apart from their first letters, so `van der Berg`
+becomes `Van Der Berg`. The rule covers the coach's `firstName` and `lastName`, a family's names,
+and skater names. It does not touch business names, schedule names or free text.
+
+- **Upper case is worked out the same way everywhere**, without depending on the device's
+  language. In Java this is `toUpperCase(Locale.ROOT)` on whole characters, so a Turkish phone
+  doesn't turn `i` into `İ` and accented letters (`élodie` → `Élodie`) work.
+- **Both sides do it.** The website tidies a field when the person leaves it, so they see the
+  result before saving. The backend does it again on every write, because it never trusts what a
+  browser sends. Because the same logic lives in both places, both test suites read one shared
+  fixture file of examples ([ADR-013](ADR-013-testing-requirement.md) decision 3a).
+- **A person can still correct the result** on their profile. The rule runs again on that save,
+  so it only ever changes first letters and spaces.
+
+### 11. Unconfirmed accounts are deleted by hand in MVP
+
+*Decided by the owner, 2026-11-08 (amendment).*
+
+Cognito keeps an account that never confirmed its email (status `UNCONFIRMED`) indefinitely. That
+account holds its email address, so the real owner of the address can't sign up with it: Cognito
+refuses a second sign-up with the same email. With decision 10, that also covers the same address
+in different case.
+
+**In MVP, BladeBook does not clean these up automatically.** When the owner of an address says it
+is stuck, the operator deletes the unconfirmed account by hand:
+
+1. Find it: `aws cognito-idp list-users --user-pool-id <pool> --filter 'email = "<address>"'`.
+2. Check its status is `UNCONFIRMED`. **Never delete a confirmed account this way.** An
+   unconfirmed account can't hold a profile or students (decision 4, ADR-023 decision 10), so
+   nothing else needs removing.
+3. Delete it: `aws cognito-idp admin-delete-user --user-pool-id <pool> --username <username>`.
+4. The person signs up again.
+
+The operator can also clear old ones in bulk with the filter `cognito:user_status = "UNCONFIRMED"`.
+**A scheduled clean-up** (for example, deleting unconfirmed accounts older than 7 days) is the
+Phase 2 answer if this happens often.
+
+### 12. A family can add coaching to their account
+
+*Decided by the owner, 2026-11-08 (amendment).*
+
+A person who already books lessons through BladeBook as a family, and starts coaching, keeps
+**one account**: the same email and password for both sides. This is the other direction of
+the coach-who-is-also-a-parent case (`FeatureDecriptions/Coach Who Is Also a Parent.md`, way B),
+and it is chosen for the same reason: users are older, and a second email and password are
+barriers.
+
+**How the person starts.** The coach sign-up page always shows *"Already book lessons on
+BladeBook? Sign in with that email and password to start coaching."* This is shown to everyone,
+so it doesn't depend on how the page answers when a typed email already has an account (Open).
+A family who signs in on the coach website, from that link or directly, is offered *"Add
+coaching to your account"* rather than a plain refusal.
+
+**Proving they own the account is signing in.** The person has just signed in on the coach
+website with the family account's password, and that email was confirmed when the family signed
+up. Nothing they type names the account.
+
+**How the `Coach` group is added.** One route, `POST /coach/add-coaching`, on the coach website's
+API. **It is served by `auth-post-confirmation`**, the function that already adds groups
+(ADR-023 decision 10), not by `api-coach`, so BladeBook stays at seventeen functions and
+`api-coach` gets no Cognito permission. The function now has two ways in: Cognito's
+post-confirmation call and this route. It adds `Coach` only when **all** of these hold, and
+otherwise refuses with 403:
+- the token was issued by the **coach** app client (ADR-023 decision 9);
+- its email is verified;
+- the person **signed in within the last 15 minutes**, the same test as schedule saves (ADR-023
+  decision 4);
+- the token has `Client` and not `Coach`.
+
+The account it changes is always the token's own `sub`; the request body is ignored. If the
+account already has `Coach`, nothing changes. This is the **one route on the coach website's API
+that accepts a token without the `Coach` group**, and it is not an `api-coach` route, so ADR-023
+decision 7's check on every `api-coach` route is unchanged.
+
+**After that, it is an ordinary coach sign-up.** The website refreshes its tokens so they carry
+`Coach`, finds no `PROFILE` and takes the person through the sign-up steps (decision 9's *first
+sign-in completes sign-up*), with the login email already filled in. The family side, its
+skaters and its bookings are untouched.
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): a family token from the coach app client,
+signed in within 15 minutes, gains `Coach` and keeps `Client`; the route refuses a token from the
+family app client, one signed in more than 15 minutes ago, and one with an unverified email; a
+body naming another account changes nothing but the caller's; a second call changes nothing; the
+post-confirmation path still adds only the group its app client chooses.
+
 ---
 
 ## Consequences
@@ -400,6 +519,16 @@ consumer: make the second attempt finish the first rather than undo it.
   signup, and decision 6 makes timezone and currency mandatory — but ADR-008's open item
   *"a coach with no schedule at all"* means the first thing a new coach meets is an empty
   grey month. The two need designing together.
+- **What sign-up says when an email already has an account** *(added 2026-11-08)*. Cognito
+  answers a sign-up with an existing email by saying so, and its setting that hides whether an
+  account exists (`PreventUserExistenceErrors`) doesn't cover sign-up. As written, anyone can
+  type an address on the sign-up page and learn whether it has a BladeBook account. Decision 12's
+  always-shown sign-in line works whichever way this is settled.
+- **The screens for decision 12** *(added 2026-11-08)*: the sign-in line on coach sign-up, and the
+  *"Add coaching to your account"* page a family sees on the coach website, are not yet drawn in
+  `design/harbor/coach`.
+- **What closing one side does to the other**, now that a family can become a coach as well as
+  the reverse (`FeatureDecriptions/Coach Who Is Also a Parent.md`, question 8).
 
 ---
 

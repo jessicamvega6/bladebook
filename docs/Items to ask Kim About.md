@@ -461,6 +461,25 @@ let one account be both a coach and a family, with one email and password (owner
 
 ---
 
+## 14. Coaches sharing an email address
+
+*Added 2026-11-08.*
+
+**The scenario.** BladeBook now lets only one coach use a given business email, the address
+families' replies go to (ADR-034).
+
+**Questions:**
+
+1. Do coaches at the same club or rink ever share one email address for lessons, like
+   `lessons@club.com`?
+2. If so, would they want families' replies for both coaches to land in that one inbox?
+
+**What the answers decide:**
+
+- Whether ADR-034 needs a way for one coach to let another use their address.
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.

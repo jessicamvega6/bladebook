@@ -80,6 +80,16 @@ needs a sign-in**; the two routes that take no token are named. **Decision 10:**
 post-confirmation trigger gives a new account its group, chosen by the app client it signed up
 through, so the first signed-in request already carries it.
 
+**Amended — 2026-11-08.** *Decided by the owner.* Decision 10's function, `auth-post-confirmation`,
+gains two more callers. **A family can add coaching to their account** through one route,
+`POST /coach/add-coaching`, served by that function: it adds `Coach` to the caller's own account
+when the token comes from the coach app client, has `Client`, has a verified email and a sign-in
+within 15 minutes ([ADR-016](ADR-016-coach-signup.md) decision 12). It is the one coach-website
+route that accepts a token without `Coach`, and is not an `api-coach` route, so decision 7 is
+unchanged. **`api-coach` asks it whether an address is someone's login email**, and its role gains
+`cognito-idp:AdminGetUser` ([ADR-034](ADR-034-business-emails-are-unique.md) decision 3). Still
+seventeen functions.
+
 ---
 
 ## Context

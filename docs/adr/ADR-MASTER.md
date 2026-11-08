@@ -1,10 +1,10 @@
 # BladeBook — Master Decision Record
 
-**What this is.** Every decision in ADR-001 to ADR-033 that is still in force, merged into one
+**What this is.** Every decision in ADR-001 to ADR-034 that is still in force, merged into one
 statement of what gets built. Superseded decisions, history, dates and rejected alternatives are
 left out. Each section names the ADRs it comes from, for the reasoning.
 
-**Current through:** ADR-033.
+**Current through:** ADR-034.
 
 **Where this and an ADR disagree, the ADR wins**, and this file needs correcting. When an ADR is
 added or amended, update the section it touches here.
@@ -100,7 +100,7 @@ bladebook/
 ## 2. Functions
 
 *Sources: ADR-001 (A5, A6, A8, A9 and later amendments), ADR-010, ADR-017, ADR-018, ADR-021,
-ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
+ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033, ADR-034.*
 
 **Seventeen functions.**
 
@@ -122,7 +122,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
 | `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
-| `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
+| `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified; API Gateway, `POST /coach/add-coaching`; direct invocation by `api-coach` | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). Adds `Coach` to a family's own account (ADR-016 d12). Answers whether an address is someone's login email: free, the caller's own or someone else's, nothing more (ADR-034). |
 
 **Outside the count**, not in the request path: the personal-data access-log aggregator; the
 **dev scanner** (in dev's application stack); the **transform Lambda** (in the production
@@ -136,7 +136,7 @@ held by code and tests.
 
 | Function | DynamoDB | Indexes | Other services |
 |---|---|---|---|
-| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | none |
+| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `lambda:InvokeFunction` on `auth-post-confirmation` only (ADR-034) |
 | `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | none |
 | `consumer-booking-confirmation` | `GetItem`, `UpdateItem` | none | `ses:SendEmail` |
 | `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail` (SNS from Phase 2) |
@@ -152,7 +152,7 @@ held by code and tests.
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` | *Role not yet written* | — | — |
 | `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
-| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
+| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` and `cognito-idp:AdminGetUser` on this user pool only (ADR-034). Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
@@ -266,7 +266,7 @@ archiver reads them.
 
 ## 4. Coach sign-up and profile
 
-*Sources: ADR-002 d2a, ADR-003, ADR-007, ADR-009 d9, ADR-015, ADR-016, ADR-021 d5, ADR-022 d7.*
+*Sources: ADR-002 d2a, ADR-003, ADR-007, ADR-009 d9, ADR-015, ADR-016, ADR-021 d5, ADR-022 d7, ADR-034.*
 
 - **Sign-up is self-serve and ungated.** No invite, approval queue, identity check or business
   identifier (no Employer Identification Number).
@@ -278,6 +278,17 @@ archiver reads them.
 - **The login email must be verified** before the account can hold students.
 - **Order:** create and verify the Cognito user, then write `COACH#<sub>/PROFILE` and the
   `CODE#` item. *The `CODE#` item waits for a confirmed business email (ADR-016, 2026-11-06).* **First sign-in completes sign-up** if the profile is missing.
+- **Case doesn't matter in sign-in emails:** the user pool is created with
+  `signInCaseSensitive: false` (it can't be changed later). **Every email is saved in lowercase,
+  and every person's name** (coach, family, skater) **with capital first letters**, the rest as
+  typed, by the website as a field is left and again by the backend on every write; one shared
+  fixture tests both (ADR-016 d10).
+- **Unconfirmed accounts are deleted by hand** in MVP, when the owner of the address asks; never a
+  confirmed one (ADR-016 d11).
+- **A family can add coaching to their account:** sign in on the coach website (the sign-up page
+  always offers this), then `POST /coach/add-coaching`, served by `auth-post-confirmation`, adds
+  `Coach` to the caller's own account if the token is from the coach app client, has `Client`, a
+  verified email and a sign-in within 15 minutes. Then the ordinary sign-up steps (ADR-016 d12).
 
 ### The profile
 
@@ -285,7 +296,7 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. **At sign-up, families can't reach the coach until it is confirmed:** the login email is not a fallback, and **the coach code doesn't work until then**, because the `CODE#` item is written only once the coach has a confirmed business email, or at once if the coach uses the login email (ADR-016, 2026-11-06). **On the profile**, the current confirmed address stays in use until the new one is confirmed. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. **At sign-up, families can't reach the coach until it is confirmed:** the login email is not a fallback, and **the coach code doesn't work until then**, because the `CODE#` item is written only once the coach has a confirmed business email, or at once if the coach uses the login email (ADR-016, 2026-11-06). **On the profile**, the current confirmed address stays in use until the new one is confirmed. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. **Unique** (ADR-034): no two coaches hold the same address, and none can be another person's login email (the coach's own is fine). Each held address has a `BIZEMAIL#<address>` / `CLAIM` record with `coachId`, written with `attribute_not_exists(PK) OR coachId = :me` in the transaction that adds a confirmed address, removed with the address. Before a link is sent and again at confirmation, `api-coach` asks `auth-post-confirmation` whether the address is someone's login email. A taken address gets *"That email is already used on BladeBook. Please use a different one."* |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
