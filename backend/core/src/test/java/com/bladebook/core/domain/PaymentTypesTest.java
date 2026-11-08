@@ -40,9 +40,9 @@ class PaymentTypesTest {
     @ParameterizedTest
     @EnumSource(value = Type.class, names = {"CASHAPP", "VENMO", "PAYPAL"})
     void aTypeSwitchesOnOnceItHasAHandle(Type type) {
-        PaymentTypes p = PaymentTypes.none().withHandle(type, "@dana-skates").switchOn(type);
+        PaymentTypes p = PaymentTypes.none().withHandle(type, "dana-skates").switchOn(type);
         assertThat(p.isOn(type)).isTrue();
-        assertThat(p.handle(type)).contains("@dana-skates");
+        assertThat(p.handle(type)).contains(type.prefix() + "dana-skates");
     }
 
     @Test
@@ -75,6 +75,50 @@ class PaymentTypesTest {
     @Test
     void handlesAreTrimmed() {
         assertThat(PaymentTypes.none().withHandle(Type.VENMO, "  @dana  ").handle(Type.VENMO)).contains("@dana");
+        assertThat(PaymentTypes.none().withHandle(Type.VENMO, "  dana  ").handle(Type.VENMO)).contains("@dana");
+    }
+
+    // ---- prefixes (owner, 2026-11-08): $ for Cash App, @ for Venmo, paypal.me/ for PayPal ----
+
+    @Test
+    void eachHandleGetsItsPrefix() {
+        PaymentTypes p = PaymentTypes.none().withHandle(Type.CASHAPP, "danaskates")
+                .withHandle(Type.VENMO, "dana-skates").withHandle(Type.PAYPAL, "dana");
+        assertThat(p.handle(Type.CASHAPP)).contains("$danaskates");
+        assertThat(p.handle(Type.VENMO)).contains("@dana-skates");
+        assertThat(p.handle(Type.PAYPAL)).contains("paypal.me/dana");
+    }
+
+    @Test
+    void aPrefixTypedByTheCoachIsNotDoubled() {
+        PaymentTypes p = PaymentTypes.none().withHandle(Type.CASHAPP, "$danaskates")
+                .withHandle(Type.VENMO, "@@dana").withHandle(Type.PAYPAL, "https://www.paypal.me/dana");
+        assertThat(p.handle(Type.CASHAPP)).contains("$danaskates");
+        assertThat(p.handle(Type.VENMO)).contains("@dana");
+        assertThat(p.handle(Type.PAYPAL)).contains("paypal.me/dana");
+    }
+
+    @Test
+    void thePayPalPrefixIgnoresCase() {
+        assertThat(PaymentTypes.none().withHandle(Type.PAYPAL, "PayPal.Me/Dana").handle(Type.PAYPAL))
+                .contains("paypal.me/Dana");
+    }
+
+    @Test
+    void aPrefixAloneCountsAsNoHandle() {
+        assertThat(PaymentTypes.none().withHandle(Type.CASHAPP, " $ ").handle(Type.CASHAPP)).isEmpty();
+        assertThat(PaymentTypes.none().withHandle(Type.PAYPAL, "paypal.me/").handle(Type.PAYPAL)).isEmpty();
+        assertThatThrownBy(() -> PaymentTypes.of(EnumSet.of(Type.VENMO), Map.of(Type.VENMO, "@")))
+                .isInstanceOf(DomainException.class)
+                .extracting("field").isEqualTo("venmoHandle");
+    }
+
+    @Test
+    void thePrefixIsInsideTheSixtyCharacterLimit() {
+        String fiftyNine = "a".repeat(59);
+        assertThat(PaymentTypes.none().withHandle(Type.VENMO, fiftyNine).handle(Type.VENMO)).contains("@" + fiftyNine);
+        assertThatThrownBy(() -> PaymentTypes.none().withHandle(Type.VENMO, fiftyNine + "a"))
+                .isInstanceOf(DomainException.class);
     }
 
     @Test
@@ -85,7 +129,7 @@ class PaymentTypesTest {
 
     @Test
     void aHandleOfSixtyCharactersIsAllowedButNotSixtyOne() {
-        String sixty = "a".repeat(60);
+        String sixty = "@" + "a".repeat(59);
         assertThat(PaymentTypes.none().withHandle(Type.VENMO, sixty).handle(Type.VENMO)).contains(sixty);
         assertThatThrownBy(() -> PaymentTypes.none().withHandle(Type.VENMO, sixty + "a"))
                 .isInstanceOf(DomainException.class);

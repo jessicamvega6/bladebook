@@ -23,7 +23,7 @@ export function SignupBusiness({ api, loginEmail, onDone }: { api: CoachApi; log
   const [useLogin, setUseLogin] = useState(false);
   const [businessEmail, setBusinessEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [timezone, setTimezone] = useState('America/New_York');
+  const [timezone, setTimezone] = useState('America/Chicago') // Central by default (owner, 2026-11-08);
   const [currency, setCurrency] = useState<'USD' | 'CAD'>('USD');
   const [instructions, setInstructions] = useState('');
   const [types, setTypes] = useState<PaymentType[]>(allTypes());

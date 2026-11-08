@@ -16,17 +16,24 @@ public final class PaymentTypes {
 
     /** Each type, with the profile attributes that hold it. */
     public enum Type {
-        CASH("acceptsCash", null),
-        CASHAPP("acceptsCashapp", "cashappHandle"),
-        VENMO("acceptsVenmo", "venmoHandle"),
-        PAYPAL("acceptsPaypal", "paypalHandle");
+        CASH("acceptsCash", null, null),
+        CASHAPP("acceptsCashapp", "cashappHandle", "$"),
+        VENMO("acceptsVenmo", "venmoHandle", "@"),
+        PAYPAL("acceptsPaypal", "paypalHandle", "paypal.me/");
 
         private final String switchField;
         private final String handleField;
+        private final String prefix;
 
-        Type(String switchField, String handleField) {
+        Type(String switchField, String handleField, String prefix) {
             this.switchField = switchField;
             this.handleField = handleField;
+            this.prefix = prefix;
+        }
+
+        /** What every stored handle starts with (owner, 2026-11-08), or {@code null} for cash. */
+        public String prefix() {
+            return prefix;
         }
 
         public boolean hasHandle() {
@@ -93,9 +100,13 @@ public final class PaymentTypes {
         return Optional.ofNullable(handles.get(type));
     }
 
-    /** Sets or clears a handle. A switched-on type's handle can't be cleared. */
+    /**
+     * Sets or clears a handle. A switched-on type's handle can't be cleared. The type's prefix is
+     * added if the coach didn't type it ({@code $} Cash App, {@code @} Venmo, {@code paypal.me/}
+     * PayPal); a prefix on its own counts as no handle.
+     */
     public PaymentTypes withHandle(Type type, String handle) {
-        String h = handle == null ? "" : handle.trim();
+        String h = withPrefix(type, handle == null ? "" : handle.trim());
         if (!type.hasHandle()) {
             if (!h.isEmpty()) {
                 throw DomainException.invalid(type.switchField(), "Cash has no handle.");
@@ -121,6 +132,23 @@ public final class PaymentTypes {
             next.put(type, h);
         }
         return new PaymentTypes(on.isEmpty() ? EnumSet.noneOf(Type.class) : EnumSet.copyOf(on), next);
+    }
+
+    /** Strips any prefix the coach typed (and, for PayPal, a web address's start), then adds one. */
+    static String withPrefix(Type type, String typed) {
+        if (type.prefix == null) {
+            return typed;
+        }
+        String rest = typed;
+        if (type == Type.PAYPAL) {
+            rest = rest.replaceFirst("(?i)^https?://", "").replaceFirst("(?i)^www\\.", "").replaceFirst("(?i)^paypal\\.me/", "");
+        } else {
+            while (rest.startsWith(type.prefix)) {
+                rest = rest.substring(type.prefix.length());
+            }
+        }
+        rest = rest.trim();
+        return rest.isEmpty() ? "" : type.prefix + rest;
     }
 
     public PaymentTypes switchOn(Type type) {

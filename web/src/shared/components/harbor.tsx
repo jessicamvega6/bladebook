@@ -111,17 +111,26 @@ interface FieldProps {
   optional?: boolean;
   placeholder?: string;
   autoComplete?: string;
+  /** Fixed text shown before the box, such as "$". Not part of {@code value}. */
+  prefix?: string;
 }
 
-export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix }: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   return (
     <div className={`field${error ? ' field--error' : ''}`}>
       <label className="label" htmlFor={id}>{label}{optional && <> <span className="label__opt">Optional</span></>}</label>
-      <input id={id} className={`ctl${error ? ' is-error' : ''}`} type={type} value={value} placeholder={placeholder}
-        autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)}
-        aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
+      {(() => {
+        const input = (
+          <input id={id} className={`ctl${error ? ' is-error' : ''}`} type={type} value={value} placeholder={placeholder}
+            autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)}
+            aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
+        );
+        return prefix
+          ? <div className="ctl-prefix"><span className="ctl-prefix__text" aria-hidden="true">{prefix}</span>{input}</div>
+          : input;
+      })()}
       {(hint || error) && (
         <div id={hintId} className={`hint${error ? ' hint--error' : ''}`}>{error ? <><Icon name="alert" size={14} />{error}</> : hint}</div>
       )}

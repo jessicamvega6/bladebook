@@ -8,11 +8,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { getToken, signOut } from '../shared/auth/localAuth';
-import { GapsPanel } from '../shared/components/GapsPanel';
 import { Banner } from '../shared/components/harbor';
 import { coachApi, type Profile } from './api';
 import { CoachShell } from './components/Shells';
-import { COACH_GAPS } from './gaps';
 import { LocalSignIn } from './pages/LocalSignIn';
 import { ProfileDetails, ProfilePayments } from './pages/Profile';
 import { SignupBusiness } from './pages/SignupBusiness';
@@ -126,7 +124,6 @@ export function App() {
   return (
     <div className="bb" data-layout="top">
       {page}
-      <GapsPanel items={COACH_GAPS} />
     </div>
   );
 }

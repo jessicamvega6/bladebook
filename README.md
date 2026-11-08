@@ -18,7 +18,7 @@ docker compose up -d
 
 # 2. api-coach on :8080, in the local profile (DynamoDB Local + the token stub)
 cd backend
-./mvnw -q install -DskipTests
+./mvnw -q clean install -DskipTests   # clean: otherwise a change to core/ alone can leave the old core inside the api-coach jar
 java -jar api-coach/target/api-coach-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
 # 3. The websites on :5173, which pass /api/coach to :8080
@@ -39,9 +39,8 @@ cd web && npm test            # Vitest and Testing Library
 
 ## Gaps & shortcuts
 
-What this build leaves out (**gaps**) or fakes (**shortcuts**). The coach website shows the
-same list in its **Gaps & shortcuts** panel (`web/src/coach/gaps.ts`). Writing a gap down
-doesn't count as building it.
+What this build leaves out (**gaps**) or fakes (**shortcuts**). This list is the only place
+they're recorded; the websites don't show it. Writing a gap down doesn't count as building it.
 
 ### Shortcuts (faked for now)
 
@@ -60,7 +59,7 @@ doesn't count as building it.
 | A3 | No texts switch at sign-up. Ruled 2026-11-06: it's on the profile only, under Visibility & texts (G-3). | G-3 |
 | G-1 | “Resend link” and “Change address” for a business email waiting to be confirmed. | Batch 14 |
 | G-2 | Profile → Business email (the list of addresses). | Batch 14 |
-| G-3 | Profile → Visibility & texts: show phone or email to families; text me on late cancellations. | A later batch, not yet placed in the plan |
+| G-3 | Profile → Visibility & texts: show phone or email to families; text me on late cancellations. | Batch 3 for the phone and email switches; the texts switch waits on ADR-007 d8 |
 | G-4 | Profile → Account: change password, log out through Cognito. | The Cognito user pool existing |
 | G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | The Cognito user pool existing |
 | G-6 | Today's lessons and stats, Calendar, Schedule, Students, Lessons, Payments, and “Build your teaching week”. | Batches 2–8 |

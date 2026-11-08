@@ -28,21 +28,51 @@ test('cash switches on with no handle', async () => {
   expect(of('CASH').on).toBe(true);
 });
 
-test('Venmo can’t switch on until it has a handle', async () => {
+test('a handle box shows only while its switch is on', async () => {
   render(<Harness />);
-  await userEvent.click(screen.getByRole('switch', { name: 'Venmo' }));
-  expect(of('VENMO').on).toBe(false);
-  expect(screen.getByRole('alert')).toHaveTextContent('Add your Venmo handle first.');
+  expect(screen.queryByLabelText(/Venmo handle/)).not.toBeInTheDocument();
 
-  await userEvent.type(screen.getByLabelText(/Venmo handle/), '@dana');
   await userEvent.click(screen.getByRole('switch', { name: 'Venmo' }));
-  expect(of('VENMO')).toEqual({ type: 'VENMO', on: true, handle: '@dana' });
+  expect(of('VENMO').on).toBe(true);
+  expect(screen.getByLabelText(/Venmo handle/)).toBeInTheDocument();
+  expect(screen.getByText('Add your handle below to finish switching it on.')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('switch', { name: 'Venmo' }));
+  expect(screen.queryByLabelText(/Venmo handle/)).not.toBeInTheDocument();
 });
 
-test('switching off keeps the handle', async () => {
+test.each([
+  ['Venmo', 'VENMO', '@', 'dana-skates', '@dana-skates'],
+  ['Cash App', 'CASHAPP', '$', 'danaskates', '$danaskates'],
+  ['PayPal', 'PAYPAL', 'paypal.me/', 'dana', 'paypal.me/dana'],
+] as const)('%s shows its prefix and stores the handle with it', async (label, type, prefix, typed, stored) => {
+  render(<Harness />);
+  await userEvent.click(screen.getByRole('switch', { name: label }));
+  expect(screen.getByText(prefix)).toBeInTheDocument();
+
+  await userEvent.type(screen.getByLabelText(new RegExp(`${label} handle`)), typed);
+  expect(of(type).handle).toBe(stored);
+});
+
+test('typing the prefix too doesn’t double it', async () => {
+  render(<Harness />);
+  await userEvent.click(screen.getByRole('switch', { name: 'Cash App' }));
+  await userEvent.type(screen.getByLabelText(/Cash App handle/), '$dana');
+  expect(of('CASHAPP').handle).toBe('$dana');
+  expect(screen.getByLabelText(/Cash App handle/)).toHaveValue('dana');
+});
+
+test('clearing the box leaves no handle, not a bare prefix', async () => {
+  render(<Harness start={allTypes([{ type: 'VENMO', on: true, handle: '@dana' }])} />);
+  await userEvent.clear(screen.getByLabelText(/Venmo handle/));
+  expect(of('VENMO').handle).toBe('');
+});
+
+test('switching off hides the box but keeps the handle', async () => {
   render(<Harness start={allTypes([{ type: 'PAYPAL', on: true, handle: 'paypal.me/dana' }])} />);
   await userEvent.click(screen.getByRole('switch', { name: 'PayPal' }));
   expect(of('PAYPAL')).toEqual({ type: 'PAYPAL', on: false, handle: 'paypal.me/dana' });
+  expect(screen.queryByLabelText(/PayPal handle/)).not.toBeInTheDocument();
 });
 
 test('switching a kept handle back on asks the coach to check it first', async () => {

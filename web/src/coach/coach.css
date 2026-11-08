@@ -147,3 +147,12 @@
 .bb .card__body > form, .bb .page > form { display: flex; flex-direction: column; gap: 14px; }
 .bb .page > form { gap: 16px; }
 .bb .page > .card + .card, .bb .page > .banner + form, .bb .page > nav + form, .bb .page > .banner { margin-top: 16px; }
+/* A box with fixed text in front of it, such as "$" for a Cash App handle. */
+.bb .ctl-prefix { display: flex; align-items: stretch; }
+.bb .ctl-prefix__text { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border-strong); border-right: 0; border-radius: var(--r-input) 0 0 var(--r-input); background: var(--surface-2); color: var(--text-2); font-weight: 600; white-space: nowrap; }
+.bb .ctl-prefix .ctl { flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+/* One line between payment types: the row's own line is dropped, the .paytype line stays. */
+.bb .paytype .toggle-row { border-bottom: 0; }
+/* Profile tabs: still swipe sideways on a phone, but never show a scroll bar. */
+.bb .mp-tabs { scrollbar-width: none; }
+.bb .mp-tabs::-webkit-scrollbar { display: none; }

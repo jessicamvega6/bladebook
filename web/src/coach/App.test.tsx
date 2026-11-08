@@ -28,7 +28,6 @@ test('with no sign-in, the local sign-in stand-in shows and says so', () => {
   render(<App />);
   expect(screen.getByRole('heading', { name: /Sign in on this computer/ })).toBeInTheDocument();
   expect(screen.getAllByText('Local stand-in').length).toBeGreaterThan(0);
-  expect(screen.getByRole('button', { name: /Gaps & shortcuts/ })).toBeInTheDocument();
 });
 
 test('a signed-in coach with no profile gets step 3, and a different email leads to step 4', async () => {
@@ -51,7 +50,8 @@ test('a signed-in coach with no profile gets step 3, and a different email leads
   expect(screen.getByText('Not working yet')).toBeInTheDocument();
 
   const sent = JSON.parse(fetchMock.mock.calls.find(([u]) => u === '/api/coach/signup')![1]!.body as string);
-  expect(sent).toMatchObject({ firstName: 'Dana', useLoginEmail: false, businessEmail: 'lessons@dana.com', currency: 'USD' });
+  expect(sent).toMatchObject({ firstName: 'Dana', useLoginEmail: false, businessEmail: 'lessons@dana.com', currency: 'USD',
+    coachTimezone: 'America/Chicago' }); // Central by default
 });
 
 test('a field error from the API is shown on that field', async () => {
