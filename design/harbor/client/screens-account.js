@@ -144,7 +144,7 @@ SCREENS.signup = () => {
       ${suCoachPick(ids, suSel(u, 'selfCoaches'), 'acSuSelfCoach')}
       <p class="fine">Booking for someone else? <a class="link" data-act="acSuChangeWho">Change who the lessons are for</a>.</p>
       <div class="actions"><div>${B('Back', 'ghost', 'acSuBack', { icon: 'arrowL' })}</div><div class="actions__r">${B(multi ? 'Send to your coaches' : `Send to ${who}`, 'primary', 'acSuFinish', { lg: true, iconR: 'arrowR', disabled: !acNumOk(u.selfOrg, u.selfNum) || !suSel(u, 'selfCoaches').length })}</div></div>`),
-      `<div class="stack">${help('Skating yourself', `${multi ? 'Each coach' : who} still approves you before you can book with them. You’ll get an email when they do.`)}${help('Your skater number', 'Every skater needs a current U.S. Figure Skating, USA Hockey or Learn to Skate USA number to sign up. BladeBook can’t check it; your coach may.')}</div>`,
+      `<div class="stack">${help('Skating yourself', `${multi ? 'Each coach' : who} still approves you before you can book with them. Booking opens here as soon as they do.`)}${help('Your skater number', 'Every skater needs a current U.S. Figure Skating, USA Hockey or Learn to Skate USA number to sign up. BladeBook can’t check it; your coach may.')}</div>`,
       { steps: 3, ctx: 'Family sign up', right: '' });
     const list = u.skaters.map((s, i) => `<div class="skater">${avatar(initials(s.name))}<div class="skater__text"><b>${esc(s.name)}</b><small>Under 18 · your child · ${orgLine(s)}${multi ? ` · ${coachOr((s.coaches || ids).filter(id => ids.includes(id)), 'and')}` : ''}</small></div>${B('Remove', 'ghost', 'acSuDropSkater', { sm: true, args: [i] })}</div>`).join('');
     return authShell(card(`

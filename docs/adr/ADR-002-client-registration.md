@@ -85,7 +85,7 @@ MVP sends no approval email: the family sees the change the next time they open 
 (the waiting banner goes, and the coach becomes bookable). When it ships, `consumer-student-link`
 sends it, since that consumer already handles the approval and sends the decline email. Until then,
 the six MVP messages must not promise an email; they say the family can book once the coach
-approves. That rewording isn't drawn in `design/harbor/` yet.
+approves. The rewording is drawn in `design/harbor/client/` (2026-11-08).
 
 ---
 

@@ -64,7 +64,7 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | A7 | A guardian can add an adult skater; skaters a guardian adds are minors | M:335-336 | `client/screens-account.js:149,154,297` | ADR: guardians add minors only |
 | A8 | US Figure Skating / Learn to Skate USA number: the ADR says digits only within a loose length range; the screen allows letters and digits, up to 20 | M:392-393 | `client/screens-account.js:19-28` | Screen: letters and digits, 1 to 20 characters. *ADR updated: ADR-029, ADR-MASTER §5.* |
 | A9 | When adding a coach, a new skater can't join only that coach; the ADR lets the family choose new or existing skaters | M:370-371 | `client/screens-account.js:271,301,409` | Option (b): *Add a skater* always asks which coaches and allows "None of my coaches yet"; the skater then joins a coach through *Add a coach*. **Drawn 2026-11-06:** `profile-add-skater-no-coach`, `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater`. *ADR updated: ADR-025, ADR-MASTER §5.* |
-| A10 | The screens promise an "approved" email that no ADR defines | M:1101-1117 | `client/screens-account.js:168,212,272,300` | **Phase 2.** MVP sends none, and the six MVP messages are reworded so they don't promise an email (for example "You can book once Coach Dana approves"). **Design addition:** the reworded copy isn't drawn. *ADR updated: ADR-002, ADR-MASTER §24.* |
+| A10 | The screens promise an "approved" email that no ADR defines | M:1101-1117 | `client/screens-account.js:168,212,272,300` | **Phase 2.** MVP sends none, and the six MVP messages are reworded so they don't promise an email (for example "You can book once Coach Dana approves"). **Drawn 2026-11-08:** no family page promises an approval email. *ADR updated: ADR-002, ADR-MASTER §24.* |
 | A11 | ADR-022's read allowlist lists `displayPaymentTypesToClients` but not the `accepts*` flags, so the coach card's payment types can't be read (defect inside the ADRs) | ADR-022:231-238 | `client/screens-account.js:181` | Fix the ADR: replace `displayPaymentTypesToClients` with the four `accepts*` flags. The gate-test row must be re-run on real AWS before the coach card's payment types count as done. *ADR updated: ADR-022, ADR-MASTER §16, gate-test script and runbook.* |
 
 ### Coach schedule and calendar
@@ -156,22 +156,22 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 ### Batch 3 — Family sign-up with a coach code; coach approves or declines (MVP 1, 2)
 
 - **Core (TDD):**
-  - Registration-number shape. USA Hockey: 14 characters, with a check-digit setting. The other organisations wait on A8.
-  - Code-entry state machine.
+  - Registration-number shape. USA Hockey: 14 characters, with a check-digit setting. U.S. Figure Skating and Learn to Skate USA: letters and digits, 1 to 20 characters (A8).
+  - Code-entry state machine, with several coach codes at sign-up (ADR-025 item h).
   - The waiting gate ("waiting" means no skater is `ACTIVE` with any coach).
-- **Slice:** the code lookup (no sign-in), then the self path (an adult skater), then a `PENDING` `STUDENT#` per coach.
+- **Slice:** the code lookup (no sign-in), then the self path (an adult skater), then the guardian path, then a `PENDING` `STUDENT#` per skater per coach.
   - The coach's pending list: approve, approve all, decline.
   - The read-only student list with search.
   - The waiting family's Home and Profile.
-  - Profile → **Visibility & texts**, the two contact switches only (owner, 2026-11-08; gap G-3):
-    *Phone number* (`displayPhoneToClients`) and *Email address* (`displayEmailToClients`), both
-    off by default. Families who aren't approved never see either (ADR-016 d7a). Where approved
-    families see them (the coach card on Home, the top of the booking page) is built with that
-    page; if it isn't in this batch, it's listed as a gap.
-  - The third switch, *Text me when a family cancels late*, stays out: which function sends the
-    opt-in confirmation is still open (§3, ADR-007 d8).
+- **Rulings applied (§4, all ruled 2026-11-06):**
+  - A4: the coach's student list is read-only, with no *Edit contact*.
+  - A5: no "Texts on / Email only" for families.
+  - A6: the coach found by a code shows the coach's name only, with no rink or sport line.
+  - A7: a guardian adds minors only.
+  - A8: the number shapes above.
+  - A10: no page promises an approval email. The family sees the approval the next time they open the website.
 - **Shortcut:** the link-item sync (`consumer-student-link`) is called in-process (Question 4). The decline email isn't sent.
-- **Left out:** A4, A5, A6, A7 (guardian path), A9 and A10.
+- **Not in this batch:** A9's *Add a skater* (with "None of my coaches yet") and *Add a coach* on the family profile. They're in Batch 15.
 
 ### Batch 4 — Book one lesson (MVP 5, part)
 
@@ -234,6 +234,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 | 12 | Financial page: gross and the summary CSV | Rink-fee method |
 | 13 | Emails and scheduled jobs (confirmations, day-of, morning, end-of-day, unpaid reminder) | Question 4, R10 |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | How the link is built and how long it lasts (ADR-MASTER §25). Proposed: a one-time random token, valid 24 hours |
+| 15 | Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k) | — |
 | — | Coach late-cancellation SMS; coach who is also a parent | Blocked (§3) |
 
 ## 6. Decisions and open questions
