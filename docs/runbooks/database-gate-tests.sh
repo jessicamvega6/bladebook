@@ -131,7 +131,7 @@ client_tenant_policy() { { cat <<'EOF'
           "durationMinutes", "bookingStatus",
           "firstName", "lastName", "coachTimezone", "currency", "requiredNoticeHours",
           "profilePhotoKey", "displayPhoneToClients", "displayEmailToClients",
-          "displayPaymentTypesToClients",
+          "acceptsCash", "acceptsCashapp", "acceptsVenmo", "acceptsPaypal",
           "businessEmail", "phone", "paymentInstructions",
           "cashappHandle", "venmoHandle", "paypalHandle"] },
       "StringEquals": { "dynamodb:Select": "SPECIFIC_ATTRIBUTES",

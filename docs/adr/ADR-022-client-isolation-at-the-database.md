@@ -94,6 +94,16 @@ the share code, never an ID, and **the booking resolves the code again itself** 
 reusing the share-check's answer. Decision 9 gains a row: the read returns those two attributes;
 any other attribute, no projection, or a `Query` is refused.
 
+**Amended — 2026-11-06.** *Decided by the owner, correcting this ADR against
+[ADR-016](ADR-016-coach-signup.md)'s 2026-10-12 amendment.* The read allowlist in decision 3 still
+named `displayPaymentTypesToClients`, the single switch ADR-016 replaced with one switch per
+payment type. The allowlist fails closed, so the family's Home coach card couldn't read which
+payment types the coach takes. **`displayPaymentTypesToClients` is removed and `acceptsCash`,
+`acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal` are added.** The three handles were already
+listed. Like the contact details, they are read only for an `ACTIVE` family, and shown only for
+types the coach has switched on. Decision 9's allowlist row is re-run with the new attribute
+names (`docs/runbooks/database-gate-tests.md`).
+
 ---
 
 ## Context
@@ -233,7 +243,7 @@ registration writes it onto the link item.
         "durationMinutes", "bookingStatus",
         "firstName", "lastName", "coachTimezone", "currency", "requiredNoticeHours",
         "profilePhotoKey", "displayPhoneToClients", "displayEmailToClients",
-        "displayPaymentTypesToClients",
+        "acceptsCash", "acceptsCashapp", "acceptsVenmo", "acceptsPaypal",
         "businessEmail", "phone", "paymentInstructions",
         "cashappHandle", "venmoHandle", "paypalHandle"] },
     "StringEquals": { "dynamodb:Select": "SPECIFIC_ATTRIBUTES",

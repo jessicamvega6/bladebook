@@ -36,6 +36,12 @@ Actions. Nothing deploys until ADR-032 decision 2's security setup is in place. 
 checks refuse a `PENDING` skater; a skater declined between invitation and answer can't accept;
 an inviting family's cancel after acceptance is an ordinary leave.
 
+**Amended — 2026-10-22.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decisions 7 and 9 add to decision 4's
+list: every route that needs a sign-in refuses a request with no token, refuses the other side's
+group with 403, and refuses a token from the other website's app client with 403 even when it
+carries the right group. *Amended 2026-10-24:* decision 10 adds that a new account gets only the
+group of the app client it signed up through.
+
 ---
 
 ## Decision

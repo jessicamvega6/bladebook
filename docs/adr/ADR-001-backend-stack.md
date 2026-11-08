@@ -123,6 +123,17 @@ OpenID Connect with no stored keys (see the note under A4 criterion 5).
   with `consumer-schedule-change` and `consumer-student-link`.
 - Function count unchanged.
 
+**Amended — 2026-10-24.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 10 adds
+`auth-post-confirmation`, a Cognito post-confirmation trigger that adds the `Coach` or `Client`
+group, chosen by the app client the person signed up through. A plain Java handler like the
+consumers. Its role has no DynamoDB actions, only `cognito-idp:AdminAddUserToGroup` on the user
+pool. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation
+fails and the person tries again. **Seventeen functions.**
+
+**Amended — 2026-11-06.** *Decided by the owner.* Amendment **A10**: the backend targets
+**Java 17** on the **`java17.al2023`** managed runtime (Amazon Linux 2023), not Java 25 on
+`java25`. Decision 1's framework, arm64 and plain-handler consumers are unchanged.
+
 ---
 
 ## Amendments
@@ -161,7 +172,7 @@ original analysis.
   and who patches the JVM. Those axes are untouched by this amendment. Micronaut
   is still eliminated on its absent EOL policy; Quarkus-native is still eliminated
   on GraalVM CVE patching duty.
-- **The `java25` managed runtime and arm64 stand** — chosen for AWS-managed
+- **The `java25` managed runtime and arm64 stand** *(runtime replaced by `java17.al2023`, A10)* — chosen for AWS-managed
   patching and cost, not for latency.
 - **`core/` stays framework-free.** Its value was never cold starts; it is what
   makes a framework swap cheap for any reason.
@@ -398,6 +409,8 @@ Application Firewall in MVP, and AWS WAF cannot attach to an HTTP API. It can at
   JWT authorizer. It confirms a token is genuine; unlike the JWT authorizer it cannot tell one
   Cognito app client's token from another's, which ADR-014 decision 10 needs. ADR-019's Open
   list carries the replacement (a small Lambda authorizer is recommended).
+  *Amended 2026-10-05 by ADR-023 d5: no Lambda authorizer; the built-in Cognito authorizer
+  stays. Since ADR-023 d9 the API code tells the coach and family app clients apart.*
 - **Nothing else changes.** The two-API-context split, the function list in A5 and the roles
   in A6 are unaffected. References to "the HTTP API" in the original text below — the SnapStart
   alias wiring, the day-one spike — are the historical record.
@@ -436,6 +449,31 @@ coaches. This row replaces A6's `api-client` row.
 decision 8). The `RECURRENCE#` header now lives in the client's partition (ADR-022
 decision 5).
 
+### A10 — Java 17 on `java17.al2023` (2026-11-06)
+
+*Decided by the owner.* The backend is compiled for and runs on **Java 17**. This replaces
+`java25` in decision 1, the repo-layout comment (*"Java 25"*) and the Rationale's patching
+argument.
+
+- **Runtime: `java17.al2023`**, the Java 17 runtime on Amazon Linux 2023 that AWS added in July
+  2026. Per AWS's Lambda runtimes page
+  (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html, checked 2026-11-06), it
+  is deprecated **2029-06-30**, with creates blocked 2029-07-31 and updates blocked
+  2029-08-31. Those are the same dates as `java21` and `java25`, so the Rationale's
+  *"AWS patches the JVM through 2029-06-30"* still holds. AWS describes these runtimes as
+  being for customers unable to upgrade; its stated preference is Java 21 or 25.
+- **Not the plain `java17` runtime.** That one runs on Amazon Linux 2, which reached end of life
+  on 2026-06-30. It now gets only critical and selected important security patches, and is
+  deprecated 2027-06-30.
+- **arm64 is unchanged.** Every supported Lambda runtime offers it.
+- **Framework:** Spring Boot 4 requires Java 17 or later, so decision 1 stands.
+  `aws-serverless-java-container` 3.x doesn't document a minimum Java version. The first build
+  on Java 17 proves it, and it is a revisit trigger if it doesn't.
+- **Language:** no feature newer than Java 17 (no pattern matching in `switch`, no record
+  patterns, no sequenced-collection methods, no unnamed `_` variables).
+- **Revisit if:** `java17.al2023` nears its 2029-06-30 deprecation, Corretto 17's own end of
+  support comes first (not checked), or a dependency drops Java 17.
+
 ---
 
 ## Context
@@ -458,7 +496,7 @@ Additional context that materially changed the answer: the panel's own cited ben
 
 | # | Decision | Call |
 |---|---|---|
-| 1 | Java Lambda framework | **Spring Boot 4** (`aws-serverless-java-container` 3.x) on the **`java25` managed runtime**, **arm64**, **SnapStart enabled with SDK-level priming** — for the two synchronous API functions **only**. The four asynchronous consumers use **plain `RequestHandler` classes with no framework and no SnapStart**. |
+| 1 | Java Lambda framework | **Spring Boot 4** (`aws-serverless-java-container` 3.x) on the ~~**`java25`**~~ **`java17.al2023`** *(A10)* managed runtime, **arm64**, **SnapStart enabled with SDK-level priming** — for the two synchronous API functions **only**. The four asynchronous consumers use **plain `RequestHandler` classes with no framework and no SnapStart**. |
 | 2 | IaC language | **AWS CDK in TypeScript**, with the Maven build wired into `cdk.json`'s app command so `cdk deploy` cannot ship a stale JAR. |
 | 3 | Repo layout | **Monorepo.** `backend/` (Maven multi-module) + `web/` (Vite/React) + `infra/` (CDK TS), with `web` and `infra` as npm workspaces. |
 | 4 | Coach timezone | **Per-coach IANA timezone in the data model from day one; single-timezone scheduler fan-out for MVP.** The reversible half is deferred; the irreversible half is not. |
@@ -506,7 +544,7 @@ where `build:backend` is `mvn -q -f ../backend/pom.xml package`. This exists bec
 ```
 bladebook/
 ├── docs/architecture.md, docs/adr/
-├── backend/                 # Maven multi-module, Java 25, arm64 target
+├── backend/                 # Maven multi-module, Java 17 (A10), arm64 target
 │   ├── core/                # framework-free: domain, DynamoDB, events
 │   ├── api-coach/           # Spring Boot 4 → λ api-coach
 │   ├── api-client/          # Spring Boot 4 → λ api-client
@@ -661,7 +699,7 @@ Deploy one throwaway `api-client`-shaped endpoint: Spring Boot 4, `java25`, arm6
 **Ecosystem / support**
 - The Spring Boot 4.x line approaches EOL without a clean 4.x→5 upgrade path, or `aws-serverless-java-container` 3.x stops shipping releases (it is the newest and least-proven dependency in this stack — check quarterly).
 - CDK ships a first-party `JavaFunction` L2 — drop the `cdk.json` Maven glue.
-- The `java25` managed runtime approaches its 2029-06-30 deprecation.
+- The ~~`java25`~~ `java17.al2023` *(A10)* managed runtime approaches its 2029-06-30 deprecation.
 
 **Scale / scope**
 - Sustained traffic exceeds ~9 req/s, at which point Lambda Managed Instances becomes cheaper than the entire cold-start mitigation stack and eliminates the problem outright. Re-run the budget math.

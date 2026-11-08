@@ -72,6 +72,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **Deep Archive** | *(S3 Glacier Deep Archive — a storage class, not an acronym)* | S3's cheapest, slowest storage. Reading an object needs a **restore taking up to 12 hours**, objects are billed for at least 180 days, and each is billed as at least about 40 KB. Used for the archive of expired items, for the friction rather than the price: archived children's data cannot be read casually (ADR-017 decision 6). |
 | **IAM** | Identity and Access Management | AWS's permission system. §7 mandates one IAM **role** per Lambda, each granted only the actions that function needs — no wildcards. |
 | **AWS Organization** | *(not an acronym)* | AWS's grouping of several accounts under one owner. BladeBook has two: production and dev (ADR-027 d8). |
+| **App client** | *(not an acronym)* | A Cognito setting for one website's sign-in: its return addresses and token lifetimes. BladeBook has two in one user pool, the coach website's (rinkside page included; refresh token 4 hours) and the family website's (60 minutes) (ADR-023 d9). Each API refuses the other's tokens with 403. |
 | **Stack** | *(not an acronym)* | A group of AWS resources that the infrastructure code creates, updates and deletes together, as one unit, inside one account: a CloudFormation stack in CDK, a separate configuration with its own state in Terraform. A stack groups what changes together; it is **not** a security boundary — an account is. The production account holds the **application stack** (deployed often) and the **data-loading stack** (the masking workflow, transform Lambda, export and masked buckets, load log and dev's access-log bucket; deployed rarely, ADR-027 d9). The dev account holds an **account stack** (Cognito and test accounts) and an **application stack** built from the seed or masked file and destroyed afterwards (ADR-028). |
 | **IAM Identity Center** | *(not an acronym)* | AWS's single sign-in across the accounts in an Organization, with multi-factor authentication (ADR-027 d8). |
 | **DNS** | Domain Name System | Maps names to addresses. The domain's zone is in production; `dev.<domain>` is delegated to the dev account (ADR-027 d8). |
@@ -153,7 +154,8 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | Term | Stands for | In BladeBook |
 |---|---|---|
 | **JVM** | Java Virtual Machine | The Java runtime. Its startup cost is the entire reason SnapStart, Quarkus, and Micronaut were debated at all. |
-| **JDK** | Java Development Kit | Compiler + tooling. We target Java 25. |
+| **JDK** | Java Development Kit | Compiler + tooling. We target **Java 17** (ADR-001 A10, 2026-11-06; was Java 25). |
+| **AL2 / AL2023** | Amazon Linux 2 / Amazon Linux 2023 | The operating systems under Lambda's managed runtimes. BladeBook uses `java17.al2023`, on AL2023; the plain `java17` runtime is on AL2, which reached end of life on 2026-06-30 (ADR-001 A10). |
 | **JAR** | Java ARchive | The deployable artifact. Three of them: `api-coach.jar`, `api-client.jar`, `consumers.jar`. |
 | **SDK** | Software Development Kit | Usually "AWS SDK v2 for Java" — the library our code uses to call DynamoDB, SES, and SNS. |
 | **DI** | Dependency Injection | How a framework supplies collaborators to your classes. Spring does it at runtime via reflection; Quarkus and Micronaut do it at compile time, which is most of their startup advantage — and most of what SnapStart makes moot. |

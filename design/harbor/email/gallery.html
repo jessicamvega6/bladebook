@@ -1,0 +1,193 @@
+<title>BladeBook Email Designs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: a mail-client frame — the list of emails on the left, the open email on the right at its real width.
+   Chrome follows the viewer's theme; the emails themselves stay Harbor-light, as they will in a mail app. */
+:root {
+  --bg: #F7F3EC; --surface: #FFFDF9; --surface-2: #F2ECE2; --border: #E7DFD2;
+  --text: #1E292D; --text-2: #46524F; --text-3: #5F6966;
+  --primary: #0E6C68; --on-primary: #FFFFFF; --primary-soft: #D4EBE8; --primary-soft-text: #0A5350;
+  --coral: #A8432D; --warn-soft: #FCEFD9; --warn-text: #874B07; --stage: #E9E2D6;
+  --font: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141B1C; --surface: #1C2526; --surface-2: #243032; --border: #2F3C3E;
+  --text: #ECE7DE; --text-2: #C3C9C5; --text-3: #9BA49F;
+  --primary: #5CC2B9; --on-primary: #0B2321; --primary-soft: #1D3D3B; --primary-soft-text: #A9E2DC;
+  --coral: #F09A84; --warn-soft: #3A2C17; --warn-text: #F2C27C; --stage: #0F1516; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #141B1C; --surface: #1C2526; --surface-2: #243032; --border: #2F3C3E;
+  --text: #ECE7DE; --text-2: #C3C9C5; --text-3: #9BA49F;
+  --primary: #5CC2B9; --on-primary: #0B2321; --primary-soft: #1D3D3B; --primary-soft-text: #A9E2DC;
+  --coral: #F09A84; --warn-soft: #3A2C17; --warn-text: #F2C27C; --stage: #0F1516; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; margin-bottom: 22px; }
+h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.lede { margin: 6px 0 0; color: var(--text-2); max-width: 68ch; }
+.counts { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chip b { color: var(--text); }
+
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+nav.list { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 10px; }
+.grp { font-size: 11.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--coral); padding: 12px 10px 6px; }
+.grp:first-child { padding-top: 4px; }
+.item { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  padding: 8px 10px; border-radius: 10px; }
+.item:hover { background: var(--surface-2); }
+.item[aria-current="true"] { background: var(--primary-soft); color: var(--primary-soft-text); }
+.item__t { display: block; font-weight: 700; font-size: 14px; line-height: 1.3; }
+.item__s { display: block; font-size: 12.5px; color: var(--text-3); line-height: 1.35; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item[aria-current="true"] .item__s { color: inherit; opacity: .8; }
+.item:focus-visible, .seg button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+main.view { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; min-width: 0; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.title-row h2 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; text-wrap: balance; }
+.badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--primary-soft); color: var(--primary-soft-text); }
+.badge--switch { background: var(--surface-2); color: var(--text-2); }
+.badge--cognito { background: var(--warn-soft); color: var(--warn-text); }
+.when { margin: 6px 0 14px; color: var(--text-2); }
+.hdrs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 14px; }
+.hdrs dt { color: var(--text-3); font-weight: 600; }
+.hdrs dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.hdrs dd.subj { font-weight: 700; }
+.mono { font-family: var(--mono); font-size: 13px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: none; color: var(--text-2); font: 600 13.5px var(--font); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.stage { background: var(--stage); border-radius: 16px; padding: 20px 12px; overflow-x: auto; display: flex; justify-content: center; }
+.stage iframe { border: 0; background: #F7F3EC; border-radius: 10px; display: block; width: 640px; max-width: none; height: 900px; box-shadow: 0 10px 30px -14px rgba(0,0,0,.35); }
+.stage.phone iframe { width: 375px; }
+pre.code { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.6 var(--mono); color: var(--text); background: var(--surface); border-radius: 12px; padding: 18px 20px; width: 100%; max-width: 760px; }
+.src-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.note { font-size: 13.5px; color: var(--text-3); margin: 0; }
+
+.notdrawn { margin-top: 28px; }
+.notdrawn h3 { margin: 0 0 8px; font-size: 16px; }
+.notdrawn ul { margin: 0; padding-left: 20px; color: var(--text-2); columns: 2 320px; column-gap: 32px; }
+.notdrawn li { margin-bottom: 4px; break-inside: avoid; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.list { position: static; max-height: 320px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>BladeBook email designs</h1>
+      <p class="lede">Every email in the first release, built as Amazon SES templates and Cognito's code email, in the Harbor look. Each one is shown with the Coach Dana sample data, exactly as the template renders it.</p>
+    </div>
+    <div class="counts" id="counts"></div>
+  </header>
+
+  <div class="layout">
+    <nav class="list" id="list" aria-label="Emails"></nav>
+    <main class="view" id="view"></main>
+  </div>
+
+  <section class="card notdrawn">
+    <h3>Not drawn yet</h3>
+    <p class="note" style="margin-bottom:10px">Phase 2, or not decided in the docs. Listed so nobody thinks they were missed.</p>
+    <ul>
+      <li><b>Phase 2:</b> “Just booked, then cancelled”; missed-lesson fee reminder; coach-chosen cancellation reasons (sick, emergency, vacation).</li>
+      <li><b>Phase 2, shared lessons:</b> consent-link invitation; “not yet accepted” warnings to families and coach; “expired, not yet accepted”; “invited skater not accepted”; “no longer available after the coach’s Accept”.</li>
+      <li><b>Undecided (ADR-031):</b> “Kept at full price” confirmation; confirmation for cancelling one freed date; one email per date or per series when a shared series loses a skater.</li>
+    </ul>
+  </section>
+</div>
+
+<script id="emails" type="application/json">/*__EMAILS__*/[]</script>
+<script>
+(() => {
+  const EMAILS = JSON.parse(document.getElementById('emails').textContent);
+  const GROUPS = [['families', 'To families'], ['shared', 'Shared lessons'], ['coach', 'To the coach'], ['cognito', 'Sent by Cognito']];
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+  let mode = store.get('bb-email-mode', 'email'), width = store.get('bb-email-width', 'desktop'), srcPart = 'html';
+
+  const ses = EMAILS.filter(e => e.group !== 'cognito').length, cog = EMAILS.length - ses;
+  document.getElementById('counts').innerHTML =
+    `<span class="chip"><b>${ses}</b> SES templates</span><span class="chip"><b>${cog}</b> Cognito message${cog === 1 ? '' : 's'}</span>`;
+
+  const list = document.getElementById('list');
+  list.innerHTML = GROUPS.map(([g, label]) => `<div class="grp">${label}</div>` + EMAILS.filter(e => e.group === g).map(e =>
+    `<button type="button" class="item" id="nav-${e.name}" data-name="${e.name}"><span class="item__t">${esc(e.title)}</span><span class="item__s">${esc(e.subject)}</span></button>`).join('')).join('');
+  list.addEventListener('click', ev => { const b = ev.target.closest('.item'); if (b) location.hash = b.dataset.name; });
+
+  const view = document.getElementById('view');
+  function current() { const h = location.hash.slice(1); return EMAILS.find(e => e.name === h) || EMAILS[0]; }
+
+  function show() {
+    const e = current();
+    list.querySelectorAll('.item').forEach(b => b.setAttribute('aria-current', String(b.dataset.name === e.name)));
+    const badge = e.status === 'Cognito' ? '<span class="badge badge--cognito">Sent by Cognito</span>'
+      : e.status === 'Always sent' ? '<span class="badge">Always sent</span>' : '<span class="badge badge--switch">On/off switch in Phase 2</span>';
+    const domain = s => esc(s).replace(/\{domain\}/g, '&lt;domain&gt;');
+    view.innerHTML = `
+      <section class="card">
+        <div class="title-row"><h2>${esc(e.title)}</h2>${badge}</div>
+        <p class="when">${esc(e.when)}</p>
+        <dl class="hdrs">
+          <dt>Subject</dt><dd class="subj">${esc(e.subject)}</dd>
+          <dt>From</dt><dd>${domain(e.from).replace('{{coachName}}', 'Dana Whitfield')}</dd>
+          <dt>Reply-To</dt><dd>${domain(e.replyTo).replace('{{coachBusinessEmail}}', 'dana@whitfieldskating.com')}</dd>
+          <dt>To</dt><dd>${esc(e.to)}</dd>
+          <dt>Sent by</dt><dd>${esc(e.sender)}</dd>
+          <dt>${e.group === 'cognito' ? 'File' : 'Template'}</dt><dd class="mono">${e.group === 'cognito' ? 'cognito/' + e.name + '.html' : 'ses/' + e.name + '.json'}</dd>
+        </dl>
+      </section>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="What to show">
+          ${[['email', 'Email'], ['text', 'Plain text'], ['source', 'Template source']].map(([k, l]) => `<button type="button" id="mode-${k}" data-mode="${k}" aria-pressed="${mode === k}">${l}</button>`).join('')}
+        </div>
+        ${mode === 'email' ? `<div class="seg" role="group" aria-label="Screen width">
+          ${[['desktop', 'Desktop · 640px'], ['phone', 'Phone · 375px']].map(([k, l]) => `<button type="button" id="width-${k}" data-width="${k}" aria-pressed="${width === k}">${l}</button>`).join('')}
+        </div>` : ''}
+      </div>
+      <div class="stage${width === 'phone' ? ' phone' : ''}" id="stage"></div>
+      ${mode === 'source' ? `<p class="note">${e.group === 'cognito' ? 'Cognito fills in {####} with the code. Nothing else is filled in.' : 'Double braces are escaped by SES; the plain-text part uses triple braces so an &amp; stays an &amp; and not “&amp;amp;”. Every date, time and amount arrives already formatted by the sending Lambda.'}</p>` : ''}`;
+
+    const stage = document.getElementById('stage');
+    if (mode === 'email') {
+      const f = document.createElement('iframe');
+      f.title = e.title + ' preview';
+      f.srcdoc = e.html;
+      f.addEventListener('load', () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 4) + 'px'; } catch {} });
+      stage.appendChild(f);
+    } else if (mode === 'text') {
+      stage.innerHTML = `<pre class="code">${esc(e.text)}</pre>`;
+    } else {
+      const part = e.source[srcPart] ?? e.source.html;
+      stage.innerHTML = `<div style="width:100%;max-width:760px"><div class="src-tabs seg" role="group" aria-label="Template part">
+        ${[['subject', 'Subject'], ['html', 'HTML'], ['text', 'Text']].map(([k, l]) => `<button type="button" id="src-${k}" data-src="${k}" aria-pressed="${srcPart === k}">${l}</button>`).join('')}
+        </div><pre class="code">${esc(part)}</pre></div>`;
+    }
+  }
+
+  view.addEventListener('click', ev => {
+    const m = ev.target.closest('[data-mode]'), w = ev.target.closest('[data-width]'), s = ev.target.closest('[data-src]');
+    if (m) { mode = m.dataset.mode; store.set('bb-email-mode', mode); }
+    else if (w) { width = w.dataset.width; store.set('bb-email-width', width); }
+    else if (s) srcPart = s.dataset.src;
+    else return;
+    show();
+  });
+  window.addEventListener('hashchange', show);
+  show();
+})();
+</script>

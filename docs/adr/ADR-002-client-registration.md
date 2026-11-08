@@ -74,6 +74,19 @@ impractical. Skater share codes use the same characters in a different shape
 invitation is no longer a way onto a coach's roster; the coach code (decision 1) is the only way.
 The consent link is Phase 2.
 
+**Amended — 2026-10-24.** [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 10: a Cognito post-confirmation
+trigger adds the `Client` group when the family's email is verified, so registration, in the
+family's first signed-in session, already carries the group ADR-023 decision 7 requires.
+
+**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
+(`design/harbor/client/screens-account.js`, which promises "We'll email you as soon as Coach Dana
+approves" in six places).* **The email telling a family their skater was approved is Phase 2.**
+MVP sends no approval email: the family sees the change the next time they open the website
+(the waiting banner goes, and the coach becomes bookable). When it ships, `consumer-student-link`
+sends it, since that consumer already handles the approval and sends the decline email. Until then,
+the six MVP messages must not promise an email; they say the family can book once the coach
+approves. That rewording isn't drawn in `design/harbor/` yet.
+
 ---
 
 ## Context

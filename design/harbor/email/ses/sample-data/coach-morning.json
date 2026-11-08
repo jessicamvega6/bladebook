@@ -1,0 +1,43 @@
+{
+  "coachFirst": "Dana",
+  "rinksideUrl": "https://bladebook.app/coach/rinkside",
+  "calendarUrl": "https://bladebook.app/coach/calendar",
+  "lessonsUrl": "https://bladebook.app/coach/lessons",
+  "paymentsUrl": "https://bladebook.app/coach/payments",
+  "today": "Wed, Oct 14",
+  "lessonCount": "5",
+  "firstTime": "6:00 AM",
+  "lessons": [
+    {
+      "time": "6:00 AM",
+      "skaters": "Sam R. & Leo M.",
+      "length": "30 min",
+      "rink": "Pelham Civic Center",
+      "shared": true
+    },
+    {
+      "time": "6:30 AM",
+      "skaters": "Mia C.",
+      "length": "30 min",
+      "rink": "Pelham Civic Center"
+    },
+    {
+      "time": "7:00 AM",
+      "skaters": "Noah C.",
+      "length": "30 min",
+      "rink": "Pelham Civic Center"
+    },
+    {
+      "time": "8:30 AM",
+      "skaters": "Owen B.",
+      "length": "30 min",
+      "rink": "Pelham Civic Center"
+    },
+    {
+      "time": "10:00 AM",
+      "skaters": "Leo M.",
+      "length": "45 min",
+      "rink": "Pelham Civic Center"
+    }
+  ]
+}

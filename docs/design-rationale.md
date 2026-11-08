@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** ~~2026-10-12~~ ~~2026-10-13~~ 2026-10-20 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
+**As of:** ~~2026-10-12~~ ~~2026-10-13~~ ~~2026-10-20~~ 2026-10-24 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -10,7 +10,7 @@ Where this document and an ADR disagree, the ADR wins.
 
 ## The shape of the system
 
-BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
+BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; seventeen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
 
 ## What drives the choices
 
@@ -49,9 +49,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 1; A1, A2
 
-### Sixteen functions, split by who calls and what they may touch
+### Seventeen functions, split by who calls and what they may touch
 
-**What it is.** Two APIs (coach and client), seven event consumers, six scheduled jobs and one archiver — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
+**What it is.** Two APIs (coach and client), seven event consumers, six scheduled jobs, one archiver and one sign-up trigger that gives a new account its group (ADR-023 d10) — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
 
 **Why.** One role per function is the security model's core: a defect in one function can only do what that function's role allows. The APIs split on trust boundaries — coach and family — not on routes. The per-request roles go further: DynamoDB itself refuses a read or write outside the caller's own records, so a bug in the application's own checks can't expose another coach's or family's data. The rinkside page runs in the coach API; a phone left signed in at the rink is guarded by requiring a recent sign-in before a schedule save, not by a function of its own.
 
@@ -87,9 +87,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Cognito, one sign-in for the coach website and rinkside
 
-**What it is.** One user pool holds every coach and family account. The rinkside check-in page is part of the coach website and uses its sign-in. Saving a schedule change needs a sign-in from the last 15 minutes.
+**What it is.** One user pool holds every coach and family account, with two app clients: one for the coach website, rinkside page included, and one for the family website. Each API takes only its own app client's tokens and its own group (`Coach` or `Client`), refusing others with 403. The rinkside check-in page is part of the coach website and uses its sign-in. Saving a schedule change needs a sign-in from the last 15 minutes.
 
-**Why.** Managed sign-in is free at this scale. A separate rinkside sign-in only protected a phone that wasn't also signed in to the website, which for a web page on the coach's own phone it almost always is. Asking for the password before a schedule save guards the most destructive action on every device.
+**Why.** Managed sign-in is free at this scale. A separate rinkside sign-in only protected a phone that wasn't also signed in to the website, which for a web page on the coach's own phone it almost always is. Asking for the password before a schedule save guards the most destructive action on every device. A family app client of its own keeps each site's sign-in return addresses and token lifetime separate, and either side can be turned off alone.
 
 **Turned down:**
 - *A separate rinkside account* — Two passwords for one coach, with no security gained.

@@ -438,6 +438,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .alertcard__body { color: var(--text-2); margin-top: 2px; }
 .bb .alertcard__body b { color: var(--text); }
 .bb .alertcard .check { border-color: var(--danger-border); }
+.bb .alertcard--warn { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .alertcard--warn .alertcard__head { color: var(--warning); }
+.bb .alertcard--warn .alertcard__title { color: var(--warning-text); }
+.bb .alertcard--warn .check { border-color: var(--warning-border); }
 .bb .delta { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
 .bb .delta b { color: var(--success-text); font-size: 15px; }
 .bb .progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
@@ -731,6 +735,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
 .bb .rink-cta__text b { font-size: 17px; }
 
+/* Coach code waiting for the business email (ADR-016, amended 2026-11-06) */
+.bb .codecard__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bb .codecard--pending { background: var(--surface-2, var(--bg)); border-style: dashed; }
+.bb .codecard--pending .codecard__code { color: var(--text-3); }
+.bb .codewait { margin-bottom: 16px; }
+.bb .codewait__links { margin: 6px 0 0 4px; }
+
 /* Calendar group — month grid, clickable week items, day rows. Harbor tokens only. */
 .bb .cal-scroll { overflow-x: auto; }
 .bb .cal-scroll .week { min-width: 860px; }
@@ -891,8 +902,8 @@ html, body { margin: 0; background: var(--sp-bg); }
 <body>
 <header class="sp-bar"><span>BladeBook coach website · Harbor · Phase 2</span><b>Email templates</b><span class="sp-bar__note">New, Phase 2: each automatic email with an on/off switch and a preview; cancellation, schedule-change and shared-lesson emails can’t be turned off. The “just booked” email is itself Phase 2.</span><nav class="sp-bar__nav"><a href="profile-account.html">← Profile — account</a><a href="index.html">All pages</a><a href="email-templates-shared.html">Email templates — shared lesson invitation →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--coach">
-    <header class="nav"><a class="brand" href="today.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
-      <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today.html"><span>Today</span></a><a class="nav__item" href="calendar-week.html"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">3</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item" href="payments-empty.html"><span>Payments</span></a><a class="nav__item is-active" href="profile-details.html" aria-current="page"><span>Profile</span></a></nav>
+    <header class="nav"><a class="brand" href="today-code-pending.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
+      <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today-code-pending.html"><span>Today</span></a><a class="nav__item" href="calendar-week.html"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">3</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item" href="payments-empty.html"><span>Payments</span></a><a class="nav__item is-active" href="profile-details.html" aria-current="page"><span>Profile</span></a></nav>
       <a class="nav__user" href="profile-details.html"><span class="avatar avatar--sm">DW</span><span class="nav__user-text"><b>Dana Whitfield</b><small>Coach</small></span></a></header>
     <main class="main"><div class="page page--wide">
     <div class="phead"><div class="phead__text"><div class="crumb"><a class="link" href="profile-details.html"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Profile</a></div><h1 class="h1">Email templates</h1><p class="lede">See what each automatic email says, and choose which ones go out.</p></div><div class="phead__actions"><span class="badge badge--neutral">Phase 2</span></div></div>

@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-20
+**As of:** 2026-10-24
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -99,6 +99,13 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   slow approval need a reminder to the coach?**~~ **Settled 2026-10-09 by the owner:** the coach
   approves everyone, siblings included; no reminder email; the Students tab title shows the
   number of pending students. (ADR-002, amended)
+- **Open question: A coach who is also a parent.** *Decided by the owner 2026-10-23:* it will
+  be built, with one account in both the `Coach` and `Client` groups, so one email and password
+  serve both sides. Still open: how the coach switches sides, which side opens first, whether a
+  coach can book lessons with themselves, how family sign-up proves the person owns an existing
+  coach email without revealing who is a coach, MFA on the family side, the shared inbox, and
+  what closing one side does to the other. See `FeatureDecriptions/Coach Who Is Also a Parent.md`.
+  (ADR-016, ADR-023 d7, d9, d10)
 
 ## 2a. Shared lessons (ADR-026)
 
@@ -473,6 +480,10 @@ the home screen: BladeBook's users are older (ADR-023, amended).*
   by the owner:* a large link at the top of the coach website's Today page, and a link at the
   top of a new morning email to the coach listing the day's lessons, sent by the ~7:00am
   day-of reminder job. (ADR-023, amended 2026-10-13)
+- **Pending decision (ADR-023 Open): The offline copy after the sign-in ends.** With no signal
+  the page shows today's cached lessons without asking the server. Should it stop once the 4
+  hours are up (which would also stop offline check-ins), and should logging out clear the
+  cached lessons along with the queue? *Added 2026-10-21.* (ADR-023 d6, d7)
 
 ## 7. Notifications and SMS
 
@@ -731,6 +742,12 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
 - ~~**Pending decision (ADR-023 Open): The coach website's refresh-token lifetime**~~ **Settled
   2026-10-05 (ADR-023 d6):** 60 minutes on the coach and family websites, 4 hours on the
   rinkside page, counted from sign-in.
+- **Pending decision (ADR-023 Open): Where the family website lives** — `<domain>/`,
+  `<domain>/family`, or a domain of its own. Sets its CloudFront path, its sign-in return
+  addresses and the links in family emails. *Added 2026-10-22.* (ADR-023)
+- ~~**Pending decision (ADR-023 Open): Does the family website have its own Cognito app
+  client?**~~ **Settled 2026-10-22 by the owner (ADR-023 d9):** yes. Each API refuses the other
+  app client's tokens with 403.
 - ~~**To-do (ADR-023 Open): Confirm on an iPhone** that a home-screen web app keeps its own
   sign-in, separate from Safari.~~ *Dropped 2026-10-12:* users are older and aren't expected
   to add pages to the home screen (ADR-023, amended).

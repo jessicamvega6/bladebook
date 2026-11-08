@@ -5,3 +5,11 @@
 
 # Local orientation notes, not part of the design record
 docs/dynamodb-primer.md
+
+# Build output
+target/
+node_modules/
+web/dist/
+
+# Editor settings
+.idea/

@@ -227,13 +227,14 @@ flowchart TB
     end
 
     subgraph Auth
-        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&quot;]
+        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&lt;br/&gt;two app clients: coach website, family website&quot;]
+        L_Group[&quot;λ auth-post-confirmation&lt;br/&gt;adds Coach or Client when the email is confirmed (ADR-023 d10)&quot;]
     end
 
     subgraph API[&quot;API Layer&quot;]
         WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
         APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer on every route but /health&quot;]
-        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&lt;br/&gt;each refuses the wrong app client or group (403)&quot;]
     end
 
     subgraph Events[&quot;Event Backbone&quot;]
@@ -270,6 +271,7 @@ flowchart TB
     WAF --&gt; Cognito
     WAF --&gt; APIGW
     APIGW --&gt; Cognito
+    Cognito --&gt;|email confirmed| L_Group
     APIGW --&gt; L_Api
     L_Api &lt;--&gt; DDB
 
@@ -305,13 +307,14 @@ flowchart TB
     end
 
     subgraph Auth
-        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&quot;]
+        Cognito[&quot;Cognito User Pool&lt;br/&gt;groups: Coach / Client&lt;br/&gt;two app clients: coach website, family website&quot;]
+        L_Group[&quot;λ auth-post-confirmation&lt;br/&gt;adds Coach or Client when the email is confirmed (ADR-023 d10)&quot;]
     end
 
     subgraph API[&quot;API Layer&quot;]
         WAF[&quot;🛡️ WAF web ACL&lt;br/&gt;(ADR-019)&quot;]
         APIGW[&quot;API Gateway (REST API)&lt;br/&gt;Cognito authorizer on every route but /health&quot;]
-        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&quot;]
+        L_Api[&quot;λ api-coach / λ api-client&lt;br/&gt;(students, schedules, bookings, check-in)&lt;br/&gt;each refuses the wrong app client or group (403)&quot;]
     end
 
     subgraph Events[&quot;Event Backbone&quot;]
@@ -348,6 +351,7 @@ flowchart TB
     WAF --&gt; Cognito
     WAF --&gt; APIGW
     APIGW --&gt; Cognito
+    Cognito --&gt;|email confirmed| L_Group
     APIGW --&gt; L_Api
     L_Api &lt;--&gt; DDB
 
@@ -1728,6 +1732,7 @@ sequenceDiagram
 sequenceDiagram
     participant F as Family (web)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-client λ
     participant DB as DynamoDB
     participant AC as api-coach λ
@@ -1739,6 +1744,9 @@ sequenceDiagram
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
     F-&gt;&gt;Cog: create account (email + password), verify the email
+    Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
+    PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
+    F-&gt;&gt;Cog: refresh tokens - they now carry Client
     F-&gt;&gt;API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
     API-&gt;&gt;DB: resolve every code again in the clientId-only session (ADR-022 d7)
     API-&gt;&gt;DB: write own partition — PROFILE, SKATER#35;&lt;studentId&gt; per skater,&lt;br/&gt;a link per skater per coach, PENDING, with the coach&#x27;s name
@@ -1767,6 +1775,7 @@ sequenceDiagram
           <pre class="src"><code>sequenceDiagram
     participant F as Family (web)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-client λ
     participant DB as DynamoDB
     participant AC as api-coach λ
@@ -1778,6 +1787,9 @@ sequenceDiagram
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
     F-&gt;&gt;Cog: create account (email + password), verify the email
+    Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
+    PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
+    F-&gt;&gt;Cog: refresh tokens - they now carry Client
     F-&gt;&gt;API: register — SELF or GUARDIAN, skaters, which skater goes with which coach
     API-&gt;&gt;DB: resolve every code again in the clientId-only session (ADR-022 d7)
     API-&gt;&gt;DB: write own partition — PROFILE, SKATER#35;&lt;studentId&gt; per skater,&lt;br/&gt;a link per skater per coach, PENDING, with the coach&#x27;s name
@@ -2160,14 +2172,17 @@ sequenceDiagram
 sequenceDiagram
     participant C as Coach (website)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
     C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
+    Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
+    PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
     C-&gt;&gt;Cog: sign in
-    Cog--&gt;&gt;C: tokens
+    Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
     alt profile exists
@@ -2189,14 +2204,17 @@ sequenceDiagram
           <pre class="src"><code>sequenceDiagram
     participant C as Coach (website)
     participant Cog as Cognito
+    participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
     C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
+    Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
+    PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
     C-&gt;&gt;Cog: sign in
-    Cog--&gt;&gt;C: tokens
+    Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
     alt profile exists
@@ -2289,6 +2307,10 @@ sequenceDiagram
     GW-&gt;&gt;F: authorizer passed
     Note over F: the function&#x27;s own role has no DynamoDB actions at all (ADR-021 d2, ADR-022 d1)
     F-&gt;&gt;F: verify the token - the caller is its sub, never the request body
+    F-&gt;&gt;F: shared check - the token&#x27;s app client and group&lt;br/&gt;api-coach: coach app client + Coach&lt;br/&gt;api-client: family app client + Client
+    opt wrong app client or wrong group
+        F--&gt;&gt;U: 403 Forbidden - no route code runs (ADR-023 d7, d9)
+    end
     alt api-coach
         F-&gt;&gt;STS: AssumeRole coach-tenant - tag coachId = sub,&lt;br/&gt;source identity sub, session name coach-sub
         STS--&gt;&gt;F: credentials for that coach only (cached per container)
@@ -2318,6 +2340,10 @@ sequenceDiagram
     GW-&gt;&gt;F: authorizer passed
     Note over F: the function&#x27;s own role has no DynamoDB actions at all (ADR-021 d2, ADR-022 d1)
     F-&gt;&gt;F: verify the token - the caller is its sub, never the request body
+    F-&gt;&gt;F: shared check - the token&#x27;s app client and group&lt;br/&gt;api-coach: coach app client + Coach&lt;br/&gt;api-client: family app client + Client
+    opt wrong app client or wrong group
+        F--&gt;&gt;U: 403 Forbidden - no route code runs (ADR-023 d7, d9)
+    end
     alt api-coach
         F-&gt;&gt;STS: AssumeRole coach-tenant - tag coachId = sub,&lt;br/&gt;source identity sub, session name coach-sub
         STS--&gt;&gt;F: credentials for that coach only (cached per container)

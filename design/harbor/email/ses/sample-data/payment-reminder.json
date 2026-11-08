@@ -1,0 +1,38 @@
+{
+  "coachName": "Dana Whitfield",
+  "coachFirst": "Dana",
+  "coachInitials": "DW",
+  "coachBusinessEmail": "dana@whitfieldskating.com",
+  "myBookingsUrl": "https://bladebook.app/bookings",
+  "bookUrl": "https://bladebook.app/book",
+  "homeUrl": "https://bladebook.app/",
+  "familyFirst": "Grace",
+  "noticeHours": "24",
+  "skater": "Mia",
+  "date": "Wed, Oct 14",
+  "time": "6:30 AM",
+  "amount": "$50",
+  "shared": false,
+  "instructionLines": [
+    {
+      "line": "Please pay within a week of the lesson."
+    },
+    {
+      "line": "Cash is fine at the rink, or use one of these:"
+    }
+  ],
+  "methods": [
+    {
+      "label": "Venmo",
+      "handle": "@dana-skates"
+    },
+    {
+      "label": "Cash App",
+      "handle": "$DanaWhitfield"
+    },
+    {
+      "label": "Cash",
+      "handle": "At the rink"
+    }
+  ]
+}

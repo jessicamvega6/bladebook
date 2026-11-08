@@ -49,11 +49,11 @@ is one skater's place in a lesson time. Acronyms are defined in [glossary.md](..
 
 ## 1. Stack and project layout
 
-*Sources: ADR-001, ADR-013, ADR-019, ADR-023.*
+*Sources: ADR-001 (A10 for the runtime), ADR-013, ADR-019, ADR-023.*
 
 | Layer | Decision |
 |---|---|
-| Compute | AWS Lambda on the managed **`java25`** runtime, **arm64**. No SnapStart. |
+| Compute | AWS Lambda on the managed **`java17.al2023`** runtime (Java 17 on Amazon Linux 2023, deprecated 2029-06-30), **arm64**. No SnapStart. No language feature newer than Java 17. Not the plain `java17` runtime, which is on Amazon Linux 2. |
 | API functions | **Spring Boot 4** through `aws-serverless-java-container` 3.x. Two functions, `api-coach` and `api-client`, split on the trust boundary (coach versus family). |
 | Event and scheduled functions | Plain `RequestHandler` classes, no framework, all in one `consumers.jar` with one handler entry point per function. |
 | Domain code | `backend/core/` is **framework-free**: plain Java and AWS SDK v2, no Spring annotations below the controller layer. |
@@ -70,7 +70,7 @@ is one skater's place in a lesson time. Acronyms are defined in [glossary.md](..
 ```
 bladebook/
 ├── docs/                    # architecture.md, adr/, glossary.md, …
-├── backend/                 # Maven multi-module, Java 25
+├── backend/                 # Maven multi-module, Java 17
 │   ├── core/                # framework-free domain, DynamoDB access, events
 │   ├── api-coach/           # Spring Boot 4 → api-coach
 │   ├── api-client/          # Spring Boot 4 → api-client
@@ -100,9 +100,9 @@ bladebook/
 ## 2. Functions
 
 *Sources: ADR-001 (A5, A6, A8, A9 and later amendments), ADR-010, ADR-017, ADR-018, ADR-021,
-ADR-023, ADR-025, ADR-026, ADR-031, ADR-033.*
+ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 
-**Sixteen functions.**
+**Seventeen functions.**
 
 | Function | Trigger | Job |
 |---|---|---|
@@ -122,6 +122,7 @@ ADR-023, ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
 | `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
+| `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
 **Outside the count**, not in the request path: the personal-data access-log aggregator; the
 **dev scanner** (in dev's application stack); the **transform Lambda** (in the production
@@ -151,6 +152,7 @@ held by code and tests.
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` | *Role not yet written* | — | — |
 | `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
+| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
@@ -275,7 +277,7 @@ archiver reads them.
   `ForgotPassword`. No custom recovery form.
 - **The login email must be verified** before the account can hold students.
 - **Order:** create and verify the Cognito user, then write `COACH#<sub>/PROFILE` and the
-  `CODE#` item. **First sign-in completes sign-up** if the profile is missing.
+  `CODE#` item. *The `CODE#` item waits for a confirmed business email (ADR-016, 2026-11-06).* **First sign-in completes sign-up** if the profile is missing.
 
 ### The profile
 
@@ -283,7 +285,7 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. Until then replies go to the address already in use. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. **At sign-up, families can't reach the coach until it is confirmed:** the login email is not a fallback, and **the coach code doesn't work until then**, because the `CODE#` item is written only once the coach has a confirmed business email, or at once if the coach uses the login email (ADR-016, 2026-11-06). **On the profile**, the current confirmed address stays in use until the new one is confirmed. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
@@ -294,7 +296,7 @@ archiver reads them.
 | `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional |
 | `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | Off by default. A type with a handle needs the handle before it can be switched on. Switching it off keeps the handle; switching Cash App, Venmo or PayPal back on asks the coach to confirm the kept handle. |
 | `displayPhoneToClients`, `displayEmailToClients` | Off by default |
-| `smsCancellationAlerts` | **Unticked until the coach ticks it** — *"Text me when a family cancels late."* Ticking it sends the one-off opt-in confirmation to `phone`. |
+| `smsCancellationAlerts` | **On the profile only**, not the sign-up form (ADR-016, 2026-11-06). **Unticked until the coach ticks it** — *"Text me when a family cancels late."* Ticking it sends the one-off opt-in confirmation to `phone`. |
 | `morningEmailSentOn` | Guard for the morning email (§13) |
 | `themeId` | Harbor only in MVP |
 
@@ -344,6 +346,8 @@ appears in the payment-reminder email.
 - A `PENDING` skater **cannot be booked**.
 - The coach website's **Students tab title shows the number of pending skaters.** No reminder
   email for waiting approvals.
+- **No approval email in MVP** (Phase 2, §24): the family sees the approval the next time they
+  open the website, and no screen promises an email (ADR-002, 2026-11-06).
 - **Declining deletes the skater record** (`STUDENT#` immediately; the link follows through
   `consumer-student-link`). Not archived. `consumer-student-link` emails the family
   (*"the coach does not have availability to take on new students"*) from the removed item, so
@@ -367,8 +371,10 @@ appears in the payment-reminder email.
   more can be added later). Each coach holds its own `STUDENT#` record with its own status.
 - **A signed-in family can add a coach**: enter the code, choose which skaters (existing or new)
   join. Each new link starts `PENDING`.
-- **Adding a skater on the profile** asks which coaches they join, when the family has more than
-  one.
+- **Adding a skater on the profile** always asks which coaches they join, and allows **"None of my
+  coaches yet"** (ADR-025, 2026-11-06). Such a skater has a `SKATER#` item and a share code but no
+  link or `STUDENT#` record, can't be booked, invited or added as a sibling, and joins a coach
+  through *Add a coach*. Sign-up still needs at least one coach per skater.
 - **Family edits write only the family's own partition.** `consumer-family-sync` copies contact
   and skater changes to every coach's `STUDENT#` record, and a skater's name change to their
   upcoming seats.
@@ -387,8 +393,8 @@ appears in the payment-reminder email.
   organisation's pattern, cap the length, store the cleaned form. A rejection names the expected
   shape and never suggests a lookup.
   - USA Hockey: 14 characters, 9 digits and 5 letters. The season's check digit is a **setting**.
-  - US Figure Skating and Learn to Skate USA: digits only within a loose length range, until the
-    formats are known.
+  - US Figure Skating and Learn to Skate USA: letters and digits, 1 to 20 characters, until the
+    formats are known (ADR-029, 2026-11-06).
 - **Never a key** and never in an index.
 - Nothing happens when a number lapses.
 - **Coaches can download** a file of Student First Name, Student Last Name, Skater Number from the
@@ -479,8 +485,8 @@ editor keeps those apart.
   LL becomes 30. **Every contiguous run of selected slots becomes one block.**
 - **Block names.** `seq` is assigned once and never reused or renumbered (the next is one above
   the highest in that schedule). Every surface labels a block by its name, or *Block N* from
-  `seq`. Names are coach-only, HTML-escaped and capped at 40 characters. In a temp, the editor
-  doesn't ask for a block name until there is a second block. Overlap messages name both blocks
+  `seq`. Names are coach-only, HTML-escaped and capped at 40 characters. The Name field always
+  shows, in a temp too (ADR-008, amended 2026-11-08). Overlap messages name both blocks
   and their times: *"Monday: Morning ice (6–11:30 AM) and Block 2 (10 AM–5 PM) overlap in time."*
 - **Odd-cents warning** (not a block): when a block allows 2 or more skaters and its price
   doesn't split evenly — *"Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent
@@ -492,7 +498,8 @@ editor keeps those apart.
 ### Calendars
 
 - **The coach and the family both get a monthly calendar and a Sunday–Saturday week view** with
-  previous and next. Clicking a date opens its week. Weeks are in the coach's timezone.
+  previous and next. On the coach's calendar, clicking a date opens that day (ADR-006,
+  amended 2026-11-08); on the family's, it opens its week. Weeks are in the coach's timezone.
 - The month marks every date with an override (one range query on `SCHEDULE#DATE#`).
 - **The coach's calendar** is editable and shows who is booked. **The family's** is bookable and
   shows only free or taken.
@@ -1167,7 +1174,7 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4, ADR-023 d2, d4–7, d9.*
+*Sources: ADR-016 d3–4 (amended 2026-11-06), ADR-023 d2, d4–7, d9–10.*
 
 - **Two Cognito app clients in one user pool:** one for the coach website, rinkside page
   included, and one for the family website (ADR-023 d9). Each has its own sign-in return
@@ -1184,6 +1191,15 @@ notified.
 - **`api-client` requires the `Client` group** on every route, in the same kind of shared check,
   and refuses a token without it with 403 (ADR-023 d7). A coach's token can't use the family
   website's routes.
+- **These checks cover every route that needs a sign-in.** `api-client`'s coach-code lookup
+  before sign-up and `/health` take no token (ADR-023 d7, amended 2026-10-24).
+- **A new account gets its group when its email is confirmed** (ADR-023 d10): a Cognito
+  post-confirmation trigger adds `Coach` for the coach app client and `Client` for the family
+  app client, and the website refreshes its tokens before the first signed-in request.
+- **One code email for everything Cognito sends** (ADR-016, amended 2026-11-06): sign-up, forgot
+  password and a changed email all get Cognito's built-in verification message. There is **no
+  custom message trigger**, so the email names no coach or family and states no expiry. The user
+  pool sends through SES.
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
@@ -1247,7 +1263,8 @@ notified.
   - **GSI1**: same `LeadingKeys` condition on the index;
   - **coach's partition, reads**: `GetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
     allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist covers schedule
-    items, the coach profile's public fields and the lesson-time fields availability needs
+    items, the coach profile's public fields (the payment-type switches are `acceptsCash`,
+    `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022, 2026-11-06) and the lesson-time fields availability needs
     (`priceMinor`, `shareCount`, `joinOrder`, never `pendingLeave`), the family's own seat read,
     and `studentStatus` alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a).
     **It fails closed.**
@@ -1590,7 +1607,7 @@ database-gate tests; reproducing an incident (masked build).
 
 ## 22. Testing
 
-*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6–7, ADR-024, ADR-025, ADR-026, ADR-033.*
+*Sources: ADR-013, ADR-021 d7, ADR-022 d9, ADR-023 d6–7, d9–10, ADR-024, ADR-025, ADR-026, ADR-033.*
 
 - **No feature ships without automated tests.** Integration tests against DynamoDB Local count.
 - **Tooling:** JUnit with DynamoDB Local (`backend/`); **Vitest + React Testing Library**
@@ -1694,6 +1711,8 @@ database-gate tests; reproducing an incident (masked build).
 - Changing a coach's currency.
 - Applying saved, named schedule templates.
 - Coach-selectable themes.
+- The **approval email** to a family when a coach approves their skater, sent by
+  `consumer-student-link` (ADR-002, 2026-11-06). MVP screens don't promise an email.
 - Distinct cancellation email templates by reason.
 - A switch to turn off the coach's morning email.
 - A scheduled production canary.
@@ -1804,7 +1823,7 @@ Which ADRs feed which sections. Read an ADR for the reasoning and the alternativ
 | [020](ADR-020-repricing-booked-lessons.md) | Re-pricing booked lessons | §9 |
 | [021](ADR-021-tenant-isolation-at-the-database.md) | Tenant isolation at the database | §16, §22 |
 | [022](ADR-022-client-isolation-at-the-database.md) | Client isolation at the database | §5, §8, §16, §22 |
-| [023](ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside joins the coach website | §1, §11, §13, §15 |
+| [023](ADR-023-rinkside-check-in-joins-the-coach-website.md) | Rinkside joins the coach website | §1, §11, §13, §15, §22 |
 | [024](ADR-024-client-write-link-check.md) | The client write link check | §16 |
 | [025](ADR-025-many-coaches-per-skater.md) | Many coaches per skater | §5, §7 |
 | [026](ADR-026-shared-lessons-by-invitation.md) | Shared lessons by invitation | §5, §8, §16 |

@@ -83,7 +83,8 @@ to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
 - **j. Home shows one card per coach.** An approved coach's card shows the contact details
   that coach switched on; a coach still to approve shows none.
 - **k. Adding a skater on the profile asks which coaches they join** (when the family has more
-  than one). The new skater waits for each coach picked.
+  than one). The new skater waits for each coach picked. *Amended 2026-11-06: asked always, with "None of my coaches yet"
+  allowed (Status).*
 - **l. Shared-lesson invitations name their coach** on every family page (home banner,
   invitations card, invitation page). The invitation emails already did.
 - **m. Payments (Phase 2) are grouped by coach**, never totalled across coaches (as d7 says).
@@ -103,6 +104,23 @@ through GSI1, and item e's "already booked" is found by reading the family's own
 **Amended — 2026-10-20.** [ADR-033](ADR-033-invite-only-accepted-skaters.md): the 2026-10-07 amendment (an invitation to a shared
 lesson as a second way to add a coach) is Phase 2. In MVP a skater can be invited only to a lesson with a coach
 they are already `ACTIVE` with; adding a coach is through the coach code.
+
+**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
+(`design/harbor/client/screens-account.js`, "To add a new skater, add them under Skaters first").*
+**Item k: a skater added on the profile can start with no coach.** *Add a skater* always asks
+which coaches they join (now also when the family has only one coach) and offers **"None of
+my coaches yet"**. That skater gets a `SKATER#` item and a share code, but no link item and no
+`STUDENT#` record anywhere. The profile shows *"Not with a coach yet"*, and the skater can't be
+booked, invited or added as a sibling. The family then uses *Add a coach* (decision 2), where
+the skater appears like any existing one. This avoids a new skater being made `PENDING` with a
+coach they will never skate with, and that coach's decline email.
+- **Sign-up is unchanged:** each skater still ticks at least one coach.
+- `consumer-family-sync` has no coach to copy a skater with no coach to, so it writes nothing but the
+  share code. The "waiting" rule (item i) doesn't count a skater with no coach either way.
+- The add-a-coach form keeps its hint, worded for the new path. The *"None of my coaches yet"*
+  choice is drawn in `design/harbor/client/` (`profile-add-skater-no-coach`,
+  `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater`;
+  2026-11-06).
 
 ---
 
@@ -323,7 +341,8 @@ lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 
 - **Designs for the new screens** (decision 7), for about 10 coaches. *Booking and the
   profile's coaches designed 2026-10-13*, then sign-up, Home and the waiting pages the same
   day. Payments (Phase 2) is still to do; per-coach removal
-  is Phase 2 (n). *"Also coached by"* on the coach side is Phase 2.
+  is Phase 2 (n). *"Also coached by"* on the coach side is Phase 2. *2026-11-06: item k's
+  "None of my coaches yet" path is drawn too (four profile pages, Status).*
 - **What the family sees when one coach removes their skater** while another coach keeps them.
   Part of blocker #17. *2026-10-13: the other coaches' lessons aren't affected (g); what the
   family sees is still open, and Phase 2 with the rest of removal (n).*

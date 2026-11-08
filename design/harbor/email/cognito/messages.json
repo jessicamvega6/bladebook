@@ -1,0 +1,7 @@
+{
+  "cognito-code": {
+    "subject": "Your BladeBook code: {####}",
+    "html": "cognito/cognito-code.html",
+    "characters": 5489
+  }
+}

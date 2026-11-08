@@ -47,7 +47,7 @@ const bkMonthLabel = ym => { const [y, m] = ym.split('-').map(Number); return `$
 const bkShortMonth = ym => MON[Number(ym.split('-')[1]) - 1];
 
 /* Waiting families never see the booking pages (ADR-022 d6). */
-const bkPendingGate = () => shell(card(`<div class="pempty"><span class="pempty__icon">${ic('lock', 22)}</span><b>Booking opens once ${coachOr(waitingByCoach().map(w => w.cid).concat(waitingByCoach().length ? [] : [DANA]))} approves</b><span class="muted">Until then you can see your own account and skaters. We’ll email you as soon as you’re approved.</span>${B('Back to home', 'secondary', '', { href: href('home') })}</div>`));
+const bkPendingGate = () => shell(card(`<div class="pempty"><span class="pempty__icon">${ic('lock', 22)}</span><b>Booking opens once ${coachOr(waitingByCoach().map(w => w.cid).concat(waitingByCoach().length ? [] : [DANA]))} approves</b><span class="muted">Until then you can see your own account and skaters. You can book here as soon as you’re approved.</span>${B('Back to home', 'secondary', '', { href: href('home') })}</div>`));
 
 /* ---------- skater and coach pickers ---------- */
 function bkPicker() {
@@ -256,7 +256,7 @@ function bkShareBox(u, k, picks) {
     ${sh.st === 'failed' ? `<div class="bk-share__retry">${B('Try again', 'secondary', 'bkShareRetry', { sm: true, icon: 'refresh' })}<span class="fine">Book stays off until the code is checked, or the box is empty.</span></div>` : ''}
     ${found}
     ${sibs.length ? `<div class="bk-share__sibs"><div class="label">Your skaters</div><div class="listbox">${sibs.map(x => { const ok = linkOf(x, can[0].coach) === 'ACTIVE', xf = esc(firstName(x.name)), on = ok && sh.s === x;
-      return row(`${avatar(initials(x.name), 'sm')}${rowTitle(esc(x.name), ok ? `Coach ${coach}’s student · added directly, no invitation` : `Not available to add until Coach ${coach} accepts them`)}`,
+      return row(`${avatar(initials(x.name), 'sm')}${rowTitle(esc(x.name), ok ? `Coach ${coach}’s student · added directly, no invitation` : !myCoachIds().some(cid => linkOf(x, cid)) ? 'Not with a coach yet' : `Not available to add until Coach ${coach} accepts them`)}`,
         ok ? (on ? badge('Added', 'success', 'check') : B(`Add ${xf}`, 'secondary', 'bkShareSib', { sm: true, args: [x.id] })) : badge('Not available', 'neutral', 'lock'), { muted: !ok }); }).join('')}</div></div>` : ''}</div>`;
 }
 /** A typed code must check out before the booking can continue (ADR-026 d5): a skater not on the coach's student list

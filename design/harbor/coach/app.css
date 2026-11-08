@@ -51,3 +51,10 @@
 .bb .rink-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
 .bb .rink-cta__text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
 .bb .rink-cta__text b { font-size: 17px; }
+
+/* Coach code waiting for the business email (ADR-016, amended 2026-11-06) */
+.bb .codecard__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bb .codecard--pending { background: var(--surface-2, var(--bg)); border-style: dashed; }
+.bb .codecard--pending .codecard__code { color: var(--text-3); }
+.bb .codewait { margin-bottom: 16px; }
+.bb .codewait__links { margin: 6px 0 0 4px; }

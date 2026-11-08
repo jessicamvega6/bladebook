@@ -18,7 +18,11 @@ bundle on its own CloudFront origin path, and A5's `api-checkin` row.
 `checkin-tenant` role), [ADR-019](ADR-019-waf-in-mvp.md) decision 3 (its open item is
 closed), [ADR-011](ADR-011-staging-environment.md) decision 6c (one coach app client to
 disable, not two; *since decision 9, the coach and family app clients*), [ADR-012](ADR-012-pii-access-logging.md) decision 1 and
-[ADR-013](ADR-013-testing-requirement.md) decision 4 (references to `api-checkin`).
+[ADR-013](ADR-013-testing-requirement.md) decision 4 (references to `api-checkin`; *since decisions 7 and 9, the group and
+app-client tests*). *Since decision 9:* [ADR-019](ADR-019-waf-in-mvp.md) decision 3 (the
+app-client check is in the API code). *Since decision 10:* [ADR-002](ADR-002-client-registration.md)
+and [ADR-016](ADR-016-coach-signup.md) decision 9 (the group is added before the first
+signed-in session).
 
 **Keeps** every ADR-014 decision about working at a rink: offline capture and replay (1, 1a,
 2a, 3, 4, 4a), loading with no signal (5, 5a), explicit no-show (6), the `PENDING` report
@@ -70,6 +74,11 @@ website, not a separate app. Two decisions follow:
 own Cognito app client. Each API refuses a token issued to the other website's app client, as
 well as one without its group. Settles the Open item on the family website's app client, and
 amends ADR-011 decision 6c (two app clients to disable, not one).
+
+**Amended — 2026-10-24.** *Decided by the owner.* Decision 7's checks cover **every route that
+needs a sign-in**; the two routes that take no token are named. **Decision 10:** a Cognito
+post-confirmation trigger gives a new account its group, chosen by the app client it signed up
+through, so the first signed-in request already carries it.
 
 ---
 
@@ -183,6 +192,9 @@ item, *"How `api-coach` refuses the check-in app's tokens"*, is **closed**: no L
 authorizer. The REST API's Cognito authorizer checks every protected route, as ADR-019
 decision 3 already describes.
 
+*Amended 2026-10-22: decision 9 does tell the coach and family app clients apart, in the API
+code rather than in API Gateway, so there is still no Lambda authorizer.*
+
 ---
 
 ### 6. How long people stay signed in
@@ -208,6 +220,10 @@ shorter limit is enforced by the API, using the same `auth_time` check as decisi
 - `api-client` refuses every route when `auth_time` is more than 60 minutes old.
 - A refused request returns the same "sign in again" error as decision 4, and the site sends
   the person to sign-in.
+
+*Amended 2026-10-22 (decision 9): this holds for the coach app client. The family website has
+its own app client with a 60-minute refresh-token lifetime, so Cognito itself ends a family
+session at 60 minutes; `api-client`'s `auth_time` check stays as a second guard.*
 
 Decision 4 still applies inside these windows: a schedule save also needs a sign-in from the
 last 15 minutes.
@@ -259,6 +275,10 @@ group** and refuses a token without it with 403, in one shared check on every ro
 coach's token can't use the family website's routes either. Once allowed in, a family reaches
 only the skaters linked to it ([ADR-022](ADR-022-client-isolation-at-the-database.md),
 [ADR-024](ADR-024-client-write-link-check.md)).
+
+*Amended 2026-10-24 (owner): "every route" here means every route that needs a sign-in. Two
+routes take no token, so neither check applies to them: `api-client`'s coach-code lookup before
+sign-up (ADR-022's `code-lookup` role) and `/health`, the up-check (ADR-001).*
 
 **Tests** ([ADR-013](ADR-013-testing-requirement.md)): every rinkside route refuses a request
 with no token, refuses a family (`Client`) token with 403, and accepts a coach token; every
@@ -316,6 +336,30 @@ from the family app client with 403, even when it carries the `Coach` group; eve
 `api-client` route refuses a token from the coach app client with 403, even when it carries
 the `Client` group.
 
+### 10. A new account gets its group when its email is confirmed
+
+*Decided by the owner, 2026-10-24 (amendment).*
+
+Coach and family sign-up create the Cognito account first, then write the coach's profile or the
+family's registration in the first signed-in session ([ADR-016](ADR-016-coach-signup.md) d9,
+[ADR-002](ADR-002-client-registration.md), [ADR-022](ADR-022-client-isolation-at-the-database.md)).
+Decision 7 refuses a token without a group, so the group must be on the account before then.
+
+- **A Cognito post-confirmation trigger** runs once the person has verified their email. It adds
+  `Coach` to an account confirmed through the coach app client and `Client` to one confirmed
+  through the family app client (decision 9). The group comes only from the app client ID in the
+  event, never from anything the person typed.
+- **The website then refreshes its tokens**, so the first signed-in request carries the group.
+- **One small function with one permission:** `cognito-idp:AdminAddUserToGroup` on this user
+  pool. It brings BladeBook to seventeen functions.
+- **A coach who is also a parent:** adding `Client` to an existing coach account is a separate
+  step, after the person proves they own it (`FeatureDecriptions/Coach Who Is Also a Parent.md`).
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): an account confirmed through the coach app
+client gets `Coach` only, and one confirmed through the family app client gets `Client` only; the
+first registration or profile request after confirmation succeeds; nothing in the request can
+change which group is added.
+
 ---
 
 ## Alternatives considered
@@ -349,7 +393,8 @@ the `Client` group.
 - **The rinkside session can't be made shorter than the website's.** One app client means
   one refresh window. Set it for the website; the rinkside page lives with it. *Amended
   2026-10-05: decision 6 gives the two different limits anyway, enforced by the API on
-  `auth_time`, with the longer one (4 hours) on the rinkside page.*
+  `auth_time`, with the longer one (4 hours) on the rinkside page.* *Amended 2026-10-22: true of
+  the coach app client only; the family website has its own (decision 9).*
 - **The check-in code runs inside `api-coach`.** A defect there runs with `coach-tenant`'s
   actions rather than `checkin-tenant`'s narrower ones. ADR-021 still confines it to the
   signed-in coach's partition.

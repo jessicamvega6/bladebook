@@ -292,8 +292,8 @@ Containment stops the exposure and preserves the evidence. It is strictly better
 automatic action.
 
 **The automatic response is: disable the staging Cognito app clients — both of them.**
-Every authenticated path into staging data goes through API Gateway's JSON Web Token (JWT)
-authorizer, so cutting the app clients closes the realistic exposure surface in one action.
+Every authenticated path into staging data goes through API Gateway's Cognito authorizer
+(ADR-019), so cutting the app clients closes the realistic exposure surface in one action.
 *Amended 2026-09-29:* since ADR-014 decision 10 there are two — the website's and the
 check-in app's — and a leak reachable through `api-checkin` is still a leak, so containment
 disables both. It is fast,
