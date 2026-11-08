@@ -242,10 +242,40 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 **Java 17 follow-ups, done 2026-11-06 with the owner's approval:** ADR-001 amendment A10
 (`java17.al2023`, the Java 17 runtime on Amazon Linux 2023, deprecated 2029-06-30, the same date
 as `java25`), ADR-MASTER §1, `architecture.md` §2 and the glossary. SnapStart was already
-withdrawn (ADR-001 A1), so nothing needs re-measuring. Still to prove: that
-`aws-serverless-java-container` 3.x builds and runs on Java 17 (Batch 1's first build).
+withdrawn (ADR-001 A1), so nothing needs re-measuring. **Batch 1 (2026-11-08):**
+`aws-serverless-java-container` 3.0.4 builds and starts on Java 17. Its Lambda handler isn't
+exercised until something is deployed.
 
 ## 7. Gaps and shortcuts log
 
 Started in Batch 1 and kept in `README.md` and in the on-screen panel. Each entry names the
 conflict or shortcut ID above, what was left out, and what would close it.
+
+### Batch 1 (2026-11-08)
+
+The full list, with what closes each one, is in `README.md` and the coach website's panel
+(`web/src/coach/gaps.ts`).
+
+- **Shortcuts:** SC-1 local token stub for Cognito; SC-2 “I’ve clicked the link” confirms the
+  business email locally; SC-3 DynamoDB Local with one unscoped client (no `coach-tenant` gate);
+  SC-4 nothing deployed.
+- **Gaps:** A1 photo and A3 sign-up texts switch (both ruled out); G-1 Resend link / Change
+  address; G-2 Business email tab; G-3 Visibility & texts tab; G-4 Account tab; G-5 sign-up steps
+  1–2; G-6 every other coach page; G-7 no warning before the 60-minute sign-in ends.
+- **Settled while building (owner may override):**
+  - An unconfirmed business email is stored as `pendingBusinessEmail`; `businessEmail` stays
+    empty until it is confirmed, and the code works exactly when `businessEmail` is set. The
+    attribute name isn't in the ADRs.
+  - Time zones: the seven on the Profile → Details design are offered at sign-up too (step 3's
+    design shows five).
+  - Rotating a code that isn't working yet only changes the profile; its `CODE#` item is
+    written when the business email is confirmed, with a new code if that one was taken
+    meanwhile.
+  - `api-coach` accepts Cognito **ID** tokens (`token_use = id`, app client in `aud`), since the
+    login email is read from the token's `email` claim, which access tokens don't carry.
+  - Field limits: names 50 characters, handles 60, payment instructions 1,000, phone 10–15
+    digits.
+- **Found while building:** `aws-serverless-java-container` brings
+  `spring-cloud-function-serverless-web`, whose auto-configuration replaces Tomcat with a
+  Lambda-only server, so `api-coach` and `api-client` never listened on :8080 / :8081 locally.
+  The `local` profile now excludes it (`application-local.properties` in each API).
