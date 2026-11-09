@@ -18,6 +18,15 @@ const ICONS: Record<string, ReactNode> = {
   arrowR: <path d="M5 12h14M12 5l7 7-7 7" />,
   arrowL: <path d="M19 12H5M12 19l-7-7 7-7" />,
   x: <path d="M18 6 6 18M6 6l12 12" />,
+  chevL: <path d="m15 18-6-6 6-6" />,
+  chevR: <path d="m9 18 6-6-6-6" />,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  calOff: <path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18M21 15.5V6a2 2 0 0 0-2-2H9.5M3 10h7M21 10h-5.5M16 2v4M8 2v4M2 2l20 20" />,
+  repeat: <><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>,
+  plus: <path d="M12 5v14M5 12h14" />,
+  trash: <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />,
+  undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></>,
+  ban: <><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></>,
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof ICONS | string; size?: number }) {

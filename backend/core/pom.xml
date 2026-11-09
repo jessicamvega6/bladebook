@@ -35,6 +35,13 @@
             <artifactId>url-connection-client</artifactId>
         </dependency>
 
+        <!-- Reads the shared cases at the repo root, schedule-cases.json (ADR-013 decision 3b). -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- DynamoDB Local in Docker for the repository and service tests (ADR-013). -->
         <dependency>
             <groupId>org.testcontainers</groupId>

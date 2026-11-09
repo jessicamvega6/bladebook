@@ -1,0 +1,176 @@
+{
+  "_about": [
+    "Shared cases for the schedule logic that exists in both Java (backend/core) and TypeScript (web/src/shared/logic). ADR-013 decision 3b.",
+    "Every `expect` is written by hand. Never generate one from either implementation.",
+    "Times are the coach's local wall clock, HH:mm, 24-hour. Days are 0 = Sunday to 6 = Saturday.",
+    "A template field that is left out takes its default: name \"\", priceMinor 5000, maxSkaters 1, iceType PUBLIC, off {}. A field set to null is blank, as in the editor.",
+    "`off` lists the slots switched off, by day: {\"1\": [\"07:00\"]} switches off Monday's 7:00 slot."
+  ],
+
+  "slotExpansion": [
+    { "name": "a block that doesn't divide evenly drops the remainder",
+      "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 45,
+      "expect": ["06:00", "06:45", "07:30", "08:15", "09:00", "09:45", "10:30"] },
+    { "name": "an exact fit",
+      "startTime": "15:00", "endTime": "17:00", "lessonMinutes": 60,
+      "expect": ["15:00", "16:00"] },
+    { "name": "120-minute lessons",
+      "startTime": "06:00", "endTime": "11:00", "lessonMinutes": 120,
+      "expect": ["06:00", "08:00"] },
+    { "name": "too short for one lesson",
+      "startTime": "18:00", "endTime": "18:30", "lessonMinutes": 45,
+      "expect": [] },
+    { "name": "a blank end runs to 7:00 PM",
+      "startTime": "17:30", "endTime": null, "lessonMinutes": 30,
+      "expect": ["17:30", "18:00", "18:30"] },
+    { "name": "a blank end and a start at 7:00 PM gives nothing",
+      "startTime": "19:00", "endTime": null, "lessonMinutes": 30,
+      "expect": [] },
+    { "name": "a blank start gives nothing",
+      "startTime": null, "endTime": "08:00", "lessonMinutes": 30,
+      "expect": [] },
+    { "name": "a blank length shows 30-minute slots",
+      "startTime": "06:00", "endTime": "07:00", "lessonMinutes": null,
+      "expect": ["06:00", "06:30"] },
+    { "name": "no slot runs past the end, late at night",
+      "startTime": "22:30", "endTime": "23:45", "lessonMinutes": 30,
+      "expect": ["22:30", "23:00"] }
+  ],
+
+  "templateBlocks": [
+    { "name": "a switched-off slot splits one run into two blocks",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "08:00", "lessonMinutes": 30, "days": [1, 3], "off": { "1": ["07:00"] } }
+      ],
+      "expect": {
+        "1": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00" }, { "seq": 1, "startTime": "07:30", "endTime": "08:00" } ],
+        "3": [ { "seq": 1, "startTime": "06:00", "endTime": "08:00" } ]
+      } },
+    { "name": "abutting blocks from two templates",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 30, "days": [1] },
+        { "seq": 2, "startTime": "11:30", "endTime": "13:30", "lessonMinutes": 60, "days": [1] }
+      ],
+      "expect": {
+        "1": [ { "seq": 1, "startTime": "06:00", "endTime": "11:30" }, { "seq": 2, "startTime": "11:30", "endTime": "13:30" } ]
+      } },
+    { "name": "an uneven block ends at its last whole lesson",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 45, "days": [2] }
+      ],
+      "expect": { "2": [ { "seq": 1, "startTime": "06:00", "endTime": "11:15" } ] } },
+    { "name": "alternate slots switched off make one block per slot left",
+      "templates": [
+        { "seq": 4, "startTime": "06:00", "endTime": "08:00", "lessonMinutes": 30, "days": [5], "off": { "5": ["06:30", "07:30"] } }
+      ],
+      "expect": { "5": [ { "seq": 4, "startTime": "06:00", "endTime": "06:30" }, { "seq": 4, "startTime": "07:00", "endTime": "07:30" } ] } },
+    { "name": "every slot switched off on a day leaves that day empty",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [2, 4], "off": { "2": ["06:00", "06:30"] } }
+      ],
+      "expect": { "4": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00" } ] } },
+    { "name": "a blank end runs to 7:00 PM",
+      "templates": [
+        { "seq": 1, "startTime": "17:30", "endTime": null, "lessonMinutes": 30, "days": [4] }
+      ],
+      "expect": { "4": [ { "seq": 1, "startTime": "17:30", "endTime": "19:00" } ] } },
+    { "name": "switched-off slots on a day the block doesn't run are ignored",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1], "off": { "2": ["06:00"] } }
+      ],
+      "expect": { "1": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00" } ] } }
+  ],
+
+  "validation": [
+    { "name": "abutting blocks are fine",
+      "templates": [
+        { "seq": 1, "name": "Morning ice", "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 30, "days": [1] },
+        { "seq": 2, "startTime": "11:30", "endTime": "13:30", "lessonMinutes": 60, "days": [1] }
+      ],
+      "expect": [] },
+    { "name": "an overlap names both blocks and their times",
+      "templates": [
+        { "seq": 1, "name": "Morning ice", "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 30, "days": [1] },
+        { "seq": 2, "startTime": "10:00", "endTime": "17:00", "lessonMinutes": 60, "days": [1] }
+      ],
+      "expect": ["Monday: Morning ice (6–11:30 AM) and Block 2 (10 AM–5 PM) overlap in time."] },
+    { "name": "an overlap on two days is reported for each day",
+      "templates": [
+        { "seq": 1, "startTime": "12:00", "endTime": "14:00", "lessonMinutes": 30, "days": [1, 3] },
+        { "seq": 3, "name": "Power hour", "startTime": "13:00", "endTime": "15:00", "lessonMinutes": 60, "days": [3, 1] }
+      ],
+      "expect": [
+        "Monday: Block 1 (12–2 PM) and Power hour (1–3 PM) overlap in time.",
+        "Wednesday: Block 1 (12–2 PM) and Power hour (1–3 PM) overlap in time."
+      ] },
+    { "name": "a switched-off slot can remove an overlap",
+      "templates": [
+        { "seq": 1, "startTime": "06:00", "endTime": "11:30", "lessonMinutes": 30, "days": [1], "off": { "1": ["11:00"] } },
+        { "seq": 2, "startTime": "11:00", "endTime": "12:00", "lessonMinutes": 60, "days": [1] }
+      ],
+      "expect": [] },
+    { "name": "a new block with everything blank",
+      "templates": [
+        { "seq": 3, "name": "  ", "startTime": null, "endTime": null, "lessonMinutes": null, "days": [], "iceType": null }
+      ],
+      "expect": [
+        "Block 3 needs a start time.",
+        "Block 3 needs a lesson length.",
+        "Block 3 has no days selected. Pick at least one day.",
+        "Block 3 has no ice type. Pick one."
+      ] },
+    { "name": "a length outside the menu",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "08:00", "lessonMinutes": 20, "days": [1] } ],
+      "expect": ["Block 1 needs a lesson length."] },
+    { "name": "ends before it starts",
+      "templates": [ { "seq": 1, "startTime": "10:00", "endTime": "09:00", "lessonMinutes": 30, "days": [1] } ],
+      "expect": ["Block 1 ends before it starts."] },
+    { "name": "ends as it starts",
+      "templates": [ { "seq": 1, "startTime": "10:00", "endTime": "10:00", "lessonMinutes": 30, "days": [1] } ],
+      "expect": ["Block 1 ends before it starts."] },
+    { "name": "too short for one lesson",
+      "templates": [ { "seq": 1, "startTime": "18:00", "endTime": "18:30", "lessonMinutes": 45, "days": [1] } ],
+      "expect": ["Block 1 is too short for one 45-minute lesson."] },
+    { "name": "a blank end is fine before 7:00 PM",
+      "templates": [ { "seq": 1, "startTime": "17:30", "endTime": null, "lessonMinutes": 30, "days": [1] } ],
+      "expect": [] },
+    { "name": "a blank end needs an end time from 7:00 PM on",
+      "templates": [ { "seq": 1, "startTime": "19:00", "endTime": null, "lessonMinutes": 30, "days": [1] } ],
+      "expect": ["Block 1 needs an end time."] },
+    { "name": "every time switched off",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [2], "off": { "2": ["06:00", "06:30"] } } ],
+      "expect": ["Every time in Block 1 is switched off. Switch some back on, or delete the block."] },
+    { "name": "no blocks at all",
+      "templates": [],
+      "expect": ["Add at least one block."] },
+    { "name": "a blank price",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1], "priceMinor": null } ],
+      "expect": ["Block 1 needs a price."] },
+    { "name": "a price of $0 is allowed",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1], "priceMinor": 0 } ],
+      "expect": [] },
+    { "name": "a price of $10,000 or more",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1], "priceMinor": 1000000 } ],
+      "expect": ["Block 1’s price must be under $10,000."] },
+    { "name": "three skaters per lesson",
+      "templates": [ { "seq": 1, "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1], "maxSkaters": 3 } ],
+      "expect": ["Block 1 can have 1 or 2 skaters per lesson."] },
+    { "name": "a name over 40 characters",
+      "templates": [ { "seq": 1, "name": "Morning freestyle ice for the competitive", "startTime": "06:00", "endTime": "07:00", "lessonMinutes": 30, "days": [1] } ],
+      "expect": ["A block name can be up to 40 characters."] },
+    { "name": "times around noon and midnight",
+      "templates": [
+        { "seq": 1, "startTime": "00:00", "endTime": "12:00", "lessonMinutes": 60, "days": [6] },
+        { "seq": 2, "startTime": "11:00", "endTime": "23:45", "lessonMinutes": 60, "days": [6] }
+      ],
+      "expect": ["Saturday: Block 1 (12 AM–12 PM) and Block 2 (11 AM–11:45 PM) overlap in time."] }
+  ],
+
+  "weekStart": [
+    { "date": "2026-11-08", "expect": "2026-11-08", "name": "a Sunday is its own week's start" },
+    { "date": "2026-11-11", "expect": "2026-11-08", "name": "a Wednesday" },
+    { "date": "2026-11-14", "expect": "2026-11-08", "name": "a Saturday is the week's last day" },
+    { "date": "2026-01-01", "expect": "2025-12-28", "name": "across a new year" },
+    { "date": "2026-03-01", "expect": "2026-03-01", "name": "the Sunday after a short February" }
+  ]
+}

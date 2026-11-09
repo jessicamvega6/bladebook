@@ -1,5 +1,6 @@
 package com.bladebook.api.coach.exception;
 
+import com.bladebook.api.coach.security.RecentSignInRequired;
 import com.bladebook.core.domain.DomainException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,12 @@ public class ApiExceptionHandler {
             default:
                 return body(HttpStatus.BAD_REQUEST, "INVALID", e.getMessage(), e.field());
         }
+    }
+
+    /** Saving a schedule needs a fresh sign-in; the website asks for the password and retries. */
+    @ExceptionHandler(RecentSignInRequired.class)
+    ResponseEntity<Map<String, String>> recentSignIn(RecentSignInRequired e) {
+        return body(HttpStatus.UNAUTHORIZED, "SIGN_IN_TO_SAVE", e.getMessage(), null);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

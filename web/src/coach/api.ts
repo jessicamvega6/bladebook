@@ -69,3 +69,60 @@ export function coachApi(token: string) {
 }
 
 export type CoachApi = ReturnType<typeof coachApi>;
+
+// ------------------------------------------------------------- Batch 2
+
+/** One block template as api-coach sends and takes it (see shared/logic/schedule.ts). */
+export interface TemplateDto {
+  seq: number;
+  name: string;
+  startTime: string | null;
+  endTime: string | null;
+  lessonMinutes: number | null;
+  priceMinor: number | null;
+  maxSkaters: number | null;
+  iceType: string | null;
+  days: number[];
+  off: Record<string, string[]>;
+}
+
+export interface ScheduleDto {
+  /** 0 until the first save. */
+  scheduleVersion: number;
+  exists: boolean;
+  templates: TemplateDto[];
+}
+
+export interface LessonDto {
+  startTime: string;
+  durationMinutes: number;
+  priceMinor: number;
+  currency: string;
+  lessonStatus: 'OPEN' | 'BOOKED' | 'HELD';
+  maxSkaters: number;
+  seatsTaken: number;
+}
+
+export interface CalendarDto {
+  coachTimezone: string;
+  /** The coach's today and now, in the coach's time zone. */
+  today: string;
+  now: string;
+  hasSchedule: boolean;
+  days: Array<{ date: string; override: boolean; lessons: LessonDto[] }>;
+}
+
+export function scheduleApi(token: string) {
+  const call = <T>(path: string, method: 'GET' | 'PUT' = 'GET', body?: unknown) =>
+    apiFetch<T>(`/api/coach${path}`, { method, body, token });
+  return {
+    schedule: () => call<ScheduleDto>('/schedule'),
+    /** Needs a sign-in from the last 15 minutes, or fails with SIGN_IN_TO_SAVE. */
+    saveSchedule: (scheduleVersion: number, templates: TemplateDto[]) =>
+      call<ScheduleDto>('/schedule', 'PUT', { scheduleVersion, templates }),
+    calendar: (from: string, to: string) =>
+      call<CalendarDto>(`/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  };
+}
+
+export type ScheduleApi = ReturnType<typeof scheduleApi>;

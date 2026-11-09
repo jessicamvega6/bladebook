@@ -1,6 +1,7 @@
 /**
- * Today, for Batch 1: only the "code not working yet" banner (design: today-code-pending) and the
- * coach code. Lessons, stats and approvals arrive with batches 2 to 8 (gap G-6).
+ * Today: the "code not working yet" banner (design: today-code-pending) and the coach code. Lessons,
+ * stats and approvals arrive with batches 3 to 8 (gap G-6); for now the lessons card points at the
+ * calendar and the schedule.
  */
 import { Card } from '../../shared/components/harbor';
 import type { Profile } from '../api';
@@ -18,7 +19,7 @@ export function Today({ profile, onUseLogin, busy }: { profile: Profile; onUseLo
         <CodeCard profile={profile} />
       </Card>
       <Card title="Today’s lessons">
-        <p className="muted">Your lessons show here once you’ve built your teaching week. That part comes in the next batch.</p>
+        <p className="muted">See today’s times on your <a className="link" href="#/calendar">calendar</a>, or <a className="link" href="#/schedule/weekly">edit your teaching week</a>.</p>
       </Card>
     </>
   );
