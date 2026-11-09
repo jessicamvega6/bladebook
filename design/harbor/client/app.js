@@ -54,6 +54,7 @@ function benLessons() {
 }
 
 function freshState(who = 'grace') {
+  NOW_MIN = 8 * 60 + 15;   // the family website's demo clock; a page may move it later in its setup
   const students = freshStudents();
   const f = FAMILIES[who];
   // Mia and Noah are approved with Coach Ben too; Noah is waiting for Coach Lauren.

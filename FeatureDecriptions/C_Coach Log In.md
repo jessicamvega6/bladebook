@@ -2,6 +2,10 @@ Coach Log In
 (Written 2026-10-12 from the Harbor design: design/harbor/coach/static/login.html)
 
 The page a coach uses to sign in to the coach website. Sign-in is handled by Cognito.
+*Decided by the owner 2026-11-09:* opening the coach website's plain address (no page named after it) always shows
+this page, signed out, even if a coach was signed in in that browser tab. It links to sign-up ("Create a coach
+account"). A link to a page inside the site, or a refresh, keeps the sign-in. The family website does the same
+(C_Client Log In.md).
 
 Fields:
   Login email: the coach logs in with their login email, not their business email.

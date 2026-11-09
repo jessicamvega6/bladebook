@@ -78,6 +78,15 @@ needs a sign-in**; the two routes that take no token are named. **Decision 10:**
 post-confirmation trigger gives a new account its group, chosen by the app client it signed up
 through, so the first signed-in request already carries it.
 
+**Amended — 2026-11-09.** *Decided by the owner.* **Decision 11:** every sign-in, sign-up,
+verification, password and code form is **BladeBook's own page**, and the browser talks to
+Cognito directly. Cognito's hosted sign-in pages ("managed login") aren't used. Decision 9's
+first reason (separate sign-in return addresses) falls away, since nothing redirects; the
+separation rests on the API checks. **Amends** [ADR-016](ADR-016-coach-signup.md),
+[ADR-002](ADR-002-client-registration.md), and the domain reasons in
+[ADR-011](ADR-011-staging-environment.md) decision 7a and
+[ADR-027](ADR-027-on-demand-dev-environment.md).
+
 ---
 
 ## Context
@@ -308,10 +317,12 @@ issued it (`client_id` on an access token, `aud` on an ID token).
 
 **Why: what Cognito enforces, not our code.** These hold even if the API code has a mistake:
 
-- **Separate sign-in return addresses.** Each app client lists only its own website's addresses,
+- ~~**Separate sign-in return addresses.** Each app client lists only its own website's addresses,
   so a family's sign-in can only land on the family website, and a coach's only on the coach
   website. A sign-in link that tries to send a family to the coach website is refused before
-  sign-in.
+  sign-in.~~ *Withdrawn 2026-11-09 (decision 11): the websites use their own sign-in forms, so
+  there are no sign-in redirects or return addresses. The separation rests on the two reasons
+  below and on each API's app-client and group checks.*
 - **The family session ends at 60 minutes in Cognito.** Each app client has its own
   refresh-token lifetime. The family app client's is set to 60 minutes (decision 6), so Cognito
   stops refreshing a family's tokens then. The coach app client stays at 4 hours for the
@@ -362,6 +373,55 @@ Decision 7 refuses a token without a group, so the group must be on the account 
 client gets `Coach` only, and one confirmed through the family app client gets `Client` only; the
 first registration or profile request after confirmation succeeds; nothing in the request can
 change which group is added.
+
+### 11. BladeBook's own sign-in forms, talking to Cognito directly
+
+*Decided by the owner, 2026-11-09 (amendment).*
+
+Every page that asks for an email, a password or a code is **BladeBook's own page**, in the coach
+or family website's design: creating the account, verifying the email, logging in, forgot
+password, the password asked again (decision 4's schedule save, and signing in again after
+decision 6's limits), changing the password, and a coach's multi-factor authentication (MFA)
+code. Cognito's hosted sign-in pages ("managed login") are **not** used.
+
+- **The browser calls Cognito itself,** with the user pool's public calls: `SignUp`,
+  `ConfirmSignUp`, `ResendConfirmationCode`, `InitiateAuth` and `RespondToAuthChallenge`,
+  `ForgotPassword`, `ConfirmForgotPassword` and `ChangePassword`. **Passwords and codes go from
+  the browser to Cognito only.** They never reach `api-coach`, `api-client`, a log or the table;
+  the APIs only ever see the ID token Cognito returns.
+- **Sign-in uses Secure Remote Password (SRP)** (`ALLOW_USER_SRP_AUTH`), so the password itself
+  isn't sent even to Cognito, with `ALLOW_REFRESH_TOKEN_AUTH` for refreshing. Each app client is
+  public (no client secret) and has no OAuth flows, no hosted domain and no callback or sign-out
+  addresses.
+- **Cognito still owns the credentials** (ADR-016): storing and checking passwords, the password
+  policy, the lockout after repeated wrong passwords, the email verification and reset codes, and
+  MFA. The forms only collect what Cognito asks for and show what it answers.
+- **"Prevent user existence errors" is on** for both app clients, so logging in and forgot
+  password don't reveal whether an email has an account. The forms word Cognito's answers in
+  BladeBook's own language (the wording is product: the log-in, sign-up and forgot-password
+  feature files).
+- **Each website uses only its own app client ID.** The IDs are public, as any browser
+  app's are. Someone could call `SignUp` with the other website's ID; decision 10 would then give
+  that account the other group. That was equally true with Cognito's hosted pages, because the
+  sign-up call is public either way, and coach sign-up is self-serve anyway (ADR-016 d1), so this
+  opens nothing new.
+
+**Why** (owner): sign-up stays one continuous flow in BladeBook's look. A family doesn't leave
+mid-sign-up for a differently styled Cognito page and come back, which is one barrier fewer for
+older users. It also matches the Harbor designs as drawn.
+
+**What it changes:**
+- Decision 9's first reason is withdrawn (above); its other reasons stand.
+- The domains in [ADR-011](ADR-011-staging-environment.md) decision 7a and
+  [ADR-027](ADR-027-on-demand-dev-environment.md) are no longer needed for Cognito's sign-in
+  redirects; the cross-origin (CORS) rule and the custom domain still need them.
+- The websites need a browser library that does SRP (Open).
+- Until the user pool exists, the local build's token stub stands in for these calls (the root
+  `README.md`, shortcuts SC-1 and SC-10).
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): no request to `api-coach` or `api-client`
+carries a password or a code; both app clients allow only SRP and refresh, with no secret and no
+OAuth; a wrong password and an unknown email get the same answer.
 
 ---
 
@@ -427,8 +487,12 @@ change which group is added.
 - **Where the family website lives.** *Added 2026-10-22.* The coach website is at
   `<domain>/coach` and the rinkside page at `<domain>/coach/rinkside`, but no ADR says where
   the family website is served: `<domain>/`, `<domain>/family`, or a domain of its own. The
-  answer sets its CloudFront path, its sign-in redirect addresses, and the links in family
-  emails.
+  answer sets its CloudFront path~~, its sign-in redirect addresses,~~ and the links in family
+  emails. *(No sign-in redirects since decision 11, 2026-11-09.)*
+- **Which browser library does the Secure Remote Password (SRP) sign-in** for decision 11's
+  forms, for example AWS Amplify's Auth module or `amazon-cognito-identity-js`. *Added
+  2026-11-09.* It runs on both websites and the rinkside page, so its size and how it stores the
+  tokens matter (the local build keeps them for one browser tab).
 - ~~**Whether the family website has its own Cognito app client.** *Added 2026-10-22.* The
   Consequences above and [ADR-011](ADR-011-staging-environment.md)'s amendment of 2026-10-05
   both say "the family website's, if it has its own." With one shared app client, the sign-in
@@ -462,6 +526,8 @@ change which group is added.
 
 ## Revisit if
 
+- Sign-in with another account (Google, Apple) is wanted: that needs Cognito's hosted pages, so
+  decision 11 would be revisited. *Added 2026-11-09.*
 - A native app is reconsidered. A native app with its own sign-in is the case the original
   separation fit, and ADR-014 decisions 10 and 11 are the starting point.
 - A coach reports a lost or stolen phone being used against their account. That is the
