@@ -6,7 +6,12 @@ Shows the lessons for that day.
 "Next". A held slot shows as "Held slot, not bookable". A note says attendance comes from the rinkside app and mistakes
 are fixed on Lessons. Links to the day and week views.
 *Design (today.html, 2026-10-13):* a "Heading to the rink?" card under the greeting, with a large "Open the rinkside app" button (ADR-023).
-Figures across the top: this week's lessons and amount booked, unpaid total for past lessons, skaters waiting for approval.
+  Owner, 2026-10-13: this large link at the top of the Today page is one of the two ways the coach reaches the rinkside
+  page (the other is the morning email; see Email templates Needed:), so neither a home-screen icon nor a bookmark is
+  needed. The link sits at the top of the dashboard, above the day's numbers.
+  *Ruled by the owner 2026-11-09.* The rink card comes first, then the figures, as in the design.
+  *(from ADR-023's amendment of 2026-10-13, moved 2026-11-08)*
+Figures under the rink card: this week's lessons and amount booked, unpaid total for past lessons, skaters waiting for approval.
 When families are waiting, a "New families to approve" card lists them with a "Review sign-ups" button.
 
 Has a button that routes to: ~~Create Default Schedule, Temparary Schedule~~ *Edit weekly schedule, Time off or special schedule*, Month view of lessons, week view of lessons, Student List, *Payments*, coach profile, ~~Pending Student List~~ *(pending students are reached from "Review sign-ups" and the Students page)*, Email template list (phase 2)
@@ -16,6 +21,14 @@ Has a button that routes to: ~~Create Default Schedule, Temparary Schedule~~ *Ed
 The month view shows high level how many booked lessons are schedule for that day with each week listed to the left of the calendar. 
 *Design (calendar-month.html):* each day also shows how many open times are left; time off and special schedules are marked; a day with no lessons says so. The header gives the month's booked and open totals. Previous and next month, and a Today button.
 By clicking on the day the caoch is taken to a Day view (see C_Coach Day View.md), by clicking on the week number they're taken to that week of lessons where the students are listed with their lesson times ~~and amounts~~ (see cancelation.md, Coach Week view). 
+*Decided 2026-08-15:* the month grid marks every date that carries a date override, so the coach can see at a glance where
+  the schedule departs from the weekly one. The coach's calendar can be edited and shows who is booked.
+  The week view runs Sunday to Saturday with previous and next; each day in it stands on its own (some days from the weekly
+  schedule, some from date changes).
+*Amended 2026-11-08 (owner, settling conflict S7 in the implementation plan, `design/harbor/coach/screens-calendar.js`):*
+  on the coach's month calendar, clicking a date opens that day, not the week containing it. The coach's week view, with
+  previous and next, is unchanged and still reached from the calendar. The family's calendar is unchanged.
+*(from ADR-006 §3 and Status amendment 2026-11-08, moved 2026-11-08)*
 
 
 
@@ -38,6 +51,20 @@ in the coach's records.
   override applied when the skater's share is worked out. Whether it reaches lessons already booked is still the Phase 2
   question for Kim (§5).*
   The page has two tabs: Students, and Waiting for approval, each with a count.
+  *Phase 2 (owner, 2026-10-07; decided 2026-10-06):* on a skater's record, a coach sees "Also coached by: Sam Ortiz." —
+    only the other coaches' first and last names, and only once the skater is approved with both coaches. Nothing else
+    crosses: not the other coach's schedule, prices, lessons, notes or contact details. *(from ADR-025 decision 4,
+    moved 2026-11-08)*
+  Skater number (ADR-029 d3, owner 2026-10-20): the Students list has a "Skater number" column showing the number and
+    its organization for each skater, and Waiting for approval shows it beside each skater waiting to be approved
+    (design/harbor/coach/static/students.html, pending.html). The number is required at sign-up, so every skater on
+    either list has one; neither screen has a "no number" state. The list doesn't search by number (owner).
+    *(from ADR-029 decision 3, moved 2026-11-08)*
+  Rink download (owner, 2026-10-16): coaches download the numbers for the rinks. The rinks require each skater's number;
+    the coach passes it on and the rinks validate it. A file on the coach's Students tab with Student First Name,
+    Student Last Name, Skater Number. The download is logged as a read of personal data (ADR-012).
+    Open: the rink download's phase (MVP or later) (added 2026-10-16). How the name is split stays an open item in
+    ADR-029. *(from ADR-029, amendment 2026-10-16 and Open, moved 2026-11-08)*
 
 
 On the coach profile page is a form that allows the coach to update their email, phone number, profile picture (Phase 2), ~~payment currency~~, where they want to display their contact info to the client. 

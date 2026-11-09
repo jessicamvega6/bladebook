@@ -9,6 +9,9 @@ The page lists each day from today to the end of the week, with the lessons that
   Each lesson has a checkbox, its time, the skater's name and the lesson length.
   "Select whole day" picks every lesson that day ("Clear day" undoes it).
   Each picked lesson asks whether the time can be booked again: Release, or Hold closed (see cancelation.md).
+  *Changed 2026-11-08 (owner; ADR-009):* cancelling the whole week (everything left from now to Saturday) doesn't ask:
+    every booked lesson and every open time is held closed, as with "Cancel rest of week" on the website. The
+    Harbor design hasn't been redrawn for this yet.
   Lessons that have started can't be picked. A day says how many have already started, or "No lessons".
 
 Button at the bottom: "Cancel N lessons", disabled until at least one is picked.

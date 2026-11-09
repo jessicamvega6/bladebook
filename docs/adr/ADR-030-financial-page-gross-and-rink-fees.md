@@ -28,13 +28,11 @@ no-show, or when marked paid or waived. A paid seat always has `amountMinor`, so
 
 ## Context
 
-From talking with Kim on 2026-10-07 (`Talking with Kim:.md.md`): coaches pay the rink they coach
-at, and rink fees are tax deductible. A coach needs one place to see their year's figures for
-taxes: what they took in, and what they paid the rink.
-
-Rinks charge in different ways. At Pelham Civic Center (PCC), figure skating (FS) is 15% of gross
-due monthly or $500 a month, and hockey is $10 an hour. The rate can depend on the ice the lesson
-is on: Birmingham Figure Skating Club (BFSC) freestyle, Stick and Puck (S&P) or public ice.
+From talking with Kim on 2026-10-07 (`Talking with Kim:.md.md`): a coach needs one place to see
+their year's figures for taxes (the product need, and Kim's background on rinks, are in
+`FeatureDecriptions/Coach Financial Page.md`). Rinks charge in different ways, and the rate can
+depend on the sport and on the ice the lesson is on, so a fee calculation may need facts about
+each lesson that a price alone doesn't carry.
 
 Two questions were open in `Open-Pending.md` §3: what counts as gross, and whether BladeBook
 calculates rink fees or the coach types in what they paid. The owner settled both on 2026-10-12.
@@ -45,28 +43,25 @@ calculates rink fees or the coach types in what they paid. The owner settled bot
 
 ### 1. The page shows year-to-date gross and rink fees
 
-The coach's financial page shows **year-to-date (YTD) gross** and **YTD rink fees**, for the
-**calendar year**, the tax year for individuals in both the US and Canada. Amounts are in the
-coach's currency (ADR-016).
+*Moved to `FeatureDecriptions/Coach Financial Page.md` ("The page shows") on 2026-11-08 — product content, not an architecture decision.*
+The input that drives the design: figures are computed per **calendar year**, in the coach's
+currency (ADR-016).
 
 ### 2. Gross is money received
 
-*Decided by the owner, 2026-10-12.* Gross counts:
+*Decided by the owner, 2026-10-12.* Gross is money received: paid lessons and collected
+missed-lesson fees, bucketed by lesson date (product rule — see
+`FeatureDecriptions/Coach Financial Page.md`, "What counts as gross"). Technically:
 
-- lessons **marked paid** (`paymentStatus = PAID`), at the ~~booking's stamped `priceMinor`~~
+- it sums items with `paymentStatus = PAID`, at the ~~booking's stamped `priceMinor`~~
   *seat's ~~`shareMinor`~~ ~~`amountMinor`~~ share, worked out from its lesson time (ADR-031 decisions 2 and 7, 2026-10-13; revised the
   same day by the ADR-031 revision)*;
-- **missed-lesson fees actually collected.** In MVP that is a no-show marked paid, at its full
-  lesson price — the skater's share worked out from the lesson time (the full price, unless the
-  lesson is shared) *(Revised 2026-10-13 (ADR-031))* (ADR-015 decision 4). Charging a late cancellation is Phase 2 (ADR-015), and its
-  collected fee joins gross then.
-
-Gross leaves out **waived** and **unpaid** lessons. A lesson counts once it is marked paid; if a
-coach undoes that, it drops out again.
-
-**A paid lesson counts in the year, and month, of the lesson date**, not the date it was marked
-paid. *Decided by the owner, 2026-10-12.* A December lesson paid in January counts in December's
-gross.
+- a collected no-show is a `PAID` seat like any other, at its share worked out from the lesson
+  time *(Revised 2026-10-13 (ADR-031))* (ADR-015 decision 4); Phase 2's collected late-cancellation
+  fees are `PAID` `CANCELLED#` lines;
+- `WAIVED` and `UNPAID` items are excluded, so undoing a paid mark removes the item from gross
+  with no extra bookkeeping;
+- the figure is computed from current state, keyed by the **lesson date**, not `paidAt`.
 
 ### 3. BladeBook calculates rink fees
 
@@ -81,31 +76,29 @@ doesn't count in the new year either.
 
 ### 5. The page says what the figures are based on
 
-*Decided by the owner, 2026-10-12.* Before the figures are shown, the page states that they are
-**calculated from the lessons the coach has marked as paid**, so a lesson not yet marked paid
-isn't in them.
+*Moved to `FeatureDecriptions/Coach Financial Page.md` ("The note above the figures") on 2026-11-08 — product content, not an architecture decision.*
 
 ### 6. Rink terms are set by the developer; the page shows the calculated fee only
 
-*Decided by the owner, 2026-10-12.* Each rink's terms are added by the developer when BladeBook
-reaches a new rink. The coach can't edit them, can't override a month's fee and can't enter what
-they paid (Q_Rink-Fees questions 18–19).
+*Decided by the owner, 2026-10-12.* Rink terms are not coach-editable (product rule — see
+`FeatureDecriptions/Coach Financial Page.md`, "Rink terms"; Q_Rink-Fees questions 18–19). So they
+are developer-maintained configuration added when BladeBook reaches a new rink, and there is no
+coach-writable fee, override or amount-paid data to store or validate.
 
 ### 7. A summary export in MVP; past years on screen and a detailed export in Phase 2
 
 *Decided by the owner, 2026-10-12.*
 
-- **MVP: a summary export.** A **Download** button saves a comma-separated values (CSV) file for
-  a chosen calendar year, this year or last: one row per month with gross received, rink fees
-  and net, plus year totals. It has **no skater names and no personal data**, so it isn't a
-  personally identifiable information (PII) read under
-  [ADR-012](ADR-012-pii-access-logging.md). It reads live data only, filtered on `expiresAt`
-  ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 1). It covers what a tax
-  preparer needs and lets the coach keep their own copy before records age out.
-- **Phase 2: past years on screen.**
-- **Phase 2: a detailed export**, one row per lesson with skater names. It is mostly children's
-  data leaving BladeBook in a file, so it is decided with the privacy rules; every such export
-  would be a logged PII read (ADR-012).
+What the export holds, and what is MVP or Phase 2, is product content — see
+`FeatureDecriptions/Coach Financial Page.md` ("Export").
+
+- **MVP: a summary export** (comma-separated values, CSV) of monthly aggregates. It has **no
+  skater names and no personal data**, so it isn't a personally identifiable information (PII)
+  read under [ADR-012](ADR-012-pii-access-logging.md). It reads live data only, filtered on
+  `expiresAt` ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 1).
+- **Phase 2: a detailed export** with skater names. It is mostly children's data leaving
+  BladeBook in a file, so it is decided with the privacy rules; every such export would be a
+  logged PII read (ADR-012).
 
 ### 8. Open: the rink-fee calculation
 
@@ -118,18 +111,14 @@ Not decided. The answers in `Q_Rink-Fees.md` decide:
 - whether the rink bills the coach, and what happens when the figures differ (questions 13–14);
 - how rate changes apply to past months, and what each booking must store (questions 20–22).
 
-Until then, the Harbor design shows **one reading**, marked as such on the page: 15% or $500 a
-month by the coach's choice, and a lesson counted in the month it was taught.
+Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach Financial Page.md`,
+"Rink fees until the calculation is decided").
 
 ---
 
 ## Alternatives considered
 
-- **The coach enters what they paid.** Simpler, and always matches the rink. Rejected by the
-  owner: BladeBook already has the lessons, and working the fee out is the point of the page.
-  An override for a single month was also rejected (question 19, settled 2026-10-12).
-- **Gross as every lesson given, paid or not.** Rejected: a tax figure has to be money received,
-  and unpaid lessons may never be paid.
+*Moved to `FeatureDecriptions/Coach Financial Page.md` ("Options the owner rejected") on 2026-11-08 — product alternatives, not technical ones.*
 
 ---
 
@@ -149,11 +138,12 @@ month by the coach's choice, and a lesson counted in the month it was taught.
   on screen need longer, or a read from the archive.
 - **Bookings will need what the calculation needs.** *Since ADR-031 (2026-10-13), these stamps
   belong on the lesson time, which already carries `iceType`.* The schedule builder already stamps an ice
-  type per tab (`FeatureDecriptions/Schedule Creater.md`); the rink and the sport may need
+  type per block (`FeatureDecriptions/Schedule Creater.md`); the rink and the sport may need
   stamping too (Q_Rink-Fees question 20). Stamped, like the price, so a rate or schedule change
   doesn't rewrite past months.
 - **The figure is used for a tax deduction,** so a wrong calculation costs the coach. Until the
-  model is confirmed with Kim, the page says it is an estimate to check against what was paid.
+  model is confirmed with Kim, the page labels it an estimate (see
+  `FeatureDecriptions/Coach Financial Page.md`, "Rink fees until the calculation is decided").
 
 ---
 

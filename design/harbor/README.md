@@ -15,9 +15,9 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 54 pages, as an interactive demo and as static designs. |
+| `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 61 pages. |
-| `rinkside/` | The rinkside check-in app: 16 phone screens. |
+| `rinkside/` | The rinkside check-in app: 17 phone screens. |
 
 ## Coach website — `coach/`
 
@@ -41,14 +41,14 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 ### Pages
 
-54 static pages. New means no design existed before; redesigned means a Forest screen existed.
+55 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
 | Sign in | Log in, forgot password (email a code; code and new password) — new |
 | Sign up | Account, verify login email, business details (different / same email), confirm business email, all set — redesigned |
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub); Today with the coach code not working yet — new |
-| Calendar | Month — new; week — redesigned; day — new; cancel preview — redesigned; cancelling a shared lesson — new; week after cancelling — new |
+| Calendar | Month — new; week — redesigned; day — new; cancel preview (release or hold per lesson) — redesigned; cancel preview for the rest of the week (everything held, no question; 2026-11-08) — new; cancelling a shared lesson — new; week after cancelling — new |
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
 | Students | Student list, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
@@ -108,7 +108,8 @@ Today's 6:00 lesson is shared by Sam and Leo: one card, each skater with their o
 cancels both (ADR-026 d6).
 Entries made with no signal are saved on the phone and sent when signal returns; one is
 rejected because the family cancelled meanwhile, and appears under "Couldn't be sent"
-(ADR-014). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a).
+(ADR-014). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a), except
+*Cancel rest of week* on the Week tab, which holds every booked lesson and open time left (2026-11-08).
 
 ## Rebuilding
 

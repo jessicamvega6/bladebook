@@ -7,11 +7,9 @@ designed now so that nothing has to be retrofitted. Supersedes ADR-009 decision 
 "a notice, not a charge" for the Phase-2 timeframe, and closes the `NO_SHOW` payment
 question left open in `architecture.md` §11 and in ADR-014 decision 6.
 
-**Amended — 2026-09-29.** Decision **1a** states who can be charged, which decision 1 left
-unsaid: only the client, for a cancellation they made themselves that was late — whichever
-screen they made it from. Coach and schedule-change cancellations are never charged.
-Decision **6** is scoped to Phase 2; MVP keeps *"may incur"* wording everywhere. Also
-supersedes ADR-009 decision 11 in part — see 1a.
+**Amended — 2026-09-29.** Decision **1a** adds the `cancelledBy` check: only a client's own
+late cancellation is chargeable. Decision **6** is scoped to Phase 2. Also supersedes ADR-009
+decision 11 in part — see 1a. (Product rules: `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee".)
 
 **Amended — 2026-09-30.** Two changes, both by the owner:
 
@@ -19,9 +17,7 @@ supersedes ADR-009 decision 11 in part — see 1a.
   **`missedLessonFeeMinor`** — one fee for a lesson missed by a no-show or by a cancellation
   inside the notice period — and `lateCancellationHours` becomes **`requiredNoticeHours`**.
   The old names suggested a late cancellation only and hid the no-show half of decision 1.
-  The rule is unchanged, and so is the client-facing MVP wording (*"may incur a late
-  cancellation fee"*), which is shown where a client is cancelling. The new names are used
-  throughout this ADR.
+  The rule is unchanged. The new names are used throughout this ADR.
 - **A recorded no-show waits for the coach, at least in MVP** — see decision 4.
 
 **Amended by [ADR-020](ADR-020-repricing-booked-lessons.md)** — 2026-09-30. Decision **3**'s
@@ -29,9 +25,8 @@ stamped fee follows a change to the block's fee on upcoming lessons, by the same
 price: increases only beyond the notice period, decreases at once.
 
 **Amended by [ADR-026](ADR-026-shared-lessons-by-invitation.md)** — 2026-10-13. *Decided by the
-owner.* In a **shared lesson**, a skater who cancels late or doesn't show may be charged **their share
-of the late-cancellation fee** (half, for two skaters). The skater who stays isn't charged any fee
-and keeps their share of the price.
+owner.* In a shared lesson the charge is the leaver's share of the fee (product rule — see
+`FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee"); it is recorded on the leaver's own line, as below.
 
 **Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
 replaces the booking with a **lesson time** (the coach's) and a **seat** for each skater in it.
@@ -58,12 +53,9 @@ Two questions had been open separately:
   notice — client-facing wording only, with `noticeHours` recorded so the coach could act
   on it by hand and so a Phase-2 fee would have something to read.
 
-Answering these apart produces a loophole that a family finds quickly: if cancelling three
-hours out costs money and simply not appearing does not, the rational move is to stop
-cancelling. The no-show is strictly the cheaper option, and it is also the one that costs
-the coach most — they travelled to the rink and waited.
-
-They are the same question. A no-show is a cancellation with zero notice.
+The owner decided they are one question — a no-show is a cancellation with zero notice —
+because answering them apart opens a loophole (product rationale moved to
+`FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee", on 2026-11-08).
 
 ---
 
@@ -71,17 +63,16 @@ They are the same question. A no-show is a cancellation with zero notice.
 
 ### 1. Both a late cancellation and a no-show incur a charge
 
-*Decided by the owner, 2026-08-30.* One rule covers both. A no-show is treated as the
-limiting case of a late cancellation — `noticeHours = 0` — rather than as a separate
-concept with its own policy.
-
-This is what closes the loophole. It is also why the two are decided together and should
-not be separated later: any future change to one that is not applied to the other
-re-opens it.
+*Decided by the owner, 2026-08-30.* Both are charged, under one rule (product rule — see
+`FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee"). In the model a no-show is the limiting case of a late cancellation — `noticeHours = 0`
+— rather than a separate concept with its own policy, so one fee field and one threshold serve
+both.
 
 ### 1a. Only the client's own late cancellation is charged — from any screen
 
-*Decided by the owner, 2026-09-29.* Decision 1 said what is charged and not whose. ADR-009
+*Decided by the owner, 2026-09-29.* Only a client's own late cancellation, from any screen, is
+charged; coach and schedule-change cancellations never are (product rule and the per-screen table
+— see `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee", "Who is charged"). Decision 1 said what is charged and not whose. ADR-009
 has three actors and several ways to cancel, and a rule that reads `noticeHours` alone would
 charge all of them, because every `CANCELLED#` line records `noticeHours` whoever wrote it.
 
@@ -93,17 +84,7 @@ charge all of them, because every `CANCELLED#` line records `noticeHours` whoeve
 | `noticeHours < requiredNoticeHours` | Was it late? |
 | `missedLessonFeeMinor > 0` | Does this lesson's block charge a fee at all? |
 
-| Cancellation | Charged? |
-|---|---|
-| Per-lesson cancel in My Bookings (ADR-009 d2) | If late |
-| Recurrence management — end date earlier, reduce frequency, cancel all future (ADR-009 d4) | **Only the occurrences that are late** — in practice at most the next one or two |
-| Coach cancels a lesson, day or week, from either surface (ADR-009 d5, d5a) | Never |
-| Schedule change (ADR-006 d5) | Never |
-| No-show (decision 1) | Yes — it is the client's booking, and it keeps it |
-
-**Coach and schedule-change cancellations are never charged.** The coach made the decision;
-billing the family would be charging them for the coach's cancellation. Their lines also
-record a small `noticeHours` when the coach acts close to a lesson, which is why
+**Coach and schedule-change lines** also record a small `noticeHours` when the coach acts close to a lesson, which is why
 `cancelledBy` is a check in its own right and not implied by the other two.
 
 **Which screen the client used does not matter.** An earlier draft of this decision, the
@@ -113,16 +94,11 @@ management cancels future occurrences, and nearly all of them are far beyond any
 so the time check already leaves them free. The only occurrence the `batchSource` check changed
 the outcome for was one *inside* the threshold — so its only effect was to let a client drop
 tomorrow's lesson free by ending the arrangement instead of using the per-lesson cancel,
-which is the loophole decision 1 exists to close. Without it, a late cancellation costs the
-same whichever button made it.
+which is the loophole decision 1 exists to close. So the rule reads `cancelledBy` and the
+times only, never `batchSource`.
 
-**Recurrence management must say so before the client accepts.** It is a bulk action, so a
-fee on it must not arrive as a surprise. When any occurrence it would cancel is inside the
-coach's threshold, its confirmation names that occurrence and states that cancelling it
-*may incur a late cancellation fee* — see ADR-009 decision 4. In MVP no fee is ever
-collected; the wording is the same *"may"* the per-lesson cancel uses (ADR-009 decision 2).
-Whether Phase 2 changes either message to a definite amount is a Phase-2 decision (decision
-6).
+*Recurrence management's fee notice before the client accepts moved to
+`FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee" on 2026-11-08 — product content.*
 
 **Where the decision is made.** At cancellation, per line. Only a chargeable line gains
 decision 4's payment fields and GSI3 membership. Every other line has none, which is
@@ -130,17 +106,12 @@ ADR-009 decision 11 holding unchanged for it.
 
 ### 2. The amount is set per block, in the schedule builder
 
-*Decided by the owner, 2026-08-30.* A block becomes
+*Decided by the owner, 2026-08-30.* The fee is set per block, beside the price (product rule —
+see `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee", "Where the coach sets it"). A block becomes
 `{ seq, blockName?, startTime, endTime, lessonMinutes, priceMinor, missedLessonFeeMinor }` (ADR-008).
 
-The coach already sets `priceMinor` per block, and the fee is priced the same way and for
-the same reason — a 30-minute lesson and a 90-minute lesson do not warrant the same fee.
-Putting it anywhere else would mean a second surface for a number that belongs beside the
-one already there.
-
 **`missedLessonFeeMinor = 0` means no charge.** The amount is its own off switch, per block, so
-ADR-009's sketched profile checkbox is not needed. A coach who charges nothing sets zero
-and the client-facing wording drops away.
+no separate profile flag is stored.
 
 ### 3. The fee and the threshold are both stamped on the booking at creation
 
@@ -162,8 +133,8 @@ permanently, without reference to current settings.
 (`LESSON#`), which exists before anyone books it, so they are stamped by existing. The reason for
 stamping both halves is unchanged.*
 
-The threshold is a coach-level policy ("I need a day's notice") and is set on the coach
-profile, not per block; the amount is per block. They are stamped together onto the booking
+The threshold is configured on the coach profile and the amount per block (product rule — see
+`FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee"). They are stamped together onto the booking
 regardless of where they were configured. *Revised 2026-10-13: on the lesson time since ADR-031.*
 
 ### 4. The charge reaches the client through two structurally different paths
@@ -178,23 +149,16 @@ symmetric:
   (2026-10-13): it is the skater's **seat** that is kept, with its own payment fields and GSI3
   entry.*
 
-  **In MVP, a recorded no-show stays `UNPAID` until the coach marks it paid or waived.**
-  *Decided by the owner, 2026-09-30.* Its `missedLessonFeeMinor` is `0` in MVP, so nothing is
-  owed, but nothing settles it automatically either: it stays on the payment dashboard and
-  is picked up by [ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)'s weekly reminder. An
-  automatic settle for a zero fee was considered and deferred; revisit with the Phase-2
-  charge.
+  **In MVP, a recorded no-show stays `UNPAID` until the coach marks it paid or waived** (owner,
+  2026-09-30). No automatic settle runs for a zero fee, so it stays in GSI3 and is picked up by
+  [ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)'s weekly reminder.
 
-  **For now, the dashboard shows a no-show at its full lesson price** — the booking's stamped
-  `priceMinor`, labelled as a no-show. *Note — 2026-10-13: under ADR-031 the amount a seat owes
+  **The amount shown for a no-show is its share of `priceMinor`** (product rule, owner
+  2026-09-30 — see `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee", "No-shows on the coach's payment page"). *Note — 2026-10-13: under ADR-031 the amount a seat owes
   is its ~~`shareMinor`~~ share (decision 7), which for a private lesson is the full price.*
   *Revised 2026-10-13 (ADR-031 revision): ~~the share is fixed on the seat as `amountMinor` when
   the no-show is recorded. The dashboard shows `amountMinor`.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Recording a no-show
-  writes no amount; the dashboard shows the share worked out from the lesson time.* *Decided by the owner, 2026-09-30.* It is the amount
-  the booking already carries, and the no-show label tells the coach what they are looking
-  at before they decide to mark it paid or waive it. ADR-018's reminder lists it the same
-  way. Showing the `missedLessonFeeMinor` instead is part of the open question below, and is
-  decided with the Phase-2 charge.
+  writes no amount; the dashboard shows the share worked out from the lesson time.*
 - **A late cancellation deletes its ~~booking~~** (ADR-009 decision 5, which requires a
   released time to stop existing). The charge therefore has to live on the `CANCELLED#`
   record, which today has `priceMinor` but **no payment fields and no GSI3 membership**.
@@ -225,24 +189,10 @@ consumer.
 
 ### 6. The fee is disclosed at booking, not at cancellation
 
-Because the amount is on the booking, the client sees it when they book, and ADR-009
-decision 3's *"Bookings cancelled within 24 hours may incur a late cancellation fee"*
-becomes a stated amount at the point of commitment.
-
-The cancellation confirmation can also compute `noticeHours` live and say plainly that
-cancelling now will incur the fee, rather than warning that it might.
-
-A fee disclosed before the commitment is a materially different thing from one asserted
-afterwards, and this is the main practical gain from putting the amount on the block rather
-than deriving it later.
-
-**This is Phase 2, with the charge.** *Decided by the owner, 2026-09-29.* Until the charge
-switches on, the cancel confirmation keeps ADR-009 decision 2's wording — *"Bookings
-cancelled within 24 hours may incur a late cancellation fee"* — and the booking page shows no
-fee. Stating an amount the system will not collect would be a promise the product does not
-keep. Recurrence management's confirmation uses the same *"may incur"* wording (decision 1a).
-Whether either message becomes a definite *"will incur"* with an amount is decided with the
-Phase-2 charge, not here.
+*Moved to `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee" ("What the family is told") on 2026-11-08 — product content, not an architecture
+decision.* Technically: because the fee is stamped on the lesson time, the booking page can read
+it, and the cancel confirmation can compute `noticeHours` live against the stamped
+`requiredNoticeHours`.
 
 ---
 
@@ -271,20 +221,14 @@ Phase-2 charge, not here.
 - ~~Whether a no-show and a late cancellation should ever carry different amounts.~~
   **Settled 2026-08-30: one fee for both**, as decision 2 already had it. One `missedLessonFeeMinor`
   per block covers either case. Splitting it later stays additive if a coach ever asks.
-- **What the fee is charged *against* when it differs from the lesson price.** If
-  `missedLessonFeeMinor` is lower than `priceMinor`, the outstanding view shows an amount that is
-  not the lesson price, and the payment reminder must state which it is. Cosmetic, but it
-  is client-facing money and should be written down before it is built. *Narrowed
-  2026-09-30:* for MVP a no-show shows its full lesson price (decision 4); this question now
-  applies to the Phase-2 charge only.
+- **What the fee is charged *against* when it differs from the lesson price** — a product
+  question, moved to `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee" on 2026-11-08.
 - ~~Whether a coach can waive a charge.~~ **Settled 2026-08-30: yes.** `paymentStatus`
-  gains `WAIVED` and the coach payment dashboard gets a *mark as waived* action, per
-  `FeatureDecriptions/Payment Section on Coaches Dashboard.md`; see the ADR-003 amendment.
-  It needs no ledger — waiving decides money was never owed, which is a state change on one
-  booking, unlike a refund. It is also **available from MVP rather than Phase 2**, because
-  it applies to any unpaid lesson and not only to a late-cancellation fee.
-- **The threshold's unit and bounds.** Decision 3 stamps `requiredNoticeHours`; nothing
-  says whether a coach may set 0, or 168, or only a short list of sensible values.
+  gains `WAIVED`; see the ADR-003 amendment. It needs no ledger — waiving decides money was
+  never owed, which is a state change on one booking, unlike a refund. Available from MVP (the
+  dashboard action is in `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee").
+- **The threshold's unit and bounds** — which values `requiredNoticeHours` may take is a product
+  question, moved to `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee" on 2026-11-08. Validation follows whatever is decided.
 
 ---
 
@@ -294,8 +238,6 @@ Phase-2 charge, not here.
   works today; once money actually moves, forgiving a charge already paid is a **refund**,
   which ADR-003's no-ledger model cannot express. The waive action will need to distinguish
   the two, and only the second is blocked.
-- Waived charges outnumber collected ones. That would mean the fee is set too high for
-  what coaches are actually willing to enforce, and the amount is the thing to revisit
-  rather than the mechanism.
+- Waived charges outnumber collected ones (product trigger — see `FeatureDecriptions/cancelation.md`, "Late-cancellation and missed-lesson fee").
 - Any change is proposed to one of the two charges and not the other. That is the loophole
   in decision 1 reopening, and it should be refused on those grounds.

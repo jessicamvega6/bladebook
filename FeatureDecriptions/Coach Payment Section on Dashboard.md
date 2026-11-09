@@ -18,6 +18,33 @@ How the client paid:
  Optional when marking paid, editable afterwards, and seen only by the coach. A waived lesson has none.
  *(Decided 2026-10-12, ADR-003 d4.)*
 
+ *Moved from ADR-003 on 2026-11-08:*
+ *Amended 2026-10-09, decided by the owner 2026-10-07 from talking with Kim:* the coach chooses how the client
+   paid on the payment dashboard. ~~The options are the payment handles the coach has filled in on their profile
+   (ADR-016 decision 7), plus Other. A coach with only a Cashapp handle sees Cashapp and Other; a coach with no
+   handles sees only Other.~~ *Replaced by the later 2026-10-12 ruling below.* There is no free text: a payment that matches no handle is Other.
+ *Amended 2026-10-12, decided by the owner:* Cash is not a fixed option. It's a payment type the coach turns on
+   at sign-up or on their profile, and it appears in the list only when it's on. No other types are added;
+   cheques and Interac e-transfer are Other. How-paid is optional when marking a lesson paid, editable afterwards,
+   and seen only by the coach. A waived lesson has none.
+ *Amended 2026-10-12, later, decided by the owner:* the how-paid options are the payment types the coach has
+   switched on, plus Other. Each type has its own switch (ADR-016 decision 7, amended the same day), which
+   replaces "Show my payment handles". *Ruled by the owner 2026-11-09.* The options are the types switched on, plus Other: a coach with only Cashapp
+   switched on sees Cashapp and Other; a coach with none switched on sees only Other.
+ *(from ADR-003 Status and §4 amendments of 2026-10-09 and 2026-10-12, moved 2026-11-08)*
+
+Waiving a lesson:
+ *Amended 2026-08-30.* A coach can forgive a charge — illness, a family emergency, a rink closure — and the
+   dashboard gets a "mark as waived" action alongside "mark as paid". Waiving decides that money was never owed;
+   it is not a refund.
+ *(from ADR-003 §4, amendment 2026-08-30, moved 2026-11-08)*
+
+Currency:
+ Changing currency is Phase 2. Once it is allowed, a coach who moves from US dollars (USD) to Canadian dollars
+   (CAD) has outstanding lessons in both, and the dashboard must show each lesson in its own currency and must
+   not add a mixed list into a single total.
+ *(from ADR-003 Open, "Currency", moved 2026-11-08)*
+
  Open questions are tracked in docs/Open-Pending.md §3.
 
 *Design (payments-empty.html, payments.html, payments-all.html):*

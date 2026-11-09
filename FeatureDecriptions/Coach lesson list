@@ -17,3 +17,22 @@ to Change the status of a student's lesson to either attended or no showed.
   This is where mistakes made at the rink are fixed; the rinkside app can't change a recorded lesson.
   Switching a lesson to No-show doesn't change its price; it stays unpaid until marked paid or waived on Payments.
   *Added 2026-10-13 (ADR-031 decision 15):* in a shared lesson each skater has their own row and their own attendance.
+
+Why corrections are on the website:
+  Settled by the owner, 2026-08-30: the coach can correct or undo a recorded outcome, from the coach dashboard on the
+  website, not from the rinkside app. The lesson list shows students who had lessons in a required date range with
+  their attended / no-show state, and the coach can change a lesson's status to either value.
+  Correction is website-only by design. The phone is used with gloves on, at a rink, between lessons. It is where
+  mis-taps happen and the worst place to offer an overwrite next to the button that caused one. The dashboard has a
+  date range, full context and no hurry.
+  *Ruled by the owner 2026-11-09.* The rinkside page has no Undo; Coach App and the design now match.
+  *(from ADR-014 §8 and Open, moved 2026-11-08)*
+
+When older lessons are archived:
+  A coach who looks for a two-year-old lesson finds nothing, and nothing says why.
+  *Settled 2026-10-12 by the owner:* history screens say lessons settled more than *N* months ago are archived and can
+  be requested, with *N* read from the retention setting. A warning before archiving is Phase 2.
+  The financial page's summary export (MVP, decided 2026-10-12) lets a coach keep their yearly totals before records
+  age out (see Coach Financial Page.md).
+  ADR-017 says "history screens", so this applies to the family's history too (see C_Client My Bookings.md, "Older lessons").
+  *(from ADR-017 Status amendment 2026-10-12 and Open, moved 2026-11-08)*

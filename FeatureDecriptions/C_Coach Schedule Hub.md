@@ -10,6 +10,11 @@ Two ways in:
   Add time off or a special schedule: for a set range of dates, e.g. vacation, a tournament, a camp or
     holiday hours. Opens the "What's different about these dates?" choice (see C_Coach Time Off.md).
 
+No schedule yet:
+  *Settled by the owner, 2026-08-30:* for the coach, an empty schedule is a task, not a status, so their own view
+  prompts them to build a schedule. (Families see an all-grey calendar with a line saying the coach hasn't posted
+  any times yet; see Bookings:.) *(from ADR-008 Open, moved 2026-11-08)*
+
 Time off and special schedules:
   Every upcoming one, with its name, whether it's a special schedule or time off ("No lessons"), its dates,
   and an Edit button.

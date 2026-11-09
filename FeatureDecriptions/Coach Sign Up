@@ -38,6 +38,36 @@ Coach Sign Up:
 
     Step 5, all set: where families will reach the coach, the coach code with a Copy button, and "Build your teaching
     week" (opens the weekly schedule editor) or "go to your dashboard".
+
+Business email (from ADR-016, moved 2026-11-08):
+  *Decided by the owner 2026-10-13 through the Harbor design (design/harbor/coach, sign-up step 4 and Profile → Business
+    email):* a business email that differs from the login email must be confirmed by a link before it is used.
+  At sign-up, step 3 offers "Use my login email" or "Use a different email". A different address gets a link on
+    step 4, with "Resend link", "Change address" and "Use my login email instead".
+    *(from ADR-016, amendment 2026-10-13)*
+  *Decided by the owner 2026-11-06, settling a conflict with the Harbor design (design/harbor/coach/app.js, sign-up
+    step 4):* at sign-up, families can't reach the coach until a different business email is confirmed. Until the link
+    is clicked, the login email is not used as the address families reply to. Step 4's banner stands as drawn:
+    "Families can't reach you until this is confirmed." A coach who picks "Use my login email" (or "Use my login
+    email instead") is reachable straight away.
+  What it blocks (owner, same day): the coach code doesn't work until the address is confirmed. No family can sign up
+    with, or add, this coach before then. A family who tries sees the ordinary "That code doesn't match a coach"
+    message, which reveals nothing about an unfinished sign-up.
+  The coach is told: until it's confirmed, the coach's code is shown with "Your code starts working once you confirm
+    your business email." Drawn 2026-11-06 in design/harbor/coach/ (today-code-pending,
+    profile-details-code-pending, and the code card on signup-4-confirm-email).
+    *(from ADR-016, amendment 2026-11-06)*
+
+Not at sign-up:
+  *Decided by the owner 2026-11-06, settling a conflict with the Harbor design:* "Text me when a family cancels late"
+    is on the profile only (Profile → Visibility & texts), not on the sign-up form. One less question at sign-up.
+    *(from ADR-016, amendment 2026-11-06, moved 2026-11-08)*
+
+Open questions:
+  What a coach sees on first login. First login completes a partial sign-up (ADR-016 d9), and time zone and currency
+    are mandatory (ADR-016 d6) — but ADR-008's open item "a coach with no schedule at all" means the first thing a
+    new coach meets is an empty grey month. The two need designing together.
+    *(from ADR-016 Open, moved 2026-11-08)*
     
 
 

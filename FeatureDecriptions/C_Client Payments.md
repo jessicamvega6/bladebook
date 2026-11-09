@@ -9,6 +9,8 @@ BladeBook doesn't take payments. The family pays the coach directly and the coac
 *To-do (owner, 2026-10-13; ADR-025 m): group everything on this page by coach.* A family with several coaches
 pays each one directly, possibly in different currencies, so each coach gets their own section (not marked paid,
 how to pay, notice period) and there is no total across coaches. The current design still adds them together.
+Coaches may use different currencies (USD and CAD).
+*(from ADR-025, amendment 2026-10-13, item m, and decision 7, moved 2026-11-08)*
 
 Banner at the top: "Coming in Phase 2", and that payment goes straight to the coach.
 
@@ -20,6 +22,12 @@ Figures across the top:
 Not marked paid table:
   Every past lesson the coach hasn't marked paid: skater, day and time, attendance, amount.
   When there are none: "All paid. Nothing is waiting to be marked paid."
+
+Unpaid history:
+  *Decided by the owner, 2026-10-12.* Unpaid history is coach-only in MVP; showing it to the family is Phase 2.
+  If families should see their own arrears, that is a client-app view (this page) plus a decision about whether
+  the payment reminder email mentions earlier unpaid lessons.
+  *(from ADR-003 Status and Open, moved 2026-11-08)*
 
 How to pay the coach:
   The coach's payment instructions from their profile.

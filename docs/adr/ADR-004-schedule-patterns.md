@@ -293,13 +293,12 @@ be re-estimated accordingly.
 ## Open
 
 - ~~Blackouts during an active temporary schedule.~~ **Settled by the owner, 2026-09-30:**
-  neither. An unplanned day off — illness, an emergency — is a **cancellation**, not a
-  schedule change: [ADR-009](ADR-009-cancellation.md)'s *cancel this day*, holding the freed
-  slots so families cannot rebook them, with the temporary schedule left untouched. A
-  **planned** change inside a temporary schedule, such as shortening a camp, is an edit of
+  an unplanned day off is a cancellation ([ADR-009](ADR-009-cancellation.md)), not a schedule
+  write, so the temporary schedule's items are left untouched; a planned change is an edit of
   that schedule ([ADR-008](ADR-008-schedule-editor.md) decision 7a). Overlapping temporary
-  schedules stay rejected (ADR-008 decision 8).
-- ~~Does a rebooking email offer specific alternatives, or just a link to~~ **Settled by the owner, 2026-08-15:** the email states the lesson was cancelled and carries a link to availability, not specific alternatives.
+  schedules stay rejected (ADR-008 decision 8). (Product rule — see
+  `FeatureDecriptions/C_Coach Time Off.md`, "Choosing time off or a special schedule".)
+- ~~Does a rebooking email offer specific alternatives, or just a link to~~ **Settled by the owner, 2026-08-15.** *Moved to `FeatureDecriptions/Schedule Creater.md` ("Cancellation emails from a schedule change") on 2026-11-08 — product content, not an architecture decision.*
 - ~~What happens to a `NEEDS_REBOOKING` lesson nobody rebooks? No expiry, no~~ **Moot.** `NEEDS_REBOOKING` no longer exists; ADR-006 replaced it with cancellation records.
 - ~~Can a coach edit or cancel a single lesson without touching the pattern? Very~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 5** — a coach cancels one lesson, one day or one week, each choosing release-or-hold.
 

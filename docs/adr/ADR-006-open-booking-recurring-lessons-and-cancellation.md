@@ -82,8 +82,8 @@ the lesson time.* Pricing and several rules wait on Kim.
 between the coach's preview and save**. The preview reads a per-coach booking counter that
 every booking increments; the save checks it. If it changed, the plan is recalculated and the
 save **goes ahead without asking the coach**: any booking made since the preview that the change
-cancels is cancelled like the rest, and its family gets a separate *"just booked"* email
-(*"Coach updated their schedule just as you booked. Here are other open times."*). Slot holds
+cancels is cancelled like the rest, and its family gets a separate *"just booked"* email (its
+wording moved to `FeatureDecriptions/cancelation.md` on 2026-11-08 — product content). Slot holds
 during preview (option D) are not built.
 
 **Amended — 2026-10-09.** *Decided by the owner.* The *"just booked"* email is **Phase 2**. In MVP
@@ -113,10 +113,10 @@ its SMS form (decision 6, the sequence diagram's SNS step) waits for it.
 
 Every behaviour rule still holds unless ADR-031 says otherwise.
 
-**Amended — 2026-11-08.** *Decided by the owner, settling conflict S7 in the implementation plan
-(`design/harbor/coach/screens-calendar.js`).* **On the coach's month calendar, clicking a date
-opens that day**, not the week containing it (decision 3). The coach's week view, with previous
-and next, is unchanged and still reached from the calendar. The family's calendar is unchanged.
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict S7 in the implementation plan.*
+*Moved to `FeatureDecriptions/Coach Dashboard on website.md` (the month view) on 2026-11-08 —
+product content (what a click on the coach's month calendar opens), not an architecture decision.*
+It changes no read in decision 3.
 
 ---
 
@@ -226,9 +226,12 @@ says." These are different states and the editor must not conflate them.
 
 ### 3. Both the coach and the client get a monthly calendar and a week view
 
-**Monthly calendar** — a month grid marking every date that carries an override, so
-the coach can see at a glance where the schedule departs from the default and the
-client can see where it does something unusual. One query:
+Both apps show a month grid and a Sunday-to-Saturday week view with previous and next (product
+content — the family's calendar is in `FeatureDecriptions/Bookings:`, the coach's in
+`FeatureDecriptions/Coach Dashboard on website.md`; what each screen shows and where a click goes
+moved there on 2026-11-08). This decision records the reads behind them.
+
+**Monthly calendar** — the month grid marks every date that carries an override. One query:
 
 ```
 Query PK = COACH#<coachId>,
@@ -237,11 +240,9 @@ Query PK = COACH#<coachId>,
 
 The returned items *are* the marks. Nothing is computed to render the month.
 
-**Week view** — Sunday through Saturday, with previous and next navigation. Clicking
-any date in the month opens the week containing it. Days inside the week render
-independently: in the owner's worked example, a client clicking Mon 17 Aug 2026 sees
-Sun 16 – Sat 22, with 16–18 resolved from the default and 19–22 from overrides, and
-"next" moves to Sun 23 – Sat 29, where 23–25 are overridden and 26–29 are not.
+**Week view** — Sunday through Saturday. Days inside the week resolve independently under
+decision 2, so one week can mix days from the default and days from overrides (the owner's worked
+example moved to `FeatureDecriptions/Bookings:` on 2026-11-08).
 
 The week view is three reads:
 
@@ -257,13 +258,14 @@ says who booked it.*
 Sunday-start weeks are a display convention only. Nothing in the data model knows
 about weeks, and week boundaries are in the coach's IANA timezone (ADR-001 decision 4).
 
-The coach's calendar is editable and shows bookings; the client's is bookable and shows
-only whether a slot is free — never who holds a taken one.
+The coach's calendar shows who holds each lesson; the client's shows only whether a slot is
+free — never who holds a taken one (privacy rule; the family's read returns no names, ADR-031
+decision 1).
 
 ### 4. Recurring lessons are MVP, and are materialized at booking time
 
-At booking, the client may mark the booking **recurring** and give an **end date**. The
-system expands weekly from the first occurrence — same weekday, same start time — and
+At booking, the client may mark the booking **recurring** and give an **end date** (product
+rule — see `FeatureDecriptions/Bookings:`, the confirm pop-up). The system expands weekly from the first occurrence — same weekday, same start time — and
 writes one ordinary booking per occurrence.
 
 ADR-005 §4a's design is discarded wholesale. The `RECURRING#` standing-intent item, the
@@ -300,11 +302,8 @@ because someone already holds it.~~ *Replaced by ADR-031 decision 4 (2026-10-13)
 occurrence fails when there is no `OPEN` lesson time at that date and time, or it has
 already started.*
 
-The client is shown what was booked and what was not:
-
-> Booked 22 of 26 lessons. These dates could not be booked:
-> 14 Sep, 21 Sep, 12 Oct, 23 Nov — *lesson slot either does not exist or is already
-> taken.*
+The client is shown what was booked and what was not (the result wording moved to
+`FeatureDecriptions/Bookings:`, the confirmation page, on 2026-11-08).
 
 **The two failure causes are deliberately reported as one message.** Distinguishing
 them would tell a client that a specific slot on a specific date is held by someone —
@@ -321,8 +320,9 @@ attribute at write time, no migration ever. This is the same argument ADR-001 de
 
 #### 4a. Frequency is chosen at booking, every 1 to 4 weeks
 
-*Decided by the owner, 2026-09-29.* The booking pop-up's recurring option carries a
-frequency — every 1, 2, 3 or 4 weeks, defaulting to 1 — alongside the end date. This is
+*Decided by the owner, 2026-09-29.* A recurrence repeats every 1, 2, 3 or 4 weeks, chosen at
+booking alongside the end date (product rule — see `FeatureDecriptions/Bookings:`, the confirm
+pop-up). This is
 [ADR-009](ADR-009-cancellation.md) decision 4a's `intervalWeeks`, applied where a recurrence
 is created rather than only where it is reduced.
 
@@ -413,14 +413,10 @@ child's lessons reveals nothing. It also improves the ordinary case of a client 
 slot they already hold.
 
 **4. When the resubmission drops a slot, the client decides.** If a request fails and the
-client then submits a new one that leaves out a slot the failed one included, they may now
-hold lessons they no longer want — or they may have assumed that slot failed. The system
-cannot tell which, and cancelling on a guess is the one thing it must not do: a released
-slot can be taken by another family within minutes, while an unwanted lesson is visible and
-easy to cancel. So the app does everything except the decision:
-
-> *You also have Wednesdays at 4:00pm booked from your earlier attempt.* **[Keep them]
-> [Cancel them]**
+client then submits a new one that leaves out a slot the failed one included, the system
+cannot tell whether they still want those lessons, so it never cancels them on a guess; the
+client is asked to keep or cancel them (product rule, prompt wording and reasoning — see
+`FeatureDecriptions/Bookings:`, the confirmation page; moved 2026-11-08).
 
 The app knows which slots the failed request included, because it sent it; it checks the
 client's bookings for those slots and asks. *Cancel them* runs recurrence management's
@@ -562,11 +558,9 @@ SNS delivery status logging, and is deliberately out of scope here.
 and could not reach them, `SUPPRESSED` means we were not permitted to try. The email
 still went either way.
 
-**The email says cancelled, and offers a link.** Per the owner: the lesson is
-cancelled — not "needs rebooking" — and the message carries a link to availability if
-the client wants a different time. ADR-004's stance that the system does not guess
-which alternative a family can make survives unchanged; no specific slots are proposed
-and nothing is auto-moved.
+**The system never moves or rebooks a family's lesson** (ADR-004's stance, unchanged): the
+lesson is cancelled, not left as "needs rebooking". What the cancellation email says is
+product content, moved to `FeatureDecriptions/cancelation.md` on 2026-11-08.
 
 **Cancelling occurrences of a recurrence does not end the recurrence.** Siblings are
 independent bookings and are untouched. `recurrenceId` on the line is what lets the
@@ -588,18 +582,18 @@ lessons, and stamps the resulting status onto every line item belonging to that 
 in that batch. The coach's per-lesson view still answers "was this client told about
 this lesson," which is the question they will actually ask.
 
-The **SMS** form of this message is constrained by [ADR-007](ADR-007-sms-message-constraints.md):
-it states the count and the date range and points at the email, because a lesson list
-does not fit in one 160-character segment.
+The **SMS** form of this message (Phase 2) is constrained by
+[ADR-007](ADR-007-sms-message-constraints.md): a lesson list does not fit in one 160-character
+segment. What the text says moved to `FeatureDecriptions/cancelation.md` on 2026-11-08.
 
 ADR-002 decision 7 is otherwise unchanged and still governs reminders.
 
 ### 7. A schedule change is previewed before it is saved
 
 `POST /schedule/preview` accepts the proposed schedule, runs the identical conflict
-evaluation the consumer will run, writes nothing, and returns the conflict set. The
-coach website must show the counts and the affected lessons and require confirmation
-before the write.
+evaluation the consumer will run, writes nothing, and returns the conflict set. The coach
+must see what a save will do and confirm before it is written (product rule — see
+`FeatureDecriptions/Schedule Creater.md`, the review and confirmation page).
 
 **This is not a nicety, it is the replacement for the horizon.** ADR-005 decision 3
 made an unbounded blast radius impossible by construction; ADR-005's own Open list
@@ -721,17 +715,16 @@ price of the single-lookup resolution rule and it is charged to the UI.
 - **Retention of cancellation records.** They name students and carry contact-adjacent
   data, so §7's minors' obligations apply. No TTL, no archival cutoff, and no coach
   ability to clear history is specified.
-- ~~**Does the client ever see their own cancellation history**, or only the email at the
-  time?~~ **Settled 2026-10-12 by the owner:** yes, in **Phase 2**. MVP stays email only.
+- ~~**Does the client ever see their own cancellation history?**~~ *Moved to
+  `FeatureDecriptions/cancelation.md` on 2026-11-08 — a product question (settled 2026-10-12).*
 - **Real delivery confirmation.** `SENT` currently means "accepted by SES." Bounce and
   complaint handling via SES event destinations would make the coach's "was this client
   reached" answer honest, and is not in MVP.
 - ~~Does a coach need to cancel one lesson without touching the pattern? Carried~~ **Settled by [ADR-009](ADR-009-cancellation.md) decision 5.**
 - ~~**Timezone of the week grid.**~~ Sunday–Saturday in the coach's timezone, per ADR-001
-  decision 4. A client in a different timezone sees the coach's week, which is correct
-  but unstated in the UI. **Settled 2026-10-12 by the owner:** every booking time is shown
-  in the coach's timezone and always labelled with it, for every family. *Phase 2:* revisit
-  for competitions, which can be in another timezone.
+  decision 4. A client in a different timezone sees the coach's week. How times are shown
+  and labelled was settled by the owner 2026-10-12 (*moved to `FeatureDecriptions/Bookings:`
+  on 2026-11-08 — product content*).
 
 ---
 

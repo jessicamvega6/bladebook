@@ -17,6 +17,7 @@ filter, "All coaches" by default. It lists only coaches with upcoming lessons an
 have them. It combines with the skater filter (e.g. Mia with Coach Ben) and filters every section below.
 With more than one coach, the header says "Lessons with all your coaches" and each lesson names its coach.
 When the filters leave nothing: "Nothing booked for <skater> with Coach <name>" and a "Show everything" button.
+*(from ADR-025, amendment 2026-10-13, item o, and decision 7, moved 2026-11-08)*
 
 Upcoming:
   Every lesson that hasn't started yet, soonest first. Shows the first 10, with "Show all" to see the rest.
@@ -49,3 +50,7 @@ Recent:
   The last 4 lessons that have already happened, newest first, greyed.
   Each shows the attendance the coach recorded (present or no-show). A lesson with nothing recorded
   shows no badge.
+
+Older lessons:
+  Lessons settled long ago are archived. The rule for what history screens say about them is in Coach lesson list,
+  "When older lessons are archived"; ADR-017 says "history screens", so it applies to this page's Recent section too.

@@ -6,6 +6,14 @@ Coaches can split one session time(slot) btwn multiple students
 Let the coach decide this? or hard code?~~ *Answered: default 1, max 2 (ADR-026 P1).*
 
 
+The owner's answers after talking with an end user (2026-10-06):
+  Every booking starts private. A family books a time as today and it shows as taken. Other families never see that
+    a time could be shared, or how many skaters it holds.
+  Sharing is by invitation. While booking, the family can add another family's skater. That family confirms, and
+    then the booking shows both.
+  The coach decides how many skaters each block allows.
+  *(from ADR-026 Context, moved 2026-11-08)*
+
 Decided 2026-10-07:
 
 Coach: when the coach makes the schedule they set how many skaters can split each lesson (per block).
@@ -18,12 +26,24 @@ Client booking:
   Note in the box: skater 2's family must accept before skater 2 can join the lesson.
   On entering a skater code, the system checks the skater exists and shows first name and last initial (e.g. Mia R.).
   The booking only continues once skater 2 is validated as existing.
+  A code that doesn't check out stops the booking at that step. Families can tell a time is shareable, never how
+    many skaters it takes. Family A's lesson is then booked as normal, private.
+    *(from ADR-026 §5 "On the booking screen", moved 2026-11-08)*
+  Share code: every skater has one (e.g. MIA-4K7QX), shown on their profile in the family website. A family gives it
+    to the family they want to share with, the same way a coach gives out their coach code. It never changes
+    (owner, 2026-10-13; see ClientProfileView). *(from ADR-026 §4 and Status, moved 2026-11-08)*
   *Changed 2026-10-20 (ADR-033 d2, d2a): the code must also belong to a skater the coach has accepted (ACTIVE). As soon
     as the code is entered, the booking page asks the share-check endpoint. If skater 2 isn't the coach's student, the
     booking stops at the share step with: "Mia R. isn't one of Coach Dana's students yet. Mia's family can sign up with
     Coach Dana's code, and once Coach Dana accepts Mia you can share a lesson." Nothing is booked. The booking itself
     checks again in the database, so a skater declined in between is still refused.
     Book stays off while the share-code box has anything in it, until the check passes. If the check fails or is rate-limited: "Couldn't check that code. Try again." Changing the code checks again; clearing it books a private lesson. (ADR-033 2a, 2026-10-20)*
+  *ADR-033 2a (owner, 2026-10-20), in full:* Book stays disabled while the share-code box has anything in it, until the
+    share-check for that exact code and coach says the skater is on the coach's roster. That covers a code still being
+    typed, a check in flight, a code that doesn't exist, the skater's own code, a skater not on the roster, and a
+    failed or rate-limited check ("Couldn't check that code. Try again."). Changing the code, or the picks' coach,
+    clears the answer and checks again. Clearing the box allows a private booking. This is a screen rule only; the
+    booking itself checks again. *(from ADR-033 decision 2a, moved 2026-11-08)*
 
 Coach acceptance:
   A student must always be accepted by the coach before any lessons are booked for that student.
@@ -36,6 +56,9 @@ Coach acceptance:
 
 Invitation (changed 2026-10-07):
   When a family splits a lesson, an email is sent to family B straight away.
+  *Decided by the owner 2026-10-13 (ADR-025 item l):* shared-lesson invitations name their coach on every family page
+    (home banner, invitations card, invitation page). The invitation emails already did.
+    *(from ADR-025, amendment 2026-10-13, item l, moved 2026-11-08; also in ClientHomeView, "Across coaches")*
   If skater B is already the coach's student, the email is a normal invite to accept or decline.
   ~~If skater B is not part of that coach, the email says something like:~~
     ~~"Coach XXX needs to accept you first. By clicking the link below you agree to be added to Coach XXX's roster of students."~~
@@ -53,12 +76,28 @@ Invitation (changed 2026-10-07):
     *Changed 2026-10-20 (ADR-033 d3): the check is made by family B's own accept, after confirming skater B is still the
     coach's student; the coach's Accept no longer touches lessons. If skater B is no longer the coach's student, family B
     sees "no longer available".*
+  *Phase 2 record (ADR-026 d5, 2026-10-07; Phase 2 since ADR-033, 2026-10-20):* when skater B isn't the coach's
+    student, the email says, in substance: "Coach Dana needs to accept you first. By following the link below you
+    agree to be added to Coach Dana's roster of students, and Mia will join the lesson on Tue 14 Oct at 4:00 once
+    Coach Dana accepts." An earlier version of the 2026-10-07 decision had the coach see only a display name and the
+    invited family hear nothing until the coach accepted; the owner replaced it the same day with the consent link.
+    The 2026-10-07 flow in short: the share box shows only on shareable times and takes one code; booking waits for
+    the code to check out; the invited family is emailed straight away; a skater new to the coach joins the coach's
+    roster through a consent link; the invited family confirms on a signed-in page that shows any clashes; once the
+    coach accepts, the skater joins if the lesson still exists, hasn't happened and has room, and otherwise the
+    invited family is told; one invitation covers a whole series; a sibling is added directly.
+    *(from ADR-026 Status amendment 2026-10-07 and §5 step 2, moved 2026-11-08)*
   Recurring booking: the code shares every lesson in the series.
     *Added 2026-10-13 (ADR-031 decision 6): a series joins lesson by lesson. Each date succeeds or fails on its own, and
     family B gets the dates that work.*
   Sibling (same family): just booked, no confirmation needed ~~(still needs coach acceptance first)~~.
   *Changed 2026-10-20 (ADR-033): only a sibling the coach has already accepted can be added. A sibling not yet accepted
     shows as "not available to add until Coach Dana accepts them" and can't be picked.*
+    *(from ADR-033 decision 2, moved 2026-11-08)*
+  Designs revisited (ADR-033 Consequences): the Harbor screens for inviting a skater new to the coach
+    (design/harbor/client/static/invite-new-student.html and the demos), the warning banners, and the coach's pending
+    list showing shared-lesson context. Done 2026-10-20: those pages are removed, and book-share-not-student,
+    book-share-sibling-waiting and invite-accepted show the new behaviour. *(from ADR-033 Consequences, moved 2026-11-08)*
   *Added 2026-10-13 (ADR-031 decision 12):* ~~the "not yet accepted" warning is sent at the 9pm run before it's due, so
     it's never late and never sent at night.~~ Expiry when the lesson starts is checked every hour, and its email goes
     at once.
@@ -99,9 +138,15 @@ A skater calls out (either family; the booking family is not a special case):
     charge; this is checked every hour. Their share stays as it was until they answer.*
     *Revised 2026-10-13 (ADR-031 revision, decision 8): the question is recorded on the lesson, not on the staying
     family's booking. Their booking isn't changed until they answer.*
+    *Open:* whether the 7 days in the answer-by rule should be a question for Kim. *(Put to Kim as §8 Q7.)*
+    *(from ADR-031 Open, moved 2026-11-08)*
   Late (inside the notice period) or a no-show: the one who called out may be charged
     their share of the late-cancellation fee (half, for two skaters).
     The other skater keeps their share.
+    The skater who stays isn't charged any fee. *(from ADR-026 Status amendment 2026-10-13, moved 2026-11-08)*
+  No special case for the booking family (P4): once both skaters have joined, either family leaving follows the same
+    rules. The invited family can cancel from My bookings like the booking family.
+    *(from ADR-026 Status amendment 2026-10-13, moved 2026-11-08)*
   *Added 2026-10-13 (ADR-031 decision 5, option B):* ~~If the inviting family cancels before the other skater has joined, the invitation ends: at once if it wasn't answered yet, or within the hour (the invited family is emailed) if they'd accepted.~~ Withdrawing is only possible before the other family answers.
   *Changed 2026-10-20 (ADR-033 d4):* If the inviting family cancels while the invitation is still unanswered, it ends at
     once. If the invited family has already accepted, the cancel is an ordinary leave, in time or late (ADR-033 d4).
@@ -124,3 +169,59 @@ A freed place:
   The new skater goes through the same steps: their family accepts~~, the coach approves them if they're new~~, they join.
     *Changed 2026-10-20 (ADR-033): the new skater must already be the coach's student.*
   Filling a freed date in a series makes the series shared again until that lesson is over.
+
+Coaches see every skater (ADR-026 decision 6, 2026-10-06):
+  The coach's week view, lesson list, payments and the rinkside page show every skater in a shared time, each with
+    their own attendance and payment status.
+  A coach cancelling a lesson, day or week cancels every skater in it, and each family is told.
+  *(from ADR-026 §6, moved 2026-11-08)*
+
+Screens this feature needs (ADR-026 Consequences, 2026-10-06): the share code on a skater's profile; "add a skater to
+  share" on booking; invitations to confirm or decline; both skaters on a shared booking; every skater in a time on
+  the coach's views. None was in the Harbor designs then. *2026-10-13: designed in design/harbor (family and coach
+  sites).* *(from ADR-026 Consequences, moved 2026-11-08)*
+
+Rejected: open spots any family can book, with the remaining count shown. Rejected by the owner: every booking is
+  private until the booking family chooses to share. *(from ADR-026 Alternatives considered, moved 2026-11-08)*
+
+Phase 2: an invitation waiting on the coach (decided by the owner 2026-10-09; Phase 2 since ADR-033, 2026-10-20):
+  This only applies to a skater new to the coach, which is Phase 2. In MVP an invitation unanswered when the lesson
+    starts expires with the ordinary "no longer available" email.
+  The warning: for each lesson whose invitation is still waiting on the coach, an email goes to both families and the
+    coach no later than 24 hours plus the coach's notice period before the lesson. Families who have opted in to
+    texts also get a text pointing to the email. The coach's email was moved from Phase 2 to MVP by the owner
+    (2026-10-09), before ADR-033 moved the whole warning to Phase 2.
+    To both families: "Coach Dana hasn't accepted Mia for the shared lesson on Tue 14 Oct at 4:00. If she doesn't,
+      the lesson goes ahead as a private lesson."
+    To the coach: a shared lesson on Tue 14 Oct at 4:00 is waiting for you to accept Mia, with a link to the pending
+      list.
+    The timing gives family A at least a day before the notice period begins, so they can cancel without a late fee
+      if they don't want a private lesson.
+  The banner: from the warning time until the coach accepts or declines skater B, or the lesson starts, both
+    families' home screens show a red banner.
+    Family A: "Coach Dana hasn't confirmed Mia for your shared lesson on Tue 14 Oct at 4:00. Unless she does, it will
+      go ahead as a private lesson, charged at the booking's own price."
+    Family B: "Coach Dana hasn't accepted Mia yet. If she doesn't before the lesson, Mia won't join the Tue 14 Oct
+      4:00 lesson."
+    "The booking's own price" is what family A booked at, so the banner stays true whatever was decided about shared
+      pricing. *2026-10-13: decided; until a second skater joins, the lesson is private at the full price.*
+  Family B's email when the lesson expires and the coach never accepted skater B: "This lesson has expired. Please
+    reach out to Coach Dana to be accepted onto her roster for any future shared lessons. Reply to this email to
+    reach Coach Dana."
+  *(from ADR-026 Status amendment 2026-10-09 and §5a, moved 2026-11-08)*
+
+Questions P1–P5 (were for Kim; all answered by the owner. None of them blocked private booking):
+  P1. The most skaters a coach may allow in one lesson. Answered 2026-10-07: 2, as a setting that may be raised.
+  P2. How a shared lesson is priced. Answered 2026-10-13: the lesson's set price is split between the skaters; a
+    skater leaving in time leaves the other family to choose full price or cancel; leaving late, the other keeps
+    their share.
+  P3. Must an invited skater already be approved by this coach? Answered 2026-10-07: no to be invited; yes before
+    any lesson is booked for them. Kim §6 can't remove this approval. *Superseded for MVP 2026-10-20 by ADR-033: the
+    skater must already be the coach's student to be invited.*
+  P4. If the booking family cancels, what happens to the invited skaters? Answered 2026-10-13: the same as either
+    skater leaving.
+  P5. If an invitation isn't confirmed in time? Partly answered 2026-10-07: if the coach hasn't accepted the skater,
+    the lesson goes ahead private. Answered 2026-10-13: an invitation the family hasn't accepted has no cutoff before
+    the lesson; it expires when the lesson starts, and the lesson goes ahead private. ~~Leaning towards the coach's
+    notice period (24 hours by default)~~
+  *(from ADR-026 "Pending Kim", moved 2026-11-08)*

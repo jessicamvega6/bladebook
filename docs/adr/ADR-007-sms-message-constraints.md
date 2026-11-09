@@ -107,9 +107,10 @@ marker. A long student name never pushes a message into a second segment.
 
 ### 5a. The prefix names the coach: `<Coach name> via BladeBook:`
 
-*Decided by the owner, 2026-09-30.* A client knows their coach, not the software, so the
-message leads with the coach. "via BladeBook" keeps the program identifiable, which carrier
-vetting for the 10-digit long code (10DLC) campaign expects.
+*Decided by the owner, 2026-09-30.* Every client message opens with the coach's name followed
+by `via BladeBook:` (product rule — see `FeatureDecriptions/SMS Messages.md`, "Prefix"). "via
+BladeBook" keeps the program identifiable, which carrier vetting for the 10-digit long code
+(10DLC) campaign expects.
 
 The coach's name is user-authored and variable-length — exactly the field decision 5 exists
 to control:
@@ -123,17 +124,19 @@ to control:
 
 ### 6. Per-path message specs
 
-*Amended 2026-09-30:* every template now opens with `<coach> via BladeBook:` (decision 5a).
-The table below is the original record; the current worst cases, with a 20-character coach
-name, are **88** (day-of reminder), **115** (payment reminder) and **105** (cancellation
-digest). The tightest now spends 72% of the budget — less headroom than before, still inside
-one segment.
+The template wording for each path is product content — see `FeatureDecriptions/SMS Messages.md`
+("Texts to families"). What stays here is each template's measured worst case.
 
-| Path | Template | Worst case |
-|---|---|---|
-| Day-of reminder (§6.2) | `BladeBook: <student> has a lesson today at <time>.` | **63** |
-| Payment reminder (§6.3) | `BladeBook: $<amount> due for <student>'s lesson on <date>. See email to pay.` | **90** |
-| Cancellation digest (ADR-006 d6) | `BladeBook: <n> of your lessons <from>-<to> were cancelled by your coach. See email.` | **80** |
+*Amended 2026-09-30:* every template now opens with `<coach> via BladeBook:` (decision 5a).
+The current worst cases, with a 20-character coach name, are **88** (day-of reminder), **115**
+(payment reminder) and **105** (cancellation digest). The tightest now spends 72% of the budget
+— less headroom than before, still inside one segment.
+
+| Path | Original worst case (`BladeBook:` prefix) |
+|---|---|
+| Day-of reminder (§6.2) | **63** |
+| Payment reminder (§6.3) | **90** |
+| Cancellation digest (ADR-006 d6) | **80** |
 
 Measured against a 21-character student name (`Christopher-Alexander`) and a
 three-figure amount. The tightest path spends 56% of the budget, which is deliberate
@@ -149,14 +152,13 @@ The bill and the client's screen are the only other places you would find out.
 ### 5b. A coach-directed template
 
 *Added 2026-09-30.* The coach can opt in to a text when a family cancels ([ADR-009](ADR-009-cancellation.md)
-decision 9). *Amended 2026-10-09: late cancellations only — inside `requiredNoticeHours` (ADR-009).* That text goes **to** the coach, so it opens `BladeBook:`, not decision 5a's
-`<Coach name> via BladeBook:`:
+decision 9). *Amended 2026-10-09: sent only when the cancellation falls inside `requiredNoticeHours` (ADR-009).*
+That text goes **to** the coach, so it does not carry decision 5a's coach-name prefix and has no
+coach-name field to budget. Its wording, a single-lesson form and a batch form, is product content —
+see `FeatureDecriptions/SMS Messages.md` ("Text to the coach").
 
-`BladeBook: <student> cancelled <day> <date> <time>. See email.`
-
-A batch cancelling several lessons reads *"<student> cancelled <n> lessons from <date>. See
-email."* Both need decision 7's length test; with a 21-character student name the first is
-about 65 characters. Decision 8a's rule — consent belongs to the phone number — applies to
+Both forms need decision 7's length test; with a 21-character student name the single-lesson form
+is about 65 characters. Decision 8a's rule — consent belongs to the phone number — applies to
 the coach's number too.
 
 ### 8a. Opt-in belongs to the phone number
@@ -179,20 +181,11 @@ Sent **once**, when a client's `smsOptIn` transitions false → true. It carries
 compliance payload — program identity, message frequency, rate disclosure, HELP and
 STOP — so that the three recurring templates do not have to.
 
-**It is exempt from decision 1** and is expected to run to two segments. *Amended
-2026-09-30:* it now opens with the decision 5a prefix instead of naming the coach mid-sentence
-— `<coach> via BladeBook: You are subscribed to lesson alerts. Msg frequency varies…` — which
-comes out slightly shorter than the original below, at most about 230 characters. Still two
-segments. The original:
-
-```
-BladeBook: You are subscribed to lesson alerts from Coach <coachName>. Msg frequency
-varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.
-Terms: <termsUrl> Privacy: <privacyUrl>
-```
-
-216 characters with an ordinary coach name, 235 with a long one — two segments either
-way. Note that **concatenated GSM-7 segments hold 153 characters, not 160**: seven bytes
+**It is exempt from decision 1** and is expected to run to two segments. Its wording is in
+`FeatureDecriptions/SMS Messages.md` ("Opt-in confirmation"). The original wording was 216
+characters with an ordinary coach name, 235 with a long one — two segments either way. *Amended
+2026-09-30:* it now opens with the decision 5a prefix, which comes out slightly shorter, at most
+about 230 characters. Still two segments. Note that **concatenated GSM-7 segments hold 153 characters, not 160**: seven bytes
 of each segment go to the concatenation header. Two segments is therefore a 306-character
 ceiling, which leaves real headroom.
 
@@ -269,8 +262,8 @@ fit, and that is the intended pressure.
 ## Open
 
 - *Phase 2 (2026-10-12): client SMS deferred.* **Templates for price changes** ([ADR-020](ADR-020-repricing-booked-lessons.md), 2026-09-30):
-  an increase, a decrease ("good news") and a batch mixing price changes with cancellations.
-  Each is a pointer to the email under decisions 1–5, and needs its decision-7 length test.
+  which texts are needed is in `FeatureDecriptions/SMS Messages.md` ("Price changes"). Each is a
+  pointer to the email under decisions 1–5, and needs its decision-7 length test.
 - *Scoped 2026-10-12: in MVP this and the next item concern the coach's opt-in only.*
   **Does the confirmation message alone satisfy the carrier**, or does a recurring
   program also need periodic re-disclosure? Decision 8 assumes once is enough for
