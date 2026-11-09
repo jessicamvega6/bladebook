@@ -32,6 +32,7 @@ test('with no sign-in, the local sign-in stand-in shows and says so', () => {
 
 test('a signed-in coach with no profile gets step 3, and a different email leads to step 4', async () => {
   sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '#/today';
   sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (url === '/api/coach/profile') return json(404, { error: 'NO_PROFILE', message: 'Finish setting up your account first.' });
@@ -56,6 +57,7 @@ test('a signed-in coach with no profile gets step 3, and a different email leads
 
 test('a field error from the API is shown on that field', async () => {
   sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '#/today';
   sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/profile'
     ? json(404, { error: 'NO_PROFILE', message: 'x' })
@@ -71,6 +73,7 @@ test('a field error from the API is shown on that field', async () => {
 
 test('an expired sign-in returns to sign-in with a note', async () => {
   sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn(() => json(401, { error: 'SIGN_IN_AGAIN', message: 'Please sign in again.' })));
 
   render(<App />);
@@ -81,10 +84,19 @@ test('an expired sign-in returns to sign-in with a note', async () => {
 
 test('a coach with a profile lands on Today with the pending-code banner', async () => {
   sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn(() => json(200, PENDING)));
 
   render(<App />);
 
   expect(await screen.findByRole('heading', { name: /, Dana$/ })).toBeInTheDocument();
   expect(screen.getByText('Your code starts working once you confirm your business email')).toBeInTheDocument();
+});
+
+test('opening the plain address starts at sign-in, signed out, even after a coach signed in', () => {
+  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '';
+  render(<App />);
+  expect(screen.getByRole('heading', { name: /Sign in on this computer/ })).toBeInTheDocument();
+  expect(sessionStorage.getItem('bb.coach.idToken')).toBeNull();
 });

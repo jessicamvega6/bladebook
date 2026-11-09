@@ -2199,7 +2199,7 @@ SCREENS['calendar-day'] = () => {
     const l = s.lesson, past = calSlotPast(iso, s);
     const who = !l ? `<span class="roundicon">${ic('plus', 14)}</span>${rowTitle('Open', 'Families can book this time')}`
       : !l.sid ? `<span class="roundicon roundicon--warn">${ic('lock', 14)}</span>${rowTitle('Held', 'You kept this time closed')}`
-      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ' · repeats weekly' : ''}`)}`;
+      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ` · ${(l.interval || 1) === 1 ? 'repeats weekly' : `repeats every ${l.interval} weeks`}` : ''}`)}`;
     const side = `<span class="muted num">${s.len} min · ${l && l.sid ? skatersIn(l).map(p => money(p.price)).join(' + ') : money(s.price)}</span>${l && l.sid && isStarted(l) ? skaterBadges(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
     return row(`<span class="cal-slot__t num">${fmtT(s.t)}</span>${who}`, side, { cls: past ? 'row--muted' : '' });
   }).join('');

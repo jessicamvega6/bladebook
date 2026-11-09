@@ -2,11 +2,10 @@ Coach Log In
 (Written 2026-10-12 from the Harbor design: design/harbor/coach/static/login.html)
 
 The page a coach uses to sign in to the coach website. Sign-in is handled by Cognito.
-*Decided by the owner 2026-11-09 (ADR-023 d11):* this is BladeBook's own page, not Cognito's hosted
-sign-in page. The browser sends what is typed straight to Cognito; BladeBook's servers never see a password or a
-code. Cognito checks the password and locks sign-in for a few minutes after repeated wrong
-passwords. A wrong password and an email with no account get the same message, so the page never reveals who
-has an account. A coach with multi-factor authentication (MFA) on is asked for the code on a BladeBook page too.
+*Decided by the owner 2026-11-09:* opening the coach website's plain address (no page named after it) always shows
+this page, signed out, even if a coach was signed in in that browser tab. It links to sign-up ("Create a coach
+account"). A link to a page inside the site, or a refresh, keeps the sign-in. The family website does the same
+(C_Client Log In.md).
 
 Fields:
   Login email: the coach logs in with their login email, not their business email.
