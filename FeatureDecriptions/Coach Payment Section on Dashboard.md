@@ -7,7 +7,7 @@ The coach will need the following abilities:
  To send a payment reminder. phase 2
  to mark a payment as waived.
  to filter by unpaid *(Design: an Unpaid / All switch.)*
- *Design: to undo a paid or waived lesson back to unpaid.*
+ *Design: to undo a ~~paid or waived~~ paid lesson back to unpaid. A waived lesson is final: no Undo, and Waive always asks first ("Waive this lesson? … This can't be undone."). Ruled by the owner 2026-11-09 (R7).*
  To record how the client paid (added 2026-10-07 from talking with Kim). The coach enters this.
    *Design: payments-mark-paid.html; how they paid shows under each Paid badge and can be changed.*
 

@@ -1962,7 +1962,8 @@ RK_SHEETS.contact = s => {
 };
 RK_SHEETS.cancel = s => {
   const l = lessonById(s.lid), fams = clients(l);
-  return sheet(`<h2 class="h2">Cancel ${esc(rkName(l))} · ${fmtT(l.t)}?</h2>
+  // Names the skater, date and time (ADR-009 d5a; R6, owner 2026-11-09). The check-in list is always today.
+  return sheet(`<h2 class="h2">Cancel ${esc(rkName(l))} · ${l.iso === TODAY ? 'Today, ' : ''}${dDow(l.iso)} · ${fmtT(l.t)}?</h2>
     <p class="fine">${isShared(l) ? 'It’s a shared lesson, so both skaters are cancelled. ' : ''}${esc(fams.join(' and '))} will be emailed. This can’t be undone.</p>
     <div class="fieldset"><div class="label">After cancelling</div>${SEG(['Release for rebooking', 'Hold it closed'], s.hold, 'rkCancelHold', [], { block: true })}
       <div class="hint">${s.hold ? 'A held time stays closed for good. Nobody can book it.' : 'Another family can book this time.'}</div></div>
@@ -2059,7 +2060,7 @@ SCREENS.account = () => {
   return phoneShell(`
     <section class="rk-card"><div class="rk-who">${avatar(initials(p.first + ' ' + p.last))}<div><b>${esc(p.first)} ${esc(p.last)}</b><span class="muted-sm">${esc(p.loginEmail)}</span></div></div>
       <dl class="rk-kv"><div><dt>Rink</dt><dd>${RINK_SHORT}</dd></div><div><dt>Last synced</dt><dd>${r.online ? r.syncedAt : `${r.syncedAt} · no signal now`}</dd></div><div><dt>Waiting to send</dt><dd>${r.queue.length ? plural(r.queue.length, 'check-in') : 'Nothing'}</dd></div></dl></section>
-    <section class="rk-card"><b>Everything else is on the website</b><p class="fine">Your schedule, students, approvals, payments and profile are on bladebook.app. This app only sees today’s lessons, attendance and cancelling.</p></section>
+    <section class="rk-card"><b>Everything else is on the website</b><p class="fine">Your schedule, students, approvals, payments and profile are on the website. This page is for today’s lessons, attendance and cancelling.</p></section>
     ${B('Log out', 'secondary', 'rkSignOut', { block: true, lg: true, icon: 'arrowL' })}`, { title: 'Account', sub: 'Rinkside app' });
 };
 RK_SHEETS.signout = () => sheet(`<div class="rk-sheeticon rk-sheeticon--warn">${ic('alert', 24)}</div><h2 class="h2">${plural(rk().queue.length, 'check-in')} haven’t been sent</h2>
