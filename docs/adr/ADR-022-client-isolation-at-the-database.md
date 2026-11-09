@@ -114,6 +114,9 @@ A client — an adult student or a minor's parent or guardian — must be able t
 2. see **their coach's schedule** — free and taken times, never who holds a taken one (§7);
 3. **book only with their coach**.
 
+*These are product rules — see `FeatureDecriptions/Non Functional Requirements.md`, "Who can see
+what". They stay numbered here because the decisions below cite them.*
+
 Today all three are held in code. `clientId` comes from the verified token, client reads are
 rooted at `CLIENT#<sub>`, and §7 names the one check that is not even structural: GSI1 is
 keyed `STUDENT#<studentId>`, so **anyone holding a student id could read that student's
@@ -220,14 +223,14 @@ and another family's arrangements are no longer stored next to this one's.
 
 ### 6. The coach's partition: reads limited to an attribute allowlist, and only once confirmed
 
-*Decided by the owner, 2026-10-01:* **a `PENDING` family sees nothing of the coach's** — no
-schedule, no availability, no profile — only their own account: their profile, their
-skaters and which coach they are waiting on. So the read statement below applies **only
+*Decided by the owner, 2026-10-01:* **a `PENDING` family reads nothing in the coach's
+partition** (product rule — see `FeatureDecriptions/Non Functional Requirements.md`, "Who can
+see what"). So the read statement below applies **only
 when `aws:PrincipalTag/linkStatus` is `ACTIVE`**, and there is no read statement for a
 `PENDING` session at all. A family with one approved skater and one pending sibling is
 `ACTIVE`; booking for the pending sibling is still refused in code (ADR-002 decision 2).
 
-The coach's name, which the pending screens show (*"Waiting for Coach Dana's approval"*),
+The coach's name, which the pending screens show (`FeatureDecriptions/ClientHomeView`),
 comes from the family's own side instead: decision 7 returns it with the code, and
 registration writes it onto the link item.
 
@@ -289,9 +292,9 @@ lookup as a route reachable without signing in. There is no `clientId` to tag at
 so the lookup needs its own role.
 
 **The `CODE#` item carries what the code screen shows:** `coachId`, `coachFirstName`,
-`coachLastName` and `profilePhotoKey`. The screen says *"Code found — you're signing up with
-Dana"* with the coach's photo, as `FeatureDecriptions/Client Sign Up` asks, without reading
-the coach's profile. `api-coach` keeps these in step when the coach renames or changes their
+`coachLastName` and `profilePhotoKey`. That is everything the code screen shows
+(`FeatureDecriptions/Client Sign Up`, step 1), so the screen needs no read of the coach's
+profile. `api-coach` keeps these in step when the coach renames or changes their
 photo (ADR-021 decision 5).
 
 **Before sign-in — a `code-lookup` role.** `api-client`'s unauthenticated route assumes a
@@ -312,9 +315,9 @@ Registration copies the coach's name onto each link item, so the pending screens
 from the family's own partition. A rename does not reach existing link items; once the family
 is `ACTIVE`, screens read the live profile instead.
 
-*Amended 2026-10-05:* photos are Phase 2 (ADR-016 d5), so in MVP the code screen shows the
-coach's **initials**, built from `coachFirstName` and `coachLastName`. `profilePhotoKey` is
-never set until then.
+*Amended 2026-10-05:* photos are Phase 2 (ADR-016 d5), so `profilePhotoKey` is never set until
+then; in MVP the screen builds what it shows from `coachFirstName` and `coachLastName` (what it
+shows: `FeatureDecriptions/Client Sign Up`).
 
 **How the browser fetches the photo** from its key is not decided here. The photo bucket,
 upload path and resize step are still open in ADR-016 decision 5; whatever serves the photo

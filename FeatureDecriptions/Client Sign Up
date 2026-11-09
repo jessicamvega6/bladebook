@@ -3,12 +3,31 @@ Client Sign Up:
 
 Five steps, with a step counter across the top. "Already have an account? Log in" on the first step.
 
+Registration flow:
+  There is no invite email and no coach-created credential. A client is given the site URL and the coach's
+  coach code, and registers themselves:
+    1. Create a Cognito account (email + password), verify the email.
+    2. Enter the coach code. It resolves to exactly one coach, or registration stops.
+    3. Declare who they are registering:
+       themselves, as an adult student: one student, contact copied from the account;
+       their child, as a parent or guardian: prompted for one or more children.
+    4. The students wait for the coach's approval (see "Coach approval" below).
+  Multiple children in one sign-up is a first-class path, not an afterthought — the sibling case is common
+  enough that requiring a second account per child would be the wrong default.
+  *(from ADR-002 decision 1, moved 2026-11-08)*
+
 Step 1, Coach code:
 CoachCode/Coach Name   : Code given to client by coach outside of website.
             : ~~On focusOut of input field and while value.length = 8 check to see if this is a valid coach code.~~
               *Design:* the code is checked as the family types, once it has 8 letters and numbers (a dash, e.g. 7K2Q-M9XT, is ignored; case doesn't matter). *Coach codes are 8 random characters (ADR-002, 2026-10-13).*.
               If yes, display coach name and photo (if uploaded) *(Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.)*
               The lookup returns only the coach's name (ADR-022 d7).
+              ~~The screen says *"Code found — you're signing up with Dana"* with the coach's photo.~~ The screen shows a
+              "Code found" badge with the coach's card, and the button reads "Continue with <coach first name>".
+              *Amended 2026-10-05:* photos are Phase 2 (ADR-016 d5), so in MVP the code screen shows the coach's
+              **initials**, built from the coach's first and last names.
+              *Ruled by the owner 2026-11-09.* The design's wording replaces ADR-022's quoted sentence.
+              *(from ADR-022 decision 7, moved 2026-11-08)*
             : ~~Code has to match coach name or nothing is displayed/error is displayed saying please check code/coach name~~
               *Design:* the family enters only the code, not the coach's name. Before a match, a placeholder says the coach
               will appear there so they can check it's the right one. A full-length code that matches no coach shows:
@@ -70,12 +89,44 @@ Clients must have a USFSA/USA Hockey registration number to sign up. This number
         and store the cleaned-up form. This checks the shape only, not that the number is real.
         USA Hockey: 14 characters, 9 digits and 5 letters, with a check digit that changes each season (a setting, not code).
         US Figure Skating: format not yet known; get it from a real card or Kim. See ADR-029 and Open-Pending §2b.
-        Learn to Skate USA: format not yet known either; digits only within a loose length range until known (Kim §9 Q7).
+        Learn to Skate USA: format not yet known either; ~~digits only within a loose length range until known~~ letters
+          and digits, 1 to 20 characters, like U.S. Figure Skating (owner, 2026-11-06; Kim §9 Q7 still open).
+    *Decided by the owner 2026-11-06, settling a conflict with the Harbor design (screens-account.js, acNumError):*
+        US Figure Skating and Learn to Skate USA numbers are letters and digits, 1 to 20 characters. Anything else is
+        refused with "Use letters and numbers only." or "That's too long for a member number."
+        A rejected number gets a message naming the expected shape (for USA Hockey, "14 characters, 9 digits and
+        5 letters"), never a hint that the number was looked up.
+        *(from ADR-029, amendment 2026-11-06 and decision 4, moved 2026-11-08)*
+        *Ruled by the owner 2026-11-09.* The designs already use this rule.
+
+Registration number:
+  Nothing happens when a number lapses in MVP: BladeBook doesn't check it. A reminder to renew or update the number
+    is Phase 3. *(Kim's answer and owner, 2026-10-16; from ADR-029, amendment 2026-10-16, moved 2026-11-08)*
+  Learn to Skate USA numbers are accepted so beginners can sign up (owner, 2026-10-16).
+  The sign-up and profile screens have the organization picker and the number box (Harbor design,
+    design/harbor/client/screens-account.js). The pickers offer all three Phase 1 organizations (Learn to Skate USA
+    added to the design 2026-10-20). The coach's Students list and Waiting for approval show each skater's number
+    and organization (added 2026-10-20, design/harbor/coach/screens-students.js).
+    *(from ADR-029 Consequences, moved 2026-11-08)*
 
 Step 5, Waiting for approval:
 "You're in", signed in, with each skater listed as waiting for the coach's approval.
-The family is emailed when the coach approves. Booking opens for each skater once they're approved.
+Booking opens for each skater once the coach approves them. No email is sent (Phase 2; see "Coach approval" below).
 "Go to my account" button. While waiting, the family sees only Home and Profile (ADR-022 d6, see ClientHomeView).
+
+Coach approval:
+  *Decided by the owner 2026-10-09, answering Items to ask Kim About.md §6 questions 2 and 4.* The coach approves
+    everyone, siblings included: a skater a family adds later waits for approval like any new student, however
+    well the coach knows the family.
+  No reminder email for waiting approvals. Instead the coach website's Students tab shows the number of pending
+    students in its title. *(from ADR-002, amendment 2026-10-09, moved 2026-11-08)*
+  *Decided by the owner 2026-11-06, settling a conflict with the Harbor design (design/harbor/client/screens-account.js,
+    which promised "We'll email you as soon as Coach Dana approves" in six places):* the email telling a family their
+    skater was approved is Phase 2. MVP sends no approval email: the family sees the change the next time they open
+    the website (the waiting banner goes, and the coach becomes bookable). Until then, the six MVP messages must not
+    promise an email; they say the family can book once the coach approves. The rewording is drawn in
+    design/harbor/client/ (2026-11-08). *(from ADR-002, amendment 2026-11-06, moved 2026-11-08)*
+    *Ruled by the owner 2026-11-09.* Step 5 and the designs no longer mention an approval email.
 
 
 Profile Icon selection: A list of images uploaded by system phase 2
@@ -92,3 +143,12 @@ signup-4-skaters-two-coaches.html, signup-5-waiting-two-coaches.html.*
     is needed. The skater list shows each skater's coaches. The button reads "Send to your coaches".
   Step 5: each skater lists each coach they're waiting for. Booking with a coach opens once that coach approves.
   The adult skating themselves also picks which coaches.
+  *Decided by the owner 2026-10-07:* no limit on coaches per skater. A skater signs up with 1 to 10 coaches and adds
+    more later as needed; the multi-coach screens are designed for about 10. *(from ADR-025, amendment 2026-10-07,
+    moved 2026-11-08)*
+  *Decided by the owner 2026-10-13 (ADR-025 item h):* several coach codes at sign-up are MVP, not Phase 2. The first
+    step takes one code and offers "Add another coach"; each skater then ticks which of those coaches they join and
+    waits for each one separately. (Only the disclosure line about other coaches stays Phase 2.)
+    *(from ADR-025, amendment 2026-10-13, item h, moved 2026-11-08)*
+  Sign-up is unchanged by the 2026-11-06 "None of my coaches yet" choice on the profile: each skater still ticks at
+    least one coach. *(from ADR-025, amendment 2026-11-06, moved 2026-11-08)*

@@ -18,25 +18,24 @@ background consumer and the same notifier now re-price as well as cancel.
 **Renames five things** so their names still describe what they hold (decision 7).
 
 **Amended — 2026-10-08.** Kim's answer to `Items to ask Kim About.md` §7 (option **B**) settles **a booking that lands
-between the coach's preview and save**. The preview reads a per-coach booking counter that
-every booking increments; the save checks it. If it changed, the plan is recalculated and the
-save **goes ahead without asking the coach**: any booking made since the preview that the change
-cancels is cancelled like the rest, and its family gets a separate *"just booked"* email
-(*"Coach updated their schedule just as you booked. Here are other open times."*). Slot holds
-during preview (option D) are not built.
+between the coach's preview and save**: the save goes ahead without asking the coach (product
+rule — see `FeatureDecriptions/Schedule Creater.md`, "A family books during the review"). The
+preview reads a per-coach booking counter that every booking increments; the save checks it.
+If it changed, the plan is recalculated and the save goes ahead; any booking made since the
+preview that the change cancels is cancelled like the rest, and the counter chooses a separate
+*"just booked"* email. Slot holds during preview (option D) are not built.
 
-**Amended — 2026-10-09.** *Decided by the owner.* The *"just booked"* email is **Phase 2**. In MVP
-the save still goes ahead without asking the coach (option B), and a booking made since the
-preview that the change cancels gets the ordinary cancellation email. **No booking counter is
+**Amended — 2026-10-09.** *Decided by the owner.* The *"just booked"* email is **Phase 2** (product
+rule — same feature-file section). **No booking counter is
 built in MVP:** it existed only to choose which email to send. When the email returns, the
 likely mechanism is for the save to recalculate the plan and compare it with the preview's,
-which needs no counter. **To be reconsidered if feedback supports that this is an issue.**
+which needs no counter.
 
-Kim's answer to §1 question 4, *"Move if they are outside the notice period"*, matches this
-ADR's rule for price increases.
+Kim's answer to §1 question 4 matches this ADR's rule for price increases (*moved to
+`FeatureDecriptions/Re-pricing Booked Lessons.md` on 2026-11-08*).
 
-**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**. Decision 6's text message and the price-change
-templates in Open wait for it; in MVP families are told by email only.
+**Note — 2026-10-12.** [ADR-007](ADR-007-sms-message-constraints.md) (amended 2026-10-12): all SMS to clients is **Phase 2**, so the notifier sends email only in MVP; decision 6's text message and the price-change
+templates wait for it.
 
 **Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
 stores every bookable time as a **lesson time** (`LESSON#`) and gives each skater a **seat**
@@ -60,10 +59,10 @@ stores every bookable time as a **lesson time** (`LESSON#`) and gives each skate
 
 Every behaviour rule here still holds.
 
-**Amended — 2026-10-13 (threshold).** *Decided by the owner.* Decision 4's warning shows when a
-price changes by **50% or more** of the old price, up or down. $60 to $6 (a 90% cut) and $50 to
-$75 (a 50% rise) both warn; $50 to $60 (20%) doesn't. This settles the large-change threshold
-(Open, blocker #12).
+**Amended — 2026-10-13 (threshold).** *Decided by the owner.* Decision 4's warning threshold is
+settled at 50% of the old price, up or down (Open, blocker #12). *Moved to
+`FeatureDecriptions/Schedule Creater.md` ("Big price change warning") on 2026-11-08 — product
+content, not an architecture decision.*
 
 ---
 
@@ -91,8 +90,10 @@ a message to the family.
 
 ### 1. A lesson that has not happened yet follows the coach's current price
 
-*Decided by the owner, 2026-09-30.* When a coach changes the price on a schedule block, every
-upcoming booking that block produces is re-priced to the new amount, subject to decision 2.
+*Decided by the owner, 2026-09-30.* Upcoming lessons follow a block's price change; past,
+paid and waived lessons never change; a personal price override is left alone (product rule —
+see `FeatureDecriptions/Re-pricing Booked Lessons.md`, "What changes when a coach changes a
+price"). The evaluator implements it as follows.
 
 - **Which bookings:** those whose time slot the new schedule still produces — same start
   time, same length — where the producing block's price differs from the booking's stamped
@@ -102,69 +103,48 @@ upcoming booking that block produces is re-priced to the new amount, subject to 
   decision 2, and the shares are re-split among the booked seats~~.* *Revised 2026-10-13
   (ADR-031 revision): only the lesson time's `priceMinor` changes; shares ~~not yet fixed~~ follow
   it.* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
-- **Past lessons never change.** Neither does any lesson already marked paid or waived, even
-  if it is in the future: its money question is settled. *Since ADR-031 (2026-10-13) this is
+- **Past, paid and waived lessons are excluded** from re-pricing. *Since ADR-031 (2026-10-13) this is
   judged per seat: a paid or waived seat never changes, even when the other seat in a shared
   lesson is re-priced.* *Revised 2026-10-13 (ADR-031 revision): ~~such a seat has a fixed
   `amountMinor`, which a re-price never touches.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* *Under ADR-031 a lesson paid in
   advance and then re-priced isn't handled: it would show the new amount, not what was paid
   (ADR-031 Revisit if).*
-- **A student's personal price override** (`priceMinorOverride`) is left alone. The coach set
-  it deliberately, and a block's price change does not reach it. *(Phase 2 since 2026-10-13, ADR-003.)*
+- **`priceMinorOverride` is never touched** by a re-price. *(Phase 2 since 2026-10-13, ADR-003.)*
 - **Dates covered by a temporary schedule** follow that temporary schedule's blocks, so a
   change to the default does not re-price them, and a change to the temporary schedule does.
 
 ### 2. Increases wait for the notice period; decreases apply at once
 
-*Decided by the owner, 2026-09-30.*
-
-| Direction | Which upcoming lessons are re-priced |
-|---|---|
-| **Increase** | Only lessons starting **later than the booking's `requiredNoticeHours`** from when the change is carried out. Lessons inside that window keep the old price. |
-| **Decrease** | **Every** upcoming lesson, including tomorrow's. |
-
-The asymmetry always favours the family. A family cannot cancel a lesson inside the notice
-period without the missed-lesson fee, so a price rise landing there is one they cannot react
-to — it is not applied. A price cut only helps them, so there is no reason to hold it back.
+*Decided by the owner, 2026-09-30.* An increase reaches only lessons starting later than the
+booking's `requiredNoticeHours` from when the change is carried out; a decrease reaches every
+upcoming lesson (product rule and its reasoning — see `FeatureDecriptions/Re-pricing Booked
+Lessons.md`, "Price increases wait for the notice period").
 
 The window is judged when the change is carried out, not when the preview was shown, for the
 same reason every other conflict is (ADR-006 decision 7): the preview is advisory.
 
 ### 2a. The coach is told which lessons an increase will not reach
 
-*Decided by the owner, 2026-09-30.* The preview says so plainly — for example: *"The new price
-won't apply to 3 lessons in the next 24 hours, which are inside your notice period. They stay
-at $50."* A coach who expected every lesson to move must not find out from a family.
+*Moved to `FeatureDecriptions/Schedule Creater.md` ("What the review page shows") on
+2026-11-08 — product content, not an architecture decision.* (Decided by the owner,
+2026-09-30.) The preview's shared evaluator therefore also returns the lessons an increase
+skipped.
 
 ### 3. The missed-lesson fee follows the same rules
 
-*Decided by the owner, 2026-09-30.* A change to a block's `missedLessonFeeMinor` re-prices
-upcoming bookings' stamped fee the same way: increases only beyond the notice period,
-decreases always. This amends ADR-015 decision 3 for future lessons. The fee is `0`
-throughout MVP (ADR-008), so this only takes effect with the Phase-2 charge.
+*Decided by the owner, 2026-09-30.* A change to a block's `missedLessonFeeMinor` is applied to
+upcoming lessons by the same evaluator and the same increase/decrease rule (product rule — see
+`FeatureDecriptions/Re-pricing Booked Lessons.md`, "The missed-lesson fee follows the same
+rules"). This amends ADR-015 decision 3 for future lessons. The fee is `0` throughout MVP
+(ADR-008), so this only takes effect with the Phase-2 charge.
 
 ### 4. The preview shows re-pricing, and a large change is impossible to miss
 
-The schedule editor's preview (ADR-008 decision 8) now lists re-pricing alongside
-cancellations: *"14 lessons for 6 families will change from $50 to $60. Each family will be
-emailed."*
-
-**A large price change gets a warning that cannot be overlooked**, in either direction.
-*Decided by the owner, 2026-09-30:* it must be **super noticeable**, because the likeliest
-cause is a typo — $60 entered as $6 — and a typo here emails every affected family twice,
-once for the mistake and once for the fix. So the warning is:
-
-- **At the top of the preview**, above everything else, not a line in the list.
-- **Visually distinct**, in the theme's warning colours, with an icon and words as well as
-  colour, so it does not depend on colour vision.
-- **Specific:** the old price, the new price and the change as a percentage — *"This lowers
-  the price from $60 to $6 — a 90% cut."*
-- **Acknowledged explicitly.** Accept stays disabled until the coach ticks *"I've checked the
-  new price"*.
-
-~~**The threshold is undecided** — how large a change triggers the warning. It depends on how
-much coaches normally change prices, which is a question for a coach (see Open).~~ *Settled
-2026-10-13 by the owner:* a change of **50% or more** of the old price, up or down.
+*Moved to `FeatureDecriptions/Schedule Creater.md` ("What the review page shows" and "Big
+price change warning") on 2026-11-08 — product content, not an architecture decision.*
+(Decided by the owner, 2026-09-30; threshold settled 2026-10-13.) The preview gets the
+re-price lines from the same evaluator as execution (decision 5), so the old and new price it
+shows are the ones the consumer will write.
 
 ### 5. One event, one consumer, one plan
 
@@ -212,16 +192,11 @@ cancellation line carries, so "was this family told" has the same answer for bot
 
 ### 6. What the family is told
 
-One message per family per batch, listing what changed:
-
-- **An increase:** the lessons affected and the new price.
-- **A decrease:** the same, framed as good news — *"Good news: 3 of your lessons are now $50."*
-- **A batch with cancellations too:** one message covering both.
-
-Email carries the detail. The text message, for families who opted in, is a pointer to the
-email under ADR-007's rules — one 160-character segment, the `<Coach name> via BladeBook:`
-prefix, no free text. New templates for price changes, and for a mixed change, are needed and
-length-tested per ADR-007 decision 7.
+One message per family per batch, covering every cancellation and re-price line in it (content
+and wording — see `FeatureDecriptions/Re-pricing Booked Lessons.md`, "What the family is
+told"). The notifier composes it from the batch's `CANCELLED#` and `REPRICED#` lines. Any text
+message follows ADR-007's constraints, with its templates length-tested per ADR-007 decision 7
+(Phase 2).
 
 ### 7. Names that no longer fit are renamed
 
@@ -259,24 +234,13 @@ batch that simply contains cancellation lines only.
 
 ## Open
 
-- ~~**Hand-edited booking prices would be overwritten.** ADR-003 decision 2 lets a coach edit one
-  booking's price by hand. Decision 1 re-prices any upcoming booking whose price differs from
-  its block's, so the next schedule save — even an unrelated one — would put a hand-edited
-  price back and tell the family. Either per-booking editing goes (the per-student price
-  override and *mark as waived* cover the cases), or hand-set prices are marked and never
-  re-priced. *Raised 2026-09-30; waiting on coach input — `Items to ask Kim About.md` §5.*
-  **Must be settled before re-pricing is built.**~~ *Settled 2026-10-13 by the owner (ADR-031): per-lesson price editing is removed. Under ADR-031 no booking stores its own price — the price lives only on the lesson time and each skater's share is worked out from it. A one-off is covered by *mark as waived*. Personal prices (already Phase 2) will be a per-skater override applied when the share is worked out.*
-- **Changing a student's price override.** Whether that re-prices the student's upcoming
-  lessons under decision 2's rules, and what shape the override takes (fixed price,
-  percentage off, dollar amount off). Also §5 of the list for Kim. *Phase 2 since 2026-10-13 (ADR-003).*
-- ~~**The large-change threshold.** How much a price must change to trigger decision 4's
-  warning. Depends on how much coaches normally change prices — in *Items to Ask Kim About*.~~
-  *Settled 2026-10-13 by the owner: 50% or more of the old price, up or down.*
-- **Changing `requiredNoticeHours` itself.** From Phase 2 a coach can edit their notice
-  period (ADR-016). Whether booked lessons follow that change too is undecided.
+- ~~**Hand-edited booking prices would be overwritten.**~~ *Settled 2026-10-13 by the owner (ADR-031): per-lesson price editing is removed; the price lives only on the lesson time and each skater's share is worked out from it.*
+- *Product questions moved to `FeatureDecriptions/Re-pricing Booked Lessons.md` ("Open
+  questions") on 2026-11-08 — product content, not architecture decisions:* changing a
+  student's price override (Phase 2), changing `requiredNoticeHours` itself, the text-message
+  templates, and the full record of the hand-edited-price and large-change-threshold items.
 - **Retention of re-price lines.** They name students like cancellation lines do, so they
   need a window from the legal review under ADR-017.
-- **The text-message templates** for price changes and mixed changes (decision 6).
 
 ---
 

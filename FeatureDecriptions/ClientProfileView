@@ -16,9 +16,10 @@ Your details:
 Skaters (everyone who takes lessons with the coach):
   Each skater with their name, under 18 or adult, organization and number, and "Approved" or "Waiting for approval".
   Add a skater: full name, under 18 yes or no, skating organization (U.S. Figure Skating, USA Hockey, or Learn to Skate USA since 2026-10-16) and number.
-    The coach approves new skaters before they can be booked; the family is emailed. "Add skater" is disabled until
+    The coach approves new skaters before they can be booked. No email is sent in MVP (see below). "Add skater" is disabled until
     the name and number are filled in.
-  *More than one coach (2026-10-13, ADR-025 k):* adding a skater asks "Which coaches?"; at least one must be ticked.
+  *More than one coach (2026-10-13, ADR-025 k):* adding a skater asks "Which coaches?" ~~; at least one must be ticked~~.
+    *Changed 2026-11-06:* it always asks, and offers "None of my coaches yet" (see "Add a skater with no coach yet" below).
     The new skater waits for each coach picked.
   An adult who skates themselves can't add skaters: a child needs their own family account.
   Share code: each skater shows their share code with Copy. ~~New code~~ *Removed 2026-10-13: a skater's share
@@ -42,3 +43,41 @@ Skaters (everyone who takes lessons with the coach):
 Buttons: Save and Log out.
 
 Waiting for approval: the same page. It's most of what a waiting family can see (ADR-022 d6).
+
+  *ADR-002, amendment 2026-11-06 (owner): the approval email is Phase 2; MVP sends none. See Client Sign Up, "Coach
+    approval".* *Ruled by the owner 2026-11-09.*
+
+More than one coach, from ADR-025 (moved 2026-11-08):
+  Adding a coach: from their account, a signed-in family can add a coach: enter that coach's code, then choose which
+    skaters join them, existing ones or a new one. Each skater then waits for that coach's approval alone.
+    *(from ADR-025 decision 2)*
+  Phase 2 (owner, 2026-10-07), with "Also coached by" on the coach side: the add-a-coach screen tells the family
+    "Coach Sam will see that Mia also skates with Coach Dana, and Coach Dana will see Coach Sam." The same line shows
+    at sign-up when more than one coach is chosen. *(from ADR-025 decision 2 and its 2026-10-06 amendment)*
+  k. *Decided by the owner 2026-10-13:* adding a skater on the profile asks which coaches they join (when the family has
+    more than one). The new skater waits for each coach picked. *(from ADR-025, amendment 2026-10-13, item k)*
+  n. Removing a skater from one coach or from all is Phase 2, with the rest of the "delete a student" question
+    (blocker #17) (owner, 2026-10-13). *(from ADR-025, amendment 2026-10-13, item n)*
+
+Add a skater with no coach yet (decided by the owner 2026-11-06, settling a conflict with the Harbor design,
+design/harbor/client/screens-account.js, "To add a new skater, add them under Skaters first"):
+  Item k changes: "Add a skater" always asks which coaches they join (now also when the family has only one coach)
+    and offers "None of my coaches yet".
+    *Ruled by the owner 2026-11-09.* The earlier "at least one must be ticked" is replaced.
+  The profile then shows "Not with a coach yet", and the skater can't be booked, invited or added as a sibling.
+  The family then uses "Add a coach", where the skater appears like any existing one.
+  This avoids a new skater being made waiting with a coach they will never skate with, and that coach's decline email.
+  Sign-up is unchanged: each skater still ticks at least one coach.
+  The add-a-coach form keeps its hint, worded for the new path. The "None of my coaches yet" choice is drawn in
+    design/harbor/client/ (profile-add-skater-no-coach, profile-add-skater-one-coach, profile-skater-no-coach,
+    profile-add-coach-new-skater; 2026-11-06).
+  *(from ADR-025, amendment 2026-11-06, moved 2026-11-08)*
+
+Open questions (from ADR-025 Open, moved 2026-11-08):
+  Designs for the new multi-coach screens, for about 10 coaches. Booking and the profile's coaches designed 2026-10-13,
+    then sign-up, Home and the waiting pages the same day. Payments (Phase 2) is still to do; per-coach removal is
+    Phase 2 (n). "Also coached by" on the coach side is Phase 2. 2026-11-06: the "None of my coaches yet" path is drawn
+    too (four profile pages).
+  What the family sees when one coach removes their skater while another coach keeps them. Part of blocker #17.
+    2026-10-13: the other coaches' lessons aren't affected (ADR-025 g); what the family sees is still open, and
+    Phase 2 with the rest of removal (n).

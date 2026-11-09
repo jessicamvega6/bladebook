@@ -404,9 +404,9 @@ also closes this ADR's open *plan drift* item.
 **`LESSON_PASSED` is the one outcome that is not fully recoverable.** A cancellation stuck
 until after the lesson's time means the family was not told and may have turned up. The
 resume cannot cancel a past lesson (ADR-009 decision 7), so the notifier instead **tells the
-coach**, in the batch's notification: *"These lessons were due to be cancelled, but their
-time passed before the cancellation could be applied."* The coach can waive them and follow
-up. This is why a stuck batch pages (5k): every other case heals itself on resume; this one
+coach**, in the batch's notification, which lessons' time passed before the cancellation
+could be applied (wording: `FeatureDecriptions/Email templates Needed:`). The coach can waive
+them and follow up. This is why a stuck batch pages (5k): every other case heals itself on resume; this one
 worsens with time.
 
 **5j. When retries run out: page, then reconcile — no redrive.**
@@ -472,22 +472,23 @@ describes: no error, nothing retrying. Being read-only, a bug in it can raise a 
 but never cancel a lesson.
 
 **5l. The coach sees whether a schedule change has finished.** *Decided by the owner,
-2026-09-30 — in MVP.* After Accept the coach website says "saved", but the cancellations,
-re-prices and messages happen in the background. If that stalls, the coach would believe
-families had been told when they had not. So the schedule page shows the latest change
-batch's state, read from its header (access pattern 14, which `api-coach` already has):
+2026-09-30 — in MVP.* The cancellations, re-prices and messages after Accept run in the
+background, so the coach must be shown the change's real state rather than a bare "saved"
+(product rule — see `FeatureDecriptions/C_Coach Schedule Save Status.md`, which holds what the
+coach sees in each state). The schedule page reads the latest change batch's state from its
+header (access pattern 14, which `api-coach` already has), and refreshes it while a change is
+applying. The states it tells apart:
 
-| Header state | The coach sees |
+| Header state | Meaning |
 |---|---|
-| Not `EXECUTED`, under an hour old | *"Applying your changes to 14 lessons…"* |
-| `EXECUTED`, families not all told yet | *"Changes applied. Emailing 6 families…"* |
-| `EXECUTED`, every line notified | *"Done — 6 families emailed."* |
-| Not `EXECUTED`, **over an hour old** — the same threshold the drift check pages on | *"We're having trouble applying this change. We've been alerted, and your families haven't been notified yet."* |
-| Any line `SKIPPED` as `LESSON_PASSED` | The lessons listed, with a prompt to waive them and contact the families — the same information the coach is emailed (5i) |
+| Not `EXECUTED`, under an hour old | Still applying |
+| `EXECUTED`, families not all told yet | Applied; the notifier is sending |
+| `EXECUTED`, every line notified | Done |
+| Not `EXECUTED`, **over an hour old** — the same threshold the drift check pages on (5k) | Stuck; the owner has been paged |
+| Any line `SKIPPED` as `LESSON_PASSED` | Lessons the coach must follow up — the same information the coach is emailed (5i) |
 
-The page refreshes the state while a change is applying. The rinkside app may show a
-one-line status for its own cancellations, but need not: a single cancellation finishes in
-seconds.
+*The coach-facing wording for each state moved to `FeatureDecriptions/C_Coach Schedule Save
+Status.md` on 2026-11-08 — product content, not an architecture decision.*
 
 ### 6. The CDC path needs its own watch
 

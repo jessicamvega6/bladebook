@@ -44,25 +44,19 @@ the launch timezone, by the same single Scheduler rule pattern as the other two 
 (ADR-001 decision 4). *Weekly is proposed; confirm.*
 
 It finds every **past** lesson still `UNPAID` whose date is older than the threshold, and
-sends **one email per coach** listing them:
-
-> *You have unpaid lessons from more than [threshold] ago. Please mark each one as paid or
-> waived.* — followed by the list (date, time, student, amount), and a link to the payment
-> dashboard (§10 feature 13).
+sends **one email per coach** listing them. What the email says and how each line is labelled
+is product content — see `FeatureDecriptions/Email templates Needed:` ("Unpaid lessons").
 
 - **One email per coach, not per lesson** — the same reasoning as ADR-006 decision 6: one
   decision to act on, not a mailbox flood.
-- **A lesson with no recorded outcome says so** in the list — *attendance not recorded* —
-  because the coach may need to correct attendance on the lesson list (ADR-014 decision 8)
-  before deciding whether it is owed.
 - **It goes to the coach's `loginEmail`**, the address Cognito verified (ADR-016 decision 4),
   not the `businessEmail` clients reply to.
 - **It covers every unpaid past lesson**, whatever its attendance status — including
-  no-shows. A no-show is charged the lesson's `missedLessonFeeMinor`, which is `0` in MVP,
-  but it still stays `UNPAID` until the coach marks it paid or waived (ADR-015 decision 4,
-  amended 2026-09-30). The reminder is what prompts them. It lists a no-show at its full
-  lesson price, labelled as a no-show, matching the dashboard. *Corrected 2026-09-30: this line
-  first said a no-show "is not charged" in MVP, which misstated the rule.*
+  no-shows and seats with no recorded outcome. A no-show is charged the lesson's
+  `missedLessonFeeMinor`, which is `0` in MVP, but it still stays `UNPAID` until the coach marks
+  it paid or waived (ADR-015 decision 4, amended 2026-09-30), so it stays in GSI3 and the query
+  must not filter on attendance. *Corrected 2026-09-30: this line first said a no-show "is not charged" in MVP,
+  which misstated the rule.*
 
 ### 2. The threshold is configuration, and unset means off
 
@@ -96,7 +90,9 @@ person can call, which keeps ADR-001 amendment A6's observation true in general 
 scheduled jobs read across coaches.**
 
 Phase 2 needs no change: chargeable late-cancellation lines join GSI3 while unpaid (ADR-015
-decision 4), so they are picked up automatically. The digest labels them as late fees.
+decision 4), so they are picked up automatically; the digest must be able to tell them apart
+from lessons (how they are labelled — see `FeatureDecriptions/Email templates Needed:`, "Unpaid
+lessons").
 
 ### 5. Operational fit
 

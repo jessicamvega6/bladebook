@@ -18,7 +18,8 @@ means keeping dev up that long.
 **Amended — 2026-10-12.** *Decided by the owner* (recorded under Open): a **16-month floor** on
 every window holding lesson or payment records, so [ADR-030](ADR-030-financial-page-gross-and-rink-fees.md)'s
 calendar-year financial page and its summary export stay whole until the filing deadlines;
-history screens say when older lessons are archived; and an archive restore writes an ADR-012
+history screens take their archive cutoff from the retention setting (what they say is in
+`FeatureDecriptions/Coach lesson list`); and an archive restore writes an ADR-012
 access-log entry.
 
 **Amended — 2026-10-13.** *Decided by the owner.* [ADR-031](ADR-031-lessons-and-seats.md)
@@ -266,12 +267,10 @@ by construction, and the scanner is what confirms it.
   expected to settle them; nothing is treated as abandoned. A weekly job emails the coach
   once a lesson has been unpaid past a threshold — see
   [ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md).
-- ~~**Does the coach see anything when their history ages out?**~~ A coach who looks for a
-  two-year-old lesson finds nothing, and nothing says why. **Settled 2026-10-12 by the
-  owner:** history screens say lessons settled more than *N* months ago are archived and can be
-  requested, with *N* read from the retention setting. A warning before archiving is Phase 2.
-  The financial page's summary export (MVP, decided 2026-10-12) lets a coach keep their yearly
-  totals before records age out.
+- ~~**Does the coach see anything when their history ages out?**~~ **Settled 2026-10-12 by the
+  owner** — product content, moved to `FeatureDecriptions/Coach lesson list` ("When older
+  lessons are archived") on 2026-11-08. What stays here: the history screens read the cutoff,
+  *N* months, from the retention setting, so what they say always matches decision 2's window.
 - **A 16-month floor** — *set by the owner, 2026-10-12.* Every window in decision 2 that holds
   lesson or payment records is at least 16 months, so the financial page's calendar-year
   totals survive until the US (15 April) and most Canadian (30 April) filing deadlines. It

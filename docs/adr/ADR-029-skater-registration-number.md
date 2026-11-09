@@ -21,20 +21,19 @@ owner's decisions.*
   purpose for §7's data minimisation.
 - **Every skater must have one,** adults and learn-to-skate beginners included. Decision 1
   stands as written.
-- **Nothing happens when a number lapses** in MVP: BladeBook doesn't check it. A reminder to
-  renew or update the number is **Phase 3**.
-- **Learn to Skate USA numbers are accepted** as a third kind of number (*owner*), so beginners
-  can sign up. Decisions 2–4 gain a third value; see the notes there.
-- **Coaches download the numbers for the rinks** (*owner*): a file on the coach's Students tab
-  with **Student First Name, Student Last Name, Skater Number**. It holds personal data about
+- **Nothing happens when a number lapses** in MVP: BladeBook doesn't check it (product detail —
+  see `FeatureDecriptions/Client Sign Up`, "Registration number").
+- **Learn to Skate USA numbers are accepted** as a third kind of number (*owner*). Decisions 2–4
+  gain a third value; see the notes there.
+- **Coaches download the numbers for the rinks** (*owner*; the feature is described in
+  `FeatureDecriptions/Coach Dashboard on website.md`, Student List). It holds personal data about
   skaters, many of them minors, so the download is logged as a read of personal data under
-  [ADR-012](ADR-012-pii-access-logging.md). Its phase and how the name is split are Open.
+  [ADR-012](ADR-012-pii-access-logging.md). How the name is split is Open.
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
 (`design/harbor/client/screens-account.js`, `acNumError`).* **US Figure Skating and Learn to
 Skate USA numbers are letters and digits, 1 to 20 characters**, not digits only. Anything else
-is refused with *"Use letters and numbers only."* or *"That's too long for a member number."*
-The rule stays loose on purpose until the real formats are known. USA Hockey's rule is
+is refused (messages in `FeatureDecriptions/Client Sign Up`, "Registration number"). The rule stays loose on purpose until the real formats are known. USA Hockey's rule is
 unchanged. Decision 4 is corrected below.
 
 ---
@@ -91,13 +90,10 @@ coach's `STUDENT#` record for that skater, as it does the skater's name (ADR-025
 Each coach the skater is with can see it, so a coach who wants to check it with the organisation
 can.
 
-*Added 2026-10-20 (owner):* the coach sees it on the **Students list**, in a "Skater number"
-column showing the number and its organisation for each skater, and on **Waiting for
-approval**, beside each skater waiting to be approved (`design/harbor/coach/static/students.html`,
-`pending.html`). The number is required at sign-up (decision 1), so every skater on either list
-has one; neither screen has a "no number" state. The list doesn't search by number (*owner*).
-The lists are already logged reads of students under ADR-012 decision 5a, so showing the number
-there adds no new logging.
+*Added 2026-10-20 (owner):* the coach sees it on the Students list and on Waiting for approval
+(screens in `FeatureDecriptions/Coach Dashboard on website.md`). The number is not searchable, so
+it needs no index. Those lists are already logged reads of students under ADR-012 decision 5a,
+so showing the number there adds no new logging.
 
 ### 4. Checked for shape, never for membership
 
@@ -110,8 +106,9 @@ the client API (`api-client`) and again in the browser for a quick message:
 4. store the cleaned-up form.
 
 **This checks the shape only.** It can't prove the number belongs to a real member, or that the
-membership is current. A rejected number gets a message naming the expected shape (*"14
-characters, 9 digits and 5 letters"*), never a hint that the number was looked up.
+membership is current. A rejected number's message names only the expected shape, never a hint
+that the number was looked up (wording in `FeatureDecriptions/Client Sign Up`, "Registration
+number").
 
 - **USA Hockey:** 14 characters, 9 digits and 5 letters. The season's check digit is a
   **setting**, not built into the code, because it changes every season.
@@ -148,11 +145,9 @@ else.
 - **New personal data about minors.** The number joins the skater's name in what ADR-012's
   access logging and ADR-022's client isolation protect. §7's data minimisation needs the
   stated purpose (Open). *Settled 2026-10-16 (Kim):* the stated purpose is that the rinks require it.
-- **The sign-up and profile screens need the organisation picker and the number box.** The
-  Harbor design already has them (`design/harbor/client/screens-account.js`). The coach's
-  Students list and Waiting for approval show each skater's number and organisation (*added
-  2026-10-20*, `design/harbor/coach/screens-students.js`). The sign-up and profile pickers offer
-  all three Phase 1 organisations (*Learn to Skate USA added to the design 2026-10-20*).
+- **New screens on both sites** (sign-up, profile, the coach's Students list and Waiting for
+  approval); *the design notes moved to `FeatureDecriptions/Client Sign Up` ("Registration
+  number") on 2026-11-08.*
 - **`consumer-family-sync` copies two more attributes.** No new function, event or permission.
 - **USA Hockey families must update the number every season.** Nothing forces it in MVP; what
   happens when a number lapses is Open. *Settled 2026-10-16 (Kim):* nothing happens when a number lapses; a renewal reminder is Phase 3.
@@ -178,7 +173,8 @@ else.
 - **Where the USA Hockey check digit setting lives** and who changes it each season.
 - **Retention:** the number lives on the `SKATER#` item, which ADR-017 keeps for the account's
   life. Confirm with the legal review.
-- **The rink download's phase** (MVP or later) *(added 2026-10-16)*.
+- *Moved to `FeatureDecriptions/Coach Dashboard on website.md` (handoff) on 2026-11-08: the rink
+  download's phase — a product question.*
 - **First and last name in the download** *(added 2026-10-16)*: the skater's name is one
   `studentName` field. Split it into first and last name at sign-up, or split it when the file
   is made.

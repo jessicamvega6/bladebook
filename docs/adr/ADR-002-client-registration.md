@@ -48,10 +48,9 @@ coach's roster. The family follows a consent link, signs in, confirms, and the s
 a family"*, confirms decision 2: the `PENDING` step stays in MVP.
 
 **Amended — 2026-10-09.** *Decided by the owner,* answering `Items to ask Kim About.md` §6
-questions 2 and 4. **The coach approves everyone, siblings included:** a skater a family adds
-later is `PENDING` like any new student (decision 2), however well the coach knows the family.
-**No reminder email for waiting approvals.** Instead the coach website's **Students** tab shows
-the number of pending students in its title.
+questions 2 and 4. A skater a family adds later is `PENDING` like any new student (decision 2),
+and no reminder email is sent for waiting approvals (product rules — see
+`FeatureDecriptions/Client Sign Up`, "Coach approval").
 
 **Amended — 2026-10-12.** [ADR-029](ADR-029-skater-registration-number.md): a family can't send a
 skater to a coach without a US Figure Skating or USA Hockey registration number. Decision 2a
@@ -78,14 +77,10 @@ The consent link is Phase 2.
 trigger adds the `Client` group when the family's email is verified, so registration, in the
 family's first signed-in session, already carries the group ADR-023 decision 7 requires.
 
-**Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
-(`design/harbor/client/screens-account.js`, which promises "We'll email you as soon as Coach Dana
-approves" in six places).* **The email telling a family their skater was approved is Phase 2.**
-MVP sends no approval email: the family sees the change the next time they open the website
-(the waiting banner goes, and the coach becomes bookable). When it ships, `consumer-student-link`
-sends it, since that consumer already handles the approval and sends the decline email. Until then,
-the six MVP messages must not promise an email; they say the family can book once the coach
-approves. The rewording is drawn in `design/harbor/client/` (2026-11-08).
+**Amended — 2026-11-06.** *Decided by the owner.* The email telling a family their skater was
+approved is Phase 2; MVP sends none (product rule — see `FeatureDecriptions/Client Sign Up`,
+"Coach approval"). When it ships, `consumer-student-link` sends it, since that consumer already
+handles the approval and sends the decline email.
 
 ---
 
@@ -107,21 +102,20 @@ had no way to discover what they were allowed to book for.
 
 ### 1. Clients self-register with a coach code
 
-There is no invite email and no coach-created credential. A client is given the
-site URL and the coach's **`coachCode`**, and registers themselves:
+There is no invite email and no coach-created credential. The family registers
+themselves with the coach's **`coachCode`** (the sign-up flow is product — see
+`FeatureDecriptions/Client Sign Up`, "Registration flow"). What registration writes:
 
-1. Create a Cognito account (email + password), verify the email.
-2. Enter the `coachCode`. It resolves to exactly one coach, or registration stops.
-3. Declare who they are registering:
-   - **themselves**, as an adult student → one student, `isMinor = false`,
+1. A Cognito account (email + password), with the email verified.
+2. The `coachCode` resolves to exactly one coach, or registration stops.
+3. One or more students, as declared:
+   - an adult registering themselves → one student, `isMinor = false`,
      `clientRelationship = SELF`, contact copied from the account;
-   - **their child**, as a parent or guardian → prompted for **one or more**
-     children, `isMinor = true`, `clientRelationship = PARENT | GUARDIAN`.
-4. Students are created with `studentStatus = PENDING`.
+   - a guardian registering children → one student per child, `isMinor = true`,
+     `clientRelationship = PARENT | GUARDIAN`.
+4. Every student is created with `studentStatus = PENDING`.
 
-Multiple children in one sign-up is a first-class path, not an afterthought — the
-sibling case is common enough that requiring a second account per child would be
-the wrong default.
+One account can register several children in one registration.
 
 ### 2. New students are PENDING until the coach confirms them
 
@@ -146,9 +140,9 @@ turned away.
 - **It is an application delete, not Time to Live (TTL) expiry**, so it is immediate and
   nothing is archived ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) archives only what
   TTL removes).
-- **The decline email has to go out from data that is being deleted.** The coach dashboard
-  description sends the client a message on decline (*"the coach does not have availability
-  to take on new students"*). The natural route is the change stream: the delete produces a
+- **The decline email has to go out from data that is being deleted.** The client is sent a
+  message on decline (product — see `FeatureDecriptions/Coach Dashboard on website.md`, the
+  Pending student list). The natural route is the change stream: the delete produces a
   removal carrying the deleted item's contents, and a consumer sends the email from it.
   *Settled 2026-10-12 by the owner:* `consumer-student-link` sends it (ADR-021 Open).
 - **The client's account is not deleted** by a rejection, even if it leaves them with no
@@ -161,8 +155,8 @@ A `coachCode` is created and assigned automatically when a coach account is crea
 — it is not something a coach requests or an operator issues. *Its shape (8 random
 characters, `7K2Q-M9XT`) and lifetime were settled 2026-10-13; see the amendment above.* Generation writes the
 `CODE#<coachCode>` lookup item with `attribute_not_exists(PK)`; on the (rare)
-collision, regenerate and retry. The code is displayed on the coach website for the
-coach to hand out.
+collision, regenerate and retry. Where the coach sees and copies the code is product (see
+`FeatureDecriptions/C_Coach Profile.md`, "Details").
 
 ### 3. The link is a record under the client, not an index
 
@@ -241,9 +235,9 @@ If codes should eventually expire, that is a DynamoDB **TTL attribute** on the
 
 ### 7. Reminders are per lesson, not per client
 
-Every scheduled lesson produces its own reminder. A client with two children who
-both have lessons on the same day receives **two** reminders, one per lesson. There
-is no per-client digest, no grouping, and no deduplication.
+Every scheduled lesson produces its own reminder: no per-client digest, no grouping, and no
+deduplication (product rule — see `FeatureDecriptions/Email templates Needed:`, "Day-of
+reminder").
 
 This confirms the loop in §6.2 as written — the job queries `GSI2PK = DATE#today`
 and notifies per booking — and means no change is needed there. It also keeps the

@@ -4,6 +4,11 @@ Bookings:
 Only families with an approved skater can book. A family still waiting sees "Booking opens once Coach <name> approves"
 instead (ADR-022 d6). *With several coaches it names each one: "Booking opens once Coach Dana or Coach Ben approves"
 (2026-10-13, ADR-025 i).*
+  If a skater stops being bookable while the family has the page open (declined or still pending; removed too once
+  removing a student arrives in Phase 2 *(owner, 2026-10-13)*), most often because the coach changed it, the family
+  sees a clear message: *"Mia's lessons are no longer available to book. Contact Coach Dana."*
+  A skater or booking that was never the family's shows a plain "not found", which doesn't confirm the item exists.
+  *(from ADR-024 decision 2, moved 2026-11-08)*
 
 Booking for: at the top of every booking page. With one approved skater it names them; with more, a switch picks which
 skater is being booked. Changing skater clears the picked times.
@@ -15,6 +20,8 @@ The booking PAGE view will only show the next 3 months. ~~This is a UI restricti
   A pick outside the window refuses the whole request: "That date is further ahead than you can book." Nothing is
     booked. (The page never offers such a date, so this only happens from outside the booking page.)
   Resubmitting the same request just after a new month starts isn't refused: it gets the same result as the first time.
+  *Open (Phase 2):* whether a coach booking for a family is held to the same window.
+    *(from ADR-031 §3 and Open, moved 2026-11-08)*
 The Booking Page will show a calendar view with the months available on the right hand side. Clicking each month will show the availability for that month. Availability is shown by having each square (whichrepresenting a day within that month) with the number of open lesson slots. A day that has no open lessons slots is ~~dark grey/~~disabled and cannot be clicked. On the left hand side next to the calendar view is ~~week 1-4~~ *one week link per row of the calendar ("Week 1", "Week 2", ...), with its dates; a week with nothing open says "Nothing open" and can't be clicked*. Clicking on a week link takes the client to that weekds Schedule view. Clicking on a day within the calendar takes you to that day's Schedule view.
 *Design additions:*
   Each month on the right shows how many open times it has. Previous and next arrows move between the three months.
@@ -23,6 +30,29 @@ The Booking Page will show a calendar view with the months available on the righ
   A "Booking window" note: you can see three months ahead; a repeating booking can run past that.
   Coach hasn't posted any times: the calendar is greyed out with "No lesson times yet" ~~and an
     "Email me when times appear" button~~. *Removed 2026-10-13: no email when times appear.*
+  *Settled by the owner, 2026-08-30 (a coach with no schedule at all):* the family sees the ordinary monthly
+    calendar with every day in Harbor's no-lessons day style, and clicking through to a day gives the ordinary day view with
+    no times to pick. No separate empty-state screen is built: an all-grey month is the normal rendering repeated,
+    since that style already means "no lessons" for a single day.
+    But that style alone is ambiguous, so one line of text is still needed. The no-lessons style means "this day isn't part of the
+    working week", a choice by the coach. An all-no-lessons month looks exactly like a coach who teaches nothing on
+    purpose, and a family who just registered with a coach code will read it as the app being broken or the coach
+    being fully booked. The calendar needs a line telling apart "this coach hasn't posted any times yet" from "this
+    coach doesn't teach these days". (The coach's own view prompts them to build a schedule instead; see
+    C_Coach Schedule Hub.md.)
+    *Ruled by the owner 2026-11-09.* The ADR named the Forest theme's `--stage` grey; the rule stands, in Harbor's no-lessons style.
+    *(from ADR-008 Open, moved 2026-11-08)*
+*Calendar and week view (decided 2026-08-15):*
+  Both the coach and the family get a monthly calendar and a week view. The month marks every date where the
+    schedule does something unusual (a date that differs from the coach's weekly schedule).
+  The week view runs Sunday to Saturday, with previous and next. Clicking any date in the month opens that day;
+    a week link opens the week. *Ruled by the owner 2026-11-09.* (Replaces ADR-006's "opens the week that contains it"; the coach's calendar
+    works the same way, owner 2026-11-08.)
+  Each day in a week stands on its own. In the owner's worked example, a family clicking Mon 17 Aug 2026 sees
+    Sun 16 – Sat 22, with 16–18 from the weekly schedule and 19–22 from date changes, and "next" moves to
+    Sun 23 – Sat 29, where 23–25 are changed and 26–29 are not.
+  The family's calendar is for booking and shows only whether a time is free, never who holds a taken one.
+  *(from ADR-006 §3, moved 2026-11-08)*
 
 A schedule view will ~~have time blocks starting at the coaches first lesson of the day, and going until the last lesson of the day, The Interval btwn the start of day and end of day will be the length of lessons. Example, Coaches first lesson of the day is 6am and the lesson is 30 mins, then the schedule will display the times 6:00 -6:30 6:30-7:00 etc up to the end of the day.~~ The schedule view will display the results from the coachs schedule query.
 *Design:* the day's times as a timeline, grouped by the coach's blocks. Each block is labelled with its name, lesson
@@ -34,6 +64,9 @@ A schedule view will ~~have time blocks starting at the coaches first lesson of 
   A day strip across the top shows the week, with each day's open count ("No ice" or "Full" when there's nothing),
   and arrows to the previous and next week. Picks are kept while moving between days.
   A special schedule day shows a banner with its name and dates. A time-off day says the coach is away.
+*Time zone (settled 2026-10-12 by the owner):* every booking time is shown in the coach's time zone and always
+  labelled with it, for every family. A family in a different time zone sees the coach's week. *Phase 2:* revisit
+  for competitions, which can be in another time zone. *(from ADR-006 Open, moved 2026-11-08)*
 
 
 A client will book by clicking on one or more open time block slot and hitting ~~submit~~ *Continue*. Clicking the block will select/deselect the lesson.
@@ -54,11 +87,24 @@ A confirmation page will display afterwards showing the successful and unsuccess
 *Design:*
   A headline: how many lessons were booked for the skater, and that a confirmation email is on its way.
   One card per picked time (or repeating series) with a bar showing how many dates were booked, already theirs, or unavailable.
-  Each date that couldn't be booked is listed with the reason (e.g. another family took it, time off, no times of that
-  length that week) and a "Pick another time" button. The family can also leave them; the rest are confirmed.
+  Each date that couldn't be booked is listed with one reason, the same for every date: "That time was taken or no
+  longer exists." It never says another family took it, or that the coach is away. *Ruled by the owner 2026-11-09.* A "Pick another time" button. The family can also leave them; the rest are confirmed.
   Resubmitting: a time already booked for this skater is recognised and never booked twice (ADR-006 d4b). Those dates
   are listed as "Already booked". If an earlier attempt booked a series that isn't in the new request, the page asks
   whether to keep or cancel it.
+    *Decided by the owner 2026-09-29:* the family decides, because the system can't tell whether they still want those
+      lessons or assumed that time failed. Cancelling on a guess is the one thing it must not do: a released time can
+      be taken by another family within minutes, while an unwanted lesson is visible and easy to cancel. The prompt:
+      > *You also have Wednesdays at 4:00pm booked from your earlier attempt.* **[Keep them] [Cancel them]**
+      Cancel them cancels all the series' future lessons.
+    *(from ADR-006 §4b, moved 2026-11-08)*
+  *Result wording for a repeating booking (decided 2026-08-15):*
+    > Booked 22 of 26 lessons. These dates could not be booked:
+    > 14 Sep, 21 Sep, 12 Oct, 23 Nov — *lesson slot either does not exist or is already taken.*
+    The two reasons a date can't be booked (no lesson at that time, or someone already holds it) are given as one
+      reason on purpose. Telling them apart would tell a family that another family holds that time, which they
+      have no reason to know. *Ruled by the owner 2026-11-09.* The screens use this combined reason.
+    *(from ADR-006 §4, moved 2026-11-08)*
   Buttons: "Book more" and "View my bookings".
 
 At least one lesson slot must be selected for the ~~Submit~~ *Continue* button to enabled. If the reocurring checkbox is unselected then the reoccuring frequency dropdown value in the object being submitted is set to null/empty.
@@ -81,6 +127,17 @@ book-confirm-two-coaches.html, book-result-two-coaches.html, book-result-coach-f
     nothing was booked with that coach and offers "Try again", which resends only that coach's picks and never
     books anything twice.
   Clashes are only warned about to the family; the coach isn't told.
+  *Decided by the owner 2026-10-06:* when a family books, the family website checks the skater's other lessons, with
+    any coach, and warns about an overlap:
+      "Mia already has a lesson with Coach Sam at 4:00 on Tue 14 Oct. Book anyway?"
+    The family can book anyway, for example back-to-back lessons at the same rink. For a recurring booking, the
+    warning lists every clashing date before the family confirms. *(from ADR-025 decision 5, moved 2026-11-08)*
+  The rest of the 2026-10-13 rules above (Designed in design/harbor/client/, book-*-coach-*, book-*-two-coaches) also
+    came from ADR-025. Two parts weren't here yet:
+    The clash warning can miss a clash made a second or two earlier; that's accepted for now. Revisit when coaches
+      can book on a family's behalf (Phase 2).
+    One coach removing a skater, or cancelling their lessons, doesn't affect the skater's lessons with other coaches.
+  *(from ADR-025, amendment 2026-10-13, items a–g, moved 2026-11-08)*
 
 Lessons can be split: reference 'Schedule lesson split' for details
 *Design (book-share-confirm.html, book-share-no-match.html, book-share-result.html): the box is in the confirm pop-up, only when a picked time can be shared.*
@@ -95,3 +152,34 @@ Lessons can be split: reference 'Schedule lesson split' for details
   Book stays off while the share-code box has anything in it, until the check passes. If the check fails or is rate-limited: "Couldn't check that code. Try again." Changing the code checks again; clearing it books a private lesson. (ADR-033 2a, 2026-10-20)
   A sibling the coach hasn't accepted yet shows as "not available to add until Coach Dana accepts them" and can't be
   picked.
+
+
+History: the 7-day booking window and deferred recurring lessons (superseded)
+*All of this is superseded by ADR-006 (2026-08-15): there is no 7-day window, and recurring lessons are MVP.
+ADR-031 decision 3 (2026-10-13) brings back a window of about 3 months on picks (see the top of this file).
+Kept as the record of what was decided on 2026-07-31.*
+
+  ~~Families can book at most 7 days ahead: a rolling window from today through today + 7 days, in the coach's time
+  zone. Times outside that window aren't shown, whatever the schedule would offer there.~~
+  ~~For MVP, families book each week for the week ahead. There is no way to reserve a standing time.~~
+  ~~Recurring lessons are Phase 2. MVP: families sign up each week. There is no standing booking, no automatic
+  booking, and no start-of-week email.~~
+  ~~This is a product cost, not a technical one. A coach can't publish a season of times, and families can't book a
+  month out. For a coach whose families plan ahead, a 7-day window is a likely first complaint, and recurring
+  lessons are what would make it bearable. Deferring them to Phase 2 means MVP asks every family to re-book weekly,
+  including the ones who have had the same Wednesday time for two years.~~
+  *(from ADR-005 §1, §4 and Consequences, moved 2026-11-08; superseded by ADR-006)*
+
+  Open questions at the time (all superseded by ADR-006):
+  ~~Can a coach book outside the window for a family? Assumed yes eventually. Not specified.~~
+    *(A related question is open again under ADR-031 decision 3: whether a coach booking for a family is held to
+    the 3-month window.)*
+  ~~Phase 2, carried forward unanswered:~~
+    ~~What happens when a recurring lesson can't be placed (coach on vacation, or a special schedule moved that
+      weekday's hours)? Skip it silently, email the family, or tell the coach? This happens every time a coach takes
+      a week off, so it isn't an edge case.~~
+    ~~Who creates the recurrence: a family ticking "repeat weekly" when booking, or the coach marking a standing
+      student? This decides who can end it, and touches ADR-002.~~
+    ~~Can a family skip one week without ending the arrangement? Needs a way to cancel one booked lesson while
+      keeping the arrangement, and overlaps cancellation.~~
+  *(from ADR-005 Open, moved 2026-11-08; superseded by ADR-006)*
