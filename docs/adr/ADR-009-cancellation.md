@@ -53,6 +53,17 @@ operations stay, except on a shared series (ADR-031 decision 9; product rule in
 `FeatureDecriptions/cancelation.md`). Every behaviour rule still holds unless ADR-031 says
 otherwise.
 
+**Amended — 2026-11-08.** *Decided by the owner, settling conflicts S8 and S9 in the
+implementation plan (`design/harbor/coach/screens-calendar.js`).* **"This week" closes the rest
+of the week.** *Cancel rest of week* cancels every booked lesson and every open lesson time from
+now to Saturday (all of a future week), and every one becomes `HELD`: booked lessons are held
+with no release-or-hold question, and open times are held too. Decision 5's per-lesson
+release-or-hold still applies to *this lesson* and *this day*, never once for a selection (S9).
+Decision 6 still holds: the weekly schedule isn't touched, so the following week is unaffected.
+Decision 7's button still states the range and count, now of booked lessons and open times.
+**The rinkside page's whole week (decision 5a) works the same way.** A whole day, part of a day
+or week, specific lessons and the check-in list still ask release-or-hold per lesson.
+
 ---
 
 ## Context
@@ -243,9 +254,15 @@ of that.
 
 ### 5. Coach cancellation, and the coach-held slot
 
-A coach cancels one lesson, one day or one week from the week view, and each cancellation
-asks whether to **release** the time or **hold** it (product rule — see
-`FeatureDecriptions/cancelation.md`, "Coach cancelation"). The two answers write:
+The **coach week view** lists the week by timeslot, showing unbooked slots as *Open* and
+booked slots with the student's name. Cancellation happens from there, in three scopes:
+
+1. **This lesson** — a forgotten appointment.
+2. **This day** — illness.
+3. **This week** — an emergency.
+
+Each asks one question: **release the time for rebooking, or keep it unbookable?** *This week
+always holds, and holds open times too (Status, 2026-11-08).*
 
 - **Release** — ~~the booking item is deleted.~~ *each seat moves to a `CANCELLED#` line and
   the lesson time goes back to `OPEN` (ADR-031 decision 2, 2026-10-13).* The slot returns to
@@ -294,6 +311,10 @@ anything else in range, and not a feature.
 
 *Added 2026-09-22.* The rinkside app offers cancellation from a cancel section and from the
 check-in list (screens and rules: `FeatureDecriptions/Coach App`, moved 2026-11-08).
+
+*Amended 2026-11-08 (Status):* the cancel section's **whole week** holds every booked lesson and
+open time left in the week, with no release-or-hold question, like the week view's *Cancel rest
+of week*. Everything else below still applies to the other choices.
 
 **It is the same operation, not a second one.** Whatever the surface, a coach cancellation
 writes the same `CHANGEBATCH#` header and `CANCELLED#` lines with `cancelledBy = COACH`

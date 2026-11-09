@@ -74,6 +74,16 @@ late-confirmation rule. `seatStatus` is `INVITED | BOOKED | CHECKED_IN | NO_SHOW
 Once the invited family accepts, the seat is `BOOKED`, and an inviting family's cancel is an
 ordinary leave (decision 8).
 
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict S11 in the implementation
+plan (`design/harbor/coach/screens-calendar.js`).* When the **coach cancels** a lesson whose
+invited seat is still `INVITED`, the cancel deletes that seat in the same transaction as the
+other seats, with **no `SEATEND#` record and no email** (MVP). A later accept or decline finds no
+seat and writes nothing ("no longer available"). This is the one seat that ends without being
+moved (decision 2). *Phase 2:* record the ending and tell the invited family.
+
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict B5:* decision 3 adds that the
+family's day view shows only days inside the booking window.
+
 ---
 
 ## Context
@@ -170,7 +180,10 @@ anything is written.
   *unavailable*, this can only come from something other than the booking page.)
 - A retry is never refused by the window: the window only grows as time passes (on May 1 it
   runs to the end of July), so a pick that was inside it stays inside it.
-- *Open (Phase 2):* moved to `FeatureDecriptions/Bookings:` on 2026-11-08 — a product question.
+- *Open (Phase 2):* whether a coach booking for a family (ADR-009) is held to the same window.
+- **The family's day view shows only days inside the window.** Previous and next stop at its
+  edges. *Added 2026-11-08 by the owner, settling conflict B5 in the implementation plan
+  (`design/harbor/client/screens-booking.js`).*
 
 ### 4. Booking a time
 

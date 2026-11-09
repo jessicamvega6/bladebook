@@ -144,33 +144,17 @@ In week view there will be multiple ways to cancel.
 3) cancel per lesson (ex forgotten appts). *Design: click a booked lesson.*
 *Design: day cancel is the "Cancel day" button under each day.*
 each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) ~~is assigned to the coach~~ *becomes a held lesson time: closed to families, with no skater in it (changed 2026-10-13, ADR-031 decision 1)*. The default/temp schedule is not changed. 
-*Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed", with a
-"Release all" link. A held time stays closed to families.
-*From ADR-009 decision 5:* the coach week view lists the week by timeslot, showing unbooked slots as Open and booked
-  slots with the student's name. Cancellation happens from there, in three scopes: this lesson (a forgotten
-  appointment), this day (illness), this week (an emergency). Each asks one question: release the time for rebooking,
-  or keep it unbookable? Release: the slot returns to availability. Hold: the slot stays unbookable.
-  A hold is permanent for MVP. *Decided by the owner, 2026-08-25.* There is no release action: once a coach keeps a
-  slot unbookable, it stays that way. This is defensible because a hold is an exception — the coach has already decided
-  they are not teaching that time — and because the alternative was a delete affordance on a slot that looks much like
-  a booking, which is its own hazard. But the cost should be stated plainly: a coach who holds a slot by mistake cannot
-  undo it, and that time is gone from their week. Revisit when a coach reports holding a slot by mistake — the likeliest
-  way this comes back.
-  What families see: *settled by the owner, 2026-09-30:* a held slot shows as taken, exactly like a slot another family
-  has booked. A client sees their own lessons as theirs; every other taken slot looks the same, with no indication of
-  who holds it or why — another family or the coach.
-  *(from ADR-009 §5 and Open, moved 2026-11-08)*
-*From ADR-009 decision 5a (rinkside app):* "part of a day" and "part of a week" are not new scopes. *Settled by the
-  owner, 2026-09-22:* they are the coach-held spots — a coach selects several lessons within a day or a week, cancels
-  them, and the slots they keep become held lesson times. That is a multi-select of "this lesson". What changes is the
-  selection, not the rules: the cancel section lets a coach pick more than one lesson before confirming; everything
-  else is as above. The three scopes stand. (Screens: Coach App and C_Rinkside Cancel Several Lessons.md.)
-  Release-or-hold is asked per lesson, not once for the selection. *Decided by the owner, 2026-09-22.* A multi-select
-  of six lessons asks six times. That is real friction, and it is the right trade against permanence: a hold cannot be
-  undone, so a single answer applied to a whole selection would create several irreversible holds from one tap. It is
-  also a genuinely per-slot judgement — a coach clearing an afternoon may want to release the early slots for rebooking
-  and hold the late ones.
-  *(from ADR-009 §5a and Open, moved 2026-11-08)*
+*Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed"~~, with a
+"Release all" link~~. A held time stays closed to families.
+*Changed 2026-11-08 (owner; ADR-009):*
+  - The release-or-hold choice is asked one lesson at a time, never once for all of them. There is no "Release all" link.
+  - "Cancel rest of week" doesn't ask. It cancels everything left in the week, Sunday–Saturday, from now on (all of a
+    future week): every booked lesson and every open time is held closed. The weekly schedule doesn't change, so the
+    next week is untouched. The button says the dates it covers and how many booked lessons and open times it closes.
+  - The rinkside page's whole-week cancel works the same way.
+  - A shared-lesson invitation that hasn't been answered when the coach cancels the lesson is quietly removed: no
+    record, no email. If the family answers later, nothing is written and they see "no longer available".
+    *Phase 2:* record it and tell the invited family.
 
 For cancelation types 1 & 2, only cancel the lessons that have not happened yet. 
 *From ADR-009 decision 7:* a coach cancelling "everything today" at 2pm does not cancel the 9am lesson that already took

@@ -438,6 +438,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .alertcard__body { color: var(--text-2); margin-top: 2px; }
 .bb .alertcard__body b { color: var(--text); }
 .bb .alertcard .check { border-color: var(--danger-border); }
+.bb .alertcard--warn { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .alertcard--warn .alertcard__head { color: var(--warning); }
+.bb .alertcard--warn .alertcard__title { color: var(--warning-text); }
+.bb .alertcard--warn .check { border-color: var(--warning-border); }
 .bb .delta { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
 .bb .delta b { color: var(--success-text); font-size: 15px; }
 .bb .progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
@@ -771,13 +775,14 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Cancel</span><b>Cancel several — confirm</b><span class="sp-bar__note">New. One confirmation listing every lesson, which are held, and which families are emailed.</span><nav class="sp-bar__nav"><a href="week.html">← Cancel several lessons</a><a href="index.html">All pages</a><a href="account.html">Account →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Cancel</span><b>Cancel several — confirm</b><span class="sp-bar__note">New. One confirmation listing every lesson, which are held, and which families are emailed.</span><nav class="sp-bar__nav"><a href="week.html">← Cancel several lessons</a><a href="index.html">All pages</a><a href="week-all-confirm.html">Cancel the rest of the week — confirm →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     <header class="phone__head"><div><a class="rk-home" href="../../coach/demo/index.html#today"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Your dashboard</span></a><div class="phone__title">This week</div><div class="phone__sub">Wed, Oct 14 – Sat, Oct 17 · cancel lessons</div></div><span class="rk-pill rk-pill--ok"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>All saved</span></header>
     
     <div class="phone__body rk-body">
-    <p class="fine">Pick the lessons to cancel. For each one, choose whether the time can be booked again.</p><section class="rk-day"><div class="rk-day__head"><b>Today, Oct 14</b><button type="button" class="link" data-act="rkSelDay" data-arg='[&quot;2026-10-14&quot;,true]'>Select whole day</button></div>
+    <section class="rk-card"><b>Cancel the rest of the week</b><p class="fine">Holds everything left from now to Saturday: 8 lessons and 11 open times. Families can’t book them. Your schedule doesn’t change.</p><button type="button" class="btn btn--danger-outline btn--block" data-act="rkWeekAllAsk"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.18 4.18A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18M21 15.5V6a2 2 0 0 0-2-2H9.5M3 10h7M21 10h-5.5M16 2v4M8 2v4M2 2l20 20"/></svg><span>Cancel rest of week</span></button></section>
+    <p class="fine">Or pick lessons to cancel. For each one, choose whether the time can be booked again.</p><section class="rk-day"><div class="rk-day__head"><b>Today, Oct 14</b><button type="button" class="link" data-act="rkSelDay" data-arg='[&quot;2026-10-14&quot;,true]'>Select whole day</button></div>
       <div class="rk-pick"><label class="rk-pick__row"><input type="checkbox" class="check__input" data-act="rkSel" data-arg='[&quot;b64&quot;]'><span class="num rk-pick__t">8:30</span><span class="rk-pick__n">Owen B.</span><span class="rl__len">30 min</span></label>
         </div><div class="rk-pick is-on"><label class="rk-pick__row"><input type="checkbox" class="check__input" checked data-act="rkSel" data-arg='[&quot;b63&quot;]'><span class="num rk-pick__t">10:00</span><span class="rk-pick__n">Leo M.</span><span class="rl__len">30 min</span></label>
         <div class="seg seg--block" role="group"><button type="button" class="seg__opt" data-act="rkHold" data-arg='[&quot;b63&quot;,0]' aria-pressed="false">Release</button><button type="button" class="seg__opt is-on" data-act="rkHold" data-arg='[&quot;b63&quot;,1]' aria-pressed="true">Hold closed</button></div></div>

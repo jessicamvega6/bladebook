@@ -40,19 +40,33 @@ only exception to keeping coaches' data apart out of MVP.
 to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
 
 **Amended — 2026-10-13.** *Decided by the owner.* **Booking with more than one coach**
-(decisions 3, 5 and 7). Items **a–g** are product rules for the booking pages, *moved to
-`FeatureDecriptions/Bookings:` ("Booking with more than one coach") on 2026-11-08*. The
-technical parts that stand here:
+(decisions 3, 5 and 7). Designed in `design/harbor/client/` (`book-*-coach-*`, `book-*-two-coaches`).
 
-- **b.** A clash is any overlap in time; lessons that only touch don't clash. Decision 5's check
-  uses that rule.
-- **e.** A booking across coaches is **one request per coach** (decision 3), and each succeeds or
-  fails on its own. A retry resends only the failed coach's picks, and a time already booked for
-  the skater is recognised and never booked twice (ADR-006 d4b).
-- **f.** The clash check can miss a clash made a second or two earlier (decision 5); accepted
-  for now. Revisit when coaches can book on a family's behalf (Phase 2, ADR-009).
-- **g.** One coach removing a skater, or cancelling their lessons, doesn't affect the skater's
-  lessons with other coaches. (Narrows blocker #17.)
+- **a. One coach at a time.** The booking pages have a **Coach** dropdown listing the coaches
+  the selected skater is with. A coach still to approve that skater is listed but can't be
+  picked. **Switching coach keeps the times already picked with other coaches**; switching
+  skater clears them, as before. *Your picks* groups the picks by coach with a total for each,
+  never one total across coaches.
+- **b. What counts as a clash** (decision 5): any overlap in time. Lessons that only touch
+  (one ends at 8:00, the next starts at 8:00) don't clash. Allowing travel time between rinks
+  is **Phase 3**.
+- **c. One Repeat and one Until for the whole booking.** They apply to every pick, whichever
+  coach it's with.
+- **d. Notice periods differ by coach.** *Phase 2 since 2026-11-08 (Status); in MVP every
+  coach's notice period is 24 hours.* Both booking pages show the selected coach's
+  cancellation notice period. The confirm pop-up doesn't list each coach's terms; when the
+  family has more than one coach it says *"Coaches can have different cancellation notice
+  periods."*
+- **e. Each coach's booking succeeds or fails on its own.** A booking across coaches is one
+  request per coach (decision 3). The result page has **one section per coach**. If one
+  coach's request fails, that section says nothing was booked with them and offers **Try
+  again**, which resends only that coach's picks. A time already booked for the skater is
+  recognised and never booked twice (ADR-006 d4b).
+- **f. The clash warning goes to the family only.** It can miss a clash made a second or two
+  earlier (decision 5); that's accepted for now. The coach isn't told. Revisit when coaches can
+  book on a family's behalf (Phase 2, ADR-009).
+- **g. One coach removing a skater, or cancelling their lessons, doesn't affect the skater's
+  lessons with other coaches.** (Narrows blocker #17.)
 
 **Amended again — 2026-10-13.** *Decided by the owner.* **The rest of the family website**
 (decisions 2, 3 and 7). Items **h–o** are product rules for the family website, *moved on
@@ -86,6 +100,13 @@ see `FeatureDecriptions/ClientProfileView`, "Add a skater with no coach yet"). T
 can't be booked, invited or added as a sibling until the family adds a coach (decision 2).
 - `consumer-family-sync` has no coach to copy a skater with no coach to, so it writes nothing but the
   share code. The "waiting" rule (item i) doesn't count a skater with no coach either way.
+
+**Amended — 2026-11-08.** *Decided by the owner, settling conflict B6 in the implementation plan
+(`design/harbor/client/app.js`, `screens-booking.js`).* Item **d** is **Phase 2**. In MVP every
+coach's notice period is **24 hours**: `requiredNoticeHours` defaults to 24 and can't be edited
+([ADR-016](ADR-016-coach-signup.md)), so no two coaches differ. Both booking pages still show
+the selected coach's notice period. The confirm pop-up's *"Coaches can have different
+cancellation notice periods."* arrives in Phase 2, with editing `requiredNoticeHours`.
 
 ---
 

@@ -63,6 +63,8 @@ A schedule view will ~~have time blocks starting at the coaches first lesson of 
   booked or not, including the family's own lesson and other families' bookings.*
   A day strip across the top shows the week, with each day's open count ("No ice" or "Full" when there's nothing),
   and arrows to the previous and next week. Picks are kept while moving between days.
+  *2026-11-08 (owner):* only days inside the booking window can be shown. The arrows stop at the window's edges, so
+    a day before today or after the window's end can't be opened.
   A special schedule day shows a banner with its name and dates. A time-off day says the coach is away.
 *Time zone (settled 2026-10-12 by the owner):* every booking time is shown in the coach's time zone and always
   labelled with it, for every family. A family in a different time zone sees the coach's week. *Phase 2:* revisit
@@ -87,8 +89,9 @@ A confirmation page will display afterwards showing the successful and unsuccess
 *Design:*
   A headline: how many lessons were booked for the skater, and that a confirmation email is on its way.
   One card per picked time (or repeating series) with a bar showing how many dates were booked, already theirs, or unavailable.
-  Each date that couldn't be booked is listed with one reason, the same for every date: "That time was taken or no
-  longer exists." It never says another family took it, or that the coach is away. *Ruled by the owner 2026-11-09.* A "Pick another time" button. The family can also leave them; the rest are confirmed.
+  Each date that couldn't be booked is listed ~~with the reason (e.g. another family took it, time off, no times of that
+  length that week)~~ *with one message whatever the cause: "lesson slot either does not exist or is already taken", so
+  no family learns about another's booking (owner, 2026-11-08)* and a "Pick another time" button. The family can also leave them; the rest are confirmed.
   Resubmitting: a time already booked for this skater is recognised and never booked twice (ADR-006 d4b). Those dates
   are listed as "Already booked". If an earlier attempt booked a series that isn't in the new request, the page asks
   whether to keep or cancel it.
@@ -117,12 +120,13 @@ book-confirm-two-coaches.html, book-result-two-coaches.html, book-result-coach-f
     still to approve that skater is listed but can't be picked. The pages show one coach's times at a time.
   Switching coach keeps the times picked with other coaches (a note says so). Switching skater clears all picks.
   "Your picks" groups picks by coach, with a total per coach and no total across coaches.
-  Both booking pages show the selected coach's cancellation notice period.
+  Both booking pages show the selected coach's cancellation notice period. *In MVP it's 24 hours for every coach
+    (owner, 2026-11-08); notice periods that differ by coach are Phase 2.*
   A time that overlaps the skater's lesson or pick with another coach is marked, not blocked. Only overlapping
     times clash; lessons that only touch don't. Travel time between rinks is Phase 3.
   Confirm pop-up: picks listed per coach, a lesson count and total per coach, every clashing date listed and the
-    button reads "Book anyway". One Repeat and Until apply to every pick. With more than one coach it says
-    "Coaches can have different cancellation notice periods."
+    button reads "Book anyway". One Repeat and Until apply to every pick. ~~With more than one coach it says
+    "Coaches can have different cancellation notice periods."~~ *That line is Phase 2 (owner, 2026-11-08).*
   Result: one section per coach. Each coach's booking goes through on its own; if one fails, its section says
     nothing was booked with that coach and offers "Try again", which resends only that coach's picks and never
     books anything twice.
