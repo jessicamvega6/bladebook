@@ -292,10 +292,10 @@ add('Family · Sign up', 'ClientSkaters', '4 · Add skaters', 1280, () => wizard
 add('Family · Sign up', 'ClientSkatersSelf', '4 · Skater — myself', 1280, () => wizard('Family sign up', FAM_STEPS, 3, card(`
   <h1 class="h1">You’re the skater</h1><p class="lede">Check your details — this is who Coach Dana will see.</p>
   <div class="skater">${avatar('JR')}<div class="skater__text"><b>Jordan Reyes ${badge('You', 'primary')}</b><small>Adult · from your account details</small></div>${btn('Edit', 'ghost', { sm: true, icon: 'pencil' })}</div>
-  ${check('I’m 18 or older', true, 'If you’re under 18, a parent or guardian needs to sign up and add you as their skater.')}
+  ${check('I’m 18 or older', false, 'If you’re under 18, a parent or guardian needs to sign up and add you as their skater.')}
   <p class="fine">Booking for someone else? <a class="link">Change who the lessons are for</a>.</p>
   ${actions(btn('Back', 'ghost', { icon: 'arrowL' }), btn('Send to Coach Dana', 'primary', { lg: true, iconR: 'arrowR' }))}`),
-  help('Skating yourself', 'Reminders, confirmations and payment reminders all come to you. Coach Dana still approves you before you can book — usually within a day.')), 'Fixed the garbled copy in the original (“If youFamilies book…”) and made the age confirmation an explicit checkbox.');
+  help('Skating yourself', 'Reminders, confirmations and payment reminders all come to you. Coach Dana still approves you before you can book — usually within a day.')), 'Fixed the garbled copy in the original (“If youFamilies book…”) and made the age confirmation an explicit checkbox. It starts unticked, and Send stays off until it’s ticked (owner, 2026-11-09).');
 
 add('Family · Sign up', 'ClientDone', '5 · Pending approval', 1280, () => wizard('Family sign up', FAM_STEPS, 4, card(`
   <div class="hero hero--success hero--stack"><span class="hero__icon">${ic('check', 26)}</span><div><h1 class="h1">You’re in</h1><p class="lede">Signed in as grace.chen@example.com. One thing left: Coach Dana’s approval.</p></div></div>

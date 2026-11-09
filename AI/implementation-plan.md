@@ -371,7 +371,13 @@ The full list, with what closes each one, is in the root `README.md`.
   - **Wording the designs don't give:** "Enter the skater’s member/registration number.", "Pick at
     least one coach for Ava Park.", "Add at least one skater.", "You’re already signed up. Log in
     to see your account.", and the coach's "No students yet" empty state.
-  - **Step 4 for an adult skater:** "Change who the lessons are for" switches to the guardian form.
+  - **An email that already has a family** is refused on step 2 ("You already have an account with
+    this email", with Log in instead), as Cognito's sign-up will; the stand-in checks for an existing
+    family itself (owner, 2026-11-09).
+  - **Step 4 for an adult skater:** "Change who the lessons are for" goes back to step 2 with the
+    guardian option chosen, as the design does. *Owner, 2026-11-09:* "I’m 18 or older" starts
+    unticked and must be ticked before sending (the design drew it ticked and inert); the design and
+    `FeatureDecriptions/Client Sign Up` are updated to match.
   - **Password rules** checked in the browser follow the design's list (8 characters, upper, lower,
     number, symbol); the real rules are the Cognito user pool's.
   - **The decline dialog keeps its designed wording** ("gets an email") although locally no email

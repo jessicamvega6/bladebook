@@ -59,6 +59,11 @@ email: used for logging in, confirmations and reminders.
 
 password field, with the password rules listed under it (at least 8 characters)
 confirm password field: confirm password can =not allow pasting. The hint says pasting is turned off.
+  *Decided by the owner 2026-11-09:* an email that already has a family account is refused **on this step**, when
+    "Create account" is pressed, not after the skaters are entered on step 4. The message is "You already have an
+    account with this email", with "Log in instead" (to the log-in page) or use a different email. Cognito's sign-up
+    refuses a taken email the same way; until the user pool exists, the local stand-in checks for an existing family
+    itself.
 
 "Create account" button.
 
@@ -77,6 +82,9 @@ Step 4, Skaters:
     "Send to Coach <name>" is disabled until at least one skater is added.
   Adult skating themselves ("You're the skater"): their own name from step 2, an "I'm 18 or older" box, and their
     organization and number. A link lets them change who the lessons are for.
+    *Decided by the owner 2026-11-09:* "I'm 18 or older" is a real confirmation. It starts unticked, and the send
+    button stays off until it's ticked. The note under it says a skater under 18 needs a guardian to sign up and add
+    them. "Change who the lessons are for" goes back to step 2 with "A child I'm guardian of" chosen.
 
 Clients must have a USFSA/USA Hockey registration number to sign up. This number is given to them from the USFSA/USA Hockey organization. USA Hockey numbers change each season; US Figure Skating members seem to keep theirs. *Since 2026-10-16: US Figure Skating, USA Hockey or Learn to Skate USA (ADR-029); other organizations, Kim §12.*
     Check to see if there is an API to check if the number is valid for the year/season.  *No way to verify it is valid as of now. Coach can verify themselves if they care*

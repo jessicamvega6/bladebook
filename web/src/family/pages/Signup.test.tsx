@@ -16,6 +16,7 @@ function serve() {
     if (url === '/api/client/coach-codes/4R8TWH6C') return json(200, BEN);
     if (url.startsWith('/api/client/coach-codes/')) return json(404, { error: 'NO_COACH', message: 'x' });
     if (url === '/api/client/local/token') return json(200, { idToken: 'tok' });
+    if (url === '/api/client/me') return json(404, { error: 'NO_ACCOUNT', message: 'Finish signing up first.' });
     if (url === '/api/client/registration') { sent = JSON.parse(init!.body as string); return json(201, WAITING); }
     return json(500, {});
   });
@@ -135,7 +136,16 @@ test('an adult skating themselves sends one skater under their own name', async 
 
   expect(await screen.findByRole('heading', { name: 'You’re the skater' })).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText('Member number'), 'lts 4815');
-  await userEvent.click(screen.getByRole('button', { name: /Send to Coach Dana/ }));
+  const send = screen.getByRole('button', { name: /Send to Coach Dana/ });
+  const adult = screen.getByRole('checkbox', { name: /I’m 18 or older/ });
+  expect(adult).not.toBeChecked(); // a real confirmation (owner, 2026-11-09)
+  expect(send).toBeDisabled();
+  await userEvent.click(adult);
+  expect(send).toBeEnabled();
+  await userEvent.click(adult);
+  expect(send).toBeDisabled();
+  await userEvent.click(adult);
+  await userEvent.click(send);
 
   await waitFor(() => expect(sent?.relationship).toBe('SELF'));
   expect(sent?.skaters).toEqual([{ name: 'Priya Shah', skatingOrg: 'USFS', registrationNumber: 'lts 4815', coachCodes: ['7K2QM9XT'] }]);
@@ -206,4 +216,41 @@ test('with two coaches each skater picks which coaches, at least one', async () 
 
   await waitFor(() => expect(sent?.coachCodes).toEqual(['7K2QM9XT', '4R8TWH6C']));
   expect(sent?.skaters[0]?.coachCodes).toEqual(['4R8TWH6C']);
+});
+
+test('“Change who the lessons are for” goes back to step 2 with the guardian option chosen, as designed', async () => {
+  start('tok');
+  await enterCode('7K2QM9XT');
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Me (18 or older)' }));
+  await userEvent.type(screen.getByLabelText('First name'), 'Priya');
+  await userEvent.type(screen.getByLabelText('Last name'), 'Shah');
+  await userEvent.type(screen.getByLabelText('Mobile phone'), '205-555-0144');
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Change who the lessons are for' }));
+
+  expect(screen.getByRole('heading', { name: 'About you' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'A child I’m guardian of' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('an email that already has a family account is refused on step 2, not after step 4', async () => {
+  const { props } = start();
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    if (url === '/api/client/coach-codes/7K2QM9XT') return json(200, DANA);
+    if (url === '/api/client/local/token') return json(200, { idToken: 'tok' });
+    if (url === '/api/client/me') return json(200, WAITING);
+    return json(500, {});
+  }));
+  await enterCode('7K2QM9XT');
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
+  await details();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+  expect(await screen.findByText('You already have an account with this email')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Log in instead' })).toHaveAttribute('href', '#/login');
+  expect(props.onToken).not.toHaveBeenCalled();
+  expect(sessionStorage.getItem('bb.family.idToken')).toBeNull();
+  expect(screen.getByRole('heading', { name: 'About you' })).toBeInTheDocument();
 });

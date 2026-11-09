@@ -4,11 +4,12 @@
  *
  *   1 Coach code: checked as it's typed, several coaches allowed (ADR-025 item h).
  *   2 Your details: who the lessons are for, names, mobile, and the account. Creating the account is Cognito's;
- *     here the local stand-in signs the family in with the email (shortcut SC-1). Already signed in (an
+ *     here the local stand-in signs the family in with the email (shortcut SC-1). An email that already has a
+ *     family account is refused here, as Cognito's sign-up would refuse it. Already signed in (an
  *     account with no family yet), the email is shown, not asked for.
  *   3 Verify email: Cognito's, not built (gap G-14). The stepper marks it done.
  *   4 Skaters: the adult themselves, or a guardian's children (minors only, A7), each with an organization and
- *     number and the coaches they join.
+ *     number and the coaches they join. An adult ticks "I’m 18 or older" before sending (owner, 2026-11-09).
  *   5 Waiting for approval. No page promises an approval email (A10).
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -105,10 +106,12 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
   const [selfOrg, setSelfOrg] = useState(0);
   const [selfNum, setSelfNum] = useState('');
   const [selfCoaches, setSelfCoaches] = useState<string[] | null>(null);
+  const [adult, setAdult] = useState(false);
   const [skaters, setSkaters] = useState<Array<SkaterDraft & { coaches: string[] }>>([]);
   const [draft, setDraft] = useState<SkaterDraft>({ name: '', org: 0, number: '', coaches: null });
   const [done, setDone] = useState<Family | null>(null);
   const [error, setError] = useState('');
+  const [existing, setExisting] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const self = forWho === 0;
@@ -212,7 +215,19 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
       setBusy(true);
       setError('');
       try {
-        onToken(await familySession.signIn(email.trim()));
+        const t = await familySession.signIn(email.trim());
+        // Cognito's sign-up refuses an email that already has an account. The stand-in signs any email in,
+        // so it checks for a family here instead, rather than after step 4 (owner, 2026-11-09).
+        const taken = await familyApi(t).me().then(() => true, (e: unknown) => {
+          if (e instanceof ApiError && e.code === 'NO_ACCOUNT') return false;
+          throw e;
+        });
+        if (taken) {
+          familySession.signOut();
+          setExisting(true);
+          return;
+        }
+        onToken(t);
         setStep(3);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
@@ -229,6 +244,11 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
         <Card>
           <h1 className="h1">About you</h1>
           <p className="lede">The person who books and pays for lessons.</p>
+          {existing && (
+            <Banner tone="danger" title="You already have an account with this email">
+              <a className="link" href="#/login">Log in instead</a>, or use a different email to sign up.
+            </Banner>
+          )}
           {error && <Banner tone="danger">{error}</Banner>}
           <div className="fieldset">
             <div className="label">Who are the lessons for?</div>
@@ -243,7 +263,7 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
             <Field label="Mobile phone" type="tel" value={phone} onChange={setPhone} autoComplete="tel" error={show(problems.phone)} />
             {token
               ? <div className="field"><label className="label" htmlFor="su-email">Email</label><input id="su-email" className="ctl" value={signedInEmail} disabled readOnly /><div className="hint">You’re signed in with this email.</div></div>
-              : <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" error={show(problems.email)} hint="For logging in, confirmations and reminders." />}
+              : <Field label="Email" type="email" value={email} onChange={(v) => { setEmail(v); setExisting(false); }} autoComplete="email" error={show(problems.email)} hint="For logging in, confirmations and reminders." />}
           </div>
           {!token && (
             <>
@@ -304,14 +324,14 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
               <Avatar name={`${first} ${last}`} />
               <div className="skater__text"><b>{first} {last} <Badge tone="primary">You</Badge></b><small>Adult · from your account details</small></div>
             </div>
-            <Check label="I’m 18 or older" sub="If you’re under 18, a guardian needs to sign up and add you as their skater." checked onChange={() => undefined} />
+            <Check label="I’m 18 or older" sub="If you’re under 18, a guardian needs to sign up and add you as their skater." checked={adult} onChange={setAdult} />
             <OrgFields org={selfOrg} number={selfNum} onOrg={setSelfOrg} onNumber={setSelfNum} />
             <CoachPick coaches={all} on={mine} onToggle={(c) => setSelfCoaches(toggle(selfCoaches, c))} />
-            <p className="fine">Booking for someone else? <button type="button" className="link" onClick={() => setForWho(1)}>Change who the lessons are for</button>.</p>
+            <p className="fine">Booking for someone else? <button type="button" className="link" onClick={() => { setForWho(1); setStep(1); }}>Change who the lessons are for</button>.</p>
             <div className="actions">
               <div><Button variant="ghost" icon="arrowL" onClick={() => setStep(1)}>Back</Button></div>
               <div className="actions__r">
-                <Button lg iconRight="arrowR" disabled={busy || !numberOk(org, selfNum) || !mine.length}
+                <Button lg iconRight="arrowR" disabled={busy || !adult || !numberOk(org, selfNum) || !mine.length}
                   onClick={() => send({ ...base, relationship: 'SELF', skaters: [{ name: `${first.trim()} ${last.trim()}`, skatingOrg: org, registrationNumber: selfNum, coachCodes: mine }] })}>
                   {sendLabel}
                 </Button>
