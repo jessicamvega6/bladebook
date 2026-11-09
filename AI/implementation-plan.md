@@ -81,14 +81,14 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | Neither: *Cancel rest of week* closes the rest of the Sunday–Saturday week from now on (all of a future week). Booked lessons and open lesson times all become `HELD`, with no release-or-hold question; the weekly schedule is unchanged. The button still states the range and count (ruled 2026-11-08). *ADR updated: ADR-009, ADR-MASTER (By the coach).* |
 | S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | ADR: release-or-hold is asked per lesson, never once for a selection, for *this lesson* and *this day* (*this week* always holds, S8) (ruled 2026-11-08) |
 | S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | ADR: the warning sits at the top of the review page, in the warning colours (ruled 2026-11-08). **Redrawn 2026-11-08:** `coach/static/schedule-review.html` |
-| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | **Not ruled yet** |
+| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | Neither: in MVP the coach's cancel deletes the unanswered invited seat with no record and no email, and a later answer writes nothing. Recording it and telling the family is Phase 2 (ruled 2026-11-08). *ADR updated: ADR-031, ADR-MASTER (Seats; Ending an invitation; §24).* |
 | S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | Screen: the day view as drawn (ruled 2026-11-08). Batch 2 builds it; its cancel buttons come with Batch 5. *No ADR text yet.* |
 
 ### Family booking and shared lessons
 
 | ID | Conflict | ADR | Screen | Resolution |
 |---|---|---|---|---|
-| B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | ADR: one merged message, *"lesson slot either does not exist or is already taken"* (ruled 2026-11-08) |
+| B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | ADR: one merged message, *"That time was taken or no longer exists."* (ruled 2026-11-08; wording 2026-11-09) |
 | B2 | Answer-by ignores the "7 days after the leave" limit | M:726-727 | `client/screens-booking.js:338-339` | **Not ruled yet** |
 | B3 | The staying family gets one card per lesson; the ADR wants one card per series with Keep all / Cancel all remaining | M:740-751 | `client/screens-booking.js:348-351` | **Not ruled yet** |
 | B4 | A shared series still offers "end earlier" and "make less frequent" | M:758-762 | `client/screens-booking.js:413,455-463,597` | **Not ruled yet** |
@@ -105,15 +105,15 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 
 | ID | Conflict | ADR | Screen | Resolution |
 |---|---|---|---|---|
-| R1 | **The rinkside page has Undo on a recorded outcome; correction is website-only** | ADR-014:337-339, M:1005 | `rinkside/screens-rink.js:29,72-77` | **Not ruled yet** |
+| R1 | **The rinkside page has Undo on a recorded outcome; correction is website-only** | ADR-014:337-339, M:1005 | `rinkside/screens-rink.js:29,72-77` | ADR: no Undo on the phone; a recorded outcome is corrected on the website's Lessons page (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js`, `rinkside/app.js`. *Feature note: `FeatureDecriptions/Coach App`.* |
 | R2 | Logging out deletes queued check-ins; M says they survive a sign-out (ADR-023 leaves explicit logout open) | M:1213 | `rinkside/screens-rink.js:19,194-196` | **Not ruled yet** |
-| R3 | The "Not sent" list has only Dismiss; the ADR wants Record on the website / Done, 7-day removal and the wrong-clock case | M:997-1001 | `rinkside/screens-rink.js:58,135` | **Not ruled yet** |
-| R4 | A family cancellation is shown as a failure the coach must dismiss; the ADR says report it and clear it | ADR-014:194-199 | `rinkside/app.js:128-130` | **Not ruled yet** |
+| R3 | The "Not sent" list has only Dismiss; the ADR wants Record on the website / Done, 7-day removal and the wrong-clock case | M:997-1001 | `rinkside/screens-rink.js:58,135` | ADR: each entry has *Record on the website* and *Done*, is marked a day before it goes, and is removed after 7 days; only a wrong-clock entry is listed (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js`. *Feature note: `FeatureDecriptions/C_Rinkside Offline.md`.* |
+| R4 | A family cancellation is shown as a failure the coach must dismiss; the ADR says report it and clear it | ADR-014:194-199 | `rinkside/app.js:128-130` | ADR: a family's cancellation is reported and cleared, not listed as a failure; the lesson shows as cancelled on Today (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/app.js`. *Feature note: `FeatureDecriptions/C_Rinkside Offline.md`.* |
 | R5 | The offline Week tab shows the whole week; only today is cached | M:968-969 | `rinkside/screens-rink.js:149-159` | **Not ruled yet** |
-| R6 | The cancel dialog leaves out the date | M:940-941 | `rinkside/screens-rink.js:123` | **Not ruled yet** |
-| R7 | Payments lets a waived lesson be undone; waived is final | ADR-003:207-210, M:1030 | `coach/screens-money-profile.js:83,115` | **Not ruled yet** |
+| R6 | The cancel dialog leaves out the date | M:940-941 | `rinkside/screens-rink.js:123` | ADR: the dialog names the skater, date and time, e.g. *"Cancel Leo M. · Today, Wed, Oct 14 · 10:00 AM?"* (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js` (`today-cancel`, `today-shared-cancel`). |
+| R7 | Payments lets a waived lesson be undone; waived is final | ADR-003:207-210, M:1030 | `coach/screens-money-profile.js:83,115` | ADR: waived is final. No Undo on a waived lesson, and *Waive* always asks for confirmation first; Undo stays on paid lessons (ruled 2026-11-09). **Redrawn 2026-11-09:** `coach/screens-money-profile.js` (new `payments-waive`). |
 | R8 | The example late-cancellation text adds words the fixed template doesn't have | M:1128 | `coach/screens-money-profile.js:263` | **Not ruled yet** |
-| R9 | Copy says rinkside "can only see today's lessons" | M:1174-1185 | `coach/app.js:81`, `rinkside/screens-rink.js:191` | **Not ruled yet** |
+| R9 | Copy says rinkside "can only see today's lessons" | M:1174-1185 | `coach/app.js:81`, `rinkside/screens-rink.js:191` | ADR: the text says what the page is for, not what it can see: *"…shows today's lessons, attendance and cancelling"* and *"This page is for today's lessons, attendance and cancelling"*. The rinkside sign-in reaches every coach route (ADR-023 d2–3) (ruled 2026-11-09). **Redrawn 2026-11-09:** `coach/app.js`, `coach/screens-money-profile.js` (Profile → Account), `rinkside/screens-rink.js`. |
 | R10 | MVP email wording differs: weekly unpaid reminder, end-of-day report, the Payments footnote, the financial-page caveat | M:1044, M:1061, M:1152-1160, M:1075 | `coach/screens-money-profile.js:100,178,388-393` | **Not ruled yet** |
 
 ## 5. Batches
@@ -221,7 +221,11 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Capture only while the seat is `BOOKED`.
   - `statusOf` (not recorded).
 - **Slice:** rinkside Today (Present / No-show), contact on a tap (logged), then the coach Lessons page with its date range and corrections.
-- **Left out:** R1 (Undo), R6 and R9 until ruled.
+- **Rulings (2026-11-09):**
+  - R1: no Undo on the phone; corrections are made on the website's Lessons page.
+  - R6: the rinkside cancel dialog names the skater, date and time.
+  - R9: the coach website and rinkside text says what the page is for, not that it "can only see today's lessons".
+- **Left out:** nothing.
 
 ### Batch 8 — Payments (MVP 13, part)
 
@@ -230,15 +234,15 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Paid and waived transitions.
   - No totals across currencies.
 - **Slice:** Payments, with a date range, the Unpaid/All switch, mark paid with how they paid, waive, and undo paid.
-- **Left out:** undoing a waived lesson (R7).
+- **Ruling (2026-11-09):** R7: waived is final, with a confirmation before waiving. Undo is for paid lessons only.
 
 ### Later batches (planned after Batch 8, in this order)
 
 | # | Batch | Holding it back |
 |---|---|---|
 | 9 | Recurring bookings and recurrence changes | B4, B9 |
-| 10 | Rinkside offline queue and service worker | R2–R5 |
-| 11 | Shared lessons: share code, invite, accept, leave | B2, B3, B7, B8, B10, B11, S11; the gate-test rows |
+| 10 | Rinkside offline queue and service worker | R2, R5 (R3 and R4 ruled 2026-11-09) |
+| 11 | Shared lessons: share code, invite, accept, leave | B2, B3, B7, B8, B10, B11; the gate-test rows |
 | 12 | Financial page: gross and the summary CSV | Rink-fee method |
 | 13 | Emails and scheduled jobs (confirmations, day-of, morning, end-of-day, unpaid reminder) | Question 4, R10 |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | How the link is built and how long it lasts (ADR-MASTER §25). Proposed: a one-time random token, valid 24 hours |

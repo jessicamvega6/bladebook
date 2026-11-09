@@ -8,7 +8,7 @@
    Owen 8:30 and Leo 10:00 are to come, and 11:00 is a held slot.
 
    A shared lesson (ADR-026 d6) is one booking with the other skaters in l.with. Each skater is a "seat" with their
-   own status, so they're recorded, queued offline and undone one at a time; cancelling cancels every seat.
+   own status, so they're recorded and queued offline one at a time; cancelling cancels every seat.
 
    Bottom sheets (more, contact, cancel, week confirmation, sign out) live in state.sheet and are drawn inside
    the phone, because a sheet belongs to the phone's frame rather than the page. */
@@ -38,8 +38,7 @@ function freshState() {
     rk: {
       online: true, loaded: true, syncedAt: fmtT(NOW_MIN - 4),
       queue: [],          // entries saved on the phone, waiting to send, one per skater: { lid, sid, outcome, at }
-      unsent: [],         // entries the server rejected: { lid, name, when, outcome, at, reason }
-      undo: null,         // the seat whose outcome can still be undone: 'lessonId/studentId'
+      unsent: [],         // wrong-clock entries the server refused (ADR-014 d4a): { lid, name, when, outcome, at, reason, days }
       toast: '',
       serverCancel: null, // a lesson the family cancelled while the phone had no signal
       sel: {}, hold: {},  // week tab: selected lesson ids, and which are held rather than released
@@ -105,8 +104,8 @@ const RK_SHEETS = {};
 const sheetOpen = (kind, extra = {}) => { state.sheet = { kind, on: state.screen, ...extra }; };
 
 /* ---------- actions every screen uses ---------- */
-/** Run before any coach action: a new action ends the undo window and clears the last toast. */
-const fresh = () => { rk().undo = null; rk().toast = ''; };
+/** Run before any coach action: clears the last toast. */
+const fresh = () => { rk().toast = ''; };
 Object.assign(ACTIONS, {
   rkClose() { state.sheet = null; },
   rkSignal(on) {
@@ -121,18 +120,18 @@ Object.assign(ACTIONS, {
     }
     if (r.online) return;
     r.online = true; r.loaded = true;
-    let sent = 0;
+    let sent = 0, cleared = 0;
     for (const q of r.queue) {
       const l = lessonById(q.lid);
       const st = student(q.sid);
-      if (l && r.serverCancel === l.id) {
-        r.unsent.push({ lid: l.id, name: st.name, client: st.client, when: `${dDow(l.iso)} · ${fmtT(l.t)}`, outcome: q.outcome, at: q.at,
-          kind: 'cancelled', reason: `${esc(st.client)} cancelled this lesson at ${FAMILY_CANCELLED_AT}. Your phone had no signal, so it didn’t know. Your ${q.outcome === 'NO_SHOW' ? 'no-show' : 'check-in'} wasn’t recorded.` });
-      } else if (l) sent++;
+      // A family's cancellation is its own reason, not a failure: the entry is cleared, and the lesson shows as
+      // cancelled on Today (ADR-014 d4; owner, 2026-11-09). Only a wrong-clock entry is listed on Not sent (d4a).
+      if (l && r.serverCancel === l.id) cleared++;
+      else if (l) sent++;
     }
     if (r.serverCancel) { const l = lessonById(r.serverCancel); if (l) { l.status = 'FAMILY_CANCELLED'; l.cancelledAt = FAMILY_CANCELLED_AT; delete l.at; l.saved = false; } r.serverCancel = null; }
     r.queue = []; r.syncedAt = fmtT(NOW_MIN);
-    r.toast = r.unsent.length ? `Back online. ${plural(sent, 'check-in')} sent, ${plural(r.unsent.length, 'couldn’t be sent', 'couldn’t be sent')}.` : `Back online. ${sent ? plural(sent, 'check-in') + ' sent.' : 'Everything is up to date.'}`;
+    r.toast = `Back online. ${sent ? plural(sent, 'check-in') + ' sent.' : 'Everything is up to date.'}${cleared ? ' A family had cancelled; see Today.' : ''}`;
   },
   /** Demo bar: 0 = 6:35, 1 = 8:40, 2 = 5:45. Going back before the first lesson starts the morning over. */
   rkClock(which) {

@@ -78,7 +78,7 @@ SCREENS.login = () => authShell(card(`
   <div class="fine"><a class="link" href="${href('forgot')}">Forgot your password?</a></div>
   ${B('Log in', 'primary', 'login', { block: true, lg: true })}
   <p class="fine center">Sign-in is handled by Amazon Cognito. After five wrong passwords, wait a few minutes before trying again.</p>`),
-  help('Checking in at the rink?', 'Use the BladeBook rinkside app on your phone. It signs in with the same email and password, but can only see today’s lessons.'));
+  help('Checking in at the rink?', 'Use the BladeBook rinkside page on your phone. It signs in with the same email and password, and shows today’s lessons, attendance and cancelling.'));
 SCREENS.forgot = () => authShell(card(state.auth.step === 0 ? `
   <h1 class="h1">Reset your password</h1><p class="lede">We’ll email a 6-digit code to your login email.</p>
   ${INP('fp-email', 'Login email', 'auth.email', { type: 'email' })}
