@@ -544,7 +544,8 @@ editor keeps those apart.
   wherever it is shown (§8).
 - **A seat that ends is moved, not kept**, in one transaction with its delete: cancelled → a
   `CANCELLED#` line; declined, withdrawn or expired → a `SEATEND#` record. Its key is then free
-  for the same skater to book again.
+  for the same skater to book again. *MVP exception:* an unanswered invited seat on a lesson the
+  coach cancels is deleted with no record (Ending an invitation, 2026-11-08).
 
 ### The booking window
 
@@ -552,6 +553,10 @@ Each picked time must fall **between today and the end of the month two months a
 in the coach's timezone (on April 24: April, May, June). A recurring series is checked on its
 first date only. A pick outside the window refuses the **whole** request (*"That date is further
 ahead than you can book."*). The window only grows, so a retry is never refused by it.
+
+**The family's day view shows only days inside the window.** Previous and next stop at its
+edges, so a day before today or past the window's end can't be opened (ADR-031 decision 3,
+2026-11-08).
 
 ### Booking a time
 
@@ -611,8 +616,11 @@ message: *"lesson slot either does not exist or is already taken."*
   keeps picks made with other coaches; switching skater clears them.
 - *Your picks* groups by coach with a total per coach, never one total.
 - **One Repeat and one Until** for the whole booking, applied to every pick.
-- Both booking pages show the selected coach's cancellation notice period. With more than one
-  coach, the confirm pop-up says *"Coaches can have different cancellation notice periods."*
+- Both booking pages show the selected coach's cancellation notice period. **In MVP it is 24
+  hours for every coach**, because `requiredNoticeHours` can't be edited yet (ADR-025 d,
+  2026-11-08). *Phase 2*, once a coach can edit it: notice periods differ by coach, and with more
+  than one coach the confirm pop-up says *"Coaches can have different cancellation notice
+  periods."*
 - **One request per coach.** The result page has one section per coach; a failed coach's section
   says nothing was booked with them and offers **Try again**, which resends only that coach's
   picks.
@@ -691,6 +699,7 @@ presents it in that order.
 | Booking family cancels their own seat, invited seat `INVITED` | Their cancel ends it `WITHDRAWN` in the same transaction |
 | Booking family cancels their own seat after the invited family accepted | An ordinary leave of a shared lesson, in time or late |
 | The lesson starts first | `EXPIRED` (the `EXPIRE` deadline). **No earlier cutoff.** The lesson goes ahead private |
+| The coach cancels the lesson, invited seat still `INVITED` | **MVP:** the coach's cancel deletes the invited seat in the same transaction as the other seats, with **no `SEATEND#` record and no email**. A later accept or decline finds no seat and writes nothing; the family sees "no longer available". *Phase 2:* record the ending and tell the invited family (§24). *Owner, 2026-11-08* |
 
 When an invitation ends, `seatsTaken` drops and the lesson stays private at the full price, or
 reopens if no seat is left.
@@ -929,18 +938,26 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 ### By the coach
 
 - **The coach week view** lists the week by time: *Open*, the skater's name, or held.
-- **Scopes:** this lesson, this day, this week. Each lesson asks **release** (seats move to
-  `CANCELLED#`, the lesson time reopens) or **hold** (seats move to `CANCELLED#`, the lesson time
-  becomes `HELD`) — **asked per lesson**, never once for a selection.
+- **Scopes:** this lesson, this day, this week. For *this lesson* and *this day*, each lesson
+  asks **release** (seats move to `CANCELLED#`, the lesson time reopens) or **hold** (seats move
+  to `CANCELLED#`, the lesson time becomes `HELD`) — **asked per lesson**, never once for a
+  selection.
 - **A hold is permanent.** There is no release action. Families see a held time as taken.
-- **"This week"** is the Sunday–Saturday week on screen, from now on. The button states the range
-  and count: *"Cancel remaining lessons Wed 14 – Sat 17 (6 lessons)."* A future week cancels all
-  of it.
+- **"This week"** (*Cancel rest of week*) is the Sunday–Saturday week on screen, from now on, and
+  **closes all of it**: every booked lesson is held (seats move to `CANCELLED#`, the lesson time
+  becomes `HELD`) and every open lesson time becomes `HELD`, with no release-or-hold question. A
+  future week closes all of it. The weekly schedule isn't changed, so the next week is untouched.
+  The button states the range and how many booked lessons and open times it closes (ADR-009,
+  2026-11-08).
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
 - **From the rinkside page**, two places: a **cancel section** (whole or part of a day, whole or
   part of a week, specific lessons — "part of" is a multi-select) and a **cancel action on each
   lesson in the check-in list**.
+  - **The whole week works like *Cancel rest of week*:** from now to Saturday, every booked
+    lesson and open time is held, with no release-or-hold question. A whole day, part of a day or
+    week, specific lessons and the check-in list still ask release-or-hold per lesson (ADR-009,
+    2026-11-08).
   - **Disabled with no signal:** *"Cancelling needs a connection."*
   - **A cancel from the check-in list always confirms, even for one lesson.** The dialog names the
     lesson (skater, date, time), puts its confirm button away from where the original tap landed,
@@ -1694,7 +1711,11 @@ database-gate tests; reproducing an incident (masked build).
 - Late-cancellation and no-show **charges**, the MF field in the editor, a definite fee amount at
   booking and in confirmations, the `NoShowRecorded` payment reminder, chargeable `CANCELLED#`
   lines with payment fields and GSI3 entries.
-- Editing `requiredNoticeHours`.
+- **An invitation ended by the coach's cancel:** record it (a `SEATEND#` line) and tell the
+  invited family. In MVP the invited seat is deleted with no record or email (Ending an
+  invitation, 2026-11-08).
+- Editing `requiredNoticeHours`, so notice periods differ by coach, with the confirm pop-up's
+  *"Coaches can have different cancellation notice periods."* (ADR-025 d, 2026-11-08).
 - Personal prices (`priceMinorOverride`) and discounts.
 - A manual *send payment reminder* action, with `paymentReminderCount` and `lastPaymentReminderAt`
   and a rate limit.

@@ -78,22 +78,22 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | S5 | The block Name field always shows; the ADR asks for it only once a second block exists | M:484-485 | `coach/schedule.html:969-970` | Screen: the block Name field always shows, in a special schedule too (ruled 2026-11-08). *ADR updated: ADR-008, ADR-MASTER (The editor).* |
 | S6 | The 7pm default end, length defaulting to 30, and slots past the end time are in the ADR but not on screen | M:479-481 | `coach/schedule.html:762,1016-1019` | ADR: the slots run to 7:00 PM when the end is blank, length becomes 30 when a slot is clicked with none set, and no slot runs past the end time (ruled 2026-11-08) |
 | S7 | Clicking a month date opens the day view; the ADR says it opens that week | M:497 | `coach/screens-calendar.js:79` | Screen: on the coach's month calendar, clicking a date opens that day (ruled 2026-11-08). *ADR updated: ADR-006, ADR-MASTER (Calendars).* |
-| S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | **Not ruled yet** |
-| S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | **Not ruled yet** |
+| S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | Neither: *Cancel rest of week* closes the rest of the Sunday–Saturday week from now on (all of a future week). Booked lessons and open lesson times all become `HELD`, with no release-or-hold question; the weekly schedule is unchanged. The button still states the range and count (ruled 2026-11-08). *ADR updated: ADR-009, ADR-MASTER (By the coach).* |
+| S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | ADR: release-or-hold is asked per lesson, never once for a selection, for *this lesson* and *this day* (*this week* always holds, S8) (ruled 2026-11-08) |
 | S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | ADR: the warning sits at the top of the review page, in the warning colours (ruled 2026-11-08). **Redrawn 2026-11-08:** `coach/static/schedule-review.html` |
-| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | **Not ruled yet** |
+| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | Neither: in MVP the coach's cancel deletes the unanswered invited seat with no record and no email, and a later answer writes nothing. Recording it and telling the family is Phase 2 (ruled 2026-11-08). *ADR updated: ADR-031, ADR-MASTER (Seats; Ending an invitation; §24).* |
 | S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | **Not ruled yet** |
 
 ### Family booking and shared lessons
 
 | ID | Conflict | ADR | Screen | Resolution |
 |---|---|---|---|---|
-| B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | **Not ruled yet** |
+| B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | ADR: one merged message, *"lesson slot either does not exist or is already taken"* (ruled 2026-11-08) |
 | B2 | Answer-by ignores the "7 days after the leave" limit | M:726-727 | `client/screens-booking.js:338-339` | **Not ruled yet** |
 | B3 | The staying family gets one card per lesson; the ADR wants one card per series with Keep all / Cancel all remaining | M:740-751 | `client/screens-booking.js:348-351` | **Not ruled yet** |
 | B4 | A shared series still offers "end earlier" and "make less frequent" | M:758-762 | `client/screens-booking.js:413,455-463,597` | **Not ruled yet** |
-| B5 | The day view can step outside the booking window | M:544-549 | `client/screens-booking.js:155,159` | **Not ruled yet** |
-| B6 | Coaches have different notice periods; MVP fixes it at 24 hours (ADR-025 also says notice differs by coach, so the ADRs disagree with each other) | M:292, M:1687 vs M:608-610 | `client/app.js:31`, `client/screens-booking.js:23,424` | **Not ruled yet** |
+| B5 | The day view can step outside the booking window | M:544-549 | `client/screens-booking.js:155,159` | Neither, a new rule: the family's day view shows only days inside the booking window; previous and next stop at its edges (ruled 2026-11-08). *ADR updated: ADR-031 decision 3, ADR-MASTER (The booking window).* |
+| B6 | Coaches have different notice periods; MVP fixes it at 24 hours (ADR-025 also says notice differs by coach, so the ADRs disagree with each other) | M:292, M:1687 vs M:608-610 | `client/app.js:31`, `client/screens-booking.js:23,424` | ADR, for MVP: 24 hours for every coach. Per-coach notice periods, and the *"Coaches can have different…"* pop-up line, are Phase 2 (ruled 2026-11-08). *ADR updated: ADR-025 d, ADR-MASTER (Booking with more than one coach; §24).* |
 | B7 | The clash list stops at six; the ADR lists every clashing date | M:615-616 | `client/screens-booking.js:284` | **Not ruled yet** |
 | B8 | Expired and "cancelled, no answer" come from stored status, not from the clock | M:774-775 | `client/screens-account.js:193,332-335,432-435` | **Not ruled yet** |
 | B9 | The recurrence change doesn't name the late lessons | M:916-917 | `client/screens-booking.js:466` | **Not ruled yet** |
@@ -182,7 +182,10 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Price share for one skater.
 - **Slice:** pick a day, pick times, confirm, then results.
   - The coach's week view shows the skater's name.
-- **Needs rulings:** B1 (the result page) and B5 (the window edge in the day view). **Without a ruling on B1 the results page can't be built, so the booking flow isn't complete end to end.**
+- **Rulings (2026-11-08):**
+  - B1: the results page gives one merged message for a failed date, never a separate reason.
+  - B5: the day view shows only days inside the booking window.
+  - **Redrawn 2026-11-08:** `client/screens-booking.js` (one message on the results page; the day strip stops at the window's edges) and `client/app.js` (every coach's notice is 24 hours).
 
 ### Batch 5 — Cancel one lesson, family and coach (MVP 7, 8, 10, part)
 
@@ -193,7 +196,12 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 - **Slice:**
   - My bookings and the family's cancel dialog.
   - Coach cancels one lesson, a day, or the rest of the week from the week view, choosing release or hold per lesson.
-- **Needs rulings:** B6, S8 and S9.
+- **Rulings (2026-11-08):**
+  - B6: the notice period is 24 hours for every coach; `Notice.isLate` uses the lesson's stamped `requiredNoticeHours`.
+  - S8: *Cancel rest of week* holds every booked lesson and open time left in the week.
+  - S9: release-or-hold is asked per lesson for *this lesson* and *this day*. The rinkside whole-week cancel holds everything, like S8.
+  - S11: the coach's cancel deletes an unanswered invited seat with no record or email; a later answer writes nothing.
+  - **Redrawn 2026-11-08:** `coach/screens-calendar.js` (no *Release all*; *Cancel rest of week* states the range and count, and its new preview, `cancel-preview-week`, holds everything) and `rinkside/screens-rink.js` (*Cancel rest of week* on the Week tab, `week-all-confirm`).
 
 ### Batch 6 — Time off, special schedules, and the save impact preview (MVP 3, 6)
 

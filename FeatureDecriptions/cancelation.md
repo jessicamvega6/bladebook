@@ -81,8 +81,17 @@ In week view there will be multiple ways to cancel.
 3) cancel per lesson (ex forgotten appts). *Design: click a booked lesson.*
 *Design: day cancel is the "Cancel day" button under each day.*
 each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) ~~is assigned to the coach~~ *becomes a held lesson time: closed to families, with no skater in it (changed 2026-10-13, ADR-031 decision 1)*. The default/temp schedule is not changed. 
-*Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed", with a
-"Release all" link. A held time stays closed to families.
+*Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed"~~, with a
+"Release all" link~~. A held time stays closed to families.
+*Changed 2026-11-08 (owner; ADR-009):*
+  - The release-or-hold choice is asked one lesson at a time, never once for all of them. There is no "Release all" link.
+  - "Cancel rest of week" doesn't ask. It cancels everything left in the week, Sunday–Saturday, from now on (all of a
+    future week): every booked lesson and every open time is held closed. The weekly schedule doesn't change, so the
+    next week is untouched. The button says the dates it covers and how many booked lessons and open times it closes.
+  - The rinkside page's whole-week cancel works the same way.
+  - A shared-lesson invitation that hasn't been answered when the coach cancels the lesson is quietly removed: no
+    record, no email. If the family answers later, nothing is written and they see "no longer available".
+    *Phase 2:* record it and tell the invited family.
 
 For cancelation types 1 & 2, only cancel the lessons that have not happened yet. 
 

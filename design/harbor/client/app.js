@@ -23,12 +23,12 @@ const FAMILIES = {
 
 /* ---------- other coaches (ADR-025) ----------
    Coach Dana is state.profile, shared with the coach and rinkside demos. Every other coach a family has lives here, with
-   their own schedule, prices and notice period. A lesson with no `coach` is Dana's. A skater's status with Dana is
+   their own schedule and prices. Every coach's notice period is 24 hours in MVP (B6, 2026-11-08). A lesson with no `coach` is Dana's. A skater's status with Dana is
    `status`; with anyone else it's `links[coachId]` (ACTIVE or PENDING), approved by that coach alone (ADR-025 d2). */
 const DANA = 'dana';
 function freshCoaches() {
   return {
-    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: '4R8T-WH6C', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 48, currency: 'USD',
+    ben: { id: 'ben', first: 'Ben', last: 'Ortiz', code: '4R8T-WH6C', sport: 'Power skating', phone: '(205) 555-0177', businessEmail: 'ben@ortizpower.com', showPhone: false, showEmail: true, notice: 24, currency: 'USD',
       blocks: [{ name: 'Early edges', days: [3], sod: 450, eod: 570, len: 60, price: 70 }, { name: 'Power skating', days: [2, 4], sod: 930, eod: 1110, len: 45, price: 65 }],
       specials: [{ name: 'Seminar', kind: 'timeoff', sd: '2026-10-29', ed: '2026-10-29' }] },
     lauren: { id: 'lauren', first: 'Lauren', last: 'Hayes', code: '3J9W-QZ7E', sport: 'Hockey skating skills', notice: 24, currency: 'USD', blocks: [], specials: [] },
