@@ -6,6 +6,9 @@ Coach Sign Up:
     first name (step 1)
     last name (step 1)
     password (step 1), with the password rules listed under it (at least 8 characters)
+        *Decided by the owner 2026-11-09 (ADR-023 d11):* steps 1 and 2 are BladeBook's own pages, not Cognito's hosted
+        sign-up page, so sign-up stays one flow. The browser sends the email, password and code straight to Cognito,
+        which creates the account, sends the code and enforces the password rules; BladeBook's servers never see them.
     <!-- business EIN / tbd Canada's version -->
     login email (step 1): private; the coach logs in with it and gets the daily report and the morning email there.
                     Step 2 verifies it with a 6-digit emailed code, with Resend code and Change email links.
@@ -75,6 +78,8 @@ Open questions:
 Cognito will take care of this. 
 Username: 
 Forgot password: 
+*2026-11-09 (ADR-023 d11):* Cognito keeps the passwords and checks them; the forms the coach types into are
+BladeBook's own pages (see C_Coach Log In.md and C_Coach Forgot Password.md).
 
 
 
