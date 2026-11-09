@@ -79,8 +79,9 @@ SCREENS.payments = () => {
   const rowsHtml = list.map(l => {
     const s = student(l.sid);
     const acts = l.pay === 'UNPAID'
-      ? `${B('Waive', 'ghost', 'mpWaive', { sm: true, args: [l.id, l.k] })}${B('Mark paid', 'secondary', 'mpPaidOpen', { sm: true, icon: 'check', args: [l.id, l.k] })}`
-      : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
+      ? `${B('Waive', 'ghost', 'mpWaiveAsk', { sm: true, args: [l.id, l.k] })}${B('Mark paid', 'secondary', 'mpPaidOpen', { sm: true, icon: 'check', args: [l.id, l.k] })}`
+      // Waived is final (ADR-003; R7, owner 2026-11-09): no Undo, and Waive always asks first. Paid can still be undone.
+      : l.pay === 'WAIVED' ? '<span class="muted">Final</span>' : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
     // How they paid sits under the Paid badge and can be changed afterwards. Waived lessons have none.
     const how = l.pay !== 'PAID' ? '' : `<small class="mp-how">${l.paidBy ? `${PAID_BY_LABEL[l.paidBy]} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
     return `<tr${statusOf(l) === 'NOT_RECORDED' ? ' class="mp-attn"' : ''}><td><span class="cellname">${avatar(initials(s.name), 'sm')}<span>${esc(s.name)}${s.rel !== 'Self' ? `<small class="mp-sub">${esc(s.client)}</small>` : ''}${mpSharedWith(l)}</span></span></td>
@@ -111,10 +112,20 @@ Object.assign(ACTIONS, {
     p.pay = 'PAID'; p.paidBy = v; state.modal = null;
     state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: ${m.edit ? (v ? `paid by ${PAID_BY_LABEL[v]}.` : 'how they paid cleared.') : `marked paid${v ? ` by ${PAID_BY_LABEL[v]}` : ''}.`}`;
   },
-  mpWaive(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p) return; p.pay = 'WAIVED'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: waived.`; },
-  mpUndo(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p) return; p.pay = 'UNPAID'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
+  mpWaiveAsk(id, k = -1) { state.modal = { kind: 'mpWaive', id, k }; },
+  mpWaive() { const m = state.modal, l = mpLesson(m.id), p = mpPart(m.id, m.k); if (!p) return; p.pay = 'WAIVED'; p.paidBy = null; state.modal = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: waived.`; },
+  mpUndo(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p || p.pay !== 'PAID') return; p.pay = 'UNPAID'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
 });
 /* Mark paid, with how they paid (ADR-003 d4, amended 2026-10-12): optional, editable afterwards, coach-only, fixed values. */
+/** Waiving can't be undone, so it always asks first (R7, owner 2026-11-09). */
+MODALS.mpWaive = m => {
+  const l = mpLesson(m.id), p = mpPart(m.id, m.k);
+  return `<div class="dialog__icon dialog__icon--danger">${ic('alert', 22)}</div>
+    <h2 class="h2">Waive this lesson?</h2>
+    <div class="dialog__what"><b>${esc(student(p.sid).name)}</b><span>${dDow(l.iso)} · ${fmtT(l.t)} · ${money(p.price)}</span></div>
+    <p class="fine">The family won’t owe anything for it. This can’t be undone.</p>
+    <div class="dialog__actions">${B('Keep it unpaid', 'secondary', 'closeModal')}${B('Waive lesson', 'danger', 'mpWaive')}</div>`;
+};
 MODALS.mpHow = m => {
   const l = mpLesson(m.id), p = mpPart(m.id, m.k), opts = mpHowOpts(p), on = state.ui.pay.how;
   return `<div class="dialog__icon">${ic('check', 22)}</div>
@@ -295,7 +306,7 @@ SCREENS['profile-account'] = () => {
       ${row(`<span class="roundicon">${ic('lock', 16)}</span>${rowTitle('Password', 'Sign-in is handled by Amazon Cognito.')}`, B('Change password', 'secondary', 'mpPwOpen', { sm: true }), { cls: 'row--boxed' })}`,
       { title: 'Signing in' })}
     ${card(`
-      ${row(`<span class="roundicon">${ic('phone', 16)}</span>${rowTitle('BladeBook rinkside app', 'Check skaters in from your phone. It uses the same email and password, and can only see today’s lessons.')}`, '')}`,
+      ${row(`<span class="roundicon">${ic('phone', 16)}</span>${rowTitle('BladeBook rinkside page', 'Check skaters in from your phone. It uses the same email and password, and shows today’s lessons, attendance and cancelling.')}`, '')}`,
       { title: 'Rinkside app', pad: false })}
     <div class="actions"><div></div><div class="actions__r">${B('Log out', 'secondary', 'logout', { icon: 'arrowL' })}</div></div>`);
 };
@@ -432,11 +443,16 @@ PRESETS.push(
   { id: 'CoachLessonList', file: 'lessons', group: 'Lessons', title: 'Lessons — correct attendance', note: 'Redesigned from Forest CoachLessonList: attendance per lesson, with Ella’s unrecorded lesson on Oct 9 flagged.', setup: st => { st.screen = 'lessons'; st.ui.lessons = { from: '2026-10-05', to: '2026-10-14' }; } },
   { id: 'CoachPaymentsEmpty', file: 'payments-empty', group: 'Payments', title: 'Payments — pick a date range', note: 'Redesigned from Forest CoachPayments: the date range comes first.', setup: st => { st.screen = 'payments'; } },
   { id: 'CoachPayments', file: 'payments', group: 'Payments', title: 'Payments — unpaid', note: 'Redesigned from Forest CoachPayments: unpaid lessons with Mark paid and Waive, and reminders shown as Phase 2.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0 }; } },
-  { id: 'CoachPaymentsAll', file: 'payments-all', group: 'Payments', title: 'Payments — all lessons', note: 'Redesigned from Forest CoachPayments: every lesson in the range, with Undo on paid and waived ones. Under each Paid badge, how the family paid, which the coach can change (ADR-003 d4). Sam and Leo’s shared Wednesday lessons have a row each.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 1 }; } },
+  { id: 'CoachPaymentsAll', file: 'payments-all', group: 'Payments', title: 'Payments — all lessons', note: 'Redesigned from Forest CoachPayments: every lesson in the range, with Undo on paid ones; a waived lesson (Sam, Sep 2) is final, with no Undo (R7, 2026-11-09). Under each Paid badge, how the family paid, which the coach can change (ADR-003 d4). Sam and Leo’s shared Wednesday lessons have a row each.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 1 }; const w = st.lessons.find(x => x.sid && isPast(x) && x.pay === 'PAID' && !x.with); if (w) { w.pay = 'WAIVED'; w.paidBy = null; } } },
   { id: 'CoachPaymentsMarkPaid', file: 'payments-mark-paid', group: 'Payments', title: 'Payments — mark paid, how they paid', note: 'New. Marking a lesson paid offers an optional “How did they pay?”: the payment types the coach takes (Cash only if switched on) plus Other, no free text. Coach-only (Open-Pending §3, settled 2026-10-12).', setup: st => {
     st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: 0 };
     const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
     st.modal = { kind: 'mpHow', id: l.id, k: -1, edit: false };
+  } },
+  { id: 'CoachPaymentsWaive', file: 'payments-waive', group: 'Payments', title: 'Payments — waive a lesson', note: 'New (R7, owner 2026-11-09). Waiving is final, so it always asks first and names the lesson and amount. Paid lessons can still be undone; waived ones can’t.', setup: st => {
+    st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: -1 };
+    const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
+    st.modal = { kind: 'mpWaive', id: l.id, k: -1 };
   } },
   { id: 'CoachFinances', file: 'finances', group: 'Payments', title: 'Financial summary', note: 'New, MVP feature 16. Year-to-date gross (money received) and rink fees for 2026, month by month, with Pelham Civic Center’s terms. How rink fees are calculated is open (docs/Q_Rink-Fees.md); this shows one reading: 15% or $500 a month by the coach’s choice, a lesson counted in the month it was taught. Rink terms are added by the developer; the coach can’t edit them or enter what they paid. Only September and October have sample lessons.', setup: st => { st.screen = 'finances'; } },
   { id: 'CoachFinancesExport', file: 'finances-export', group: 'Payments', title: 'Financial summary — download', note: 'New state. The summary export (ADR-030 d7, MVP): a CSV for this year or last, one row per month, no skater names, so not a PII read.', setup: st => { st.screen = 'finances'; st.modal = { kind: 'finExport' }; st.ui.finYear = 0; } },
