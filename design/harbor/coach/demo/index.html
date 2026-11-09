@@ -1199,7 +1199,7 @@ add('Family · Sign up', 'ClientDone', '5 · Pending approval', 1280, () => wiza
     ${row(`${avatar('MC', 'sm')}${rowTitle('Mia Chen', 'with Coach Dana Whitfield')}`, badge('Waiting for approval', 'warning', 'clock'))}
     ${row(`${avatar('LC', 'sm')}${rowTitle('Leo Chen', 'with Coach Dana Whitfield')}`, badge('Waiting for approval', 'warning', 'clock'))}
   </div>
-  <p class="fine">We’ll email you as soon as Coach Dana approves. Booking opens for each skater once they’re approved.</p>
+  <p class="fine">Booking opens for each skater as soon as Coach Dana approves them. Check back here.</p>
   ${btn('Go to my account', 'primary', { block: true, lg: true })}`),
   help('While you wait', 'Look around your account — booking stays closed until each skater is approved. Added the wrong skater? You can edit or remove them until then.')), 'Status is a badge per skater, not a paragraph; one clear next step.');
 
@@ -1246,7 +1246,7 @@ add('Family · My bookings', 'ClientBookingResubmit', '4 · Result after an erro
   ${card(`
     ${row(`<span class="roundicon roundicon--ok">${ic('check', 16)}</span>${rowTitle('Fridays · 4:00 PM, every week', 'Booked just now')}`, '<b>12 lessons</b>')}
     ${row(`<span class="roundicon roundicon--ok">${ic('check', 16)}</span>${rowTitle('Mondays · 4:00 PM', 'Booked by your first attempt')}`, '<b>12 lessons</b>')}
-    ${row(`<span class="roundicon roundicon--warn">${ic('x', 16)}</span>${rowTitle('Fri, Nov 27 · 4:00 PM', 'That time was taken or no longer exists')}`, btn('Pick another time', 'secondary', { sm: true }))}
+    ${row(`<span class="roundicon roundicon--warn">${ic('x', 16)}</span>${rowTitle('Fri, Nov 27 · 4:00 PM', 'That time was taken or no longer exists.')}`, btn('Pick another time', 'secondary', { sm: true }))}
   `, { title: 'Your lessons', pad: false })}
   ${card(`<div class="decide"><div>${rowTitle('You also have Wednesdays at 4:00 PM', 'Booked by your earlier attempt. Do you still want them?')}</div><div class="decide__btns">${btn('Cancel them', 'secondary')}${btn('Keep them', 'primary')}</div></div>`, { cls: 'card--attn' })}`), 'Reassurance first (“nothing was booked twice”), then a single decision card for the leftover Wednesdays.');
 

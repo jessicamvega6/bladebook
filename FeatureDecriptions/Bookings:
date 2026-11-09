@@ -90,7 +90,7 @@ A confirmation page will display afterwards showing the successful and unsuccess
   A headline: how many lessons were booked for the skater, and that a confirmation email is on its way.
   One card per picked time (or repeating series) with a bar showing how many dates were booked, already theirs, or unavailable.
   Each date that couldn't be booked is listed ~~with the reason (e.g. another family took it, time off, no times of that
-  length that week)~~ *with one message whatever the cause: "lesson slot either does not exist or is already taken", so
+  length that week)~~ *with one message whatever the cause: "That time was taken or no longer exists." (wording, owner 2026-11-09), so
   no family learns about another's booking (owner, 2026-11-08)* and a "Pick another time" button. The family can also leave them; the rest are confirmed.
   Resubmitting: a time already booked for this skater is recognised and never booked twice (ADR-006 d4b). Those dates
   are listed as "Already booked". If an earlier attempt booked a series that isn't in the new request, the page asks
@@ -103,7 +103,7 @@ A confirmation page will display afterwards showing the successful and unsuccess
     *(from ADR-006 §4b, moved 2026-11-08)*
   *Result wording for a repeating booking (decided 2026-08-15):*
     > Booked 22 of 26 lessons. These dates could not be booked:
-    > 14 Sep, 21 Sep, 12 Oct, 23 Nov — *lesson slot either does not exist or is already taken.*
+    > 14 Sep, 21 Sep, 12 Oct, 23 Nov — ~~*lesson slot either does not exist or is already taken.*~~ *That time was taken or no longer exists.* *(reworded by the owner 2026-11-09)*
     The two reasons a date can't be booked (no lesson at that time, or someone already holds it) are given as one
       reason on purpose. Telling them apart would tell a family that another family holds that time, which they
       have no reason to know. *Ruled by the owner 2026-11-09.* The screens use this combined reason.

@@ -15,8 +15,8 @@ const BK_LAST = (() => { const [y, m] = BK_MONTHS[BK_MONTHS.length - 1].split('-
 const bkInWindow = iso => iso >= TODAY && iso <= BK_LAST;
 const bkClamp = iso => iso < TODAY ? TODAY : iso > BK_LAST ? BK_LAST : iso;
 /** One message for every date that couldn't be booked, whatever the cause, so no family learns about another's
-    booking (ADR-MASTER "Booking a time"; B1, owner 2026-11-08). */
-const BK_UNAVAILABLE = 'Lesson slot either does not exist or is already taken.';
+    booking (ADR-MASTER "Booking a time"; B1, owner 2026-11-08; wording 2026-11-09). */
+const BK_UNAVAILABLE = 'That time was taken or no longer exists.';
 const bkUi = () => (state.ui.book ??= { sid: null, coach: null, month: BK_MONTHS[0], day: null, week: false, sel: [], repeat: false, every: 1, until: '', result: null, lastReq: null, noSchedule: false, share: '' });
 const bkState = () => (state.ui.bk ??= { arr: {}, rec: null, who: 'all', coach: 'all', all: false, seq: 0 });
 /** Skaters who can be booked: approved with at least one coach. */
@@ -638,7 +638,7 @@ PRESETS.push(
   { id: 'ClientBookNoTimes', file: 'book-no-times', group: 'Book a lesson', title: '1 · Coach hasn’t posted times', note: 'Redesigned from Forest ClientNoTimesYet: the same page when the coach has no schedule yet, with a ghost calendar and a “No lesson times yet” message.', setup: st => { st.screen = 'book'; st.ui.book = { month: '2026-10', sel: [], noSchedule: true }; } },
   { id: 'ClientBookTimes', file: 'book-times', group: 'Book a lesson', title: '2 · Pick your times', note: 'Redesigned from Forest Timeline: Monday, Oct 19 as a measured timeline, two times picked for Mia; taken times say only “Taken”, the family’s own lessons are named.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); } },
   { id: 'ClientBookConfirm', file: 'book-confirm', group: 'Book a lesson', title: '3 · Confirm & repeat', note: 'Redesigned from Forest Recurring: the pop-up with Repeat ticked, every week until Jan 18, and the lesson count on the button.', setup: st => { st.screen = 'book-times'; bkSel(st, 's1', [['2026-10-19', 570], ['2026-10-19', 960]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2027-01-18' }); st.modal = { kind: 'bkConfirm' }; } },
-  { id: 'ClientBookResult', file: 'book-result', group: 'Book a lesson', title: '4 · Result — some dates skipped', note: 'Redesigned from Forest Confirmation: Mondays at 9:00 for Mia. Another family took Nov 9 while Grace was choosing, Thanksgiving week is time off, and the holiday camp week has no 30-minute times. Each skipped date shows the same message, “Lesson slot either does not exist or is already taken”, so no family learns about another’s booking (B1, 2026-11-08).', setup: st => {
+  { id: 'ClientBookResult', file: 'book-result', group: 'Book a lesson', title: '4 · Result — some dates skipped', note: 'Redesigned from Forest Confirmation: Mondays at 9:00 for Mia. Another family took Nov 9 while Grace was choosing, Thanksgiving week is time off, and the holiday camp week has no 30-minute times. Each skipped date shows the same message, “That time was taken or no longer exists.”, so no family learns about another’s booking (B1, 2026-11-08; wording 2026-11-09).', setup: st => {
     st.screen = 'book-times'; bkSel(st, 's1', [['2026-11-02', 540]]); Object.assign(st.ui.book, { repeat: true, every: 1, until: '2027-01-18' });
     st.lessons.push({ id: 'k-other', sid: 's3', iso: '2026-11-09', t: 540, len: 30, price: 50, status: 'BOOKED', pay: 'UNPAID', recurring: false });
     ACTIONS.bkBook(); } },
