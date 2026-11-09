@@ -7,12 +7,12 @@ export const COACH_STEPS = ['Account', 'Verify login email', 'Business details',
 
 /** Pages that exist in this build; the rest are named so the coach sees where they will be. */
 const NAV: Array<[label: string, route: string | null]> = [
-  ['Today', '#/today'], ['Calendar', null], ['Schedule', null], ['Students', null],
+  ['Today', '#/today'], ['Calendar', '#/calendar'], ['Schedule', '#/schedule'], ['Students', null],
   ['Lessons', null], ['Payments', null], ['Profile', '#/profile'],
 ];
 
-export function CoachShell({ profile, section, flash, children, wide }: {
-  profile: Profile; section: string; flash?: ReactNode; children: ReactNode; wide?: boolean;
+export function CoachShell({ profile, section, flash, children, wide, full }: {
+  profile: Profile; section: string; flash?: ReactNode; children: ReactNode; wide?: boolean; full?: boolean;
 }) {
   return (
     <div className="app app--coach">
@@ -29,7 +29,7 @@ export function CoachShell({ profile, section, flash, children, wide }: {
         </a>
       </header>
       <main className="main">
-        <div className={`page page--${wide ? 'wide' : 'narrow'}`}>
+        <div className={`page page--${full ? 'full' : wide ? 'wide' : 'narrow'}`}>
           {flash}
           {children}
         </div>

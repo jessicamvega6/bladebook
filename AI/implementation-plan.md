@@ -74,15 +74,15 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | S1 | Price is whole dollars, USD only, with $0 allowed; the ADR wants the coach's currency and an odd-cents warning (e.g. $45.01) | M:487-489 | `coach/schedule.html:977` | ADR: the price is in the coach's currency, with the odd-cents warning when a block allows 2 or more skaters (ruled 2026-11-08) |
 | S2 | Block labels are numbered by position; the ADR requires a stored `seq` that is never reused | M:482-484 | `coach/schedule.html:763,970` | ADR: each block gets a stored `seq` when created, never renumbered or reused; an unnamed block is labelled *Block N* from it (ruled 2026-11-08) |
 | S3 | Times run 5:00am–11:00pm; the ADR says 12:00am–11:45pm | M:471-472 | `coach/schedule.html:871` | ADR: 12:00 AM to 11:45 PM in 15-minute steps (ruled 2026-11-08) |
-| S4 | A new block is prefilled (6–8pm, 30 min, $50); the ADR says start, end, length and days are cleared | M:476-477 | `coach/schedule.html:1074` | ADR: a new block starts with start, end, length and days cleared (ruled 2026-11-08) |
+| S4 | A new block is prefilled (6–8pm, 30 min, $50); the ADR says start, end, length and days are cleared | M:476-477 | `coach/schedule.html:1074` | ADR: a new block starts with start, end, length and days cleared (ruled 2026-11-08). **Amended 2026-11-09 by the owner:** start defaults to 5:00 AM and end to 7:00 PM; the time lists have no blank choice, so the times shown are the times saved |
 | S5 | The block Name field always shows; the ADR asks for it only once a second block exists | M:484-485 | `coach/schedule.html:969-970` | Screen: the block Name field always shows, in a special schedule too (ruled 2026-11-08). *ADR updated: ADR-008, ADR-MASTER (The editor).* |
 | S6 | The 7pm default end, length defaulting to 30, and slots past the end time are in the ADR but not on screen | M:479-481 | `coach/schedule.html:762,1016-1019` | ADR: the slots run to 7:00 PM when the end is blank, length becomes 30 when a slot is clicked with none set, and no slot runs past the end time (ruled 2026-11-08) |
 | S7 | Clicking a month date opens the day view; the ADR says it opens that week | M:497 | `coach/screens-calendar.js:79` | Screen: on the coach's month calendar, clicking a date opens that day (ruled 2026-11-08). *ADR updated: ADR-006, ADR-MASTER (Calendars).* |
 | S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | Neither: *Cancel rest of week* closes the rest of the Sunday–Saturday week from now on (all of a future week). Booked lessons and open lesson times all become `HELD`, with no release-or-hold question; the weekly schedule is unchanged. The button still states the range and count (ruled 2026-11-08). *ADR updated: ADR-009, ADR-MASTER (By the coach).* |
 | S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | ADR: release-or-hold is asked per lesson, never once for a selection, for *this lesson* and *this day* (*this week* always holds, S8) (ruled 2026-11-08) |
 | S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | ADR: the warning sits at the top of the review page, in the warning colours (ruled 2026-11-08). **Redrawn 2026-11-08:** `coach/static/schedule-review.html` |
-| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | Neither: in MVP the coach's cancel deletes the unanswered invited seat with no record and no email, and a later answer writes nothing. Recording it and telling the family is Phase 2 (ruled 2026-11-08). *ADR updated: ADR-031, ADR-MASTER (Seats; Ending an invitation; §24).* |
-| S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | **Not ruled yet** |
+| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | **Not ruled yet** |
+| S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | Screen: the day view as drawn (ruled 2026-11-08). Batch 2 builds it; its cancel buttons come with Batch 5. *No ADR text yet.* |
 
 ### Family booking and shared lessons
 
@@ -151,7 +151,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 - **Slice:** the schedule hub, then the weekly editor, then save, then lesson times written for the window.
   - The coach's month view (previous/next) and week view showing Open.
   - With no bookings yet, save skips the impact preview. Shown as a shortcut until Batch 6.
-- **Rulings (2026-11-08):** S1–S7 and S10 are all ruled (§4). S10 is in the save preview, which this batch skips until Batch 6.
+- **Rulings (2026-11-08):** S1–S7 and S10 are all ruled (§4). S10 is in the save preview, which this batch skips until Batch 6. S12 (the day view) was ruled **Screen** when Batch 2 started, because S7 opens it.
 
 ### Batch 3 — Family sign-up with a coach code; coach approves or declines (MVP 1, 2)
 
@@ -301,3 +301,37 @@ The full list, with what closes each one, is in the root `README.md`.
   `spring-cloud-function-serverless-web`, whose auto-configuration replaces Tomcat with a
   Lambda-only server, so `api-coach` and `api-client` never listened on :8080 / :8081 locally.
   The `local` profile now excludes it (`application-local.properties` in each API).
+
+### Batch 2 (2026-11-08)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Shortcuts:** SC-5 the schedule-change consumer runs in-process after the save; SC-6 no impact
+  preview before saving; SC-7 "Sign in again and save" uses the token stub.
+- **Gaps:** G-8 time off and special schedules; G-9 no nightly lesson roller; G-10 booked lesson
+  times left alone by a save; G-11 no names or cancel buttons on the calendars; G-12 no change-batch
+  progress; G-13 a time-zone change doesn't move existing lesson times.
+- **Settled while building (owner may override):**
+  - **Reopening a saved week:** every block a template makes keeps the template's `seq`, so the
+    editor regroups blocks by `seq` to rebuild each template. Its days, start, end and
+    switched-off slots come back from the blocks. No new stored attributes. An uneven end is shown
+    trimmed (6:00–11:30 at 45 minutes reopens as 6:00–11:15).
+  - **Daylight saving:** a lesson time is made only if its start exists that day and it really
+    lasts its length. So on the spring-forward day 2:00–2:59 AM makes nothing, and on the fall-back
+    day the first 1:00 AM hour is used and a lesson that would run across the change isn't made.
+  - **A new block** starts 5:00 AM to 7:00 PM with 1 skater per lesson; length, days, price and ice
+    type start blank (S4 as amended 2026-11-09). A saved block with no end reopens showing 7:00 PM.
+  - **Validation additions** the ADRs don't word: "needs a start time", "needs a lesson length",
+    "needs an end time" (blank end from 7:00 PM on), "needs a price", "price must be under
+    $10,000", "can have 1 or 2 skaters per lesson", and "Every time in … is switched off".
+    Overlap messages use ADR-008's wording.
+  - **Open lesson times are re-priced like booked ones:** a decrease at once, an increase only
+    beyond the notice period.
+  - **Ice types** are stored as `BFSC_FREESTYLE`, `STICK_AND_PUCK` and `PUBLIC`.
+  - The `SCHEDULE#DEFAULT` item stores `days` as a map keyed `SUN` to `SAT`.
+  - Save needs a sign-in within 15 minutes (`bladebook.auth.schedule-save-minutes`); refused with
+    401 `SIGN_IN_TO_SAVE`, which the editor handles without losing edits.
+  - Week view copy drops "Tap a booked lesson to cancel" until cancelling exists.
+- **Checked in the running app:** sign-up → build two blocks (one slot switched off, odd cents
+  shown, a clash shown) → review → save → week, month and day views, at desktop and phone width.
+

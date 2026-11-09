@@ -156,3 +156,52 @@
 /* Profile tabs: still swipe sideways on a phone, but never show a scroll bar. */
 .bb .mp-tabs { scrollbar-width: none; }
 .bb .mp-tabs::-webkit-scrollbar { display: none; }
+
+/* COPIED from design/harbor/coach/schedule.html (the one rule harbor.css lacks) and
+   design/harbor/coach/screens-calendar.css. Re-copy when the design changes. */
+.bb .ctl--locked { background: var(--surface-2); color: var(--text-2); cursor: not-allowed; }
+.bb .cal-scroll { overflow-x: auto; }
+.bb .cal-scroll .week { min-width: 860px; }
+
+/* month: week links in the first column, then Sun–Sat */
+.bb .cal-month { display: grid; grid-template-columns: 112px repeat(7, minmax(0, 1fr)); gap: 8px; min-width: 760px; margin-top: 14px; }
+.bb .cal-month__h { font-size: 12px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 0 10px 2px; }
+.bb .cal-wk { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.bb .cal-wk b { font-size: 13.5px; }
+.bb .cal-wk small { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .cal-wk:hover, .bb .cal-day:hover { border-color: var(--primary); }
+.bb .cal-wk.is-now { background: var(--primary-tint); border-color: var(--primary-border); }
+.bb .cal-day { min-height: 88px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 9px 10px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border-strong); text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.bb .cal-day__num { display: flex; align-items: center; gap: 6px; font-weight: var(--w-bold); font-size: 15px; font-variant-numeric: tabular-nums; }
+.bb .cal-day__num em { font-style: normal; font-size: 10.5px; background: var(--primary); color: var(--on-primary); padding: 1px 6px; border-radius: 999px; }
+.bb .cal-day__meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.bb .cal-day__none { font-size: 12px; color: var(--text-3); }
+.bb .cal-day--off { background: var(--surface-2); border-color: var(--border); }
+.bb .cal-day--off .cal-day__num { font-weight: var(--w-reg); color: var(--text-3); }
+.bb .cal-day--past { opacity: .7; }
+.bb .cal-day--out { opacity: .4; }
+.bb .cal-day.is-today { box-shadow: inset 0 0 0 2px var(--primary); }
+.bb .cal-chip { font-size: 11.5px; font-weight: var(--w-bold); padding: 2px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-soft-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bb .cal-chip--open { background: var(--surface-2); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border); }
+.bb .cal-chip--special { background: var(--alt-soft); color: var(--alt-text); }
+.bb .cal-chip--off { background: var(--warning-soft); color: var(--warning-text); }
+
+/* week: clickable heads and lessons */
+.bb button.cal-head { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--border); text-align: left; font: inherit; cursor: pointer; }
+.bb button.cal-head:hover b { color: var(--primary-text); }
+.bb button.cal-wl { width: 100%; text-align: left; font: inherit; cursor: pointer; border-top: 0; border-right: 0; border-bottom: 0; }
+.bb button.cal-wl:hover { box-shadow: 0 0 0 2px var(--danger-border); }
+.bb .cal-colnote { margin: 8px 10px 0; font-size: 11.5px; font-weight: var(--w-bold); color: var(--alt-text); background: var(--alt-soft); padding: 3px 8px; border-radius: 999px; align-self: flex-start; }
+.bb .week__empty small { font-size: 11.5px; }
+
+/* day */
+.bb .cal-slot__t { width: 76px; flex: none; font-weight: var(--w-bold); font-size: 13.5px; color: var(--text-2); }
+
+@media (max-width: 760px) {
+  .bb .cal-slot__t { width: 64px; }
+  .bb .legend__note { margin-left: 0; }
+}
+
+/* Batch 2: the schedule hub's action cards are links here, and "time off" isn't built yet. */
+.bb a.action-card, .bb a.cal-wk, .bb a.cal-day, .bb a.cal-head, .bb a.seg__opt, .bb a.iconbtn { text-decoration: none; color: inherit; }
+.bb .action-card.is-disabled { opacity: .55; cursor: not-allowed; }

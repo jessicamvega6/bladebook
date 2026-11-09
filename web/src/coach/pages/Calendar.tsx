@@ -1,0 +1,229 @@
+/**
+ * The coach's calendar, Batch 2 (design: coach/screens-calendar.js → calendar-month, calendar-week,
+ * calendar-day). Dates, "today" and "now" are the coach's, from api-coach, never the browser's.
+ *
+ * Rulings applied: S7 clicking a month date opens that day; S12 the day view as drawn (ruled 2026-11-08).
+ * Not yet: who is booked (Batch 4), and every cancel button (Batch 5).
+ */
+import { useEffect, useState, type ReactNode } from 'react';
+import { Banner, Icon } from '../../shared/components/harbor';
+import {
+  DAYS, DAYS_LONG, MONTHS_LONG, addDays, addMonths, dayOfWeek, formatClock, formatMoney, formatTime, longDate,
+  monthEnd, shortDate, toMinutes, weekStart,
+} from '../../shared/logic/schedule';
+import type { CalendarDto, LessonDto, ScheduleApi } from '../api';
+
+export type CalendarRoute = { view: 'month' | 'week' | 'day'; date: string };
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const href = (view: CalendarRoute['view'], date: string) => `#/calendar/${view}/${date}`;
+const isPast = (cal: CalendarDto, date: string, l: LessonDto) =>
+  date < cal.today || (date === cal.today && toMinutes(l.startTime) + l.durationMinutes <= toMinutes(cal.now));
+const isBooked = (l: LessonDto) => l.lessonStatus === 'BOOKED';
+const isOpen = (cal: CalendarDto, date: string, l: LessonDto) => l.lessonStatus === 'OPEN' && !isPast(cal, date, l);
+
+/** The dates a view needs: a month grid (whole weeks), a week, or one day. */
+function span({ view, date }: CalendarRoute): [string, string] {
+  if (view === 'day') return [date, date];
+  if (view === 'week') return [weekStart(date), addDays(weekStart(date), 6)];
+  return [weekStart(date), addDays(weekStart(monthEnd(date)), 6)];
+}
+
+export function Calendar({ api, route, onError }: { api: ScheduleApi; route: CalendarRoute; onError: (e: unknown) => void }) {
+  const [cal, setCal] = useState<{ key: string; data: CalendarDto } | null>(null);
+  const [from, to] = span(route);
+  const key = `${from}/${to}`;
+  useEffect(() => {
+    let live = true;
+    api.calendar(from, to).then((data) => live && setCal({ key, data })).catch((e: unknown) => live && onError(e));
+    return () => { live = false; };
+  }, [api, from, to, key, onError]);
+
+  const views = (
+    <div className="seg" role="group" aria-label="Calendar view">
+      {(['month', 'week', 'day'] as const).map((v) => (
+        <a key={v} className={`seg__opt${route.view === v ? ' is-on' : ''}`} aria-current={route.view === v ? 'page' : undefined}
+          href={href(v, v === 'month' ? `${route.date.slice(0, 8)}01` : route.date)}>{v[0].toUpperCase() + v.slice(1)}</a>
+      ))}
+    </div>
+  );
+
+  if (!cal || cal.key !== key) {
+    return <><div className="phead"><div className="phead__text"><h1 className="h1">Calendar</h1></div><div className="phead__actions">{views}</div></div>
+      <p className="muted" aria-busy="true">Loading…</p></>;
+  }
+  const data = cal.data;
+  const prompt = !data.hasSchedule && (
+    <Banner tone="info" title="You haven’t built your teaching week yet">
+      Families can book once it’s saved. <a className="link" href="#/schedule/weekly">Build your teaching week</a>
+    </Banner>
+  );
+  if (route.view === 'month') return <Month data={data} first={route.date} views={views} prompt={prompt} />;
+  if (route.view === 'week') return <Week data={data} start={from} views={views} prompt={prompt} />;
+  return <Day data={data} date={route.date} views={views} prompt={prompt} />;
+}
+
+interface ViewProps { data: CalendarDto; views: ReactNode; prompt: ReactNode }
+
+function Head({ title, lede, actions, crumb }: { title: string; lede: string; actions: ReactNode; crumb?: ReactNode }) {
+  return (
+    <div className="phead">
+      <div className="phead__text">{crumb && <div className="crumb">{crumb}</div>}<h1 className="h1">{title}</h1>{lede && <p className="lede">{lede}</p>}</div>
+      <div className="phead__actions">{actions}</div>
+    </div>
+  );
+}
+
+function Steps({ label, prev, next, today }: { label: string; prev: string; next: string; today: string }) {
+  return (
+    <div className="btngroup">
+      <a className="iconbtn" aria-label={`Previous ${label}`} href={prev}><Icon name="chevL" size={18} /></a>
+      <a className="btn btn--secondary btn--sm" href={today}><span>Today</span></a>
+      <a className="iconbtn" aria-label={`Next ${label}`} href={next}><Icon name="chevR" size={18} /></a>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ month
+
+function Month({ data, first, views, prompt }: ViewProps & { first: string }) {
+  const last = monthEnd(first);
+  const month = Number(first.slice(5, 7)) - 1, year = first.slice(0, 4);
+  let booked = 0, open = 0;
+  const weeks = data.days.reduce<CalendarDto['days'][]>((w, d, i) => { if (i % 7 === 0) w.push([]); w[w.length - 1].push(d); return w; }, []);
+  const rows = weeks.map((week, i) => {
+    const ws = week[0].date, from = ws < first ? first : ws, to = addDays(ws, 6) > last ? last : addDays(ws, 6);
+    const now = ws <= data.today && data.today <= addDays(ws, 6);
+    return [
+      <a key={`w${ws}`} className={`cal-wk${now ? ' is-now' : ''}`} href={href('week', from)}><b>Week {i + 1}</b><small>{shortDate(from)} – {shortDate(to)}</small></a>,
+      ...week.map(({ date, lessons }) => {
+        const inMonth = date >= first && date <= last;
+        const b = lessons.filter(isBooked).length, o = lessons.filter((l) => isOpen(data, date, l)).length;
+        if (inMonth) { booked += b; open += o; }
+        const cls = `cal-day${lessons.length ? '' : ' cal-day--off'}${inMonth ? '' : ' cal-day--out'}${date === data.today ? ' is-today' : ''}${date < data.today ? ' cal-day--past' : ''}`;
+        return (
+          <a key={date} className={cls} href={href('day', date)} aria-label={`${longDate(date)}: ${b} booked, ${o} open`}>
+            <span className="cal-day__num">{Number(date.slice(8))}{date === data.today && <em>Today</em>}</span>
+            <span className="cal-day__meta">
+              {lessons.length
+                ? <>{b > 0 && <span className="cal-chip">{b} booked</span>}{o > 0 && <span className="cal-chip cal-chip--open">{o} open</span>}</>
+                : <span className="cal-day__none">No lessons</span>}
+            </span>
+          </a>
+        );
+      }),
+    ];
+  });
+  return (
+    <>
+      <Head title="Calendar" lede={`${MONTHS_LONG[month]}: ${plural(booked, 'lesson')} booked, ${plural(open, 'open time')} left.`} actions={views} />
+      {prompt}
+      <section className="card"><div className="card__body">
+        <div className="calbar">
+          <a className="iconbtn" aria-label="Previous month" href={href('month', addMonths(first, -1))}><Icon name="chevL" size={18} /></a>
+          <div className="calbar__title">{MONTHS_LONG[month]} {year}</div>
+          <a className="iconbtn" aria-label="Next month" href={href('month', addMonths(first, 1))}><Icon name="chevR" size={18} /></a>
+          <a className="btn btn--secondary btn--sm" href={href('month', `${data.today.slice(0, 8)}01`)}><span>Today</span></a>
+        </div>
+        <div className="cal-scroll"><div className="cal-month">
+          <span className="cal-month__h" />{DAYS.map((d) => <span key={d} className="cal-month__h">{d}</span>)}
+          {rows}
+        </div></div>
+        <div className="legend">
+          <span className="legend__item"><i className="sw sw--booked" />Booked lessons</span>
+          <span className="legend__item"><i className="sw sw--open" />Open times left</span>
+          <span className="legend__item"><i className="sw sw--off" />No lessons scheduled</span>
+          <span className="legend__note">Pick a day for its lessons, or a week on the left.</span>
+        </div>
+      </div></section>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------- week
+
+function Week({ data, start, views, prompt }: ViewProps & { start: string }) {
+  const end = addDays(start, 6);
+  const thisWeek = start === weekStart(data.today);
+  const cols = data.days.map(({ date, lessons }) => {
+    const colCls = date < data.today ? ' week__col--past' : date === data.today ? ' week__col--today' : '';
+    return (
+      <div key={date} className={`week__col${colCls}`}>
+        <a className="week__head cal-head" href={href('day', date)}>
+          <span>{DAYS[dayOfWeek(date)]}</span><b>{Number(date.slice(8))}</b>{date === data.today && <em>Today</em>}
+        </a>
+        <div className="week__body">
+          {lessons.length ? lessons.map((l) => {
+            const kind = l.lessonStatus === 'OPEN' ? 'open' : l.lessonStatus === 'HELD' ? 'held' : '';
+            return (
+              <div key={l.startTime} className={`wl${kind ? ` wl--${kind}` : ''}${isPast(data, date, l) ? ' wl--past' : ''}`}>
+                <span className="wl__t">{formatClock(l.startTime)}{l.durationMinutes !== 30 ? ` · ${l.durationMinutes}m` : ''}</span>
+                <span className="wl__n">{l.lessonStatus === 'OPEN' ? 'Open' : l.lessonStatus === 'HELD' ? 'Held' : 'Booked'}</span>
+              </div>
+            );
+          }) : <div className="week__empty">No lessons</div>}
+        </div>
+      </div>
+    );
+  });
+  const now = data.now;
+  return (
+    <>
+      <Head title={`Week of ${shortDate(start)}`}
+        lede={thisWeek ? `It’s ${DAYS_LONG[dayOfWeek(data.today)]} ${formatTime(now)}. Past times are greyed.` : `${shortDate(start)} – ${shortDate(end)}.`}
+        actions={<>{views}<Steps label="week" prev={href('week', addDays(start, -7))} next={href('week', addDays(start, 7))} today={href('week', data.today)} /></>} />
+      {prompt}
+      <section className="card"><div className="card__body" style={{ padding: 0 }}>
+        <div className="cal-scroll"><div className="week">{cols}</div></div>
+      </div></section>
+      <div className="legend">
+        <span className="legend__item"><i className="sw sw--booked" />Booked</span>
+        <span className="legend__item"><i className="sw sw--open" />Open</span>
+        <span className="legend__item"><i className="sw sw--held" />Held (you kept it closed)</span>
+        <span className="legend__item"><i className="sw sw--off" />Past</span>
+      </div>
+    </>
+  );
+}
+
+// -------------------------------------------------------------------- day
+
+function Day({ data, date, views, prompt }: ViewProps & { date: string }) {
+  const lessons = data.days[0]?.lessons ?? [];
+  const booked = lessons.filter(isBooked).length, open = lessons.filter((l) => isOpen(data, date, l)).length;
+  const lede = lessons.length
+    ? `${plural(booked, 'lesson')} booked · ${plural(open, 'open time')}${date === data.today ? ` · it’s ${formatTime(data.now)}` : ''}`
+    : date === data.today ? 'Today' : '';
+  return (
+    <>
+      <Head title={longDate(date)} lede={lede}
+        crumb={<a className="link" href={href('week', date)}><Icon name="arrowL" size={14} /> Week of {shortDate(weekStart(date))}</a>}
+        actions={<>{views}<Steps label="day" prev={href('day', addDays(date, -1))} next={href('day', addDays(date, 1))} today={href('day', data.today)} /></>} />
+      {prompt}
+      <section className="card">
+        {lessons.length > 0 && <header className="card__head"><div><h2 className="h2">Every time on this day</h2></div></header>}
+        <div className="card__body" style={{ padding: 0 }}>
+          {lessons.length ? lessons.map((l) => (
+            <div key={l.startTime} className={`row${isPast(data, date, l) ? ' row--muted' : ''}`}>
+              <div className="row__main">
+                <span className="cal-slot__t num">{formatTime(l.startTime)}</span>
+                {l.lessonStatus === 'OPEN'
+                  ? <><span className="roundicon"><Icon name="plus" size={14} /></span><div><div className="row__title">Open</div><div className="row__sub">Families can book this time</div></div></>
+                  : l.lessonStatus === 'HELD'
+                    ? <><span className="roundicon roundicon--warn"><Icon name="lock" size={14} /></span><div><div className="row__title">Held</div><div className="row__sub">You kept this time closed</div></div></>
+                    : <div><div className="row__title">Booked</div></div>}
+              </div>
+              <div className="row__side"><span className="muted num">{l.durationMinutes} min · {formatMoney(l.priceMinor)}</span></div>
+            </div>
+          )) : (
+            <div className="pempty">
+              <span className="pempty__icon"><Icon name="calendar" size={22} /></span>
+              <b>No lessons on {DAYS_LONG[dayOfWeek(date)]}s</b>
+              <span className="muted">Your weekly schedule has nothing on this day. <a className="link" href="#/schedule/weekly">Edit weekly schedule</a></span>
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
+}

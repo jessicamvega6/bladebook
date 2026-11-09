@@ -2,14 +2,19 @@ package com.bladebook.api.coach.config;
 
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.LocalTable;
+import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.TenantClients;
+import com.bladebook.core.service.CalendarService;
 import com.bladebook.core.service.CoachProfileService;
+import com.bladebook.core.service.ScheduleChangeService;
+import com.bladebook.core.service.ScheduleService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import java.net.URI;
+import java.time.Clock;
 
 /** Wires core/ into Spring. core/ itself has no Spring in it (ADR-001). */
 @Configuration
@@ -36,5 +41,26 @@ public class CoreConfig {
     @Bean
     CoachProfileService coachProfileService(CoachRepository repo) {
         return new CoachProfileService(repo, CoachProfileService.randomCodes());
+    }
+
+    @Bean
+    ScheduleRepository scheduleRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new ScheduleRepository(clients, table);
+    }
+
+    @Bean
+    ScheduleService scheduleService(ScheduleRepository schedules, CoachRepository coaches) {
+        return new ScheduleService(schedules, coaches);
+    }
+
+    /** What consumer-schedule-change will run on AWS; locally {@code LocalEventDispatcher} calls it. */
+    @Bean
+    ScheduleChangeService scheduleChangeService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
+        return new ScheduleChangeService(schedules, coaches, clock);
+    }
+
+    @Bean
+    CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
+        return new CalendarService(schedules, coaches, clock);
     }
 }
