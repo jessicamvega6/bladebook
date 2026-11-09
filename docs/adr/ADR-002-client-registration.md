@@ -82,6 +82,12 @@ approved is Phase 2; MVP sends none (product rule — see `FeatureDecriptions/Cl
 "Coach approval"). When it ships, `consumer-student-link` sends it, since that consumer already
 handles the approval and sends the decline email.
 
+**Amended — 2026-11-09.** *Decided by the owner.* The family creates its Cognito account and
+verifies its email on **BladeBook's own sign-up steps** (steps 2 and 3), and logs in on BladeBook's
+own page; the browser sends the email, password and code straight to Cognito, never to `api-client`
+([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11). Cognito's hosted
+sign-in pages aren't used, so sign-up stays one flow from the coach code to the skaters.
+
 ---
 
 ## Context
@@ -106,7 +112,8 @@ There is no invite email and no coach-created credential. The family registers
 themselves with the coach's **`coachCode`** (the sign-up flow is product — see
 `FeatureDecriptions/Client Sign Up`, "Registration flow"). What registration writes:
 
-1. A Cognito account (email + password), with the email verified.
+1. A Cognito account (email + password), with the email verified. *(Created on BladeBook's own
+   sign-up step, from the browser straight to Cognito; ADR-023 decision 11, 2026-11-09.)*
 2. The `coachCode` resolves to exactly one coach, or registration stops.
 3. One or more students, as declared:
    - an adult registering themselves → one student, `isMinor = false`,

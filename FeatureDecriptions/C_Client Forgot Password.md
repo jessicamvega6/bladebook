@@ -3,6 +3,9 @@ Client Forgot Password
  and forgot-password-code.html)
 
 Two steps on one page. Cognito sends the code and sets the new password.
+*Decided by the owner 2026-11-09 (ADR-023 d11):* this is BladeBook's own page, not Cognito's hosted
+sign-in page. The browser sends what is typed straight to Cognito; BladeBook's servers never see a password or a
+code. "Email me a code" answers the same whether or not the email has an account.
 
 Step 1, email a code:
   Email field: the email the family logs in with.

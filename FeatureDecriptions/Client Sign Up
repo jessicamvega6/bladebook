@@ -7,6 +7,9 @@ Registration flow:
   There is no invite email and no coach-created credential. A client is given the site URL and the coach's
   coach code, and registers themselves:
     1. Create a Cognito account (email + password), verify the email.
+       *Decided by the owner 2026-11-09 (ADR-023 d11):* on BladeBook's own sign-up steps (2 and 3 of the five), not
+       Cognito's hosted sign-up page, so the family never leaves the sign-up flow. The browser sends the email,
+       password and code straight to Cognito; BladeBook's servers never see them.
     2. Enter the coach code. It resolves to exactly one coach, or registration stops.
     3. Declare who they are registering:
        themselves, as an adult student: one student, contact copied from the account;
@@ -59,11 +62,9 @@ email: used for logging in, confirmations and reminders.
 
 password field, with the password rules listed under it (at least 8 characters)
 confirm password field: confirm password can =not allow pasting. The hint says pasting is turned off.
-  *Decided by the owner 2026-11-09:* an email that already has a family account is refused **on this step**, when
-    "Create account" is pressed, not after the skaters are entered on step 4. The message is "You already have an
-    account with this email", with "Log in instead" (to the log-in page) or use a different email. Cognito's sign-up
-    refuses a taken email the same way; until the user pool exists, the local stand-in checks for an existing family
-    itself.
+  *2026-11-09 (ADR-023 d11):* both password boxes are on this BladeBook page. The browser checks they match and
+  shows the rules as they're met; Cognito enforces the rules and stores the password. "Create account" calls
+  Cognito's sign-up from the browser, which emails the step 3 code.
 
 "Create account" button.
 

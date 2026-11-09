@@ -93,6 +93,13 @@ profile is unchanged: the current confirmed address stays in use until the new o
 `smsCancellationAlerts` is set on the profile only, not at sign-up (product — see
 `FeatureDecriptions/Coach Sign Up`, "Not at sign-up"). Decision 2's table is corrected below.
 
+**Amended — 2026-11-09.** *Decided by the owner.* The sign-up, log-in, forgot-password and
+change-password pages are **BladeBook's own forms**, and the browser sends what is typed straight
+to Cognito ([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11).
+Cognito's hosted sign-in pages aren't used. Decision 3 still holds: Cognito owns the credentials
+and recovery, and BladeBook's servers never see a password. Its "no custom forgot-password form"
+is clarified below.
+
 ---
 
 ## Context
@@ -214,6 +221,13 @@ No password field. No EIN.
 The application never sees, stores or validates a password, and there is **no custom
 forgot-password form**.
 
+*Amended 2026-11-09 (owner; [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
+decision 11):* "the application" means BladeBook's servers: `api-coach`, `api-client`, their logs
+and the table. The forms where a password or code is typed are BladeBook's own pages, and the
+browser sends what is typed only to Cognito. "No custom forgot-password form" means no recovery of
+BladeBook's own making: the forgot-password page only calls Cognito's `ForgotPassword` and
+`ConfirmForgotPassword`.
+
 An earlier draft specified recovery by first name, last name, business identifier and
 username. Every one of those is discoverable — a name is public, a business identifier is
 often a public registry entry, and the username *is* the login email. That is
@@ -319,7 +333,8 @@ and the bounce handling ADR-010 depends on.
 
 Order matters, because two systems are being written and only one can be authoritative.
 
-1. Create the Cognito user and verify the email.
+1. Create the Cognito user and verify the email (on BladeBook's own form, from the browser
+   straight to Cognito; ADR-023 decision 11, 2026-11-09).
 2. Write `COACH#<sub> / PROFILE` and the `CODE#<coachCode>` item (ADR-002 decision 2a).
 
 **The Cognito user is the source of truth for identity**; `coachId` *is* the `sub`, so the

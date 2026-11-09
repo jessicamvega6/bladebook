@@ -379,7 +379,10 @@ instead created from the import as part of building the stack, never repointed.*
 
 Not AWS's default addresses, because three things depend on the domain and must be set up
 in staging the same way as in production: Cognito's allowed sign-in redirects, each API's
-cross-origin resource sharing (CORS) rule, and the API's custom domain. Staging also tells
+cross-origin resource sharing (CORS) rule, and the API's custom domain. *(Amended 2026-11-09:
+the websites use their own sign-in forms, so there are no Cognito sign-in redirects to set up
+([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11). The CORS rule and
+the custom domain still need the domain.)* Staging also tells
 search engines not to index it. Which domain `<domain>` is remains open — see Open.
 
 ### 7. The refresh is deliberate and logged

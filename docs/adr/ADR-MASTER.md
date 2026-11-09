@@ -278,8 +278,10 @@ archiver reads them.
 - **A coach account is useless until a family enters its code**, and enrolment always needs that
   code handed over outside the site. **There is no public coach directory, searchable profile or
   open join link.**
-- **Cognito owns credentials and recovery.** The app never sees a password; recovery is Cognito's
-  `ForgotPassword`. No custom recovery form.
+- **Cognito owns credentials and recovery.** BladeBook's servers never see a password; recovery is
+  Cognito's `ForgotPassword`. No recovery of BladeBook's own making. The forms where passwords and
+  codes are typed are BladeBook's own pages, sending straight to Cognito (§15; ADR-023 d11,
+  2026-11-09).
 - **The login email must be verified** before the account can hold students.
 - **Order:** create and verify the Cognito user, then write `COACH#<sub>/PROFILE` and the
   `CODE#` item. *The `CODE#` item waits for a confirmed business email (ADR-016, 2026-11-06).* **First sign-in completes sign-up** if the profile is missing.
@@ -337,7 +339,8 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 
 1. The family enters **one or more coach codes** before an account exists. Each is looked up
    under the `code-lookup` role (§16), which returns only the coach's name and photo key.
-2. They create a Cognito account (email and password) and verify the email.
+2. They create a Cognito account (email and password) and verify the email, on BladeBook's own
+   sign-up steps; the browser sends both straight to Cognito (§15; ADR-023 d11, 2026-11-09).
 3. Registration **resolves every code again** inside the signed-in session; coach IDs carried
    over from the browser are never trusted.
 4. They register **themselves** (one skater, `isMinor = false`, `SELF`, contact copied from the
@@ -1174,11 +1177,20 @@ notified.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4 (amended 2026-11-06), ADR-023 d2, d4–7, d9–10.*
+*Sources: ADR-016 d3–4 (amended 2026-11-06 and 2026-11-09), ADR-023 d2, d4–7, d9–11.*
 
+- **BladeBook's own sign-in forms, talking to Cognito directly** (ADR-023 d11, 2026-11-09). Every
+  page that asks for an email, password or code is BladeBook's own: creating the account,
+  verifying the email, logging in, forgot password, the password asked again, changing the
+  password and a coach's multi-factor authentication (MFA) code. The browser calls Cognito itself
+  (`SignUp`, `ConfirmSignUp`, `InitiateAuth`, `ForgotPassword` and the rest); **passwords and
+  codes never reach the APIs, a log or the table.** Sign-in uses Secure Remote Password (SRP).
+  Cognito's hosted sign-in pages aren't used, so there are no sign-in redirects. "Prevent user
+  existence errors" is on.
 - **Two Cognito app clients in one user pool:** one for the coach website, rinkside page
-  included, and one for the family website (ADR-023 d9). Each has its own sign-in return
-  addresses and token settings.
+  included, and one for the family website (ADR-023 d9). Each has its own token settings. Both
+  are public (no client secret), allow only SRP sign-in and refresh, and have no OAuth flows or
+  return addresses (ADR-023 d11).
 - **Each API checks which app client issued the token.** `api-coach` accepts only the coach app
   client's tokens and `api-client` only the family app client's, refusing others with 403 in the
   same shared check as the group check below. The REST API's Cognito authorizer can't tell app
@@ -1772,6 +1784,7 @@ technical.*
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
 - How the business-email confirmation link is built and how long it lasts.
+- Which browser library does the SRP sign-in for BladeBook's own forms (ADR-023 d11, Open).
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
 - Whether the 7-day answer-by should be checked with Kim → `FeatureDecriptions/Schedule lesson split`.
 - **Whether a coach booking for a family (Phase 2) is held to the 3-month window** (ADR-031 Open).

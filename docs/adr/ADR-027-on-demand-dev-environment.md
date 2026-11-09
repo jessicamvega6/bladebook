@@ -162,6 +162,9 @@ hold masked data.
 - **Domains:** `dev.<domain>` and `api.dev.<domain>`, replacing ADR-011 decision 7a's staging
   subdomains for the same reason: Cognito's allowed sign-in redirects, each API's cross-origin
   resource sharing (CORS) rule and the custom domain must be set up the way production's are.
+  *(Amended 2026-11-09: there are no Cognito sign-in redirects since the websites use their own
+  sign-in forms ([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11);
+  the CORS rule and the custom domain still need the subdomains.)*
   The records are created and removed with the stack. Search engines are told not to index it.
 
 ### 7. The canary runs against production, as a test coach and test family

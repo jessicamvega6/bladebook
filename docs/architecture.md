@@ -1354,7 +1354,7 @@ sequenceDiagram
 
 ### 6.7 Client registration and coach approval
 
-A family looks up one or more coach codes before it has an account, signs up through Cognito, then registers. The codes are resolved again in the family's own session, the family's partition is written, and a `PENDING` `STUDENT#` item goes to each coach. The coach accepts or declines through `api-coach`, which writes only the `STUDENT#` item; `consumer-student-link` mirrors the change onto the family's link item, and on a decline deletes it and sends the decline email (ADR-002, ADR-021 d6, ADR-022 d7, ADR-025 d2).
+A family looks up one or more coach codes before it has an account, signs up on BladeBook's own sign-up steps (the browser talks to Cognito directly, ADR-023 d11), then registers. The codes are resolved again in the family's own session, the family's partition is written, and a `PENDING` `STUDENT#` item goes to each coach. The coach accepts or declines through `api-coach`, which writes only the `STUDENT#` item; `consumer-student-link` mirrors the change onto the family's link item, and on a decline deletes it and sends the decline email (ADR-002, ADR-021 d6, ADR-022 d7, ADR-025 d2).
 
 ```mermaid
 sequenceDiagram
@@ -1371,7 +1371,7 @@ sequenceDiagram
     API->>DB: GetItem CODE#35;<coachCode> under the code-lookup role —<br/>coachId, name and photo only (ADR-022 d7)
     API-->>F: "Code found — you're signing up with Dana"
     Note over F: one or more coach codes (ADR-025 d2)
-    F->>Cog: create account (email + password), verify the email
+    F->>Cog: create account (email + password), verify the email -<br/>on the BladeBook form, straight to Cognito (ADR-023 d11)
     Cog->>PC: post-confirmation trigger - signed up through the family app client
     PC->>Cog: add to the Client group (ADR-023 d10)
     F->>Cog: refresh tokens - they now carry Client
@@ -1809,13 +1809,13 @@ sequenceDiagram
     participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
-    C->>Cog: sign up - login email and password (ADR-016 d3)
+    C->>Cog: sign up - login email and password, on the BladeBook form (ADR-016 d3, ADR-023 d11)
     Cog-->>C: one-time code to the email
     C->>Cog: confirm the code - email verified (d4)
     Cog->>PC: post-confirmation trigger - signed up through the coach app client
     PC->>Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,<br/>coachId is its sub (d9)
-    C->>Cog: sign in
+    C->>Cog: sign in - Secure Remote Password (SRP), on the BladeBook form
     Cog-->>C: tokens, with the Coach group
     C->>API: GET profile
     API->>DB: GetItem COACH#35;<coachId> / PROFILE - tenant role tagged coachId = the token sub (§7)
@@ -1902,9 +1902,15 @@ sequenceDiagram
   issued to the other website's app client. The check is in the API code, alongside the group
   check below, because the REST API's Cognito authorizer can't tell app clients apart.
 - MFA available for coaches (they hold the most sensitive data).
+- **BladeBook's own sign-in forms** (ADR-023 d11, 2026-11-09). Sign-up, verifying the email,
+  log-in, forgot password, the password asked again, change password and the MFA code are all
+  BladeBook's own pages. The browser calls Cognito directly, signing in with Secure Remote
+  Password (SRP); passwords and codes never reach the APIs. Cognito's hosted pages aren't used,
+  so the app clients have no sign-in redirects.
 - **Coach signup is self-serve and ungated for now** (ADR-016). Cognito owns credentials and
-  recovery entirely — there is no custom forgot-password form — and the login email must be
-  verified before the account can hold students. The signup is resumable: Cognito user
+  recovery entirely — there is no recovery of BladeBook's own making; the forgot-password page
+  only calls Cognito — and the login email must be verified before the account can hold
+  students. The signup is resumable: Cognito user
   first, then the profile and `CODE#` item, and first login completes a missing profile.
 - **The rinkside check-in page shares the coach website's sign-in** (ADR-023, superseding
   ADR-014 d10–11). It is a section of the coach website at `/coach/rinkside`, signs in

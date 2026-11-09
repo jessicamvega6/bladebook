@@ -64,7 +64,16 @@ function emailFromToken(token: string): string {
 }
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => getToken());
+  // Opening the plain address (no page named) always starts at the sign-in page, signed out, so the last coach
+  // in this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
+  const [token, setToken] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash === '' || hash === '#' || hash === '#/') {
+      signOut();
+      return null;
+    }
+    return getToken();
+  });
   const [notice, setNotice] = useState('');
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
