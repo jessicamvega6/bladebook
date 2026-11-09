@@ -91,15 +91,15 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | ADR: one merged message, *"That time was taken or no longer exists."* (ruled 2026-11-08; wording 2026-11-09) |
 | B2 | Answer-by ignores the "7 days after the leave" limit | M:726-727 | `client/screens-booking.js:338-339` | **Not ruled yet** |
 | B3 | The staying family gets one card per lesson; the ADR wants one card per series with Keep all / Cancel all remaining | M:740-751 | `client/screens-booking.js:348-351` | **Not ruled yet** |
-| B4 | A shared series still offers "end earlier" and "make less frequent" | M:758-762 | `client/screens-booking.js:413,455-463,597` | **Not ruled yet** |
+| B4 | A shared series still offers "end earlier" and "make less frequent" | M:758-762 | `client/screens-booking.js:413,455-463,597` | ADR: while any lesson still to come in the series is shared (joined or invited), the change page offers only *Cancel all future lessons*, with a note saying why; *End it earlier* and *Make it less frequent* come back once nothing is shared (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-booking.js` (new `recurrence-shared`). |
 | B5 | The day view can step outside the booking window | M:544-549 | `client/screens-booking.js:155,159` | Neither, a new rule: the family's day view shows only days inside the booking window; previous and next stop at its edges (ruled 2026-11-08). *ADR updated: ADR-031 decision 3, ADR-MASTER (The booking window).* |
 | B6 | Coaches have different notice periods; MVP fixes it at 24 hours (ADR-025 also says notice differs by coach, so the ADRs disagree with each other) | M:292, M:1687 vs M:608-610 | `client/app.js:31`, `client/screens-booking.js:23,424` | ADR, for MVP: 24 hours for every coach. Per-coach notice periods, and the *"Coaches can have different…"* pop-up line, are Phase 2 (ruled 2026-11-08). *ADR updated: ADR-025 d, ADR-MASTER (Booking with more than one coach; §24).* |
 | B7 | The clash list stops at six; the ADR lists every clashing date | M:615-616 | `client/screens-booking.js:284` | **Not ruled yet** |
 | B8 | Expired and "cancelled, no answer" come from stored status, not from the clock | M:774-775 | `client/screens-account.js:193,332-335,432-435` | **Not ruled yet** |
-| B9 | The recurrence change doesn't name the late lessons | M:916-917 | `client/screens-booking.js:466` | **Not ruled yet** |
+| B9 | The recurrence change doesn't name the late lessons | M:916-917 | `client/screens-booking.js:466` | Rule (`cancelation.md`): the warning names each cancelled lesson inside the notice period (*"Thu, Oct 15 · 4:15 PM is less than 24 hours away. Cancelling it may incur a late cancellation fee from Coach Ben."*), and the date list marks it *Cancelled · late* (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-booking.js` (new `recurrence-late`). |
 | B10 | Shared-price wording reveals the seat count (low) | M:635-636 | `client/screens-booking.js:254` | **Not ruled yet** |
 | B11 | Invitation buttons say Go ahead / Decline; the ADR says Go ahead / Cancel (low) | M:671 | `client/screens-account.js:342` | **Not ruled yet** |
-| B12 | Home says "repeats weekly" for any series; series repeat every 1–4 weeks (low) | M:580-581 | `client/screens-account.js:188` | **Not ruled yet** |
+| B12 | Home says "repeats weekly" for any series; series repeat every 1–4 weeks (low) | M:580-581 | `client/screens-account.js:188` | ADR: Home says how often the series repeats (*"repeats weekly"* or *"repeats every N weeks"*), matching My bookings; the coach's day view is fixed the same way (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-account.js`, `client/screens-booking.js` (new `home-every-2-weeks`), `coach/screens-calendar.js`. |
 
 ### Attendance and money
 
@@ -240,7 +240,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 
 | # | Batch | Holding it back |
 |---|---|---|
-| 9 | Recurring bookings and recurrence changes | B4, B9 |
+| 9 | Recurring bookings and recurrence changes | — (B4, B9 and B12 ruled 2026-11-09) |
 | 10 | Rinkside offline queue and service worker | R2, R5 (R3 and R4 ruled 2026-11-09) |
 | 11 | Shared lessons: share code, invite, accept, leave | B2, B3, B7, B8, B10, B11; the gate-test rows |
 | 12 | Financial page: gross and the summary CSV | Rink-fee method |

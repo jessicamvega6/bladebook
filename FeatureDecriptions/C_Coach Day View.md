@@ -14,7 +14,8 @@ Header:
 Every time on this day, earliest first. Each row shows the time and what's in it:
   Open: families can book this time.
   Held: the coach cancelled a lesson and kept the time closed (see cancelation.md).
-  Booked: the skater's name, their family, and "repeats weekly" if it's part of a series.
+  Booked: the skater's name, their family, and ~~"repeats weekly"~~ how often its series repeats ("repeats weekly" or
+    "repeats every N weeks") if it's part of a series. *(Owner, 2026-11-09, B12: series repeat every 1 to 4 weeks.)*
   Every row shows the lesson length and price.
   A lesson that has started or finished shows its attendance (present, no-show or not recorded).
   A booked lesson that hasn't started has a Cancel button, which opens the cancel preview for that one lesson.
