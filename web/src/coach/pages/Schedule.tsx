@@ -22,7 +22,7 @@ import {
 import { scheduleApi, type Profile, type ScheduleApi, type ScheduleDto, type TemplateDto } from '../api';
 
 /** Pelham Civic Center's ice types (ADR-MASTER section 6). Families never see them. */
-export const ICE_TYPES = [
+const ICE_TYPES = [
   { id: 'BFSC_FREESTYLE', name: 'Birmingham Figure Skating Club (BFSC) freestyle ice', short: 'BFSC freestyle' },
   { id: 'STICK_AND_PUCK', name: 'Stick and Puck (S&P) ice', short: 'S&P ice' },
   { id: 'PUBLIC', name: 'Public ice', short: 'Public ice' },
