@@ -773,7 +773,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in</b><span class="sp-bar__note">New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.</span><nav class="sp-bar__nav"><a href="account.html">← Account</a><a href="index.html">All pages</a><a href="today.html">Today’s lessons →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in</b><span class="sp-bar__note">New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.</span><nav class="sp-bar__nav"><a href="signout-waiting.html">← Log out with check-ins waiting</a><a href="index.html">All pages</a><a href="signin-waiting.html">Log in with check-ins waiting →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     
@@ -783,6 +783,7 @@ html, body { margin: 0; background: var(--sp-bg); }
     <span class="brand__mark rk-mark"><svg class="ic " width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span>
     <h1 class="h1">BladeBook at the rink</h1>
     <p class="lede">Log in with the same email and password you use on the website.</p>
+    
     <div class="field"><label class="label" for="rk-email">Login email</label><input id="rk-email" class="ctl" type="email" value="dana.whitfield@gmail.com" data-bind="auth.email"></div>
     <div class="field"><label class="label" for="rk-pw">Password</label><input id="rk-pw" class="ctl" type="password" value="" data-bind="auth.pw" placeholder="••••••••"></div>
     <button type="button" class="btn btn--primary btn--block btn--lg" data-act="rkSignIn"><span>Log in</span></button>

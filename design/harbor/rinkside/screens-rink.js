@@ -7,16 +7,25 @@ SCREENS.signin = () => phoneShell(`
     <span class="brand__mark rk-mark">${ic('logo', 26)}</span>
     <h1 class="h1">BladeBook at the rink</h1>
     <p class="lede">Log in with the same email and password you use on the website.</p>
+    ${rk().queue.length ? `<div class="pbanner pbanner--warn">${ic('clock', 18)}<div><b>${plural(rk().queue.length, 'check-in')} waiting on this phone</b><span>Saved before you logged out. They send after you log in${rk().online ? '' : ' and there’s signal'}.</span></div></div>` : ''}
     ${INP('rk-email', 'Login email', 'auth.email', { type: 'email' })}
     ${INP('rk-pw', 'Password', 'auth.pw', { type: 'password', placeholder: '••••••••' })}
     ${B('Log in', 'primary', 'rkSignIn', { block: true, lg: true })}
     <p class="fine">This app shows today’s lessons, records attendance and cancels lessons. Your schedule, students and payments stay on the website.</p>
   </div>`, { bare: true });
 Object.assign(ACTIONS, {
-  rkSignIn() { fresh(); state.authed = true; state.sheet = null; go('today'); },
+  /** Check-ins queued before a log-out send now, but only for the coach who recorded them (owner, 2026-11-09, R2).
+      Each entry carries that coach's ID; another coach signing in on this phone leaves them waiting. */
+  rkSignIn() {
+    fresh(); state.authed = true; state.sheet = null; go('today');
+    const r = rk(), n = r.queue.filter(q => q.coach === state.auth.email).length;
+    if (n && r.online) { r.queue = r.queue.filter(q => q.coach !== state.auth.email); r.syncedAt = fmtT(NOW_MIN); r.toast = `${plural(n, 'check-in')} from before you logged out sent.`; }
+  },
+  /** Logging out keeps the queue on the phone (ADR-MASTER §15; owner, 2026-11-09, R2). It warns first, so the coach
+      knows they wait for the next log-in. */
   rkSignOut() {
     if (rk().queue.length && !(state.sheet && state.sheet.kind === 'signout')) { sheetOpen('signout'); return; }
-    state.sheet = null; state.authed = false; state.rk.queue = []; go('signin');
+    state.sheet = null; state.authed = false; go('signin');
   },
 });
 
@@ -68,7 +77,7 @@ Object.assign(ACTIONS, {
     const l = lessonById(id), r = rk(); fresh(); sid = sid || l.sid;
     const p = seatOf(l, sid);
     p.status = outcome; p.at = fmtT(NOW_MIN);
-    if (!r.online) { r.queue = r.queue.filter(q => !(q.lid === id && q.sid === sid)); r.queue.push({ lid: id, sid, outcome, at: p.at }); }
+    if (!r.online) { r.queue = r.queue.filter(q => !(q.lid === id && q.sid === sid)); r.queue.push({ lid: id, sid, outcome, at: p.at, coach: state.auth.email }); }
   },
   rkMore(id) { fresh(); sheetOpen('more', { lid: id }); },
   rkContact(id, sid) { fresh(); const l = lessonById(id); sheetOpen('contact', { lid: id, sid: sid || l.sid }); },
@@ -219,8 +228,8 @@ SCREENS.account = () => {
     ${B('Log out', 'secondary', 'rkSignOut', { block: true, lg: true, icon: 'arrowL' })}`, { title: 'Account', sub: 'Rinkside app' });
 };
 RK_SHEETS.signout = () => sheet(`<div class="rk-sheeticon rk-sheeticon--warn">${ic('alert', 24)}</div><h2 class="h2">${plural(rk().queue.length, 'check-in')} haven’t been sent</h2>
-  <p class="fine">They’re only on this phone. If you log out now, they’re deleted. Wait for signal, or record them again on the website.</p>
-  ${B('Stay logged in', 'primary', 'rkClose', { block: true, lg: true })}${B('Log out and delete them', 'danger', 'rkSignOut', { block: true, lg: true })}`, 'Log out');
+  <p class="fine">They’re saved on this phone. If you log out, they’ll send the next time you log in here. Only your login can send them.</p>
+  ${B('Stay logged in', 'primary', 'rkClose', { block: true, lg: true })}${B('Log out', 'secondary', 'rkSignOut', { block: true, lg: true })}`, 'Log out');
 
 /* ================= presets ================= */
 const lid = (sid, t) => state.lessons.find(l => l.iso === TODAY && l.sid === sid && l.t === t).id;
@@ -229,6 +238,7 @@ const SHARED = () => lid('s4', 360);   // Sam and Leo's shared 6:00
 const leoNotYet = () => { const p = seatOf(lessonById(SHARED()), 's5'); p.status = 'BOOKED'; delete p.at; };
 PRESETS.push(
   { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.', setup: st => { st.authed = false; st.screen = 'signin'; } },
+  { id: 'RinkSignInWaiting', file: 'signin-waiting', group: 'Sign in', title: 'Log in with check-ins waiting', note: 'New 2026-11-09 (owner, R2). Two check-ins saved before the coach logged out. They send after this coach logs in; another coach’s login leaves them waiting.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); st.rk.online = true; st.authed = false; st.screen = 'signin'; } },
   { id: 'RinkToday', file: 'today', group: 'Today', title: 'Today’s lessons', note: 'Redesigned from Forest RinkToday. 6:35 AM: the shared 6:00 recorded for both skaters, Mia under way, later lessons show their start time instead of buttons, the held slot in place.', setup: st => { st.screen = 'today'; } },
   { id: 'RinkShared', file: 'today-shared', group: 'Today', title: 'Shared lesson — two skaters', note: 'New. Sam and Leo share the 6:00 (ADR-026 d6): one card, a row per skater, each with their own Present and No-show. Sam is recorded, Leo isn’t yet. The count counts each skater.', setup: st => { st.screen = 'today'; leoNotYet(); } },
   { id: 'RinkSharedContact', file: 'today-shared-contact', group: 'Today', title: 'Contact details — shared lesson', note: 'New. Each name in a shared lesson opens that skater’s own family: here Leo’s mother, Kate Martin. Fetched for this tap only, never stored (ADR-014 d9b).', setup: st => { st.screen = 'today'; leoNotYet(); st.sheet = { kind: 'contact', on: 'today', lid: SHARED(), sid: 's5' }; } },
@@ -245,4 +255,5 @@ PRESETS.push(
   { id: 'RinkWeekConfirm', file: 'week-confirm', group: 'Cancel', title: 'Cancel several — confirm', note: 'New. One confirmation listing every lesson, which are held, and which families are emailed.', setup: st => { st.screen = 'week'; const a = lid('s5', 600); const b = state.lessons.find(l => l.iso === '2026-10-16' && l.sid === 's5').id; st.rk.sel = { [a]: true, [b]: true }; st.rk.hold = { [a]: true }; st.sheet = { kind: 'weekConfirm', on: 'week' }; } },
   { id: 'RinkWeekAllConfirm', file: 'week-all-confirm', group: 'Cancel', title: 'Cancel the rest of the week — confirm', note: 'New (owner, 2026-11-08; ADR-009). The whole week holds every booked lesson and open time left from now to Saturday, with no release-or-hold question. The weekly schedule doesn’t change.', setup: st => { st.screen = 'week'; st.sheet = { kind: 'weekAllConfirm', on: 'week' }; } },
   { id: 'RinkAccount', file: 'account', group: 'Account', title: 'Account', note: 'New. Who is signed in, when the phone last synced, log out, and where everything else lives.', setup: st => { st.screen = 'account'; } },
+  { id: 'RinkSignOutWaiting', file: 'signout-waiting', group: 'Account', title: 'Log out with check-ins waiting', note: 'Reworked 2026-11-09 (owner, R2; ADR-MASTER §15). Logging out keeps the check-ins on the phone; they send after the same coach logs in again.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); st.screen = 'account'; ACTIONS.rkSignOut(); } },
 );

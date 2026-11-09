@@ -1218,7 +1218,10 @@ notified.
 - **The coach website warns before 60 minutes run out** and keeps unsaved work, above all in the
   schedule editor.
 - MFA is available to coaches.
-- Queued rinkside check-ins wait across a sign-out and send after the next sign-in.
+- Queued rinkside check-ins wait across a sign-out and send after the next sign-in **by the same
+  coach**. Each entry carries the coach's ID; another coach signing in on that phone leaves them
+  waiting. Logging out with entries waiting warns first: they stay on the phone and send at the
+  next log-in. *Confirmed by the owner 2026-11-09 (R2); ADR-023 decision 6.*
 
 ---
 
