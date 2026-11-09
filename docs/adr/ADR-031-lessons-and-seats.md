@@ -168,16 +168,16 @@ Both moves are one transaction with the seat's delete.
 ### 3. The booking window is checked by the system
 
 Each **picked** time must fall inside the months the booking page shows: from today to the end of
-the month two months after the current one, in the coach's time zone (on April 24: April, May,
-June). It's checked with the request's other checks — the skater is linked and `ACTIVE`
+the month two months after the current one, in the coach's time zone (product rule, with its
+examples and error wording — see `FeatureDecriptions/Bookings:`, the booking window). It's
+checked with the request's other checks — the skater is linked and `ACTIVE`
 (ADR-024), the end date is no more than 12 months after the first pick (ADR-006 d4) — before
 anything is written.
 
 - A repeating series is checked on its **first** date only; its later dates may run past the
   window up to the end date.
-- A pick outside the window refuses the **whole** request: "That date is further ahead than you
-  can book." Nothing is booked. (Unlike *unavailable*, this can only come from something other
-  than the booking page.)
+- A pick outside the window refuses the **whole** request; nothing is written. (Unlike
+  *unavailable*, this can only come from something other than the booking page.)
 - A retry is never refused by the window: the window only grows as time passes (on May 1 it
   runs to the end of July), so a pick that was inside it stays inside it.
 - *Open (Phase 2):* whether a coach booking for a family (ADR-009) is held to the same window.
@@ -219,7 +219,9 @@ The share box (ADR-026 d5) adds the **invited seat** to the same transaction:
 
 - **The invited seat holds the place at once** (*owner, 2026-10-13*). Nobody can join without an
   invitation anyway.
-- **The booking family pays the full price until the invited skater joins.**
+- **The booking family pays the full price until the invited skater joins** (product rule — see
+  `FeatureDecriptions/Schedule lesson split`, "Price"), so an `INVITED` seat isn't counted in
+  `shareCount` (decision 7).
 - One invitation covers a whole series: each date gets its own invited seat with the same
   `inviteId`.
 - *Phase 2 since ADR-033 (2026-10-20): a sibling must already be `ACTIVE` and is created `BOOKED`.* **Siblings** (ADR-026 d5): the seat is created `BOOKED` directly, or `AWAITING_COACH` if the
@@ -313,6 +315,11 @@ it shares with.
 
 ### 8. Leaving a shared lesson
 
+The rules families see — either family, the same rules; keep or cancel after an in-time leave; the
+late leaver's share of the fee; the answer-by time and its emails — are product rules in
+`FeatureDecriptions/Schedule lesson split` ("A skater calls out") and
+`FeatureDecriptions/cancelation.md` (shared lessons). This decision records how they are stored.
+
 **Either family, the same rules** — neither owns the lesson. One transaction per date:
 
 - **In time** (outside the notice period):
@@ -341,20 +348,20 @@ week.
   cleared; the lesson time reopens (`OPEN`) when its last
   seat goes. The same is true whenever the last seat goes — a family's cancel, or a coach's
   cancel with **release**. A coach's **hold** sets it to `HELD` instead.
-- **No answer by `answerBy`** → cancelled with no charge by the hourly sweep. Both emails ("keep
-  at full price or cancel", "cancelled, no answer") are always sent.
+- **No answer by `answerBy`** → cancelled with no charge by the hourly sweep. (Which emails the
+  family gets: `FeatureDecriptions/cancelation.md`.)
 
 ### 9. Changing a shared series
 
-**While a series is shared**, a family can only:
-- **cancel one lesson**, or
-- **cancel the series** (all future lessons, not today's — ADR-009 d4).
+While a series is shared, a family can only cancel one lesson or cancel the series, and the
+staying family answers several freed dates on one card per series (product rules — see
+`FeatureDecriptions/Schedule lesson split`, "A shared repeating lesson", and
+`FeatureDecriptions/cancelation.md`, "The staying family's card"; the options, card layout,
+buttons and emails moved there on 2026-11-08). What that needs technically:
 
-*End earlier* and *make less frequent* are hidden. A series counts as shared while **any future
-lesson in it has another skater, joined or invited**. Once none does, both come back; filling a
-freed date makes it shared again until that lesson is over.
-
-**The staying family's card:**
+- **Whether a series is shared** is worked out from its seats: shared while **any future lesson
+  in it has another skater, joined or invited**. Filling a freed date makes it shared again until
+  that lesson is over.
 - **The card is built from the family's own seats** (*owner, 2026-10-13*): every seat with
   `choiceAnswerBy` set is a date waiting for an answer. Who left comes from the seat's
   `partnerName` (with `partnerStatus = LEFT`), and the full price from the lesson time's
@@ -363,21 +370,14 @@ freed date makes it shared again until that lesson is over.
 - **Remaining dates** are the dates that (1) this leave freed — a one-off cancel or cancelling the
   series; (2) were left in time; (3) the staying family hasn't answered; (4) are still waiting —
   not started, answer-by not passed, not cancelled by the coach.
-- **One freed date** gets the ordinary card: keep at full price, or cancel with no charge.
-- **More than one** gets one card for the series, listing each date with its answer-by and the
-  totals, with **Keep all remaining dates**, **Cancel all remaining dates** (confirmation first:
-  "No charge. This can't be undone.") and a keep-or-cancel choice per date.
-- **Cards merge per series:** dates still waiting from earlier one-off cancels by the same skater
-  join the series card, each keeping its own answer-by.
 - **Keep all / cancel all** run one transaction per date, each re-checked first; a date that has
-  started, or was already answered or cancelled, is skipped and listed as no longer available.
-- Cancelling all sends the family one email listing the dates. The coach isn't emailed: none of
-  these cancellations is late.
+  started, or was already answered or cancelled, is skipped.
 
 ### 10. A freed place can take a new skater
 
-After the staying family keeps a lesson, **Invite a skater** appears on it in My bookings
-(*owner, 2026-10-13*) — **only there**; otherwise sharing is offered only while booking.
+After the staying family keeps a lesson, they can invite a new skater to it (product rule, and
+where the button appears — see `FeatureDecriptions/Schedule lesson split`, "A freed place", and
+`FeatureDecriptions/C_Client My Bookings.md`).
 
 - It works like decision 5: a new invited seat holds the place, the staying family pays the full
   price until the new skater joins, then `shareCount` goes up and both pay their share.
@@ -439,9 +439,8 @@ ADR-026 d5a's **nightly** sweep becomes **`sched-deadline-sweep`, every hour** (
 
 ### 13. Odd-cents warning in the schedule editor
 
-When a block allows 2 or more skaters and its price doesn't split evenly, the editor warns:
-"Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent more." It's shown whenever
-the price or the skaters-per-lesson changes, and the coach can still save (*owner, 2026-10-13*).
+*Moved to `FeatureDecriptions/Schedule Creater.md` ("Skaters per lesson") on 2026-11-08 — product
+content, not an architecture decision.*
 
 ### 14. Details settled while updating the docs (2026-10-13)
 
@@ -599,8 +598,9 @@ stateDiagram-v2
 
 ## Open
 
-- Whether a coach booking for a family (Phase 2) is held to the 3-month window (decision 3).
-- Whether the 7 days in the answer-by rule should be a question for Kim (decision 8). *(Put to Kim as §8 Q7.)*
+- *Moved 2026-11-08 — product questions:* whether a coach booking for a family is held to the
+  3-month window (→ `FeatureDecriptions/Bookings:`), and whether the 7 days in the answer-by rule
+  should be a question for Kim (→ `FeatureDecriptions/Schedule lesson split`).
 - ~~ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
   it becomes one more `dueKind`.~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson;
   an unanswered invitation expires at the lesson start (`EXPIRE`, decision 12). No new `dueKind`.

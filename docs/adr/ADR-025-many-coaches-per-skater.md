@@ -31,9 +31,8 @@ they had entered the coach code. Decision 5's clash warning is shown on the invi
 page, where the family chooses to go ahead or cancel; it isn't re-checked when the skater joins
 later.
 
-**Amended — 2026-10-07.** *Decided by the owner.* **No limit on coaches per skater.** A skater
-signs up with **1 to 10 coaches** and adds more later as needed; the multi-coach screens are
-designed for about 10. **Decision 4 (*"Also coached by"*) moves to Phase 2**, which takes MVP's
+**Amended — 2026-10-07.** *Decided by the owner.* **No limit on coaches per skater** (product
+detail — see `FeatureDecriptions/Client Sign Up`, "More than one coach"). **Decision 4 (*"Also coached by"*) moves to Phase 2**, which takes MVP's
 only exception to keeping coaches' data apart out of MVP.
 
 **Amended — 2026-10-12.** [ADR-029](ADR-029-skater-registration-number.md) extends decision 1: the
@@ -70,30 +69,17 @@ to each coach's `STUDENT#` record by `consumer-family-sync` (decision 6).
   lessons with other coaches.** (Narrows blocker #17.)
 
 **Amended again — 2026-10-13.** *Decided by the owner.* **The rest of the family website**
-(decisions 2, 3 and 7):
+(decisions 2, 3 and 7). Items **h–o** are product rules for the family website, *moved on
+2026-11-08 to `FeatureDecriptions/Client Sign Up` (h), `FeatureDecriptions/ClientHomeView`
+(i, j, l), `FeatureDecriptions/ClientProfileView` (k, n), `FeatureDecriptions/C_Client Payments.md`
+(m) and `FeatureDecriptions/C_Client My Bookings.md` (o)*. The technical parts that stand here:
 
-- **h. Several coach codes at sign-up are MVP**, not Phase 2. The first step takes one code
-  and offers *Add another coach*; each skater then ticks which of those coaches they join and
-  waits for each one separately. (Only the disclosure line about other coaches stays Phase 2,
-  with decision 4.)
-- **i. A family is "waiting" only until any coach approves any of its skaters** (decision 3 and
-  ADR-022 d6, applied to the whole site). After that it sees the whole site; a coach still to
-  approve is named wherever it matters (a Home banner per waiting coach, the Coach dropdown,
-  the profile), and nothing of that coach is shown — no times, contact details or booking.
-  Every waiting message names the coach or coaches, never only one.
-- **j. Home shows one card per coach.** An approved coach's card shows the contact details
-  that coach switched on; a coach still to approve shows none.
-- **k. Adding a skater on the profile asks which coaches they join** (when the family has more
-  than one). The new skater waits for each coach picked. *Amended 2026-11-06: asked always, with "None of my coaches yet"
-  allowed (Status).*
-- **l. Shared-lesson invitations name their coach** on every family page (home banner,
-  invitations card, invitation page). The invitation emails already did.
-- **m. Payments (Phase 2) are grouped by coach**, never totalled across coaches (as d7 says).
-- **n. Removing a skater from one coach or from all** is Phase 2, with the rest of the
-  "delete a student" question (blocker #17) *(owner, 2026-10-13)*.
-- **o. My bookings has a coach filter** *(owner, 2026-10-13)*: a Coach dropdown beside the
-  skater filter, "All coaches" by default, listing only coaches with upcoming lessons. The two
-  filters combine.
+- **h.** Registration may carry several coach codes (decision 2's 2026-10-06 amendment).
+- **i.** A family's site-wide "waiting" state ends once any coach approves any of its skaters;
+  per coach, `linkStatus` still governs what it can read (decision 3, ADR-022 d6), so nothing of
+  a coach still to approve is readable.
+- **m.** Payments (Phase 2) are never totalled across coaches (decision 7).
+- **n.** Removing a skater from one coach or from all is Phase 2, with blocker #17.
 
 **Note — 2026-10-13.** [ADR-031](ADR-031-lessons-and-seats.md) rebuilds booking as **lesson
 times** (the coach's) and a **seat** for each skater. **Nothing in this ADR's multi-coach rules
@@ -108,20 +94,12 @@ they are already `ACTIVE` with; adding a coach is through the coach code.
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
 (`design/harbor/client/screens-account.js`, "To add a new skater, add them under Skaters first").*
-**Item k: a skater added on the profile can start with no coach.** *Add a skater* always asks
-which coaches they join (now also when the family has only one coach) and offers **"None of
-my coaches yet"**. That skater gets a `SKATER#` item and a share code, but no link item and no
-`STUDENT#` record anywhere. The profile shows *"Not with a coach yet"*, and the skater can't be
-booked, invited or added as a sibling. The family then uses *Add a coach* (decision 2), where
-the skater appears like any existing one. This avoids a new skater being made `PENDING` with a
-coach they will never skate with, and that coach's decline email.
-- **Sign-up is unchanged:** each skater still ticks at least one coach.
+**Item k: a skater added on the profile can start with no coach** (product rule and screens —
+see `FeatureDecriptions/ClientProfileView`, "Add a skater with no coach yet"). That skater gets a
+`SKATER#` item and a share code, but no link item and no `STUDENT#` record anywhere, so they
+can't be booked, invited or added as a sibling until the family adds a coach (decision 2).
 - `consumer-family-sync` has no coach to copy a skater with no coach to, so it writes nothing but the
   share code. The "waiting" rule (item i) doesn't count a skater with no coach either way.
-- The add-a-coach form keeps its hint, worded for the new path. The *"None of my coaches yet"*
-  choice is drawn in `design/harbor/client/` (`profile-add-skater-no-coach`,
-  `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater`;
-  2026-11-06).
 
 **Amended — 2026-11-08.** *Decided by the owner, settling conflict B6 in the implementation plan
 (`design/harbor/client/app.js`, `screens-booking.js`).* Item **d** is **Phase 2**. In MVP every
@@ -179,15 +157,15 @@ with, are unchanged in shape.
 
 ### 2. Adding a coach
 
-From their account, a signed-in family can **add a coach**: enter that coach's code, then
-choose which skaters join them, existing ones or a new one. Each new link starts `PENDING`
+A signed-in family can **add a coach** to existing or new skaters (the screen is product — see
+`FeatureDecriptions/ClientProfileView`, "More than one coach"). Each new link starts `PENDING`
 with that coach and is approved by that coach alone (ADR-002 decision 2), independently of
 the skater's other coaches.
 
 The code is resolved exactly as at sign-up, under the family's first session (ADR-022
-decision 7), with the same WAF rate limit on lookups (ADR-019). The screen tells the family:
-*"Coach Sam will see that Mia also skates with Coach Dana, and Coach Dana will see Coach Sam."*
-(decision 4). ***Phase 2*** *(owner, 2026-10-07):* this message ships with decision 4, not in MVP.
+decision 7), with the same WAF rate limit on lookups (ADR-019). The family is told about
+decision 4's disclosure when adding a coach (wording in `FeatureDecriptions/ClientProfileView`).
+***Phase 2*** *(owner, 2026-10-07):* this message ships with decision 4, not in MVP.
 
 *Amended 2026-10-06:* **several coaches at sign-up too.** A new family can enter more than one
 coach code while registering. Each code is looked up as now (before sign-in, under the
@@ -221,8 +199,8 @@ doesn't maintain `otherCoaches`, and the family isn't told about it when adding 
 ships, existing skaters need a **one-off backfill**, because the list is otherwise only
 recomputed when a link changes. The design below stands for then.
 
-*Decided by the owner, 2026-10-06.* On a skater's record, a coach sees *"Also coached by: Sam
-Ortiz."*
+*Decided by the owner, 2026-10-06.* On a skater's record, a coach sees the names of the skater's
+other coaches (screen wording in `FeatureDecriptions/Coach Dashboard on website.md`, Student List).
 
 **Only the names, and only between approved links.** Coach A sees Coach B's first and last
 name, and only once the skater is `ACTIVE` with both. Nothing else crosses: not the other
@@ -244,12 +222,9 @@ when they add a coach (decision 2).
 ### 5. A clashing booking is warned about, not refused
 
 *Decided by the owner, 2026-10-06.* When a family books, the family website checks the
-skater's other lessons, with any coach, and warns about an overlap:
-
-> *"Mia already has a lesson with Coach Sam at 4:00 on Tue 14 Oct. Book anyway?"*
-
-The family can book anyway, for example back-to-back lessons at the same rink. For a recurring
-booking, the warning lists every clashing date before the family confirms.
+skater's other lessons, with any coach, and warns about an overlap; the family can book anyway
+(product rule and wording — see `FeatureDecriptions/Bookings:`, "Booking with more than one
+coach"). For a recurring booking the check covers every date.
 
 **How:** the family's own bookings, across every coach, are already one query on GSI1, which
 is keyed by family (ADR-022 decision 4). *(Since ADR-031, 2026-10-13, GSI1 indexes the family's
@@ -281,16 +256,10 @@ That's acceptable for a contact change; it doesn't widen anyone's access.
 
 ### 7. The family website works across coaches
 
-| Screen | Behaviour |
-|---|---|
-| Booking, calendar, coach profile | About **one coach at a time**, chosen from a coach switcher. |
-| My lessons | **All coaches**, each lesson labelled with its coach. |
-| Payments owed (*Phase 2*) | **Grouped by coach, never totalled across them.** Coaches may use different currencies (USD and CAD), and each family pays each coach directly. |
-| Skaters | Each skater lists their coaches and the status with each (*Approved*, *Waiting for Coach Sam*). |
-
-*2026-10-13:* booking (the coach switcher), sign-up with several codes, Home's coach cards,
-the waiting pages and the profile's coaches are in the Harbor designs; My lessons labels each
-lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 2) is not yet.
+*Moved to `FeatureDecriptions/ClientHomeView` ("Across coaches"), with copies of each row to the
+page it describes, on 2026-11-08 — product content, not an architecture decision.* The one
+technical constraint: payments owed (*Phase 2*) are never totalled across coaches, because
+coaches may use different currencies (USD and CAD).
 
 ---
 
@@ -346,14 +315,9 @@ lesson with its coach, and has a coach filter. Payments grouped by coach (Phase 
 
 - ~~**Is there a limit on coaches per skater?**~~ **Settled by the owner, 2026-10-07: no
   limit.** A skater signs up with 1 to 10 coaches and adds more as needed.
-- **Designs for the new screens** (decision 7), for about 10 coaches. *Booking and the
-  profile's coaches designed 2026-10-13*, then sign-up, Home and the waiting pages the same
-  day. Payments (Phase 2) is still to do; per-coach removal
-  is Phase 2 (n). *"Also coached by"* on the coach side is Phase 2. *2026-11-06: item k's
-  "None of my coaches yet" path is drawn too (four profile pages, Status).*
-- **What the family sees when one coach removes their skater** while another coach keeps them.
-  Part of blocker #17. *2026-10-13: the other coaches' lessons aren't affected (g); what the
-  family sees is still open, and Phase 2 with the rest of removal (n).*
+- *Moved to `FeatureDecriptions/ClientProfileView` ("Open questions") on 2026-11-08: the designs
+  for the new screens, and what the family sees when one coach removes their skater — product
+  content, not architecture decisions.*
 
 ---
 

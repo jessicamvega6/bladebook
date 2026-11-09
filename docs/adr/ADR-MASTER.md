@@ -3,6 +3,8 @@
 **What this is.** Every decision in ADR-001 to ADR-033 that is still in force, merged into one
 statement of what gets built. Superseded decisions, history, dates and rejected alternatives are
 left out. Each section names the ADRs it comes from, for the reasoning.
+Product content — screens, wording, user flows and product rules — lives in `FeatureDecriptions/`
+(split out 2026-11-08); sections here point to the feature file instead of restating it.
 
 **Current through:** ADR-033.
 
@@ -268,6 +270,9 @@ archiver reads them.
 
 *Sources: ADR-002 d2a, ADR-003, ADR-007, ADR-009 d9, ADR-015, ADR-016, ADR-021 d5, ADR-022 d7.*
 
+*The sign-up steps, profile tabs, fields as the coach sees them and their wording are product: see
+`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md` (moved 2026-11-08).*
+
 - **Sign-up is self-serve and ungated.** No invite, approval queue, identity check or business
   identifier (no Employer Identification Number).
 - **A coach account is useless until a family enters its code**, and enrolment always needs that
@@ -285,28 +290,27 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used. **At sign-up, families can't reach the coach until it is confirmed:** the login email is not a fallback, and **the coach code doesn't work until then**, because the `CODE#` item is written only once the coach has a confirmed business email, or at once if the coach uses the login email (ADR-016, 2026-11-06). **On the profile**, the current confirmed address stays in use until the new one is confirmed. The profile keeps a list of addresses; an unconfirmed one can't be picked; any but the current one and the login email can be removed. The link opens a page the coach confirms on, so a mail scanner can't confirm it. |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used; the link opens a page the coach confirms on, so a mail scanner can't confirm it. **The `CODE#` item is written only once the coach has a confirmed business email**, or at once if the coach uses the login email, so no family email is sent without a confirmed `Reply-To` (ADR-016, 2026-11-06). On a change, the current confirmed address stays in use until the new one is confirmed. The address list and what the coach is told are product (`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md`, "Business email"). |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
 | `requiredNoticeHours` | Default **24**; not on the sign-up form; not editable in MVP |
 | `coachCode` | System-generated |
-| `profilePhotoKey` | Never set in MVP; screens show the coach's **initials** in a circle |
+| `profilePhotoKey` | Never set in MVP (what screens show instead: `FeatureDecriptions/C_Coach Profile.md`, "Details") |
 | `paymentInstructions` | Free text; HTML-escaped wherever rendered; treated as personal data |
 | `cashappHandle`, `venmoHandle`, `paypalHandle` | Optional |
-| `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | Off by default. A type with a handle needs the handle before it can be switched on. Switching it off keeps the handle; switching Cash App, Venmo or PayPal back on asks the coach to confirm the kept handle. |
+| `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal` | False by default. A type with a handle can't be on while its handle is empty; turning a type off keeps its handle. The switches' behaviour is product (`FeatureDecriptions/C_Coach Profile.md`, "Payments"). |
 | `displayPhoneToClients`, `displayEmailToClients` | Off by default |
-| `smsCancellationAlerts` | **On the profile only**, not the sign-up form (ADR-016, 2026-11-06). **Unticked until the coach ticks it** — *"Text me when a family cancels late."* Ticking it sends the one-off opt-in confirmation to `phone`. |
+| `smsCancellationAlerts` | Set on the profile only (ADR-016, 2026-11-06); false until the coach turns it on. Turning it on sends the one-off opt-in confirmation to `phone`. Its wording: `FeatureDecriptions/C_Coach Profile.md`, "Visibility & texts". |
 | `morningEmailSentOn` | Guard for the morning email (§13) |
 | `themeId` | Harbor only in MVP |
 
 ### What families see
 
-Shown **only to families the coach has confirmed**, never to a `PENDING` family, never in an SMS
-and not on the rinkside page: the phone (if switched on), the business email (if switched on),
-and every payment type switched on. They appear on the family website's coach card on Home, at
-the top of the booking page, and in the footer of client emails. `paymentInstructions` always
-appears in the payment-reminder email.
+The phone, the business email and the payment types the coach has switched on are readable
+**only by families the coach has confirmed** (never by a `PENDING` family, §16) and **never go in
+an SMS** (§13). `paymentInstructions` always goes in the payment-reminder email. Where they appear
+is product: `FeatureDecriptions/C_Coach Profile.md`, "Visibility & texts" (moved 2026-11-08).
 
 ### Coach code
 
@@ -314,8 +318,9 @@ appears in the payment-reminder email.
   groups of four (`7K2Q-M9XT`). Holds nothing of the coach's name.
 - Written with `attribute_not_exists(PK)`; on a collision, regenerate.
 - Typed in any case, with or without the dash.
-- **Never expires.** The coach can rotate it on the profile; the old code is retired at once, and
-  families already signed up are unaffected.
+- **Never expires.** Rotating retires the old `CODE#` item at once; families already signed up are
+  unaffected. Where the coach sees, copies and rotates it is product
+  (`FeatureDecriptions/C_Coach Profile.md`, "Details").
 - The `CODE#` item's name and photo key are kept in step when the coach renames.
 
 ---
@@ -324,18 +329,21 @@ appears in the payment-reminder email.
 
 *Sources: ADR-002, ADR-022, ADR-024, ADR-025, ADR-026 d4, ADR-029, ADR-033.*
 
+*The sign-up steps, Home, the profile and the waiting pages — what families see and are told — are
+product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHomeView` and
+`FeatureDecriptions/ClientProfileView` (moved 2026-11-08).*
+
 ### Registration
 
 1. The family enters **one or more coach codes** before an account exists. Each is looked up
-   under the `code-lookup` role; the screen shows *"Code found — you're signing up with Dana"*
-   with the coach's initials. *Add another coach* adds more codes.
+   under the `code-lookup` role (§16), which returns only the coach's name and photo key.
 2. They create a Cognito account (email and password) and verify the email.
 3. Registration **resolves every code again** inside the signed-in session; coach IDs carried
    over from the browser are never trusted.
 4. They register **themselves** (one skater, `isMinor = false`, `SELF`, contact copied from the
    account) or **their children**, one or more (`isMinor = true`, `GUARDIAN`).
-5. For each skater they tick which of the entered coaches the skater joins, and give the skater's
-   **registration number** (below).
+5. For each skater they choose which of the entered coaches the skater joins, and give the
+   skater's **registration number** (below).
 6. Registration writes the `SKATER#` items, and one link and one `PENDING` `STUDENT#` record per
    skater per coach. The coach's name is copied onto each link item.
 
@@ -344,42 +352,43 @@ appears in the payment-reminder email.
 - **Every new skater is `PENDING`** with each coach until that coach approves them — siblings
   added later too. Each coach approves independently.
 - A `PENDING` skater **cannot be booked**.
-- The coach website's **Students tab title shows the number of pending skaters.** No reminder
-  email for waiting approvals.
-- **No approval email in MVP** (Phase 2, §24): the family sees the approval the next time they
-  open the website, and no screen promises an email (ADR-002, 2026-11-06).
+- No reminder email for waiting approvals (product — `FeatureDecriptions/Client Sign Up`, "Coach
+  approval").
+- **No approval email in MVP** (Phase 2, §24); when it ships, `consumer-student-link` sends it
+  (ADR-002, 2026-11-06). What the family sees instead: `FeatureDecriptions/Client Sign Up`,
+  "Coach approval".
 - **Declining deletes the skater record** (`STUDENT#` immediately; the link follows through
-  `consumer-student-link`). Not archived. `consumer-student-link` emails the family
-  (*"the coach does not have availability to take on new students"*) from the removed item, so
-  the removal's `StudentChanged` event must carry `clientEmail`. The family's account stays.
+  `consumer-student-link`). Not archived. `consumer-student-link` emails the family from the
+  removed item, so the removal's `StudentChanged` event must carry `clientEmail`. The family's
+  account stays. (The decline message: `FeatureDecriptions/Coach Dashboard on website.md`.)
 - `api-coach` writes only the `STUDENT#` item; the link item follows about a second later.
 
 ### What a waiting family sees
 
 - A family is **"waiting" with a coach** until that coach approves any of its skaters
   (`linkStatus` is per coach).
-- While waiting with every coach, the family sees **only its own account**: profile, skaters and
-  the names of the coaches it is waiting on. Nothing of any coach's schedule, availability or
-  profile.
-- Once any coach approves, the whole site opens. A coach still to approve is named wherever it
-  matters (a Home banner per waiting coach, the Coach dropdown, the profile), and nothing of that
-  coach is shown. Every waiting message names the coach or coaches.
+- While waiting with every coach, the family reads **only its own partition**: the
+  `client-tenant` allowlist opens a coach's partition only when `linkStatus = ACTIVE` (§16), so
+  nothing of a waiting coach's schedule, availability or profile is readable.
+- What each page shows while waiting, and once one coach approves: `FeatureDecriptions/ClientHomeView`
+  ("Waiting for approval", "Across coaches").
 
 ### Skaters and coaches
 
 - **A skater has one `studentId` for life** and any number of coaches (sign-up takes 1 to 10;
   more can be added later). Each coach holds its own `STUDENT#` record with its own status.
-- **A signed-in family can add a coach**: enter the code, choose which skaters (existing or new)
-  join. Each new link starts `PENDING`.
-- **Adding a skater on the profile** always asks which coaches they join, and allows **"None of my
-  coaches yet"** (ADR-025, 2026-11-06). Such a skater has a `SKATER#` item and a share code but no
-  link or `STUDENT#` record, can't be booked, invited or added as a sibling, and joins a coach
-  through *Add a coach*. Sign-up still needs at least one coach per skater.
+- **A signed-in family can add a coach**: the code is resolved again and each chosen skater gets a
+  new `PENDING` link (screens: `FeatureDecriptions/ClientProfileView`, "More than one coach").
+- **A skater may have no coach** (ADR-025, 2026-11-06): a `SKATER#` item and a share code but no
+  link or `STUDENT#` record. Such a skater can't be booked, invited or added as a sibling, and
+  joins a coach through adding a coach. Sign-up still needs at least one coach per skater. (The
+  "None of my coaches yet" choice: `FeatureDecriptions/ClientProfileView`, "Add a skater with no
+  coach yet".)
 - **Family edits write only the family's own partition.** `consumer-family-sync` copies contact
   and skater changes to every coach's `STUDENT#` record, and a skater's name change to their
   upcoming seats.
-- **Home shows one card per coach.** An approved coach's card shows the details that coach
-  switched on; a waiting coach's shows none.
+- **Each coach's details are read per coach**; a waiting coach's are not readable (§16). Home's
+  coach cards are product (`FeatureDecriptions/ClientHomeView`).
 - One coach removing a skater or cancelling their lessons doesn't affect the skater's lessons with
   other coaches.
 
@@ -390,15 +399,18 @@ appears in the payment-reminder email.
   skater, not the family.
 - Stored on `SKATER#`; `consumer-family-sync` copies it to every coach's `STUDENT#` record.
 - **Checked for shape only**, in `api-client` and again in the browser: trim, uppercase, match the
-  organisation's pattern, cap the length, store the cleaned form. A rejection names the expected
-  shape and never suggests a lookup.
+  organisation's pattern, cap the length, store the cleaned form. A rejection names only the
+  expected shape, never a hint of a lookup (messages: `FeatureDecriptions/Client Sign Up`,
+  "Registration number").
   - USA Hockey: 14 characters, 9 digits and 5 letters. The season's check digit is a **setting**.
   - US Figure Skating and Learn to Skate USA: letters and digits, 1 to 20 characters, until the
     formats are known (ADR-029, 2026-11-06).
 - **Never a key** and never in an index.
-- Nothing happens when a number lapses.
-- **Coaches can download** a file of Student First Name, Student Last Name, Skater Number from the
-  Students tab; the download is a logged personal-data read (§18). Its phase is open.
+- Nothing happens when a number lapses (product — `FeatureDecriptions/Client Sign Up`,
+  "Registration number").
+- **Coaches can download** a file of Student First Name, Student Last Name, Skater Number; the
+  download is a logged personal-data read (§18). Its screen and phase are product
+  (`FeatureDecriptions/Coach Dashboard on website.md`, Student List).
 
 ### Share code
 
@@ -409,7 +421,8 @@ Every skater has one, for inviting them to a shared lesson (§8):
   from the coach-code set: `MIA-4K7QX`. Typed ignoring case and the dash.
 - Issued by `consumer-family-sync` when the `SKATER#` item is created, as a `SKATERCODE#` item
   with `attribute_not_exists(PK)`, copied onto `SKATER#`.
-- **Never changes**, including on a rename. The profile shows it with **Copy** only.
+- **Never changes**, including on a rename (where the family sees it:
+  `FeatureDecriptions/ClientProfileView`, "Share code").
 - A lookup checks only that the skater exists. The server's read returns the skater's `studentId` and
   display name; the family sees **only the display name** (*"Mia R."*). The ID never leaves
   `api-client`, the browser sends only the code, and the booking resolves the code again itself.
@@ -432,12 +445,13 @@ ADR-026 d1, ADR-031 d13.*
   `startTime`.
 - **Lesson generation per block:** back-to-back from `startTime`, `floor((end − start) /
   lessonMinutes)` lessons; any remainder is dropped.
-- **`lessonMinutes`** is chosen from **30, 45, 60, 90, 120** in the editor (stored as an integer).
+- **`lessonMinutes`** is one of **30, 45, 60, 90, 120** (stored as an integer).
 - **`maxSkaters`** defaults to **1**; the most a coach may choose is **2**, held as a setting.
   Families never see it.
-- **`missedLessonFeeMinor`** is **0** on every block in MVP and the field is hidden.
-- **`iceType`** is required per block and never shown to families. The **rink** is fixed to
-  Pelham Civic Center (PCC).
+- **`missedLessonFeeMinor`** is **0** on every block in MVP.
+- **`iceType`** is required per block and never shown to families.
+- *The editor's fields as the coach sees them (including the rink, fixed to Pelham Civic Center in
+  MVP, and the hidden fee field) are product: `FeatureDecriptions/Schedule Creater.md`.*
 
 ### Which schedule applies to a date
 
@@ -453,65 +467,52 @@ editor keeps those apart.
 
 - Entered as a **date range plus a pattern**, stored as one `SCHEDULE#DATE#` item per date (each
   carrying `tempId`) plus a **header** `SCHEDULE#TEMP#<tempId>` with name, start and end.
+- **Time off** is a temp with empty-block date items.
 - **Date items are written first, the header last.** A temp longer than 99 days is chunked
   across transactions.
 - Nothing on the booking path reads the header; it is for listing, naming, overlap checks and
   deleting as a unit.
-- **A new temp overlapping an existing one is rejected**, with a message naming it, the shared
-  dates and the way out: *"This overlaps **August Camp** (Aug 19–25) on Aug 21–22. Edit August
-  Camp to change those days, or choose dates outside it."*
+- **A new temp overlapping an existing one is rejected**, never warned about and allowed. The
+  message is product (`FeatureDecriptions/Schedule Creater.md`, "Checks before review").
 - **Editing a temp** deletes every date item with its `tempId`, writes one per date of the new
   range, then updates the header. Per-date changes inside it are lost on save.
 - **Deleting a temp** deletes its header and its date items.
 
 ### The editor
 
-- **Two dashboard buttons:** *Edit weekly schedule* (the default; Days mandatory, no dates) and
-  *Add time off or a special schedule* (a temp; start and end dates, no Days).
-- *Add time off or a special schedule* opens with a choice:
-  - **No lessons (time off):** an optional name and a date range, nothing else. Stored as a header
-    plus empty-block date items.
-  - **Special schedule:** the full form.
-- **Form fields:** Name (optional); SOD and EOD, dropdowns 12:00am–11:45pm in 15-minute steps with
-  the meridiem in the entries; LL (lesson length menu); LC (lesson cost, in the coach's currency);
-  skaters per lesson; ice type; Days (default only) or SD/ED (temp only). MF (missed-lesson fee)
-  exists but is hidden in MVP.
-- **Tabs are block templates.** Each tab holds one SOD/EOD/LL/LC set and produces one block per
-  day it covers. The view opens with one tab and a `+`; `+` adds a tab with SOD, EOD, LL and Days
-  cleared; each tab has an `✕`, except when it is the only one. At least one tab is needed for
-  **Next**.
-- **The slot calendar.** SOD and LL fill the calendar with back-to-back slots to EOD, or to
-  7:00pm if EOD is blank. Clicking a slot toggles it; with LL unset, the slot is 30 minutes and
-  LL becomes 30. **Every contiguous run of selected slots becomes one block.**
-- **Block names.** `seq` is assigned once and never reused or renumbered (the next is one above
-  the highest in that schedule). Every surface labels a block by its name, or *Block N* from
-  `seq`. Names are coach-only, HTML-escaped and capped at 40 characters. The Name field always
-  shows, in a temp too (ADR-008, amended 2026-11-08). Overlap messages name both blocks
-  and their times: *"Monday: Morning ice (6–11:30 AM) and Block 2 (10 AM–5 PM) overlap in time."*
-- **Odd-cents warning** (not a block): when a block allows 2 or more skaters and its price
-  doesn't split evenly — *"Split 2 ways, $45.01 is $22.51 and $22.50. One family will pay a cent
-  more."* Shown whenever the price or skaters-per-lesson changes.
+*The entry points, form fields, Blocks list, slot calendar, block-naming rules, overlap and odd-cents
+messages are product: see `FeatureDecriptions/Schedule Creater.md`,
+`FeatureDecriptions/C_Coach Schedule Hub.md` and `FeatureDecriptions/C_Coach Time Off.md`
+(moved 2026-11-08).* What the build relies on:
+
+- **Each block entry is a block template**: it produces one block per day it covers. **Every
+  contiguous run of times left on becomes one block** (every time starts on; a time switched off
+  is a break).
+- **`seq`** is assigned once and never reused or renumbered (the next is one above the highest in
+  that schedule). A block without a name is labelled *Block N* from `seq`. Names are coach-only,
+  HTML-escaped and capped at 40 characters.
 - **Next** runs validation, then the impact preview (§9), then needs the coach's acceptance.
 - **Saving needs a sign-in from the last 15 minutes** (§15). The preview doesn't.
 - The schedule `Name` is stored; applying a saved schedule is Phase 2.
 
 ### Calendars
 
-- **The coach and the family both get a monthly calendar and a Sunday–Saturday week view** with
-  previous and next. On the coach's calendar, clicking a date opens that day (ADR-006,
-  amended 2026-11-08); on the family's, it opens its week. Weeks are in the coach's timezone.
-- The month marks every date with an override (one range query on `SCHEDULE#DATE#`).
-- **The coach's calendar** is editable and shows who is booked. **The family's** is bookable and
-  shows only free or taken.
-- **Every lesson time is shown in the coach's timezone, labelled with it**, for every family.
-- **A coach with no schedule:** the family sees the ordinary month with every day grey, plus a line
-  saying the coach hasn't posted any times yet. The coach sees a prompt to build a schedule.
+- **Weeks run Sunday–Saturday in the coach's timezone.** The month marks every date with an
+  override (one range query on `SCHEDULE#DATE#`).
+- **Every lesson time is shown in the coach's timezone**, for every family.
+- The family's calendar shows only free or taken (§7); the coach's shows who is booked.
+- *The calendars' views, navigation and the empty-schedule state are product:
+  `FeatureDecriptions/Coach Dashboard on website.md`, `FeatureDecriptions/C_Coach Schedule Hub.md`
+  and `FeatureDecriptions/Bookings:`.*
 
 ---
 
 ## 7. Lesson times, seats and booking
 
 *Sources: ADR-006 d4–4b, ADR-009 d5, ADR-022 d8, ADR-025, ADR-031, ADR-033.*
+
+*The booking pages, pop-ups and their wording are product: see `FeatureDecriptions/Bookings:` and
+`FeatureDecriptions/C_Client My Bookings.md` (moved 2026-11-08).*
 
 ### Lesson times
 
@@ -550,9 +551,9 @@ editor keeps those apart.
 ### The booking window
 
 Each picked time must fall **between today and the end of the month two months after this one**,
-in the coach's timezone (on April 24: April, May, June). A recurring series is checked on its
-first date only. A pick outside the window refuses the **whole** request (*"That date is further
-ahead than you can book."*). The window only grows, so a retry is never refused by it.
+in the coach's timezone. A recurring series is checked on its first date only. A pick outside the
+window refuses the **whole** request. The window only grows, so a retry is never refused by it.
+(Example and message: `FeatureDecriptions/Bookings:`, the booking window.)
 
 **The family's day view shows only days inside the window.** Previous and next stop at its
 edges, so a day before today or past the window's end can't be opened (ADR-031 decision 3,
@@ -583,15 +584,15 @@ consistent):
 | none | **unavailable** |
 
 The family never reads another family's seat. "Does not exist" and "taken by someone" are one
-message: *"lesson slot either does not exist or is already taken."*
+answer (wording: `FeatureDecriptions/Bookings:`).
 
 ### Recurring bookings
 
-- The family marks a booking **recurring**, picks a frequency — **every 1, 2, 3 or 4 weeks**,
-  default 1 — and an **end date no more than 12 months** after the first lesson.
+- A booking may be **recurring**: every **1, 2, 3 or 4 weeks**, default 1, with an **end date no
+  more than 12 months** after the first lesson.
 - **Every date is booked when the series is made**, each its own transaction, in parallel, with
-  failures collected (never `BatchWriteItem`). **Partial success** is reported:
-  *"Booked 22 of 26 lessons. These dates could not be booked: …"*
+  failures collected (never `BatchWriteItem`). **Partial success** is reported (wording:
+  `FeatureDecriptions/Bookings:`).
 - Every seat carries a shared **`recurrenceId`** and **`bookedIntervalWeeks`** (never updated).
 - **A `RECURRENCE#` header** is written in the family's partition **after** the dates, only if at
   least one date booked. It records what was asked for (`endDate` is the requested end date).
@@ -605,9 +606,9 @@ message: *"lesson slot either does not exist or is already taken."*
   upcoming lesson and no header gets one rebuilt (from any seat: skater, family, weekday, start
   time; `intervalWeeks` from `bookedIntervalWeeks`; `startedOn` from the first; `endDate` from the
   last), written only if no header exists.
-- **A resubmission that drops a slot** the failed attempt included asks: *"You also have
-  Wednesdays at 4:00pm booked from your earlier attempt."* **[Keep them] [Cancel them]**. Cancel
-  runs *cancel all future lessons* on that series.
+- **A resubmission that drops a slot** the failed attempt booked asks the family whether to keep
+  those lessons; cancelling runs *cancel all future lessons* on that series (wording:
+  `FeatureDecriptions/Bookings:`).
 
 ### Booking with more than one coach
 
@@ -625,17 +626,17 @@ message: *"lesson slot either does not exist or is already taken."*
   says nothing was booked with them and offers **Try again**, which resends only that coach's
   picks.
 - **Clash warning, not refusal.** Any overlap in time with the skater's lessons with another coach
-  is warned about (*"Mia already has a lesson with Coach Sam at 4:00 on Tue 14 Oct. Book
-  anyway?"*), listing every clashing date for a series. Lessons that only touch don't clash. Read
+  is warned about, every clashing date for a series. Lessons that only touch don't clash. Read
   from the family's seats through GSI1 (which may miss a seat made a second earlier). Only the
   family is warned.
-- **My bookings** lists every coach's lessons, each labelled, with a **Coach** filter ("All
-  coaches", only coaches with upcoming lessons) beside the skater filter.
+- *The coach dropdown, picks, Repeat/Until, notice-period lines, result page, clash wording and My
+  bookings' coach filter are product: `FeatureDecriptions/Bookings:` ("Booking with more than one
+  coach") and `FeatureDecriptions/C_Client My Bookings.md`.*
 
 ### Rescheduling
 
-There is none. Moving a lesson is **book the new time, then cancel the old one**, and the UI
-presents it in that order.
+There is none. Moving a lesson is **book the new time, then cancel the old one** (product —
+`FeatureDecriptions/cancelation.md`).
 
 ---
 
@@ -643,13 +644,15 @@ presents it in that order.
 
 *Sources: ADR-015, ADR-024, ADR-026, ADR-031, ADR-033.*
 
+*The share box, invitation and confirm pages, the staying family's card and their wording are
+product: see `FeatureDecriptions/Schedule lesson split`, `FeatureDecriptions/cancelation.md` and
+`FeatureDecriptions/C_Client My Bookings.md` (moved 2026-11-08).*
+
 ### Inviting
 
 - Every booking starts private. Other families never see that a time could be shared or how
-  many it takes.
-- **A *share this lesson* box appears only on times whose block allows 2 or more skaters.** It
-  takes one share code; a note says the other family must accept before their skater joins.
-- **The code is checked before the booking continues**; a good code shows *"Mia R."*.
+  many it takes. Sharing is offered only on times whose block allows 2 or more skaters.
+- **The code is checked before the booking continues.**
 - **Only a skater `ACTIVE` with the coach can be invited** (ADR-033). The share step asks
   `POST /api/client/share-check` on `api-client`, body `{ shareCode, coachId }` →
   `200 { displayName, onCoachRoster }`, or 404 if the code doesn't exist. The sender comes from
@@ -659,29 +662,25 @@ presents it in that order.
   `ACTIVE`; `PENDING` and never-a-student both answer false. Covered by the firewall's code-lookup
   rule (§17); writes an access-log line (§18). It is advice for the screen: the booking
   transaction's `ConditionCheckItem` (§7) stays the authority.
-- **Refused at the share step:** *"Mia R. isn't one of Coach Dana's students yet. Mia's family can
-  sign up with Coach Dana's code, and once Coach Dana accepts Mia you can share a lesson."*
-  Nothing is booked.
-- **Book stays disabled** while the share-code box has anything in it, until the share-check for
-  that exact code and coach answers `onCoachRoster: true`. A check in flight, a failed or
-  rate-limited check, and a changed code or coach all keep it off; clearing the box allows a
-  private booking (ADR-033 2a, amended 2026-10-20).
+- **A refusal at the share step books nothing.** The site doesn't send the booking while a share
+  code is entered until the share-check for that exact code and coach answers
+  `onCoachRoster: true` (ADR-033 2a, amended 2026-10-20). The message and the Book control:
+  `FeatureDecriptions/Schedule lesson split`, "Invitation".
 - **The booking transaction puts the invited seat**: `INVITED`, the invited skater's `studentId`
   and display name, `inviteId`, `invitedByClientId`; **no `clientId`, no GSI1 keys**. It holds the
   place at once.
 - One invitation covers a whole series: one invited seat per date, same `inviteId`.
-- **A sibling** in the booking family is added directly, `BOOKED`. A sibling not yet accepted is
-  shown as not available to add until the coach accepts them, and can't be picked. No
-  invitation.
+- **A sibling** in the booking family is added directly, `BOOKED`, with no invitation; a sibling
+  not yet `ACTIVE` with the coach can't be picked.
 - **The booking family pays the full price until the invited skater joins.**
 
 ### The invited family
 
 - `consumer-invite` **emails them at once** with the invitation.
 - `consumer-invite` adds `invitedClientId` and the invited family's GSI1 keys to the invited seat,
-  so the invitation shows on their Home and My bookings before they answer.
-- **The link opens a confirm page that needs sign-in**; opening it does nothing on its own. The
-  page shows any of the skater's clashing lessons; the family chooses **Go ahead** or **Cancel**.
+  so the invitation shows on their pages before they answer.
+- **The link opens a confirm page that needs sign-in**; opening it does nothing on its own. (What
+  the page shows: `FeatureDecriptions/Schedule lesson split`.)
 - **Accepting is the invited family's own write**, one transaction per date, after
   `requireActive` (§16), conditional on the seat having **no `clientId`**, being `INVITED`, and
   its `studentId` being the caller's skater. It sets `clientId`, `INVITED → BOOKED` if the lesson
@@ -757,23 +756,23 @@ Both emails — *keep at full price or cancel*, and *cancelled, no answer* — a
   who left comes from `partnerName`, the full price from the lesson time. Grouped by
   `recurrenceId`, one card per series; earlier waiting dates from one-off cancels by the same
   skater merge into it.
-- **One date:** keep at full price, or cancel with no charge.
-- **Several:** one card listing each date with its answer-by and the totals, with **Keep all
-  remaining dates**, **Cancel all remaining dates** (confirm: *"No charge. This can't be
-  undone."*) and a choice per date. Each date is its own transaction, re-checked first; dates
-  that started, were answered or were cancelled are skipped and listed as no longer available.
-  Cancel all sends one email listing the dates; the coach isn't emailed.
+- Answering several dates at once: each date is its own transaction, re-checked first; dates that
+  started, were answered or were cancelled are skipped and reported. Cancelling all sends one
+  email listing the dates; the coach isn't emailed.
+- *The card's choices and wording: `FeatureDecriptions/cancelation.md` and
+  `FeatureDecriptions/C_Client My Bookings.md`.*
 
 ### Freed places
 
-After a Keep, **Invite a skater** appears on that lesson in **My bookings only**. It works like a
-booking-time invitation, for **that one lesson only**.
+After a Keep, the staying family can invite a skater to **that one lesson only**, the same way as a
+booking-time invitation (where: `FeatureDecriptions/Schedule lesson split`, "A freed place").
 
 ### Changing a shared series
 
 While **any future lesson in a series has another skater, joined or invited**, a family can only
-**cancel one lesson** or **cancel the series**. *End earlier* and *make less frequent* are hidden
-until no future lesson is shared.
+**cancel one lesson** or **cancel the series**; moving the end date earlier and reducing the
+frequency are not allowed until no future lesson is shared (product —
+`FeatureDecriptions/cancelation.md`).
 
 ### Deadlines
 
@@ -796,9 +795,9 @@ sweep.
 
 ### Coaches see every skater
 
-The week view, lesson list, payments and rinkside page show every skater in a lesson, each with
-their own attendance and payment. A coach cancelling a lesson cancels every seat, and each family
-is told.
+Every coach view of a lesson shows every skater in it, each with their own attendance and payment
+(product — `FeatureDecriptions/Schedule lesson split`). A coach cancelling a lesson cancels every
+seat, and each family is told.
 
 ---
 
@@ -835,23 +834,18 @@ the version that made it, so a booking can never land on a time the save removed
 
 ### The preview
 
-Shown after validation, before anything is written, for default and temporary changes alike:
-
-- every lesson the change will **cancel**;
-- every lesson it will **re-price**, with old and new amounts — *"14 lessons for 6 families will
-  change from $50 to $60. Each family will be emailed."*;
-- **which lessons an increase won't reach** — *"The new price won't apply to 3 lessons in the
-  next 24 hours, which are inside your notice period. They stay at $50."*;
-- how long the schedule runs (a temp until its end date; the default indefinitely);
-- that accepting emails affected families;
-- **a large-price-change warning** when any price changes by **50% or more** of the old price, up
-  or down: at the top, in the theme's warning colours with an icon and words, specific (*"This
-  lowers the price from $60 to $6 — a 90% cut."*). **Accept stays disabled until the coach ticks
-  *"I've checked the new price"*.**
+Shown after validation, before anything is written, for default and temporary changes alike. It
+comes from the evaluator: every lesson the change will **cancel**, every lesson it will
+**re-price** (old and new amounts), and **which lessons an increase won't reach**. A price change
+of **50% or more** of the old price, up or down, must be acknowledged before the coach can accept.
+*What the review page shows, its wording and the warning's design are product:
+`FeatureDecriptions/Schedule Creater.md` ("What the review page shows", "Big price change
+warning") (moved 2026-11-08).*
 
 **The preview is advisory.** A booking made after it that the save cancels is cancelled in the
 batch, with the ordinary cancellation email. The save goes ahead without asking the coach again.
-No booking counter.
+No booking counter. (Product rule — `FeatureDecriptions/Schedule Creater.md`, "A family books
+during the review".)
 
 ### Execution
 
@@ -874,20 +868,14 @@ No booking counter.
 7. The header reaching `EXECUTED` raises `LessonsChanged`; the notifier sends **one message per
    family** covering everything in the batch.
 
-**`LESSON_PASSED`** lines are reported to the coach in the batch notification: *"These lessons
-were due to be cancelled, but their time passed before the cancellation could be applied."*
+**`LESSON_PASSED`** lines are reported to the coach in the batch notification (wording:
+`FeatureDecriptions/Email templates Needed:`).
 
 ### The coach sees whether it finished
 
-The schedule page shows the latest batch's state from its header, refreshing while it applies:
-
-| State | Shown |
-|---|---|
-| Not `EXECUTED`, under an hour old | *"Applying your changes to 14 lessons…"* |
-| `EXECUTED`, not every family told | *"Changes applied. Emailing 6 families…"* |
-| `EXECUTED`, every line notified | *"Done — 6 families emailed."* |
-| Not `EXECUTED`, over an hour old | *"We're having trouble applying this change. We've been alerted, and your families haven't been notified yet."* |
-| Any `LESSON_PASSED` | The lessons listed, with a prompt to waive them and contact the families |
+The schedule page reads the latest batch's header, refreshing while it applies, and shows whether
+it is applying, emailing families, done, stuck for over an hour, or has `LESSON_PASSED` lines. The
+states' wording: `FeatureDecriptions/C_Coach Schedule Save Status.md` (moved 2026-11-08).
 
 ### Change-batch records
 
@@ -905,6 +893,11 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 
 *Sources: ADR-009, ADR-015 d1a, d6, ADR-031 d8–9.*
 
+*The cancel buttons, confirmations, week view, rinkside cancel screens and their wording are
+product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client My Bookings.md`,
+`FeatureDecriptions/Coach App` and `FeatureDecriptions/C_Rinkside Cancel Several Lessons.md`
+(moved 2026-11-08).*
+
 ### General
 
 - **Cancelling never changes the schedule.**
@@ -916,9 +909,7 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 
 ### By the family
 
-- **My bookings** has a **cancel** button on each lesson, with a confirmation and the line
-  *"Bookings cancelled within 24 hours may incur a late cancellation fee."* The booking page shows
-  no fee in MVP.
+- A family cancels one lesson from My bookings. No fee is shown or charged in MVP.
 - **Recurrence management** offers exactly three operations, all subtractive:
   - **move the end date earlier** — later dates cancelled as one batch;
   - **reduce the frequency** — `intervalWeeks` may only go up; dates off the new interval
@@ -927,8 +918,6 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 - **"Future" excludes today's lesson.**
 - **A frequency change anchors** on the first occurrence that is neither today's nor past; that
   occurrence always survives, and the new interval counts from it.
-- **Late occurrences** in any of the three are named in the confirmation with *"may incur a late
-  cancellation fee"*.
 - **No extending** a series and no increasing its frequency; a family wanting more books another
   series.
 - **Shared series:** only cancel one lesson or cancel the series (§8).
@@ -970,6 +959,10 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 
 *Sources: ADR-014, ADR-023, ADR-031 d15.*
 
+*The rinkside screens, links, banners and messages are product: see `FeatureDecriptions/Coach App`,
+`FeatureDecriptions/C_Rinkside Offline.md`, `FeatureDecriptions/C_Rinkside Account.md` and
+`FeatureDecriptions/Coach lesson list` (moved 2026-11-08).*
+
 ### The page
 
 - **`<domain>/coach/rinkside`**, part of the coach website, signed in through the coach website's
@@ -977,10 +970,7 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 - **Only a signed-in coach can use it** (ADR-023 d7). Until the coach signs in, the page shows only
   the sign-in screen. Every rinkside route needs a valid token **and** the `Coach` group; a family's
   token is refused with 403 (§15).
-- Reached from **a large link at the top of the coach's Today page** and **a link at the top of the
-  coach's morning email** (§13).
-- **A "Your dashboard" link at the top of every screen after sign-in** goes back to the coach
-  website's Today page, in the same tab (ADR-023 d8).
+- The coach's morning email links to it (§13).
 - **Offers:** today's lessons, check-in and no-show per seat, a guardian's contact details on a
   tap, and cancellation.
 - **Session:** 4 hours from sign-in (§15).
@@ -990,13 +980,9 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 - **A service worker scoped to `/coach/rinkside/`** caches the page and today's lessons (skater
   names and times, **no contact details**), fetched whenever the page opens with signal. No other
   part of either site has a service worker.
-- **If today's lessons aren't cached:** *"Today's lessons haven't loaded. Open the app with signal
-  before you leave for the rink."*
 - **If the page opens with signal and finds its offline copy gone** (Safari can clear site data),
-  it says so plainly and reloads it.
-- **With no signal, attendance is captured on the phone** — the seat and the tap time — and a
-  banner, not dismissible while anything is queued, says check-ins are saved on the phone and will
-  send when signal returns.
+  it reloads it.
+- **With no signal, attendance is captured on the phone** — the seat and the tap time.
 - **Queued entries are sent** as soon as the page is open with signal; on Android and Chrome also
   through **Background Sync** when the page is closed. The queue survives a reload.
 - **Only attendance is queued.** Cancelling and contact reveal need signal.
@@ -1013,33 +999,33 @@ The schedule page shows the latest batch's state from its header, refreshing whi
 - **Capture is a conditional write: the seat must still be `BOOKED`.** A replay of something
   already recorded fails the condition and is **dropped silently** as success. A replay onto a
   cancelled seat finds no seat.
-- **A replay onto a lesson the family cancelled** is shown to the coach as what it is — *"this
-  lesson was cancelled by the family at 3:50pm, after you recorded it"* — then cleared. Other
+- **A replay onto a lesson the family cancelled** is reported to the coach, then cleared. Other
   failures stay visible and queued.
-- **Entries the server rejects** (time doesn't fit the lesson) are listed on the phone: *"2
-  check-ins couldn't be sent. Tap to see them."* Each shows skater, lesson, what was recorded, the
-  phone's tap time and *"The phone's time didn't match the lesson"*, with **Record on the website**
-  and **Done**. An entry leaves the phone on Done or after **7 days**; a day before, it is marked
-  *"Will be removed tomorrow."*
+- **Entries the server rejects** (time doesn't fit the lesson) stay listed on the phone until the
+  coach is done with them or for **7 days**.
 
 ### Correction
 
-**Capture is rinkside; correction is website-only.** The **coach lesson list** shows skaters with
-lessons in a chosen date range with their attended or no-show state, and the coach can change
-either way. Correction overwrites deliberately and doesn't carry the capture condition, so a
-stale queued replay arriving after it is dropped.
+**Capture is rinkside; correction is website-only**, on the coach lesson list, either way.
+Correction overwrites deliberately and doesn't carry the capture condition, so a stale queued
+replay arriving after it is dropped.
 
 ### Contact details
 
 A tap on a skater fetches the guardian's contact details from `api-coach`, shown for that tap
-only and never written to the phone. With no signal: *"Contact details need a connection."* Every
-reveal is logged when it happens (§18).
+only and never written to the phone. With no signal it is refused. Every reveal is logged when it
+happens (§18).
 
 ---
 
 ## 12. Payments and the financial page
 
 *Sources: ADR-003, ADR-015, ADR-018, ADR-020, ADR-030, ADR-031 d7.*
+
+*The payment dashboard, lesson list, financial page and their wording are product: see
+`FeatureDecriptions/Coach Payment Section on Dashboard.md`, `FeatureDecriptions/Coach lesson list`,
+`FeatureDecriptions/Coach Financial Page.md` and `FeatureDecriptions/C_Client Payments.md`
+(moved 2026-11-08).*
 
 ### Model
 
@@ -1052,18 +1038,17 @@ reveal is logged when it happens (§18).
 - **`paymentStatus`:** `UNPAID` → `PAID` (**mark as paid**, records `paidAt`, `markedPaidBy`) or
   `WAIVED` (**mark as waived**, records `waivedAt`, `waivedBy`). Only the coach sets it. Waiving
   carries no amount.
-- **How the client paid (`paidVia`)**: chosen when marking paid from the payment types the coach
-  has switched on, plus *Other*. No free text. **Optional, editable afterwards, shown only on coach
-  screens.** A waived lesson has none. Stored on the seat, so turning a type off later doesn't
-  change past records.
+- **`paidVia`** (how the client paid): one of the payment types the coach has switched on, or
+  *Other*; optional, editable afterwards, readable only on the coach path. A waived lesson has
+  none. Stored on the seat, so turning a type off later doesn't change past records.
 - **GSI3** holds a seat while `UNPAID`; paying or waiving removes it. A skater's unpaid lessons
   for the coach: GSI3 filtered on `studentId`.
 - **`paymentReminderSent`** guards the automatic reminder; it is not payment status.
 
 ### No-shows and late cancellations
 
-- **A no-show keeps its seat**, `UNPAID`, until the coach marks it paid or waived. The dashboard
-  and the weekly reminder show it at its **share of the lesson price, labelled as a no-show**.
+- **A no-show keeps its seat**, `UNPAID`, until the coach marks it paid or waived. It is owed at
+  its **share of the lesson price**.
 - **The missed-lesson fee is 0 in MVP** and nothing is charged for a late cancellation.
 - Chargeable from Phase 2: a line is charged only when `cancelledBy = CLIENT` **and**
   `noticeHours < requiredNoticeHours` **and** `missedLessonFeeMinor > 0`, from any screen; a
@@ -1071,37 +1056,31 @@ reveal is logged when it happens (§18).
 
 ### The coach's screens
 
-- **Payment dashboard:** lessons in a chosen date range, filter by unpaid, mark as paid (with
-  how-paid) and mark as waived. Each amount in its own currency; never a total across currencies.
-- **Lesson list:** attendance correction (§11).
+- Amounts are shown each in its own currency; never a total across currencies.
+- Attendance correction is on the lesson list (§11).
 
 ### Weekly unpaid reminder
 
 - `sched-unpaid-reminder` runs **weekly, Monday morning** in the launch timezone.
 - It scans GSI3 for **past** seats still `UNPAID` and older than a **threshold held in Parameter
   Store**. **No threshold set means it sends nothing.**
-- **One email per coach**, to the **login email**: *"You have unpaid lessons from more than
-  [threshold] ago. Please mark each one as paid or waived."*, listing date, time, skater and
-  amount, a link to the payment dashboard. Lessons with no recorded outcome say *attendance not
-  recorded*; no-shows are labelled.
+- **One email per coach**, to the **login email**, listing each such lesson (wording and content:
+  `FeatureDecriptions/Email templates Needed:`, "Unpaid lessons").
 - Each listed seat is stamped **`settleReminderSentOn`**, so a lesson is listed once.
 
 ### Financial page
 
-- Shows **year-to-date gross** and **year-to-date rink fees** for the **calendar year**, in the
-  coach's currency.
+- **Year-to-date gross** and **year-to-date rink fees** for the **calendar year**, in the coach's
+  currency.
 - **Gross is money received:** seats marked paid, at their share, plus missed-lesson fees actually
   collected (in MVP, a no-show marked paid). Waived and unpaid are left out. **A lesson counts in
   the year and month of its lesson date.**
 - **A finished year is closed**; a lesson from it marked paid later counts in no year.
-- Before the figures, the page says they are **calculated from the lessons marked as paid**, and
-  that rink fees are an **estimate to check against what was paid**.
 - **Rink fees are calculated by BladeBook** from the rink's terms, which the developer sets. The
   coach can't edit terms, override a month or type in what they paid. **How the fee is calculated
-  is undecided**; until then the page shows one reading, marked as such: 15% or $500 a month by the
-  coach's choice, a lesson counted in the month it was taught.
-- **Download:** a CSV for this year or last — one row per month with gross, rink fees and net, plus
-  year totals. **No names or personal data.** Reads live data only, filtered on `expiresAt`.
+  is undecided** (§25).
+- **Download:** a CSV of monthly figures for this year or last. **No names or personal data.**
+  Reads live data only, filtered on `expiresAt`.
 - Year figures are a range query on the coach's `SEAT#<date>` items.
 
 ---
@@ -1110,6 +1089,10 @@ reveal is logged when it happens (§18).
 
 *Sources: ADR-002 d7, ADR-003 d6–7, ADR-006 d6, ADR-007, ADR-009 d9, ADR-010 d3, ADR-016 d8,
 ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
+
+*Each message's wording and content are product: see `FeatureDecriptions/Email templates Needed:`,
+`FeatureDecriptions/C_Coach Email Templates.md` and `FeatureDecriptions/SMS Messages.md` (moved
+2026-11-08).*
 
 ### Rules for every email
 
@@ -1126,9 +1109,9 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 |---|---|---|---|
 | Booking confirmation | Family | Each seat becoming `BOOKED` | Guard `confirmationSent` on the seat |
 | Day-of reminder | Family | ~7:00am | **One per lesson per skater**, no digest. Guard `remindedOn` on the seat, keyed on (seat, date) |
-| Coach's morning email | Coach | ~7:00am, only if the coach has lessons that day | Lists the day's lessons, **rinkside link first** (a plain link, no sign-in token). Same job as the day-of reminder. Guard `morningEmailSentOn` keyed on (coach, date). No off switch in MVP |
+| Coach's morning email | Coach | ~7:00am, only if the coach has lessons that day | Lists the day's lessons and links to the rinkside page (a plain link, no sign-in token). Same job as the day-of reminder. Guard `morningEmailSentOn` keyed on (coach, date). No off switch in MVP |
 | Payment reminder | Family | `CheckInRecorded` | The seat's amount and the coach's `paymentInstructions`. One per lesson |
-| Cancellation or re-price | Family | Batch header `EXECUTED` | **One per family per batch**, listing every cancelled and re-priced lesson. Says cancelled and links to availability; never proposes alternatives. A decrease reads as good news: *"Good news: 3 of your lessons are now $50."* |
+| Cancellation or re-price | Family | Batch header `EXECUTED` | **One per family per batch**, listing every cancelled and re-priced lesson |
 | Family cancelled | Coach | A family's cancellation **inside `requiredNoticeHours`** | One email per batch; and one SMS if `smsCancellationAlerts` is on |
 | Decline | Family | Coach declines a `PENDING` skater | From `consumer-student-link` |
 | Shared-lesson emails | Families | §8 | |
@@ -1147,8 +1130,7 @@ notified.
 ### The coach's late-cancellation SMS (the only SMS in MVP)
 
 - Sent only when `smsCancellationAlerts` is on; **one text per cancellation batch**.
-- **Template:** `BladeBook: <skater> cancelled <day> <date> <time>. See email.` — for several
-  lessons, `BladeBook: <skater> cancelled <n> lessons from <date>. See email.`
+- Its templates are product (`FeatureDecriptions/SMS Messages.md`, "Text to the coach").
 - **Every SMS is one 160-character GSM-7 segment, checked in code before `sns:Publish`.**
   Transliterate to GSM-7 first (`’`→`'`, `—`→`-`, `é`→`e`), count extension-table characters
   (`[ ] { } \ ~ ^ |` `€`) as two, and refuse anything that still doesn't fit.
@@ -1177,9 +1159,9 @@ notified.
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
 
-- **The end-of-day report names each pending skater and lesson** with *"No attendance recorded. If
-  you recorded these on the rinkside app, open it with signal to send them; otherwise record them
-  on the lesson list."* It is a snapshot and isn't regenerated when a late check-in arrives.
+- **The end-of-day report names each pending skater and lesson** (wording:
+  `FeatureDecriptions/Email templates Needed:`, "Daily report"). It is a snapshot and isn't
+  regenerated when a late check-in arrives.
 - **Reminders and the report include only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.**
 - **Each Scheduler trigger carries the date it is for**; jobs never read the clock for it, so a
   replay or re-run works on that date.
@@ -1705,9 +1687,12 @@ database-gate tests; reproducing an incident (masked build).
 
 **Phase 2**
 
+*Product scope items point to the feature file that holds them (2026-11-08); the rest are
+technical.*
+
 - SMS to families: day-of and payment reminders, the cancellation digest, shared-lesson and
-  price-change texts, the family's opt-in and its confirmation.
-- The *"just booked"* email for a booking cancelled by a save made after its preview.
+  price-change texts, the family's opt-in and its confirmation → `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/SMS Messages.md`.
+- The *"just booked"* email for a booking cancelled by a save made after its preview → `FeatureDecriptions/Schedule Creater.md`.
 - Late-cancellation and no-show **charges**, the MF field in the editor, a definite fee amount at
   booking and in confirmations, the `NoShowRecorded` payment reminder, chargeable `CANCELLED#`
   lines with payment fields and GSI3 entries.
@@ -1718,31 +1703,32 @@ database-gate tests; reproducing an incident (masked build).
   *"Coaches can have different cancellation notice periods."* (ADR-025 d, 2026-11-08).
 - Personal prices (`priceMinorOverride`) and discounts.
 - A manual *send payment reminder* action, with `paymentReminderCount` and `lastPaymentReminderAt`
-  and a rate limit.
-- Families seeing their own unpaid history and cancellation history.
+  and a rate limit → `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
+- Families seeing their own unpaid history and cancellation history → `FeatureDecriptions/C_Client Payments.md`,
+  `FeatureDecriptions/cancelation.md`.
 - "Also coached by" for coaches (`otherCoaches`, with a one-off backfill) and the disclosure line
-  when adding a coach.
-- Removing a skater (from one coach or all) and what the family sees.
-- Coach profile photos (upload, bucket, resize, display before sign-in).
-- Skate Canada and Hockey Canada numbers.
-- Financial page: past years on screen and a per-lesson export with names.
-- Rink selection in the schedule builder.
-- A coach booking for a family.
+  when adding a coach → `FeatureDecriptions/ClientProfileView`.
+- Removing a skater (from one coach or all) and what the family sees → `FeatureDecriptions/ClientProfileView`.
+- Coach profile photos (upload, bucket, resize, display before sign-in) → `FeatureDecriptions/C_Coach Profile.md`.
+- Skate Canada and Hockey Canada numbers → `FeatureDecriptions/Client Sign Up`.
+- Financial page: past years on screen and a per-lesson export with names → `FeatureDecriptions/Coach Financial Page.md`.
+- Rink selection in the schedule builder → `FeatureDecriptions/Schedule Creater.md`.
+- A coach booking for a family → `FeatureDecriptions/Bookings:`.
 - Recurrence extension.
-- Changing a coach's currency.
-- Applying saved, named schedule templates.
+- Changing a coach's currency → `FeatureDecriptions/C_Coach Profile.md`, `FeatureDecriptions/Lesson Pricing.md`.
+- Applying saved, named schedule templates → `FeatureDecriptions/Schedule Creater.md`.
 - Coach-selectable themes.
 - The **approval email** to a family when a coach approves their skater, sent by
-  `consumer-student-link` (ADR-002, 2026-11-06). MVP screens don't promise an email.
-- Distinct cancellation email templates by reason.
-- A switch to turn off the coach's morning email.
+  `consumer-student-link` (ADR-002, 2026-11-06) → `FeatureDecriptions/Client Sign Up`, "Coach approval".
+- Distinct cancellation email templates by reason → `FeatureDecriptions/Email templates Needed:`.
+- A switch to turn off the coach's morning email → `FeatureDecriptions/Email templates Needed:`.
 - A scheduled production canary.
 - Real delivery confirmation (SES event destinations, bounces and complaints).
 - The build deleting the masked file as soon as it has been imported.
 - The consent-link roster join for shared lessons: inviting a skater new to the coach,
   `AWAITING_COACH` seats, the warning and its 9pm timing, the banners, the late-confirmation rule,
   `INVITER_LEFT`, the coach's Accept joining seats, and their emails. Answer review gap G16 first,
-  for example with rotatable share codes (ADR-033).
+  for example with rotatable share codes (ADR-033). Product side → `FeatureDecriptions/Schedule lesson split`.
 - Deleting a skater's data on request (erasure): choosing between the two drafts in `docs/deletion/`,
   reaching the table, the archive, the monthly backups and every coach the skater had, plus the
   erased-ID list a restore re-applies (owner, 2026-10-20).
@@ -1751,10 +1737,11 @@ database-gate tests; reproducing an incident (masked build).
 
 **Phase 3**
 
-- A reminder to renew a skating membership or update the number.
-- Travel time between rinks in the clash check.
+- A reminder to renew a skating membership or update the number → `FeatureDecriptions/Client Sign Up`.
+- Travel time between rinks in the clash check → `FeatureDecriptions/Bookings:`.
 
-**Later, undesigned:** licensed coach sign-up (a licence number issued on purchase).
+**Later, undesigned:** licensed coach sign-up (a licence number issued on purchase) →
+`FeatureDecriptions/Coach Sign Up`.
 
 ---
 
@@ -1777,15 +1764,16 @@ database-gate tests; reproducing an incident (masked build).
 **Settings and details**
 
 - The unpaid-reminder threshold; its weekly Monday cadence; whether an unsettled lesson is listed
-  again.
+  again (product side → `FeatureDecriptions/Email templates Needed:`, "Unpaid lessons").
 - The date-override window (30 days proposed).
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
-- The rink-number download's phase, and whether the name is split at sign-up or at download.
+- Whether the rink-number download's name is split at sign-up or at download. (Its phase is a
+  product question → `FeatureDecriptions/Coach Dashboard on website.md`.)
 - How the business-email confirmation link is built and how long it lasts.
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
-- Whether the 7-day answer-by should be checked with Kim.
+- Whether the 7-day answer-by should be checked with Kim → `FeatureDecriptions/Schedule lesson split`.
 - **Whether a coach booking for a family (Phase 2) is held to the 3-month window** (ADR-031 Open).
 - Whether suppression of the coach's number should also switch off `smsCancellationAlerts`.
 - Whether other actions need a recent sign-in (day or week cancellation, approve and decline,
@@ -1811,8 +1799,10 @@ database-gate tests; reproducing an incident (masked build).
 
 **Product**
 
-- Licensing, photo moderation, and the new coach's first sign-in experience.
-- What the Phase 2 fee is charged against when it differs from the lesson price.
+- Photo moderation (ADR-016 Open). Licensing and the new coach's first sign-in experience →
+  `FeatureDecriptions/Coach Sign Up` ("Notes", "Open questions").
+- What the Phase 2 fee is charged against when it differs from the lesson price →
+  `FeatureDecriptions/cancelation.md`.
 
 ---
 

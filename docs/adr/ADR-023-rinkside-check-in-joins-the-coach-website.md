@@ -39,26 +39,24 @@ browser tab. A manifest may stay, but nothing may depend on it. The iPhone home-
 check (Open) is dropped, and a browser-tab consequence is added (Open).
 
 **Amended — 2026-10-13.** *Decided by the owner.* **The coach reaches the rinkside page two
-ways**, and neither needs a home-screen icon or a bookmark:
+ways**, and neither needs a home-screen icon or a bookmark: a link on the coach website's
+Today page and a link in a new morning email to the coach (product rules — see
+`FeatureDecriptions/Coach Dashboard on website.md`, "Heading to the rink?", and
+`FeatureDecriptions/Email templates Needed:`, "Morning email"). The technical part:
 
-- **A large link at the top of the coach website's Today page** (the dashboard), above the
-  day's numbers.
-- **A link at the top of a new morning email to the coach.** The ~7:00am day-of reminder job,
-  which already reads every seat booked for the day, also sends each coach with lessons that
-  day one email listing them, with the rinkside link first. No new function or schedule. The
-  link is a plain address with no sign-in token in it; the page asks the coach to sign in as
-  usual. A coach with no lessons that day gets no email. MVP has no off switch; turning it off
-  arrives with the email templates page in Phase 2. This adopts Kim's "daily email about
-  lessons scheduled" (`docs/Talking with Kim:.md.md`). The run stamps `morningEmailSentOn` on
-  the coach's profile, keyed on (coach, date), so a retry never sends the email twice.
-  **Amends** [ADR-001](ADR-001-backend-stack.md) amendment **A6** and
+- **The morning email is sent by the ~7:00am day-of reminder job**, which already reads every
+  seat booked for the day. No new function or schedule.
+- **The link is a plain address with no sign-in token in it;** the page asks the coach to sign
+  in as usual.
+- **The run stamps `morningEmailSentOn`** on the coach's profile, keyed on (coach, date), so a
+  retry never sends the email twice.
+- **Amends** [ADR-001](ADR-001-backend-stack.md) amendment **A6** and
   [ADR-010](ADR-010-availability-and-reliability.md) decision **3**.
 
-**Amended — 2026-10-15.** *Decided by the owner.* The coach's morning email goes to the
-coach's **login email**, the same verified address as the daily report — not the business
-email on the profile. The weekly unpaid-lesson reminder already goes there
-([ADR-018](ADR-018-unpaid-lesson-reminder-to-coach.md)). **Amends** [ADR-001](ADR-001-backend-stack.md)
-amendment **A6**.
+**Amended — 2026-10-15.** *Decided by the owner.* The morning email goes to the coach's
+**login email**, not the business email on the profile (product rule — see
+`FeatureDecriptions/Email templates Needed:`, "Morning email"). **Amends**
+[ADR-001](ADR-001-backend-stack.md) amendment **A6**.
 
 **Amended — 2026-10-21.** *Decided by the owner.* The rinkside page is a page of the coach
 website, not a separate app. Two decisions follow:
@@ -236,8 +234,8 @@ last 15 minutes.
   d2a: a queued entry doesn't expire).
 - **Opening the coach website from a rinkside sign-in asks for the password again** once that
   sign-in is more than 60 minutes old. The longer window applies only to the rinkside routes.
-- **The coach website should warn before the 60 minutes run out** and keep unsaved work, above
-  all in the schedule editor, so a long edit isn't lost to the limit.
+- **The website must not lose unsaved work to the 60-minute limit** (product rule — see
+  `FeatureDecriptions/Non Functional Requirements.md`, "Staying signed in").
 - **A token taken from the phone works on the rinkside routes for up to 4 hours:** today's
   lessons, attendance, contact reveal and cancellation. Everything else needs a sign-in from the
   last 60 minutes, and a schedule save one from the last 15.
@@ -287,13 +285,10 @@ coach's token never reads another coach's lessons (already in ADR-021's tests).
 
 ### 8. A way back to the coach website
 
-*Decided by the owner, 2026-10-21 (amendment).*
-
-Every rinkside screen after sign-in has a **"Your dashboard"** link at the top. It opens the
-coach website's Today page (`/coach`) in the same tab. The sign-in screen doesn't show it.
-
-If the rinkside sign-in is more than 60 minutes old, the website asks for the password first
-(decision 6).
+*Moved to `FeatureDecriptions/Coach App` ("Your dashboard" link) on 2026-11-08 — product
+content, not an architecture decision.* The one technical consequence: following the link from
+a rinkside sign-in more than 60 minutes old meets decision 6's coach-website limit, so the
+website asks for the password first.
 
 ### 9. The family website has its own app client
 

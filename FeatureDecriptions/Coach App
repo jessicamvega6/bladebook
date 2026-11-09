@@ -17,19 +17,65 @@ The checkin app will allow a coach to cancelan individual lesson, or any lessons
 *Design:* cancelling one lesson is under the "..." button on its card, kept away from Present and No-show. It always
 confirms, names the family who will be emailed, and asks Release for rebooking or Hold it closed (ADR-009 d5a).
 A lesson that has started can't be cancelled, and cancelling needs signal.
+*Rinkside cancelling rules:*
+  Added 2026-09-22. The rinkside app is used at the rink on a phone. It offers cancellation in two places:
+    1. A cancel section — the whole day, part of a day, the whole week, part of a week, or specific lessons
+       (see C_Rinkside Cancel Several Lessons.md; "part of a day/week" is a multi-select of lessons, see cancelation.md).
+    2. The check-in list — each lesson has a cancel action under its "…" button, kept away from Present and No-show,
+       so a single lesson can be cancelled from either place. *Ruled by the owner 2026-11-09.*
+  It is the same cancellation as on the website: the same release-or-hold question, it skips lessons that already
+    happened, anything larger than one lesson gets the same preview-then-accept step, and families are told once.
+  The rinkside app cannot cancel without a connection. *Decided by the owner, 2026-09-30.* With no signal, every cancel
+    action — in the check-in list and the cancel section — is disabled, with the note "Cancelling needs a connection."
+    Check-ins are queued offline because they record something that already happened; a cancellation changes something
+    that is about to happen, and a queued one would not reach the family until the phone reconnected — possibly after
+    they had left for the rink. It also needs the server for the preview.
+  A cancel from the check-in list always asks for confirmation, even for one lesson. *Decided by the owner, 2026-09-30.*
+    Cancel sits under the lesson's "…" button, away from Present and No-show (the design; *Ruled by the owner 2026-11-09.*), and choosing it
+    opens a confirmation rather than cancelling. This goes further than the website, which only requires
+    confirmation above a single lesson. The reason: on a phone held rinkside, often with gloves on, a mis-tap is
+    likely, and a cancel cannot be undone — release cancels the family's place and a hold is permanent.
+    For the confirmation to actually stop a mis-tap, it has to be something a second mis-tap cannot complete:
+      It names the lesson — student, date and time — so the coach sees what they are about to cancel.
+      Its confirming action is not where the original tap landed, so a repeated tap in the same spot cannot cancel.
+      Dismissing it keeps the lesson. The safe choice is the easy one.
+      Release-or-hold is chosen inside the same dialog, so a single-lesson cancel is still one confirmation, not two
+        prompts.
+  Settled questions (ADR-009 Open): ~~Can the rinkside app cancel with no signal?~~ Settled 2026-09-30: no.
+    ~~A mis-tap guard on the check-in list.~~ Settled 2026-09-30: yes — every cancel from the
+    check-in list confirms, even for one lesson.
+  *(from ADR-009 decision 5a and Open, moved 2026-11-08)*
 
 *Design (today.html), the Today tab:*
   A progress bar: how many of today's lessons are recorded, and who's next.
   Each lesson card: time, skater, length. Present and No-show buttons once the lesson is within 10 minutes of starting;
-  before that it shows "Starts at <time>". A recorded lesson shows Present or No-show with the time, and Undo straight after.
+  before that it shows "Starts at <time>". A recorded lesson shows Present or No-show with the time. There is no Undo on the phone: a mistake is corrected on
+    the website's Lessons page (see Coach lesson list, "Why corrections are on the website"). *Ruled by the owner 2026-11-09.*
   A held slot shows "Held slot", closed to everyone.
   Tabs along the bottom: Today, Week, Account (see C_Rinkside Account.md).
   No signal: see C_Rinkside Offline.md.
+
+Present and No-show:
+  The app offers two outcomes per lesson, present or absent, rather than check-in alone (owner, 2026-08-30;
+  ADR-014 d6). A recorded no-show is what lets the end-of-day report tell "didn't come" apart from "not recorded yet".
+  When this was decided, what a no-show costs was still open: the payment reminder followed a check-in only, so a
+  student who reserved ice and didn't appear was billed nothing while one who attended was billed. That is very likely
+  backwards from a coach's point of view, since the ice was held either way, but it is a business decision, and until it
+  was made the app would show the coach a button whose consequence was nothing.
+  *Settled the same day by ADR-015 decision 5: a no-show is charged under the same rule as a late cancellation.*
+  A coach can record a no-show that costs nothing until Phase 2: ADR-015 decided the charge but scheduled it for
+  Phase 2. The button records a real outcome and feeds the end-of-day report from day one, and starts carrying money
+  later.
+  *(from ADR-014 §6 and Consequences, moved 2026-11-08)*
 
 The app needs to also have a sign in screen where the coach is validated that they are who they say they are. 
 *Design (signin.html):* the same login email and password as the website (ADR-023 d2, d7: only a coach's account gets in). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
 *"Your dashboard" link (owner, 2026-10-21; ADR-023 d8):* at the top of every screen after sign-in, back to the coach website's
 Today page in the same tab; it asks for the password if the rinkside sign-in is over 60 minutes old.
+  Every rinkside screen after sign-in has a "Your dashboard" link at the top. It opens the coach website's Today page
+  (/coach) in the same tab. The sign-in screen doesn't show it. If the rinkside sign-in is more than 60 minutes old,
+  the website asks for the password first.
+  *(from ADR-023 §8, decided by the owner 2026-10-21; moved 2026-11-08)*
 
 
 The app also needs to display the clients contact info at checkin

@@ -106,13 +106,8 @@ The booking transaction that puts the invited seat also checks the invited skate
 The skater's ID comes from the share-code record, read by `api-client` and never returned to the
 browser (ADR-026 decision 4).
 
-**What the family sees:** if the code belongs to a skater who isn't the coach's student, the
-booking stops at the share step with *"Mia R. isn't one of Coach Dana's students yet. Mia's
-family can sign up with Coach Dana's code, and once Coach Dana accepts Mia you can share a
-lesson."* Nothing is booked.
-
-A sibling not yet accepted by the coach is shown on the booking page as **not available to add
-until Coach Dana accepts them**, and can't be picked.
+What the family sees when the check fails, and how a sibling not yet accepted is shown, is
+product (see `FeatureDecriptions/Schedule lesson split`, "Client booking" and "Invitation").
 
 ### 2a. The booking page asks first: the share-check endpoint
 
@@ -155,13 +150,10 @@ response doesn't say whether a request is waiting.
 - **The booking transaction's check (decision 2) stays the authority.** The endpoint is advice
   for the screen; a skater declined between the check and the booking is still refused there.
 
-*Amended 2026-10-20.* *Decided by the owner.* **Book stays disabled while the share-code box has
-anything in it, until the share-check for that exact code and coach answers `onCoachRoster: true`.**
-That covers a code still being typed, a check in flight, a 404, the skater's own code,
-`onCoachRoster: false`, and a failed or rate-limited check (*"Couldn't check that code. Try
-again."*). Changing the code, or the picks' coach, clears the answer and checks again. Clearing the
-box allows a private booking. This is a screen rule only; the booking transaction's
-`ConditionCheckItem` (decision 2) stays the authority.
+*Amended 2026-10-20.* *Decided by the owner.* The booking page holds Book until the share-check
+for that exact code and coach answers `onCoachRoster: true` (screen rule — see
+`FeatureDecriptions/Schedule lesson split`, "Client booking"). It is a screen rule only; the
+booking transaction's `ConditionCheckItem` (decision 2) stays the authority.
 
 ### 3. Accepting always goes through the link check
 
@@ -194,21 +186,15 @@ There is no third case, so there is **no `INVITER_LEFT` deadline**.
 | `ANSWER` | Lesson time with a pending leave | The pending leave's `answerBy` |
 
 `sched-deadline-sweep` still runs **hourly**, still uses GSI4, and keeps its missed-run alarm.
-**The shared-lesson warning, its 9pm timing, the late-confirmation rule and both families' red
-banners are gone**: they existed only for a seat waiting on the coach.
+**The shared-lesson warning, its 9pm timing and the late-confirmation rule are gone** (and the
+banners they raised): they existed only for a seat waiting on the coach.
 
 ### 6. Emails
 
-`consumer-invite` still sends the invitation and the outcome emails. Gone from MVP:
-
-- the consent-link version of the invitation (*"Coach Dana needs to accept you first…"*);
-- the warning to both families and the coach;
-- the expiry email asking the family to be accepted onto the coach's roster;
-- *"no longer available after the coach's Accept"*;
-- the coach-declined outcome for an invited skater.
-
-An invitation that reaches the lesson's start unanswered expires with the ordinary *"no longer
-available"* email.
+`consumer-invite` still sends the invitation and the outcome emails. The five emails that
+served only the consent-link path leave MVP; which ones, and the wording of the ordinary expiry
+email, are product (see `FeatureDecriptions/Email templates Needed:`, "Phase 2 — the
+consent-link roster join").
 
 ### 7. Phase 2: the consent-link roster join
 
@@ -264,11 +250,8 @@ sharing a lesson is a burden.
 - **ADR-013 tests:** the sibling and invited-skater checks refuse a `PENDING` skater; a skater
   declined between invitation and answer can't accept; an inviting family's cancel after the
   invited family accepted is an ordinary leave.
-- **Designs to revisit:** the Harbor screens for inviting a skater new to the coach
-  (`design/harbor/client/static/invite-new-student.html` and the demos), the warning banners, and
-  the coach's pending list showing shared-lesson context. *Done 2026-10-20: those pages are
-  removed, and `book-share-not-student`, `book-share-sibling-waiting` and `invite-accepted` show
-  the new behaviour.*
+- *Designs to revisit: moved to `FeatureDecriptions/Schedule lesson split` (handoff) on
+  2026-11-08 — design housekeeping, done 2026-10-20.*
 
 ---
 

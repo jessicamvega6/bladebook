@@ -34,8 +34,9 @@ Safari use without a visit. Offline capture stays (decisions 1, 1a and 5), and t
 guarded rather than designed around:
 
 - Daily use keeps the storage fresh. Nothing new is stored to work around eviction.
-- If the page opens with signal and finds its offline copy gone, it says so plainly and
-  reloads the copy, so it works without signal again.
+- If the page opens with signal and finds its offline copy gone, it reloads the copy, so it
+  works without signal again (what the coach is told: `FeatureDecriptions/C_Rinkside Offline.md`,
+  "The offline copy was cleared").
 - Queued entries are sent as soon as the page is open with signal (decision 1a; on an iPhone,
   the next time it is opened), so they do not sit on the phone for days.
 - A cleared page cannot open with no signal at all. Decision 5a's advice to open the page with
@@ -81,14 +82,11 @@ merely a missing record.
 
 When the device has no connectivity, the app:
 
-- **tells the coach plainly** that check-ins are not reaching the server right now,
-  that what they record is saved on the phone, and that it will be sent automatically
-  once signal returns;
+- **tells the coach** that check-ins are queued on the phone, for as long as the queue is
+  non-empty (product rule — see `FeatureDecriptions/C_Rinkside Offline.md`, "Recording with
+  no signal");
 - **stores the student and the time of check-in** in device storage;
 - **replays the queue** when connectivity is restored.
-
-The banner is not dismissible while the queue is non-empty. A coach who does not know
-their check-ins are queued will assume the payment reminders went out.
 
 ### 2. The attendance time is captured on the device, not stamped by the server
 
@@ -191,12 +189,11 @@ accepts it whenever it arrives — and the longer it sits, the more ordinary thi
 These are not silently dropped and not silently retried forever. The entry stays in the
 queue, marked failed, and the coach is shown what did not go through and why.
 
-**And "why" has to be specific.** The coach who marked that student absent did the correct
-thing with the information they had; presenting it as a failure blames them for a
-notification they could not have received. The client-cancellation case is therefore
-reported as what it is — *this lesson was cancelled by the family at 3:50pm, after you
-recorded it* — and the entry is then cleared rather than left for the coach to resolve.
-There is nothing to reconcile: the outcome is already known and it is not a no-show.
+**The client-cancellation case is its own reason, not a failure** (product rule — see
+`FeatureDecriptions/C_Rinkside Offline.md`, "The family had cancelled"). The replay result
+tells it apart from other failures, and the entry is then cleared rather than left for the
+coach to resolve. There is nothing to reconcile: the outcome is already known and it is not a
+no-show.
 
 A replay that fails for any other reason keeps the blunter treatment: it stays visible and
 stays queued. Attendance is a record of something that physically happened, and the system
@@ -206,22 +203,12 @@ does not get to discard it merely because it cannot reconcile it.
 
 *Added 2026-09-30.* Under decision 2a the only entry the server refuses outright is one whose
 time does not fit its lesson — a wrong clock. It cannot be sent, and it exists only on the
-phone, so the rinkside app shows it there rather than dropping it. The banner reads *"2
-check-ins couldn't be sent. Tap to see them."*, and each entry shows:
-
-| Shown | Example |
-|---|---|
-| Student | Mia R. |
-| Lesson | Tue 14 Oct, 4:00pm |
-| What was recorded | Checked in, or No-show |
-| When it was tapped, by the phone's clock | 4:12pm |
-| Why it wasn't sent | *The phone's time didn't match the lesson* |
-
-Two actions: **Record on the website**, which opens the coach website's lesson list at that
-date (decision 8's correction screen), and **Done**, which removes the entry once recorded.
-The list holds student names on a device used at public rinks, so **an entry leaves the phone
-when the coach taps Done, or after 7 days, whichever comes first** (*decided by the owner,
-2026-09-30*). A day before removal it is marked *"Will be removed tomorrow."*
+phone, so it is kept in device storage and listed to the coach rather than dropped (what the
+list shows and its actions: product rule — see `FeatureDecriptions/C_Rinkside Offline.md`,
+"Couldn't be sent").
+The list holds student names on a device used at public rinks, so **an entry is deleted from
+the phone when the coach removes it, or after 7 days, whichever comes first** (*decided by
+the owner, 2026-09-30*).
 
 *Note, 2026-09-30:* only attendance is queued. **Cancelling is disabled offline** — see
 [ADR-009](ADR-009-cancellation.md) decision 5a — because a queued cancellation would reach
@@ -254,9 +241,8 @@ for surfaces that do not benefit.
 
 *Decided by the owner, 2026-09-30.* If the app opens and today's lessons are not in its
 cache — the coach has not opened it with signal today and has no signal now — it shows a
-message rather than an empty list, which would look like a day with no lessons:
-
-> *"Today's lessons haven't loaded. Open the app with signal before you leave for the rink."*
+not-loaded message rather than an empty list, which would look like a day with no lessons
+(wording: `FeatureDecriptions/C_Rinkside Offline.md`, "Today's lessons haven't loaded").
 
 ### 6. The coach records a no-show explicitly
 
@@ -271,13 +257,9 @@ from a booking still sitting at `BOOKED`, it was indistinguishable from a check-
 on a phone with no signal — and from a coach who simply forgot. Recording it turns one
 ambiguous state into two known ones plus an honest unknown.
 
-**This makes the open `NO_SHOW` payment question live rather than theoretical.** The
-payment reminder is driven by `CheckInRecorded`, which a no-show does not emit, so a
-student who reserved ice and did not appear is currently billed nothing while the student
-who attended is billed. That is very likely backwards from a coach's point of view — the
-ice was held either way — but it is a business decision, not an architectural one, and it
-is not made here. Until it is, the app will show a coach a button whose consequence is
-nothing.
+*What a no-show costs is a business rule (settled by ADR-015 decision 5). The paragraph on it
+moved to `FeatureDecriptions/Coach App` ("Present and No-show") on 2026-11-08 — product
+content, not an architecture decision.*
 
 ### 7. The end-of-day report defaults to `PENDING`, not to no-show
 
@@ -299,11 +281,9 @@ and a queued outcome that replays later simply leaves the bucket. Adding a real 
 would mean a write across every unrecorded booking each night to record something already
 knowable from what is there.
 
-**The report names the pending students and says what to do.** *Added 2026-09-30, in place
-of a push notification the owner declined:* the email lists each pending student and lesson,
-with *"No attendance recorded. If you recorded these on the rinkside app, open it with signal
-to send them; otherwise record them on the lesson list."* It is the coach's nightly prompt for
-both a phone that never reconnected and a lesson nobody recorded.
+**The report names the pending students.** *Added 2026-09-30.* So the report job reads
+each pending seat's student and lesson, not only a count (what the email says: product
+content — see `FeatureDecriptions/Email templates Needed:`, "Daily report").
 
 **The report stays a snapshot.** It states what the server knew at 9:00pm and is not
 regenerated when a late replay lands. This is what gives the coach the signal the owner
@@ -334,9 +314,9 @@ The queued value disagreeing with the stored one is the normal signature of a co
 not an error, and telling the coach their correction "failed to sync" would invite them to
 undo it.
 
-**Correction is website-only, by design.** The phone is used with gloves on, at a rink,
-between lessons — it is where mis-taps happen and the worst place to offer an overwrite next
-to the button that caused one. The dashboard has a date range, full context and no hurry.
+**Correction is website-only** (product rule — see `FeatureDecriptions/Coach lesson list`,
+"Why corrections are on the website"), so the rinkside routes carry only the conditional
+capture write, never the overwrite.
 
 ### 9. Guardian contact details are cached for the day, revealed by a tap
 
@@ -389,7 +369,8 @@ Two limits, stated rather than hidden:
   and lesson times, **no contact details**.
 - **A guardian's contact details are fetched when the coach taps a student**, from
   `api-checkin`, and shown for that tap only. Nothing is written to the phone.
-- **With no signal, the tap shows** *"Contact details need a connection."*
+- **With no signal, the tap fails** and tells the coach a connection is needed (wording:
+  `FeatureDecriptions/Coach App` and `C_Rinkside Offline.md`).
 - **Every reveal is logged when it happens**, through ADR-012's normal path. There are no
   queued reveals, so decision 9a's blind spot — reads that reach the access log late, or never
   if the phone is lost — no longer exists.
@@ -534,9 +515,8 @@ whole story.
   lists attended students as no-shows. The report is still a snapshot of what the server
   knew at 9pm and is stale rather than corrected after a replay — but it is now stale in a
   way that is visible and interpretable instead of stale in a way that reads as fact.
-- **A coach can record a no-show that costs nothing until Phase 2.** Decision 6 ships the
-  affordance; ADR-015 decided the charge but scheduled it for Phase 2. The button records a
-  real outcome and feeds the report from day one, and starts carrying money later.
+- *A consequence about what a no-show costs before Phase 2 moved to `FeatureDecriptions/Coach App`
+  ("Present and No-show") on 2026-11-08 — product content, not an architecture decision.*
 - **Payment reminders are delayed by exactly the offline period**, since they are driven
   by `CheckInRecorded`. This is the correct behaviour — a reminder should not go out for a
   lesson the server has no record of — but it means a rink with no signal delays every
@@ -571,13 +551,11 @@ whole story.
 - ~~How long rejected entries stay on the phone.~~ **Settled 2026-09-30:** until Done, or 7
   days — decision 4a.
 - ~~An evening push to coaches with unrecorded lessons.~~ **Declined by the owner,
-  2026-09-30.** The 9:00pm end-of-day report already tells the coach which students are
-  pending (decision 7), and names what to do about them — see the note there.
+  2026-09-30.** *Product question; moved to `FeatureDecriptions/Email templates Needed:`
+  ("Not emails, or decided against") on 2026-11-08.*
 - ~~Whether the coach can correct or undo a recorded outcome.~~ **Settled by the owner,
-  2026-08-30: yes, from the coach dashboard on the website — not from the rinkside app.**
-  The *Coach lesson list* shows students who had lessons in a required date range with their
-  attended / no-show state, and the coach can change a lesson's status to either value.
-  Source: `FeatureDecriptions/Coach lesson list`. See decision 8.
+  2026-08-30: yes, on the website only** — see decision 8. *Product detail moved to
+  `FeatureDecriptions/Coach lesson list` ("Why corrections are on the website") on 2026-11-08.*
 - ~~What a recorded `NO_SHOW` costs.~~ **Settled 2026-08-30 (ADR-015):** it is charged,
   under the same rule as a late cancellation. This raises the stakes on the item above —
   a mis-tap on a phone held rinkside now bills a family — and makes decision 7's `PENDING`

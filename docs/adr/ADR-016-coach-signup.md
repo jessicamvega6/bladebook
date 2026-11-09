@@ -26,30 +26,24 @@ the `CODE#` item too. How that screen fetches the photo waits on decision 5's ph
 **Amended — 2026-10-05.** Decision **5**'s profile photo is **deferred to Phase 2** by the
 owner. MVP has no photo upload, no photo bucket and no resize step; `profilePhotoKey` stays
 in the schema and in the `CODE#` item's attribute allowlist but is never set until Phase 2,
-so every screen takes decision 5's "no photo uploaded" path. *Decided by the owner, same day:*
-where a photo would appear, including the family's code-entry screen, MVP shows the coach's
-**initials** in a circle.
+so every screen takes decision 5's "no photo uploaded" path. What MVP shows instead is product
+(see `FeatureDecriptions/C_Coach Profile.md`, "Details").
 
 **Note — 2026-10-09.** [ADR-003](ADR-003-lesson-pricing-and-payment.md) decision 4 (amended) uses
 decision 7's handles as the options for **how the client paid**, plus *Other*.
 
 **Amended — 2026-10-12.** *Decided by the owner.* Decision **7** gains a fourth payment type,
-**Cash** (`acceptsCash`, a yes/no the coach sets at sign-up or on the profile). Cash has no
-handle, so it's a switch rather than a field. It feeds ADR-003 decision 4's how-paid options.
-`paymentInstructions` still covers cheques, Interac e-transfer and anything else.
+**Cash** (`acceptsCash`, a boolean). Cash has no handle, so it is a flag rather than a field. It
+feeds ADR-003 decision 4's how-paid options. `paymentInstructions` still covers cheques, Interac
+e-transfer and anything else.
 
-**Amended — 2026-10-12, later.** *Decided by the owner.* **One switch per payment type.** Cash,
-Cash App, Venmo and PayPal each have their own on/off switch, set at sign-up and changed any time
-on the profile: `acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal`, all off by
-default. A type that has a handle needs it filled in before it can be switched on. A type
-switched **on** is a how-paid option (ADR-003 decision 4) **and** is shown to the coach's
-confirmed families wherever decision 7a shows payment details. Switching a type off removes it
-from both. Past bookings keep their `paidVia`. This **replaces** `displayPaymentTypesToClients`
-(*Show my payment handles*) in decisions 7 and 7a. Example: a coach who signs up with Cash and
-Venmo, then adds PayPal and drops Venmo, switches PayPal on and Venmo off on the profile.
-Switching a type off keeps its handle, so switching it back on needs no retyping. **Switching
-Cash App, Venmo or PayPal back on asks the coach to verify that the kept handle is still
-correct** before it takes effect. Cash has no handle, so it switches straight back on.
+**Amended — 2026-10-12, later.** *Decided by the owner.* **One flag per payment type:**
+`acceptsCash`, `acceptsCashapp`, `acceptsVenmo`, `acceptsPaypal`, all false by default. This
+**replaces** `displayPaymentTypesToClients` in decisions 7 and 7a. A type that is on is a
+how-paid option (ADR-003 decision 4) and is readable by confirmed families wherever decision 7a
+shows payment details; a type with a handle can't be on while its handle is empty. Turning a
+type off keeps its handle attribute, and past bookings keep their `paidVia`. (The switches and
+their behaviour are product — see `FeatureDecriptions/C_Coach Profile.md`, "Payments".)
 
 **Amended — 2026-10-13.** *Decided by the owner through the Harbor design, which is the source of
 truth (`design/harbor/coach`, sign-up step 4 and Profile → Business email).* **A business email
@@ -58,13 +52,9 @@ families' replies go to the address already in use: the login email at sign-up, 
 business email when the coach changes it on the profile. The aim is that a typo can't send
 every family's replies to a stranger. Decision 8 is unchanged: `Reply-To` is always
 `businessEmail`. But `businessEmail` only ever holds a **confirmed** address (or the login email,
-which decision 4 already verifies).
-- **At sign-up**, step 3 offers *Use my login email* or *Use a different email*. A different
-  address gets a link on step 4, with *Resend link*, *Change address* and *Use my login email
-  instead*.
-- **On the profile**, the coach keeps a list of addresses and picks one. *Use a new address*
-  sends a link, and the address can't be picked until it's confirmed. Any address except the
-  current one and the login email can be removed.
+which decision 4 already verifies). The sign-up and profile screens for this are product (see
+`FeatureDecriptions/Coach Sign Up`, "Business email", and `FeatureDecriptions/C_Coach Profile.md`,
+"Business email").
 - **BladeBook sends the link**, not Cognito, because Cognito verifies only the login email.
   It is a new email template (`FeatureDecriptions/Email templates Needed:`).
 - *Open:* how the link is built and how long it lasts. Like ADR-026's invitation link, opening
@@ -78,36 +68,30 @@ signed-in session (the profile write) already carries the group ADR-023 decision
 **Amended — 2026-11-06.** *Decided by the owner.* **No Cognito custom message trigger.** Cognito
 sends its one built-in verification message for every code: sign-up, forgot password (decision 3)
 and a family's changed email. Cognito fills in only the code, so that email names no coach or
-family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). It
-reads *"Enter this code on the BladeBook page that asked for it"* and is drawn in
-`design/harbor/email/cognito/cognito-code.html`. BladeBook stays at seventeen functions. The user
+family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). Its
+wording is product (see `FeatureDecriptions/Email templates Needed:`). BladeBook stays at seventeen functions. The user
 pool sends through SES, from the same domain as BladeBook's other email.
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
 (`design/harbor/coach/app.js`, sign-up step 4).* **At sign-up, families can't reach the coach
-until a different business email is confirmed.** This replaces the 2026-10-13 amendment's
-*"the login email at sign-up"* fallback: until the link is clicked, the login email is **not**
-used as the address families reply to. Step 4's banner stands as drawn: *"Families can't
-reach you until this is confirmed."* A coach who picks *Use my login email* (or *Use my login
-email instead*) is reachable straight away, as before. **Changing the address on the profile is
-unchanged**: the current confirmed address stays in use until the new one is confirmed.
-- **What it blocks** *(owner, same day)*: **the coach code doesn't work until the address is
-  confirmed.** No family can sign up with, or add, this coach before then, so no family email is
-  ever sent without a confirmed `Reply-To`. Decision 8's *"`Reply-To` is always
+until a different business email is confirmed, and the coach code doesn't work until then**
+(product rule — see `FeatureDecriptions/Coach Sign Up`, "Business email"). This replaces the
+2026-10-13 amendment's *"the login email at sign-up"* fallback. Changing the address on the
+profile is unchanged: the current confirmed address stays in use until the new one is confirmed.
+- **What it blocks** *(owner, same day)*: no family can sign up with, or add, this coach before
+  the address is confirmed, so no family email is ever sent without a confirmed `Reply-To`. Decision 8's *"`Reply-To` is always
   `businessEmail`"* stands unchanged.
 - **How:** sign-up writes `PROFILE` as before, but the `CODE#` item is written **only once the
   coach has a confirmed business email**: when the link is confirmed, or straight away if the
   coach picks *Use my login email* (at step 3 or as *Use my login email instead* on step 4).
   The `code-lookup` role and its allowlist are unchanged. A lookup before then finds no item, so
-  a family sees the ordinary *"That code doesn't match a coach"* message, which reveals nothing
-  about an unfinished sign-up.
-- **The coach is told:** until it's confirmed, the coach's code is shown with *"Your code starts
-  working once you confirm your business email."* Drawn 2026-11-06 in `design/harbor/coach/`
-  (`today-code-pending`, `profile-details-code-pending`, and the code card on `signup-4-confirm-email`).
+  a family gets the ordinary "no match" answer, which reveals nothing about an unfinished sign-up.
+- What the coach is told meanwhile is product (see `FeatureDecriptions/Coach Sign Up`,
+  "Business email").
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design.*
-**`smsCancellationAlerts` is on the profile only** (Profile → Visibility & texts), not on the
-sign-up form. One less question at sign-up. Decision 2's table is corrected below.
+`smsCancellationAlerts` is set on the profile only, not at sign-up (product — see
+`FeatureDecriptions/Coach Sign Up`, "Not at sign-up"). Decision 2's table is corrected below.
 
 ---
 
@@ -266,8 +250,8 @@ and a resize both exist.
 This is presentation, not protection — see Open.
 
 *Amended 2026-10-05:* **deferred to Phase 2.** MVP ships without the photo; the absent case
-above is the only case until then, and it shows the coach's **initials** in a circle,
-including on the family's code-entry screen. The limits here stand for when it arrives.
+above is the only case until then (what it shows is product — see
+`FeatureDecriptions/C_Coach Profile.md`, "Details"). The limits here stand for when it arrives.
 
 ### 6. Timezone and currency are captured here, because nothing else captures them
 
@@ -308,9 +292,8 @@ coach turns them on**:
 | *Show my email address* — `displayEmailToClients` | `businessEmail` |
 | ~~*Show my payment handles* — `displayPaymentTypesToClients`~~ | ~~Cashapp, Venmo, PayPal~~ *Replaced 2026-10-12: each payment type switched on is shown (Status note)* |
 
-**Where, when switched on:** a coach card on the client website's home page and at the top
-of the booking page, and the footer of client emails. **Never in a text** (ADR-007 forbids
-free text there), and not on the rinkside app, which is the coach's own.
+Where the details appear is product (see `FeatureDecriptions/C_Coach Profile.md`, "Visibility &
+texts"). **Never in a text** (ADR-007 forbids free text there).
 
 **Only to families the coach has confirmed.** A family still `PENDING` sees the coach's name
 and photo, as decision 5 has it, but none of these details. A coach code can be passed around
@@ -396,10 +379,8 @@ consumer: make the second attempt finish the first rather than undo it.
 - **Photo moderation.** An optional image, uploaded by an unvetted account, displayed to a
   member of the public who has entered a code. Nothing inspects it and nothing can report
   it.
-- **What a coach sees on first login.** Decision 9 makes first login complete a partial
-  signup, and decision 6 makes timezone and currency mandatory — but ADR-008's open item
-  *"a coach with no schedule at all"* means the first thing a new coach meets is an empty
-  grey month. The two need designing together.
+- *Moved to `FeatureDecriptions/Coach Sign Up` ("Open questions") on 2026-11-08: what a coach
+  sees on first login — product content, not an architecture decision.*
 
 ---
 

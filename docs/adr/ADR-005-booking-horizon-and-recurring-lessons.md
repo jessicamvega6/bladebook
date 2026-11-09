@@ -51,15 +51,13 @@ lessons — which interact with the horizon directly — be specified but deferr
 
 ### 1. Clients can book at most 7 days ahead
 
-A rolling window: today through today + 7 days, in the coach's IANA timezone
-(ADR-001 decision 4). Availability outside that window is not returned, regardless of
-what pattern would apply there.
+Clients could book at most 7 days ahead, a rolling window computed in the coach's IANA
+timezone (ADR-001 decision 4) (product rule, superseded — see `FeatureDecriptions/Bookings:`,
+"History: the 7-day booking window and deferred recurring lessons"). Availability reads outside
+that window return nothing, regardless of what pattern would apply there.
 
 The horizon is enforced **server-side at booking creation**, not only by hiding dates
 in the UI. A `POST` for a date beyond the horizon is rejected.
-
-For MVP, clients book each week for the week ahead. There is no way to reserve a
-standing time — see decision 4.
 
 ### 2. A temporary schedule is resolved by the date being booked, not by today
 
@@ -99,9 +97,9 @@ Two consequences follow:
 
 ### 4. Recurring lessons are Phase 2
 
-**MVP behavior: clients sign up each week.** There is no standing booking, no
-auto-booking, and no start-of-week email. The only scheduled jobs remain the two in
-`architecture.md` §8.
+MVP had no recurring bookings (product rule, superseded — see `FeatureDecriptions/Bookings:`,
+"History: the 7-day booking window and deferred recurring lessons"), so no new items or jobs:
+the only scheduled jobs remain the two in `architecture.md` §8.
 
 The design below is recorded so Phase 2 does not restart from nothing. **None of it
 is built for MVP.**
@@ -169,11 +167,9 @@ the horizon, and a weekly digest email.
 in the common case the `ScheduleChanged` consumer finds nothing to do. Temporary
 schedules need no activation machinery. MVP adds no infrastructure.
 
-**Harder — and this is a product cost, not a technical one.** A coach cannot publish a
-season of availability, and families cannot book a month out. For a coach whose clients
-plan ahead, a 7-day window is a plausible first complaint, and recurring lessons are
-what would make it tolerable. Deferring them to Phase 2 means MVP asks every family to
-re-book weekly, including the ones who have had the same Wednesday slot for two years.
+**Harder — and this is a product cost, not a technical one.** *Moved to
+`FeatureDecriptions/Bookings:` ("History: the 7-day booking window and deferred recurring
+lessons") on 2026-11-08 — product content, not an architecture decision.*
 
 The horizon must be enforced in the API, not just the UI, or it is not a constraint.
 
@@ -192,19 +188,12 @@ The horizon must be enforced in the API, not just the UI, or it is not a constra
   is the simpler thing and nothing depends on the distinction yet. Recurring lessons
   likely force a weekly batch. Decide at the start of Phase 2 — it changes what "the
   horizon" means, not just how it is computed.
-- **Should a coach see what a schedule change will release, before saving?** Today they
-  find out from the emails their clients receive. Inside the horizon this matters;
-  outside it there is nothing to show.
-- **Can a coach book outside the horizon on a client's behalf?** Assumed yes eventually.
-  Not specified.
-- **Phase 2, carried forward unanswered:**
-  - What happens when a recurring lesson cannot be placed — coach on vacation, or a temp
-    moved that weekday's hours? Silent skip, email the client, notify the coach?
-    This fires every time a coach takes a week off, so it is not an edge case.
-  - Who creates the recurrence: a client checking "repeat weekly" at booking time, or the
-    coach designating a standing student? Determines who can end it, and touches ADR-002.
-  - Can a client skip a single week without ending the arrangement? Needs a way to cancel
-    one materialized booking while keeping the intent, and overlaps Gap 3 (cancellation).
+- *Product questions moved on 2026-11-08 — product content, not architecture decisions:*
+  "Should a coach see what a schedule change will release?" to
+  `FeatureDecriptions/Schedule Creater.md` ("Cancellation emails from a schedule change");
+  "Can a coach book outside the horizon?" and the three Phase 2 recurring-lesson questions to
+  `FeatureDecriptions/Bookings:` ("History: the 7-day booking window and deferred recurring
+  lessons"). All remain marked superseded there.
 
 ---
 

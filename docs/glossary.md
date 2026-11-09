@@ -51,10 +51,10 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **BFSC** | Birmingham Figure Skating Club | The club whose freestyle ice is one of PCC's ice types. |
 | **USFSA** | United States Figure Skating Association | The old name of US Figure Skating, still widely used. With USA Hockey and Learn to Skate USA, one of the three organisations whose number a skater can give in Phase 1 (ADR-029, amended 2026-10-16). Stored as `USFS`. |
 | **S&P** | Stick and Puck | A hockey practice session; one of PCC's ice types, which can carry its own rink rate. |
-| **SOD / EOD** | Start of Day / End of Day | Schedule-builder fields: the first and last time a tab's lessons may run (ADR-008). |
-| **LL / LC** | Lesson Length / Lesson Cost | Schedule-builder fields: a tab's lesson length in minutes and its price (ADR-008). |
-| **MF** | Missed-lesson Fee | Schedule-builder field: a tab's charge for a no-show or late cancellation (ADR-008, ADR-015). |
-| **SD / ED** | Start Date / End Date | Schedule-builder fields for a temporary tab (ADR-008). |
+| **SOD / EOD** | Start of Day / End of Day | Schedule-builder fields: the first and last time a block's lessons may run (ADR-008). |
+| **LL / LC** | Lesson Length / Lesson Cost | Schedule-builder fields: a block's lesson length in minutes and its price (ADR-008). |
+| **MF** | Missed-lesson Fee | Schedule-builder field: a block's charge for a no-show or late cancellation (ADR-008, ADR-015). |
+| **SD / ED** | Start Date / End Date | Schedule-builder fields for a special (temporary) schedule (ADR-008). |
 | **USD / CAD** | US Dollar / Canadian Dollar | The two currencies a coach can choose at sign-up; stamped onto every ~~booking~~ *lesson time (ADR-031, 2026-10-13)*. |
 | **RFC** | Request for Comments | An internet standard; RFC 2606 reserves `example.com`, which masked emails use. |
 | **HTML** | HyperText Markup Language | The format of the web pages and of BladeBook's emails. |

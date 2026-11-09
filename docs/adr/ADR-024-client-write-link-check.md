@@ -151,7 +151,7 @@ handled differently:
 
 | Why it failed | Response to the family | Logged as | Counts toward the alert |
 |---|---|---|---|
-| **The skater was linked, but isn't `ACTIVE` now:** declined or still pending; removed too once removing a student arrives in Phase 2 *(owner, 2026-10-13)*. Most often the coach changed it while the family had the page open. | A clear message: *"Mia's lessons are no longer available to book. Contact Coach Dana."* (HTTP 409) | An ordinary application event | No |
+| **The skater was linked, but isn't `ACTIVE` now:** declined or still pending; removed too once removing a student arrives in Phase 2 *(owner, 2026-10-13)*. Most often the coach changed it while the family had the page open. | A message that the skater can no longer be booked, naming the coach (HTTP 409; wording in `FeatureDecriptions/Bookings:`) | An ordinary application event | No |
 | **The skater or booking was never this family's** | A plain "not found" (HTTP 404). It doesn't confirm the item exists. | A **security event** | Yes |
 
 The security event follows ADR-012 decision 2's rules: **identifiers only, never values**. It

@@ -34,9 +34,36 @@ Waiting for approval (no coach has approved any skater yet, ADR-022 d6; ADR-025 
   Every message names the coach or coaches being waited for. With more than one, the waiting card lists each coach
     and which skaters they're approving, and each skater shows a "Waiting for Coach <name>" tag per coach
     (home-pending-two-coaches.html).
+    The pending screens show the coach's name: *"Waiting for Coach Dana's approval"*.
+    *(from ADR-022 decision 6, moved 2026-11-08)*
   The family sees only Home and Profile: no schedule, open times or coach contact details.
   Home says they're waiting for the coach to approve, and that the coach checks they know each family who signs up.
   Lists their skaters as waiting, with a link to the profile. ~~edit or remove them~~ *(no Remove, 2026-10-13)*
-  "What happens next": the coach approves each skater, the family is emailed, then booking opens.
+  "What happens next": the coach approves each skater, then booking opens. No email is sent in MVP (see below).
   ~~Signed up by mistake or with the wrong coach? Remove the skaters from the profile.~~ *Removed 2026-10-13 with the
     profile's Remove button.*
+  *ADR-002, amendment 2026-11-06 (owner): the approval email is Phase 2; MVP sends none. See Client Sign Up, "Coach
+    approval".* *Ruled by the owner 2026-11-09.*
+
+Across coaches (decided by the owner 2026-10-06 and 2026-10-13, ADR-025):
+  The family website works across coaches:
+    Booking, calendar, coach profile: about one coach at a time, chosen from a coach switcher.
+    My lessons: all coaches, each lesson labelled with its coach.
+    Payments owed (Phase 2): grouped by coach, never totalled across them. Coaches may use different currencies
+      (USD and CAD), and each family pays each coach directly.
+    Skaters: each skater lists their coaches and the status with each ("Approved", "Waiting for Coach Sam").
+  *2026-10-13:* booking (the coach switcher), sign-up with several codes, Home's coach cards, the waiting pages and the
+    profile's coaches are in the Harbor designs; My lessons labels each lesson with its coach, and has a coach filter.
+    Payments grouped by coach (Phase 2) is not yet.
+  *(from ADR-025 decision 7, moved 2026-11-08)*
+  i. A family is "waiting" only until any coach approves any of its skaters (applied to the whole site). After that it
+    sees the whole site; a coach still to approve is named wherever it matters (a Home banner per waiting coach, the
+    Coach dropdown, the profile), and nothing of that coach is shown — no times, contact details or booking. Every
+    waiting message names the coach or coaches, never only one.
+  j. Home shows one card per coach. An approved coach's card shows the contact details that coach switched on; a
+    coach still to approve shows none.
+  l. Shared-lesson invitations name their coach on every family page (home banner, invitations card, invitation
+    page). The invitation emails already did.
+  *(from ADR-025, amendment 2026-10-13, items i, j and l, moved 2026-11-08)*
+  A skater with no coach yet (see ClientProfileView) doesn't count toward "waiting" either way.
+    *(from ADR-025, amendment 2026-11-06, moved 2026-11-08)*

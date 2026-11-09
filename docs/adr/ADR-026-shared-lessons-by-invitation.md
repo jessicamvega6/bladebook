@@ -27,66 +27,60 @@ a way to add a coach; the clash warning on the confirm page) and, *since 2026-10
 
 Source: `FeatureDecriptions/Schedule lesson split`.
 
-**Amended — 2026-10-07.** *Decided by the owner.* Answers P1 (default 1, most 2, raisable later)
-and P3 (the coach always accepts a skater before any lesson is booked for them; being invited
-doesn't need it). Decision 4's lookup checks only that the skater exists. Decision 5 is
-rewritten: the share box shows only on shareable times and takes one code; booking waits for
-the code to check out; the invited family is emailed straight away; a skater who isn't the
-coach's student joins the coach's roster through a consent link and the coach-code pending
-route; the invited family confirms on a signed-in page that shows any clashes; once the coach
-accepts, the coach's own Accept joins the skater automatically if the lesson still exists,
-hasn't happened, has room and names that skater as invited, and otherwise writes nothing and
-the invited family is told. One
-invitation covers a whole recurring series, and a sibling is added directly.
+**Amended — 2026-10-07.** *Decided by the owner.* Answers P1 and P3 and rewrites decision 5's
+flow (product rules, moved to `FeatureDecriptions/Schedule lesson split` on 2026-11-08). What it
+changes technically: decision 4's lookup checks only that the skater exists; a skater who isn't
+the coach's student reaches the roster through the coach-code pending route; the coach's own
+Accept joins the skater automatically if the lesson still exists, hasn't happened, has room and
+names that skater as invited, and otherwise writes nothing.
 
-*Revised the same day.* An earlier version of this amendment had the coach see only a display
-name and the invited family hear nothing until the coach accepted; the owner replaced it with
-the consent link above. **Who writes the automatic join is settled by the owner, the same
-day:** `api-coach`, in the coach's own session, as part of the coach's Accept. No function gains
-a database permission (decision 5, Consequences).
+*Revised the same day.* **Who writes the automatic join is settled by the owner:** `api-coach`,
+in the coach's own session, as part of the coach's Accept. No function gains a database
+permission (decision 5, Consequences).
 
 **Amended — 2026-10-08.** *Decided by the owner.* `inviteStatus`'s first state renamed `PENDING` →
 `SENT`; `EXPIRED` added; how an `AWAITING_COACH` invitation closes (decision 5). `consumer-invite`
 is also triggered by `StudentChanged` (ADR-021 decision 6, ADR-001).
 
 **Amended — 2026-10-09.** *Decided by the owner.* An invitation still waiting on the coach gets a
-warning email and a home-screen banner before the lesson, and a nightly sweep closes any
-invitation whose lesson has started (decision 5a, new). The coach's email is moved from Phase 2
-to MVP. ~~Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.~~ *Settled by the
+warning and a banner before the lesson (product content — see `FeatureDecriptions/Schedule
+lesson split`), and a nightly sweep closes any invitation whose lesson has started (decision 5a,
+new). ~~Kim's P5, when an unanswered invitation lapses *before* the lesson, stays open.~~ *Settled by the
 owner 2026-10-13: it doesn't; see P5.*
 
 **Amended — 2026-10-13.** *Decided by the owner.* **How a shared lesson is priced, and what
-happens when a skater leaves** (P2 and P4; Kim's list §8 questions 2, 3 and 5):
+happens when a skater leaves** (P2 and P4; Kim's list §8 questions 2, 3 and 5). The rules
+families see — the price split, keep-or-cancel after an in-time leave, the late leaver's share of
+the fee, no special case for the booking family — are product rules, moved to
+`FeatureDecriptions/Schedule lesson split` ("Price", "A skater calls out") on 2026-11-08. What
+they need technically:
 
-- **One set price, split.** The lesson has one price, the block's schedule price when it was
-  booked, split evenly between its skaters: a $50 lesson shared by two is $25 each. *On the
+- **One set price, split** evenly between the skaters (product rule — see above). *On the
   lesson time since ADR-031.* ~~Each
   participant line stamps its share.~~ *Replaced by ADR-031 decision 7 (2026-10-13): ~~each
   **seat** carries `shareMinor`. The price is split among the `BOOKED` seats,~~ and odd cents go
   one each to the earliest-joined seats.* *Revised 2026-10-13 (ADR-031 revision): the total
   price is stored only on the lesson time (`priceMinor`). A share is worked out, not stored:
   `priceMinor ÷ shareCount`, where `shareCount` is a lesson-time attribute. ~~A seat gets a fixed
-  `amountMinor` only at check-in, at a no-show, or when marked paid or waived.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).* Personal prices are Phase 2 (ADR-003, amended the same
-  day), so the split is always of the schedule's price.
+  `amountMinor` only at check-in, at a no-show, or when marked paid or waived.~~* *Revised 2026-10-13: no amount is copied onto a seat; it's worked out from the lesson time (ADR-031 d7).*
 - **Joining:** when a second skater joins, ~~both are re-stamped at the split price~~ the
   lesson time's `shareCount` goes up and both shares follow from it. Until then the booking
   family's lesson is private at the full price. *Revised 2026-10-13 (ADR-031 revision): nothing
   is re-stamped on either seat.*
-- **Leaving in time** (outside the coach's notice period): the skater who stays is not
-  re-priced automatically. Their family is told and chooses: **keep it as a private lesson at
-  the full price**, or **cancel with no charge**. Until they answer, their share stands. ~~**No
+- **Leaving in time** (outside the coach's notice period): the staying family chooses keep at
+  full price or cancel with no charge, and their share stands until they answer (product rule —
+  see above). ~~**No
   answer by the start of the notice period cancels it, with no charge.**~~ *Replaced by ADR-031
   decision 8 (2026-10-13): no answer by the **answer-by** time — whichever comes first, the start
   of the notice period or 7 days after the leave — cancels it with no charge. The hourly sweep
   does it.* *Revised 2026-10-13 (ADR-031 revision): the leave is recorded as a **pending leave**
   on the lesson time, with `answerBy`. The staying family's seat isn't touched. Keeping and
   cancelling are the staying family's own writes.*
-- **Leaving late** (inside the notice period, or a no-show): the skater who leaves may be charged
-  **their share of the late-cancellation fee** (half, for two skaters; ADR-015, amended the same
-  day). The skater who stays isn't charged any fee and keeps their share of the price.
-- **No special case for the booking family** (P4): once both skaters have joined, either family
-  leaving follows the same rules. The invited family can cancel from My bookings like the
-  booking family.
+- **Leaving late** (inside the notice period, or a no-show): the leaver may be charged their
+  share of the late-cancellation fee (product rule — see above; ADR-015, amended the same day,
+  records it on the leaver's line). The staying skater's share doesn't change.
+- **No special case for the booking family** (P4): either family's leave is the same write
+  (product rule — see above).
 
 **Amended — 2026-10-12.** *Decided by the owner.* A lesson already booked can't have its
 `maxSkaters` lowered; the decision 1 stamp is the intended behaviour, so a schedule edit changes
@@ -95,13 +89,13 @@ only lessons booked afterwards. Decision 1's "like the price" no longer holds si
 doesn't.
 
 **Amended — 2026-10-13.** *Decided by the owner.* **Share codes can't be refreshed.** Decision 4's
-"a family can issue a new code" is withdrawn: a skater keeps one share code for good, and the
-family profile shows it with Copy only.
+"a family can issue a new code" is withdrawn: a skater keeps one share code for good. (How the
+profile shows it: `FeatureDecriptions/ClientProfileView`.)
 
 **Amended — 2026-10-13.** *Decided by the owner.* **P5: no cutoff before the lesson.** An invitation
-the family hasn't answered stays open until the lesson starts, and then expires (decision 5a, ADR-031
-decision 12's `EXPIRE`); the lesson goes ahead private. Nothing lapses earlier, so P5 needs no
-new deadline in the sweep and no longer waits on Kim.
+the family hasn't answered stays open until the lesson starts, and then expires (product rule —
+see `FeatureDecriptions/Schedule lesson split`). Technically that is decision 5a and ADR-031
+decision 12's `EXPIRE`. Nothing lapses earlier, so P5 needs no new deadline in the sweep.
 
 **Amended — 2026-10-13.** *Decided by the owner.* **The share code's shape** (decision 4). The
 first **3 letters of the skater's first name**, a dash, then **5 random characters** from the
@@ -175,13 +169,11 @@ through everything:
   reminder and report (GSI2), the unpaid list (GSI3), the family's own lessons (GSI1) and
   cancellation.
 
-The owner's answers after talking with the end user:
-
-- **Every booking starts private.** A family books a slot as today and it shows as taken.
-  Other families never see that a slot could be shared, or how many skaters it holds.
-- **Sharing is by invitation.** While booking, the family can add another family's skater. That
-  family confirms, and then the booking shows both.
-- **The coach decides how many skaters each block allows.**
+The owner's product answers after talking with the end user — every booking starts private,
+sharing is by invitation and the other family confirms, the coach decides how many skaters each
+block allows — moved to `FeatureDecriptions/Schedule lesson split` on 2026-11-08. The one that
+binds the design: other families never learn that a slot could be shared, or how many skaters
+it holds.
 
 ---
 
@@ -273,9 +265,9 @@ confirmed at the same moment.
 
 ### 4. A skater is invited with a share code
 
-**Every skater gets a short share code**, for example `MIA-4K7QX`, shown on their profile in the
-family website. A family gives it to the family they want to share with, the same way a coach
-gives out their coach code.
+**Every skater gets a short share code**, for example `MIA-4K7QX`. How families see it and pass it
+on is product content (`FeatureDecriptions/ClientProfileView`, `FeatureDecriptions/Schedule lesson
+split`; moved 2026-11-08).
 
 - **The code is issued by `consumer-family-sync`** (ADR-025 decision 6) when a `SKATER#` item is
   created, written as a `SKATERCODE#<code>` item with `attribute_not_exists(PK)` so codes are
@@ -303,13 +295,11 @@ accepted, but nothing is booked for that skater until the coach does.
 
 **On the booking screen**
 
-- **A *share this lesson* box appears only on times whose block has `maxSkaters` of 2 or more.**
-  Families can tell a time is shareable, never how many skaters it takes.
-- **It takes one skater code.** A note says the other skater's family must accept before their
-  skater joins the lesson.
-- **The code is checked before the booking can continue.** A code that doesn't check out stops
-  the booking at that step; one that does shows *"Mia R."*.
-- **Family A's lesson is then booked as normal,** private, exactly as today.
+*Moved to `FeatureDecriptions/Schedule lesson split` ("Client booking") on 2026-11-08 — product
+content, not an architecture decision.* What the design relies on: the share box appears only
+where `maxSkaters` is 2 or more, so a family learns a time is shareable, never how many skaters
+it takes; the code is checked (decision 4) before anything is written; and Family A's own seat
+is booked exactly as a private lesson.
 
 **Then, for another family's skater**
 
@@ -331,17 +321,14 @@ accepted, but nothing is booked for that skater until the coach does.
    opted in to texts; ADR-007). *Amended 2026-10-08: and by `StudentChanged`, when the coach
    accepts or declines an invited skater.* *Replaced by ADR-031 decision 6 (2026-10-13): there
    are no `INVITE#` copies to make. ~~Which function now sends this email is not said in ADR-031.~~*
-   *Revised 2026-10-13 (ADR-031 decision 14): `consumer-invite` sends it.*
-   - **Skater B is already the coach's accepted student:** the email is an ordinary invitation
-     to accept or decline.
-   - *Phase 2 since ADR-033 (2026-10-20): in MVP the invited skater is always the coach's student, so this consent-link version is Phase 2.* **Skater B isn't:** the email says, in substance, *"Coach Dana needs to accept you first. By
-     following the link below you agree to be added to Coach Dana's roster of students, and Mia
-     will join the lesson on Tue 14 Oct at 4:00 once Coach Dana accepts."*
+   *Revised 2026-10-13 (ADR-031 decision 14): `consumer-invite` sends it.* What the email says
+   (and the Phase 2 consent-link version) moved to `FeatureDecriptions/Schedule lesson split`
+   ("Invitation") on 2026-11-08.
 3. **The link opens a confirm page that needs Family B to sign in.** Opening the link does
    nothing on its own: email security scanners and link previews open links automatically, and
    signing in proves it's Family B rather than whoever the email was forwarded to.
-   - **The page shows any of skater B's lessons that clash** with the shared lesson (ADR-025
-     decision 5), and Family B chooses **Go ahead** or **Cancel**.
+   - The page shows skater B's clashing lessons (ADR-025 decision 5) before Family B goes ahead
+     (product content — see `FeatureDecriptions/Schedule lesson split`, "Invitation").
 4. **For a skater who is already the coach's student,** Go ahead runs the join now: Family B's own
    session, for that coach, gets a `LinkedSkater` for Mia (ADR-024) and runs decision 3's join
    transaction. *Since ADR-031 (2026-10-13): the seat goes `INVITED → BOOKED`, if the lesson
@@ -487,35 +474,18 @@ the kinds are `WARN`, `EXPIRE`, ~~`INVITER_LEFT`~~ on the invited seat; `ANSWER`
 *Revised 2026-10-13 (ADR-031 d5, d12): `WARN` and `EXPIRE` on the invited seat; `ANSWER` and
 `INVITER_LEFT` on the lesson time.*
 
-**The warning.** For each lesson whose invitation is still `AWAITING_COACH`, an email goes to
-**Family A, Family B and the coach** no later than **24 hours plus the coach's
-`requiredNoticeHours`** (as stamped on the booking; *on the lesson time since ADR-031*) before the lesson. Families who have opted in
-to texts also get a text pointing to the email (ADR-007). The coach's email is MVP, *moved from
-Phase 2 by the owner*.
-
-- *To both families:* Coach Dana hasn't accepted Mia for the shared lesson on Tue 14 Oct at
-  4:00. If she doesn't, the lesson goes ahead as a private lesson.
-- *To the coach:* a shared lesson on Tue 14 Oct at 4:00 is waiting for you to accept Mia, with a
-  link to the pending list.
-
-The timing gives Family A at least a day before the notice period begins, so they can cancel
-without a late fee if they don't want a private lesson.
+**The warning.** For each lesson whose invitation is still `AWAITING_COACH`, a warning goes to
+both families and the coach no later than **24 hours plus the coach's `requiredNoticeHours`**
+(as stamped on the booking; *on the lesson time since ADR-031*) before the lesson. Who gets it,
+what it says, why that timing, and the text-message version are product content, moved to
+`FeatureDecriptions/Schedule lesson split` ("Phase 2: an invitation waiting on the coach") on
+2026-11-08.
 
 **The banner.** From the warning time until the coach accepts or declines skater B, or the
-lesson starts, **both families' home screens show a red banner**. The page works it out when it
-loads, from the invitation's status and the lesson time, so nothing is stored for it.
-
-- *Family A:* "Coach Dana hasn't confirmed Mia for your shared lesson on Tue 14 Oct at 4:00.
-  Unless she does, it will go ahead as a private lesson, charged at the booking's own price."
-- *Family B:* "Coach Dana hasn't accepted Mia yet. If she doesn't before the lesson, Mia won't
-  join the Tue 14 Oct 4:00 lesson."
-
-*Since ADR-031 (2026-10-13), the page works it out from the seat's `seatStatus` (or
-`partnerStatus`) and the lesson time.*
-
-"The booking's own price" is what Family A booked at, so the banner stays true whatever P2
-decides about shared pricing. *2026-10-13: P2 is decided; until a second skater joins, the lesson
-is private at the full price.*
+lesson starts, both families' home screens show a banner (wording moved to the same place). The
+page works it out when it loads, from the invitation's status and the lesson time, so nothing is
+stored for it. *Since ADR-031 (2026-10-13), the page works it out from the seat's `seatStatus`
+(or `partnerStatus`) and the lesson time.*
 
 ~~**The nightly sweep.** `consumer-invite` also runs **once a night**, right after the 9 PM
 end-of-day report. It reads upcoming bookings that carry an `invitedStudentId`, by date (GSI2),
@@ -542,33 +512,26 @@ it falls due before the next run, ~~`consumer-invite`~~ sends the warning straig
 ADR-031 decision 12 (2026-10-13): if a seat becomes `AWAITING_COACH` when its warning is already
 due, or due before the next 9pm run, the warning is sent at once.*
 
-**Family B's email when the lesson expires and the coach never accepted skater B:**
-*"This lesson has expired. Please reach out to Coach Dana to be accepted onto her roster for any
-future shared lessons. Reply to this email to reach Coach Dana."* The coach's phone and email
+**Family B's email when the lesson expires and the coach never accepted skater B** (wording
+moved to `FeatureDecriptions/Schedule lesson split` on 2026-11-08): the coach's phone and email
 are not printed, because skater B is still `PENDING` (ADR-016 decision 7a). The reply goes to
 the coach's `businessEmail` (ADR-016 decision 8). If skater B was already the coach's student and
 the join failed for another reason, Family B gets the existing "no longer available" email.
 
 ### 6. Coaches see every skater in the slot
 
-The coach's week view, lesson list, payments and the rinkside page show every skater in a shared
-slot, each with their own attendance and payment status. A coach cancelling a lesson, day or week
-cancels every skater in it, and each family is told (ADR-009).
+Every coach-side view reads every seat in a slot, each with its own attendance and payment
+status (which screens: `FeatureDecriptions/Schedule lesson split`, "Coaches see every skater";
+moved 2026-11-08). A coach cancelling a lesson, day or week cancels every skater in it, and each
+family is told (ADR-009).
 
 ---
 
 ## Pending Kim
 
-Each is a question in `Items to ask Kim About.md` §8. **None of them blocks private booking**,
-which is unchanged. *Since 2026-10-07 P1 and P3 are answered by the owner, and P5 in part.* *Since 2026-10-13 P2, P4 and P5 are answered too.*
-
-| # | Question | The owner's leaning |
-|---|---|---|
-| **P1** | ~~The **most skaters** a coach may allow in one lesson~~ | **Answered by the owner, 2026-10-07: 2**, as a setting that may be raised (decision 1) |
-| **P2** | ~~**How a shared lesson is priced**~~ | **Answered by the owner, 2026-10-13:** the lesson's set price is split between the skaters; a skater leaving in time leaves the other family to choose full price or cancel; leaving late, the other keeps their share (amendment 2026-10-13) |
-| **P3** | ~~Must an invited skater **already be approved** by this coach?~~ | **Answered by the owner, 2026-10-07:** no to be invited; yes before any lesson is booked for them (decision 5). Kim §6 can't remove this approval *Superseded for MVP 2026-10-20 by ADR-033: the skater must already be `ACTIVE` with the coach to be invited.* |
-| **P4** | ~~If the **booking family cancels**, what happens to the invited skaters?~~ | **Answered by the owner, 2026-10-13:** the same as either skater leaving (amendment 2026-10-13) |
-| **P5** | ~~If an invitation **isn't confirmed in time**~~ | **Partly answered by the owner, 2026-10-07:** if the coach hasn't accepted the skater, the lesson goes ahead private. **Answered by the owner, 2026-10-13:** an invitation the family hasn't accepted has no cutoff before the lesson; it expires when the lesson starts, and the lesson goes ahead private. ~~Leaning towards the coach's notice period (24 hours by default)~~ |
+*Moved to `FeatureDecriptions/Schedule lesson split` ("Questions P1–P5", from ADR-026) on
+2026-11-08 — product questions, not architecture decisions.* All five (P1–P5) are answered by the
+owner; none blocked private booking.
 
 **P3's answer is what ADR-024 already does.** `requireActive` only issues a `LinkedSkater` for a
 skater `ACTIVE` with that coach, so a skater can't join until the coach has accepted them.
@@ -577,8 +540,8 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
 
 ## Alternatives considered
 
-- **Open spots any family can book**, with the remaining count shown. Rejected by the owner: every
-  booking is private until the booking family chooses to share.
+- **Open spots any family can book** — a product alternative, rejected by the owner; moved to
+  `FeatureDecriptions/Schedule lesson split` on 2026-11-08.
 - **Family 1 adds Family 2's skater directly**, without confirmation. Rejected: Family 2 would be
   booked, and billed, without agreeing, and Family 1 would be writing for a skater who isn't
   theirs, which ADR-024 forbids.
@@ -632,10 +595,8 @@ skater `ACTIVE` with that coach, so a skater can't join until the coach has acce
   when decided, becomes one more `dueKind` for the hourly sweep. Nothing needs better than an
   hour.* *P5 decided 2026-10-13: no cutoff before the lesson, so no new `dueKind`; the existing
   `EXPIRE` at the lesson start is the only lapse.*
-- **New screens:** the share code on a skater's profile; "add a skater to share" on booking;
-  invitations to confirm or decline; both skaters on a shared booking; every skater in a slot on
-  the coach's views. None is in the Harbor designs. *2026-10-13: designed in `design/harbor` (family and coach
-  sites).*
+- **New screens** — the list moved to `FeatureDecriptions/Schedule lesson split` on 2026-11-08
+  (product content). *2026-10-13: designed in `design/harbor` (family and coach sites).*
 
 **Tests** (ADR-013 decision 4):
 
