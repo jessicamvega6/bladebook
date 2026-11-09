@@ -52,6 +52,22 @@ class StudentServiceTest {
     }
 
     @Test
+    void approvedStudentsSortByFamilyContactThenSkater() {
+        // A second family, Aaron Zed, whose name comes first, and a skater named before Sarah Park's two.
+        t.registration.register(FamilyTestSupport.newFamily(), "aaron@example.com", new com.bladebook.core.domain.RegistrationRequest(
+                "Aaron", "Zed", "(205) 555-0111", "GUARDIAN", List.of("7K2Q-M9XT"),
+                List.of(FamilyTestSupport.kid("Zoe Zed", "7K2Q-M9XT"), FamilyTestSupport.kid("Abby Zed", "7K2Q-M9XT"))));
+        t.students.approve(dana, ids());
+
+        assertThat(t.students.list(dana).active()).extracting(StudentRecord::clientName, StudentRecord::studentName)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Aaron Zed", "Abby Zed"),
+                        org.assertj.core.groups.Tuple.tuple("Aaron Zed", "Zoe Zed"),
+                        org.assertj.core.groups.Tuple.tuple("Sarah Park", "Ava Park"),
+                        org.assertj.core.groups.Tuple.tuple("Sarah Park", "Jack Park"));
+    }
+
+    @Test
     void approvingNeedsAtLeastOneAndAtMostFiftySkaters() {
         assertThatThrownBy(() -> t.students.approve(dana, List.of())).isInstanceOf(DomainException.class);
         assertThatThrownBy(() -> t.students.approve(dana, Collections.nCopies(51, "x"))).isInstanceOf(DomainException.class);

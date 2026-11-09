@@ -368,6 +368,8 @@ The full list, with what closes each one, is in the root `README.md`.
   - **Coaches are listed by name** on the family's pages (links are keyed by random coach IDs, so
     there's no sign-up order to keep).
   - **Approving twice is harmless; declining an approved skater is refused** (409).
+  - **The Students tab is sorted by family contact, then skater** (owner, 2026-11-09); Waiting for
+    approval stays in sign-up order.
   - **Wording the designs don't give:** "Enter the skater’s member/registration number.", "Pick at
     least one coach for Ava Park.", "Add at least one skater.", "You’re already signed up. Log in
     to see your account.", and the coach's "No students yet" empty state.

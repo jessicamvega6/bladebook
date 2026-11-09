@@ -51,6 +51,9 @@ in the coach's records.
   override applied when the skater's share is worked out. Whether it reaches lessons already booked is still the Phase 2
   question for Kim (§5).*
   The page has two tabs: Students, and Waiting for approval, each with a count.
+  *Decided by the owner 2026-11-09:* the Students tab lists skaters by their family contact's name (first name, then
+    last), then by the skater's name, so a family's skaters sit together. Waiting for approval stays in the order
+    families signed up.
   *Phase 2 (owner, 2026-10-07; decided 2026-10-06):* on a skater's record, a coach sees "Also coached by: Sam Ortiz." —
     only the other coaches' first and last names, and only once the skater is approved with both coaches. Nothing else
     crosses: not the other coach's schedule, prices, lessons, notes or contact details. *(from ADR-025 decision 4,

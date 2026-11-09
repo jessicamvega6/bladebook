@@ -20,7 +20,10 @@ public final class StudentService {
 
     static final int MAX_APPROVE = 50;
 
-    /** Approved students by name; waiting ones in the order they signed up. */
+    /**
+     * Approved students by their family contact's name, then the skater's name (owner, 2026-11-09), so a
+     * family's skaters sit together; waiting ones in the order they signed up.
+     */
     public record Lists(List<StudentRecord> active, List<StudentRecord> pending) {
     }
 
@@ -36,7 +39,8 @@ public final class StudentService {
         for (StudentRecord r : students.list(ctx)) {
             (r.status() == StudentStatus.ACTIVE ? active : pending).add(r);
         }
-        active.sort(Comparator.comparing(StudentRecord::studentName, String.CASE_INSENSITIVE_ORDER));
+        active.sort(Comparator.comparing(StudentRecord::clientName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(StudentRecord::studentName, String.CASE_INSENSITIVE_ORDER));
         pending.sort(Comparator.comparing(StudentRecord::signedUpAt).thenComparing(StudentRecord::clientId)
                 .thenComparing(StudentRecord::studentName, String.CASE_INSENSITIVE_ORDER));
         return new Lists(active, pending);
