@@ -409,7 +409,8 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 - Nothing happens when a number lapses (product — `FeatureDecriptions/Client Sign Up`,
   "Registration number").
 - **Coaches can download** a file of Student First Name, Student Last Name, Skater Number; the
-  download is a logged personal-data read (§18). Its screen and phase are product
+  download is a logged personal-data read (§18). **Phase 2** (owner, 2026-11-09; §24). The one
+  `studentName` is split into first and last name when the file is made. Its screen is product
   (`FeatureDecriptions/Coach Dashboard on website.md`, Student List).
 
 ### Share code
@@ -1711,6 +1712,7 @@ technical.*
 - Removing a skater (from one coach or all) and what the family sees → `FeatureDecriptions/ClientProfileView`.
 - Coach profile photos (upload, bucket, resize, display before sign-in) → `FeatureDecriptions/C_Coach Profile.md`.
 - Skate Canada and Hockey Canada numbers → `FeatureDecriptions/Client Sign Up`.
+- The rink-number download (owner, 2026-11-09) → `FeatureDecriptions/Coach Dashboard on website.md`, Student List.
 - Financial page: past years on screen and a per-lesson export with names → `FeatureDecriptions/Coach Financial Page.md`.
 - Rink selection in the schedule builder → `FeatureDecriptions/Schedule Creater.md`.
 - A coach booking for a family → `FeatureDecriptions/Bookings:`.
@@ -1769,8 +1771,6 @@ technical.*
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
-- Whether the rink-number download's name is split at sign-up or at download. (Its phase is a
-  product question → `FeatureDecriptions/Coach Dashboard on website.md`.)
 - How the business-email confirmation link is built and how long it lasts.
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
 - Whether the 7-day answer-by should be checked with Kim → `FeatureDecriptions/Schedule lesson split`.

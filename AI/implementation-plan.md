@@ -243,6 +243,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 | 13 | Emails and scheduled jobs (confirmations, day-of, morning, end-of-day, unpaid reminder) | Question 4, R10 |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | How the link is built and how long it lasts (ADR-MASTER §25). Proposed: a one-time random token, valid 24 hours |
 | 15 | Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k) | — |
+| 16 | Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3). Families see each only once the coach has approved one of their skaters, which Batch 3 already enforces. Added by the owner 2026-11-09, moved out of Batch 3 | The *Text me on late cancellations* switch waits on ADR-007 d8 (§3); the two contact switches don't |
 | — | Coach late-cancellation SMS; coach who is also a parent | Blocked (§3) |
 
 ## 6. Decisions and open questions
@@ -275,7 +276,7 @@ The full list, with what closes each one, is in the root `README.md`.
   business email locally; SC-3 DynamoDB Local with one unscoped client (no `coach-tenant` gate);
   SC-4 nothing deployed.
 - **Gaps:** A1 photo and A3 sign-up texts switch (both ruled out); G-1 Resend link / Change
-  address; G-2 Business email tab; G-3 Visibility & texts tab (contact switches now in Batch 3); G-4 Account tab; G-5 sign-up steps
+  address; G-2 Business email tab; G-3 Visibility & texts tab (contact switches moved to Batch 16 on 2026-11-09); G-4 Account tab; G-5 sign-up steps
   1–2; G-6 every other coach page; G-7 no warning before the 60-minute sign-in ends.
 - **Settled while building (owner may override):**
   - An unconfirmed business email is stored as `pendingBusinessEmail`; `businessEmail` stays
@@ -335,3 +336,53 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Checked in the running app:** sign-up → build two blocks (one slot switched off, odd cents
   shown, a clash shown) → review → save → week, month and day views, at desktop and phone width.
 
+
+### Batch 3 (2026-11-09)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** A4 (read-only student list), A5 (no "Texts on / Email only"), A6 (coach name
+  only), A7 (guardians add minors only), A8 (number shapes), A10 (no page promises an approval email).
+- **Shortcuts:** SC-1 widened to the family token stub and log-in; SC-3 widened to `client-tenant`
+  and `code-lookup`; SC-4 widened to `api-client`; SC-8 `consumer-student-link` and
+  `consumer-family-sync` run in-process; SC-9 the decline email isn't sent; SC-10 the family's
+  "Create account" stores no password.
+- **Gaps:** G-3 Visibility & texts not built (moved to Batch 16 by the owner, 2026-11-09); G-14 family step 3
+  (verify email); G-15 changing the family's login email; G-16 booking on the approved family's Home;
+  G-17 share codes; G-18 Add a skater and Add a coach (Batch 15); G-19 the rink download
+  (ruled Phase 2 on 2026-11-09, with the name split when the file is made).
+- **Settled while building (owner may override):**
+  - **USA Hockey season check digit:** a setting of two values, its place among the number's nine
+    digits and the digit, off until both are set (`bladebook.usa-hockey.check-digit-position` and
+    `bladebook.usa-hockey.check-digit`). "The 4th digit" is read as the 4th *digit*, not the 4th
+    character. A mismatch says "That isn’t this season’s USA Hockey number. Check the skater’s
+    current card."
+  - **Attributes the ADRs don't name:** the family profile keeps `firstName` and `lastName` as well
+    as `clientName`; `STUDENT#` records carry `studentId`, `isMinor`, `clientRelationship` and
+    `signedUpAt`; the link item's status is `studentStatus`, with `coachId` and `studentId`.
+  - **Limits:** up to 10 skaters in one sign-up, a skater's full name up to 80 characters, and a
+    sign-up refused if it would write more than 100 items (one transaction).
+  - **A family's mobile number is required.**
+  - **Codes:** a code that can't be a coach code (a share code, a letter O) answers "no such coach",
+    the same as an unknown one, so the two can't be told apart.
+  - **Coaches are listed by name** on the family's pages (links are keyed by random coach IDs, so
+    there's no sign-up order to keep).
+  - **Approving twice is harmless; declining an approved skater is refused** (409).
+  - **Wording the designs don't give:** "Enter the skater’s member/registration number.", "Pick at
+    least one coach for Ava Park.", "Add at least one skater.", "You’re already signed up. Log in
+    to see your account.", and the coach's "No students yet" empty state.
+  - **Step 4 for an adult skater:** "Change who the lessons are for" switches to the guardian form.
+  - **Password rules** checked in the browser follow the design's list (8 characters, upper, lower,
+    number, symbol); the real rules are the Cognito user pool's.
+  - **The decline dialog keeps its designed wording** ("gets an email") although locally no email
+    is sent (SC-9).
+  - **A skater with no coach** (declined by their only coach) shows "Not with a coach yet", as the
+    design does for a skater added with no coach.
+- **Found while building:** four Batch 1 files export plain values or functions next to their
+  components (`SignupBusiness.tsx`, `LocalSignIn.tsx`, `PaymentTypeRows.tsx`, `Shells.tsx`), which
+  makes Vite reload the page instead of updating it in place, as `ICE_TYPES` did. Not changed.
+- **Checked in the running app:** two coaches; a guardian signs up two children with both coaches,
+  one skater with one coach only, and a USA Hockey number refused then fixed → waiting Home and
+  Profile → the coach's Today card and nav count → decline one skater, approve the other → the
+  family's approved Home and Profile → a contact change reaching the second coach. At desktop and
+  phone width.

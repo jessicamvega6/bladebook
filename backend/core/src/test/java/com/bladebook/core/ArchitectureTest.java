@@ -30,6 +30,16 @@ class ArchitectureTest {
             .should().dependOnClassesThat().resideInAPackage("com.bladebook.core.service..")
             .allowEmptyShould(true);
 
+    /**
+     * ADR-MASTER section 16: the family path never asks for the item back when a condition fails, so a
+     * failed write can't reveal another family's data. The client-tenant policy refuses it too.
+     */
+    @ArchTest
+    static final ArchRule familyPathNeverReturnsValuesOnConditionFailure = noClasses()
+            .that().haveSimpleNameStartingWith("Family").or().haveSimpleName("CodeRepository")
+            .should().dependOnClassesThat().haveSimpleName("ReturnValuesOnConditionCheckFailure")
+            .allowEmptyShould(true);
+
     @ArchTest
     static final ArchRule noSpring = noClasses()
             .should().dependOnClassesThat().resideInAPackage("org.springframework..")

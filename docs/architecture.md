@@ -2745,8 +2745,8 @@ pipeline.
   into §7, so the gap is between a stated obligation and the product, not merely a missing
   feature.
 - **The rink-number download** (Student First Name, Student Last Name, Skater Number, from the
-  coach's Students tab) is a logged read of personal data (ADR-012). Whether it is MVP, and where
-  the name is split, are Open (ADR-029, 2026-10-16).
+  coach's Students tab) is a logged read of personal data (ADR-012). Phase 2, with the name split
+  when the file is made (owner, 2026-11-09; ADR-029).
 - **Retention of cancellation records**, which name students (ADR-006 and ADR-009 Open).
   **Deferred by the owner, 2026-08-25** pending a conversation with a coach about whether
   cancellation records are needed for tax purposes — which would set the floor for any

@@ -3,11 +3,15 @@ package com.bladebook.api.coach.config;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.LocalTable;
 import com.bladebook.core.data.ScheduleRepository;
+import com.bladebook.core.data.StudentRepository;
+import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.CalendarService;
 import com.bladebook.core.service.CoachProfileService;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.ScheduleService;
+import com.bladebook.core.service.StudentLinkService;
+import com.bladebook.core.service.StudentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,5 +66,16 @@ public class CoreConfig {
     @Bean
     CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
         return new CalendarService(schedules, coaches, clock);
+    }
+
+    @Bean
+    StudentService studentService(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new StudentService(new StudentRepository(clients, table));
+    }
+
+    /** What consumer-student-link will run on AWS; locally {@code LocalEventDispatcher} calls it. */
+    @Bean
+    StudentLinkService studentLinkService(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new StudentLinkService(new SyncRepository(clients, table));
     }
 }
