@@ -27,6 +27,7 @@ test('logging in shows a waiting family only Home and Profile', async () => {
 
 test('signed in with no family yet, sign-up starts at the coach code', async () => {
   sessionStorage.setItem('bb.family.idToken', 'tok');
+  window.location.hash = '#/home';
   vi.stubGlobal('fetch', vi.fn(() => json(404, { error: 'NO_ACCOUNT', message: 'Finish signing up first.' })));
   render(<App />);
   expect(await screen.findByRole('heading', { name: 'Join your coach on BladeBook' })).toBeInTheDocument();
@@ -34,7 +35,23 @@ test('signed in with no family yet, sign-up starts at the coach code', async () 
 
 test('an old sign-in goes back to log in with a note', async () => {
   sessionStorage.setItem('bb.family.idToken', 'tok');
+  window.location.hash = '#/home';
   vi.stubGlobal('fetch', vi.fn(() => json(401, { error: 'SIGN_IN_AGAIN', message: 'Please log in again.' })));
   render(<App />);
   expect(await screen.findByText('You’ve been logged in for a while. Please log in again.')).toBeInTheDocument();
+});
+
+test('opening the plain address starts at log in, signed out, even after a family logged in', () => {
+  sessionStorage.setItem('bb.family.idToken', 'tok');
+  render(<App />);
+  expect(screen.getByRole('heading', { name: /Log in/ })).toBeInTheDocument();
+  expect(sessionStorage.getItem('bb.family.idToken')).toBeNull();
+});
+
+test('a link to a page inside the site keeps the sign-in', async () => {
+  sessionStorage.setItem('bb.family.idToken', 'tok');
+  window.location.hash = '#/home';
+  vi.stubGlobal('fetch', vi.fn(() => json(200, WAITING)));
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Welcome, Sarah' })).toBeInTheDocument();
 });

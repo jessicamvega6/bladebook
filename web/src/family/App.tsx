@@ -35,7 +35,16 @@ function go(route: string) {
 }
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => familySession.getToken());
+  // Opening the plain address (no page named) always starts at Log in, signed out, so the last family in
+  // this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
+  const [token, setToken] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash === '' || hash === '#' || hash === '#/') {
+      familySession.signOut();
+      return null;
+    }
+    return familySession.getToken();
+  });
   const [notice, setNotice] = useState('');
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   // Sign-up stays on screen while its new token arrives, so nothing typed is lost.
