@@ -483,7 +483,8 @@ the home screen: BladeBook's users are older (ADR-023, amended).*
 - **Pending decision (ADR-023 Open): The offline copy after the sign-in ends.** With no signal
   the page shows today's cached lessons without asking the server. Should it stop once the 4
   hours are up (which would also stop offline check-ins), and should logging out clear the
-  cached lessons along with the queue? *Added 2026-10-21.* (ADR-023 d6, d7)
+  cached lessons? *Added 2026-10-21.* (ADR-023 d6, d7) *2026-11-09: the queue itself survives
+  a logout and sends after the same coach signs in again (owner, R2).*
 
 ## 7. Notifications and SMS
 

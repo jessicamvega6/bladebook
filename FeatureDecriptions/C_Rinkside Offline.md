@@ -66,5 +66,14 @@ The family had cancelled:
   *(from ADR-014 §4; moved 2026-11-08)*
 
 Logging out with check-ins still waiting:
-  A warning says they're only on this phone and will be deleted. Choices: "Stay logged in" or
-  "Log out and delete them".
+  ~~A warning says they're only on this phone and will be deleted. Choices: "Stay logged in" or
+  "Log out and delete them".~~
+  *Owner, 2026-11-09 (R2):* logging out keeps them. A warning says "N check-ins haven't been sent.
+  They're saved on this phone. If you log out, they'll send the next time you log in here. Only your
+  login can send them." Choices: "Stay logged in" or "Log out".
+  Each check-in is labelled with the coach who recorded it and sends only after that coach logs in
+  again. Another coach logging in on the same phone leaves them waiting.
+  The log-in page shows "N check-ins waiting on this phone. Saved before you logged out. They send
+  after you log in." After the log-in, with signal, they send and a note says so.
+  Why: a coach may log out before signal returns, and losing attendance is the worse failure. The
+  names left on the phone are the same kind kept on the "Not sent" list.

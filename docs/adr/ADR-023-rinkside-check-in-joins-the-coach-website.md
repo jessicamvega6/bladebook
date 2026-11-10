@@ -241,6 +241,14 @@ last 15 minutes.
   signal, and stays signed in for 4 hours. Check-ins recorded offline still queue on the phone;
   if the 4 hours run out first, the queue is sent after the coach signs in again (ADR-014 d1,
   d2a: a queued entry doesn't expire).
+- **Logging out keeps the queue.** *Decided by the owner 2026-11-09 (R2).* Logging out ends
+  the sign-in, so nothing sends until the next one, but the queued check-ins stay on the
+  phone. Each entry is labelled with the ID of the coach who recorded it and is sent only
+  after that coach signs in again; another coach signing in on the same phone leaves them
+  waiting (the server would refuse them anyway, because the account comes from the token,
+  ADR-021). If entries are waiting, logging out warns first: they're saved on this phone and
+  send the next time you log in here. The skater's name and lesson time stay on the phone
+  until then, the same as the "Not sent" list (ADR-014 d4a).
 - **Opening the coach website from a rinkside sign-in asks for the password again** once that
   sign-in is more than 60 minutes old. The longer window applies only to the rinkside routes.
 - **The website must not lose unsaved work to the 60-minute limit** (product rule — see
@@ -469,7 +477,9 @@ OAuth; a wrong password and an unknown email get the same answer.
   signal, the page shows today's cached lessons without asking the server. Two questions
   follow. Should the page stop showing them once the 4 hours are up? Doing so would also stop
   offline check-ins, which decision 6 lets queue past the limit. And should logging out remove
-  the cached lessons from the phone, along with the queue?
+  the cached lessons from the phone~~, along with the queue~~? *The queue half was settled
+  2026-11-09 by the owner (R2): logging out keeps the queue (decision 6). Whether the cached
+  lessons are wiped at logout is still open.*
 - ~~**The same group check on `api-client`.** *Added 2026-10-21.* Decision 7 makes `api-coach`
   refuse a token without the `Coach` group. Whether `api-client` should refuse one without
   the `Client` group isn't yet written down.~~ **Settled 2026-10-21 by the owner:** yes.

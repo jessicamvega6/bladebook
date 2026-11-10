@@ -17,7 +17,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 61 pages. |
-| `rinkside/` | The rinkside check-in app: 17 phone screens. |
+| `rinkside/` | The rinkside check-in app: 19 phone screens. |
 
 ## Coach website — `coach/`
 
@@ -107,8 +107,9 @@ turns signal off and on, moves the clock to 5:45 or 8:40 AM, and opens the app w
 Today's 6:00 lesson is shared by Sam and Leo: one card, each skater with their own check-in, and cancelling it
 cancels both (ADR-026 d6).
 Entries made with no signal are saved on the phone and sent when signal returns; one is
-rejected because the family cancelled meanwhile, and appears under "Couldn't be sent"
-(ADR-014). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a), except
+cleared because the family cancelled meanwhile, and the lesson shows as cancelled on Today
+(ADR-014 d4). Entries still waiting survive a log-out and send after the same coach logs in
+again (owner, 2026-11-09). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a), except
 *Cancel rest of week* on the Week tab, which holds every booked lesson and open time left (2026-11-08).
 
 ## Rebuilding
