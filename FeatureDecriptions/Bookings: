@@ -22,7 +22,7 @@ The booking PAGE view will only show the next 3 months. ~~This is a UI restricti
   Resubmitting the same request just after a new month starts isn't refused: it gets the same result as the first time.
   *Open (Phase 2):* whether a coach booking for a family is held to the same window.
     *(from ADR-031 §3 and Open, moved 2026-11-08)*
-The Booking Page will show a calendar view with the months available on the right hand side. Clicking each month will show the availability for that month. Availability is shown by having each square (whichrepresenting a day within that month) with the number of open lesson slots. A day that has no open lessons slots is ~~dark grey/~~disabled and cannot be clicked. On the left hand side next to the calendar view is ~~week 1-4~~ *one week link per row of the calendar ("Week 1", "Week 2", ...), with its dates; a week with nothing open says "Nothing open" and can't be clicked*. Clicking on a week link takes the client to that weekds Schedule view. Clicking on a day within the calendar takes you to that day's Schedule view.
+The Booking Page will show a calendar view with the months available on the right hand side. Clicking each month will show the availability for that month. Availability is shown by having each square (whichrepresenting a day within that month) with the number of open lesson slots. A day that has no open lessons slots is ~~dark grey/~~disabled and cannot be clicked. ~~On the left hand side next to the calendar view is week 1-4 *one week link per row of the calendar ("Week 1", "Week 2", ...), with its dates; a week with nothing open says "Nothing open" and can't be clicked*. Clicking on a week link takes the client to that weekds Schedule view.~~ *Removed 2026-11-11 by the owner: the booking calendar has no week links beside it.* Clicking on a day within the calendar takes you to that day's Schedule view.
 *Design additions:*
   Each month on the right shows how many open times it has. Previous and next arrows move between the three months.
   A day where the skater already has a lesson is marked with a tick and their first name.
@@ -46,7 +46,9 @@ The Booking Page will show a calendar view with the months available on the righ
   Both the coach and the family get a monthly calendar and a week view. The month marks every date where the
     schedule does something unusual (a date that differs from the coach's weekly schedule).
   The week view runs Sunday to Saturday, with previous and next. Clicking any date in the month opens that day;
-    a week link opens the week. *Ruled by the owner 2026-11-09.* (Replaces ADR-006's "opens the week that contains it"; the coach's calendar
+    a week link opens the week. *Ruled by the owner 2026-11-09.* *Changed 2026-11-11 by the owner: the family's
+    booking calendar has no week links; a family opens a day, and the day view's strip shows its week. The coach's
+    calendar keeps them.* (Replaces ADR-006's "opens the week that contains it"; the coach's calendar
     works the same way, owner 2026-11-08.)
   Each day in a week stands on its own. In the owner's worked example, a family clicking Mon 17 Aug 2026 sees
     Sun 16 – Sat 22, with 16–18 from the weekly schedule and 19–22 from date changes, and "next" moves to
