@@ -17,7 +17,7 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 61 pages. |
-| `rinkside/` | The rinkside check-in app: 19 phone screens. |
+| `rinkside/` | The rinkside check-in app: 20 phone screens. |
 
 ## Coach website — `coach/`
 

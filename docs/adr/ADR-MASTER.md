@@ -951,7 +951,9 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
     lesson and open time is held, with no release-or-hold question. A whole day, part of a day or
     week, specific lessons and the check-in list still ask release-or-hold per lesson (ADR-009,
     2026-11-08).
-  - **Disabled with no signal:** *"Cancelling needs a connection."*
+  - **Disabled with no signal:** *"Cancelling needs a connection."* The Week tab shows no lessons
+    offline: *"The week needs a connection. Cancelling needs signal too. Today's lessons are on the
+    Today tab."* (R5, 2026-11-09)
   - **A cancel from the check-in list always confirms, even for one lesson.** The dialog names the
     lesson (skater, date, time), puts its confirm button away from where the original tap landed,
     keeps the lesson if dismissed, and holds the release-or-hold choice.
@@ -990,6 +992,8 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 - **Queued entries are sent** as soon as the page is open with signal; on Android and Chrome also
   through **Background Sync** when the page is closed. The queue survives a reload.
 - **Only attendance is queued.** Cancelling and contact reveal need signal.
+- **With no signal, the Week tab shows no lessons**, only that the week needs a connection, since
+  the phone holds today's lessons only and cancelling needs signal. *Owner, 2026-11-09 (R5).*
 
 ### Recording attendance
 
