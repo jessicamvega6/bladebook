@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { expect, test } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, expect, test, vi } from 'vitest';
 import type { Family } from '../api';
-import { APPROVED, WAITING } from '../testData';
+import { APPROVED, LESSONS, TWO_COACHES, WAITING } from '../testData';
 import { Home } from './Home';
 
 test('a waiting family is told who they are waiting for, and sees nothing of the coach', () => {
@@ -19,7 +19,7 @@ test('a waiting family is told who they are waiting for, and sees nothing of the
 test('waiting for two coaches lists each one', () => {
   const two: Family = {
     ...WAITING,
-    coaches: [...WAITING.coaches, { firstName: 'Ben', lastName: 'Ortiz', status: 'PENDING', skaterNames: ['Jack Park'], waitingNames: ['Jack Park'], details: null }],
+    coaches: [...WAITING.coaches, { coachId: null, firstName: 'Ben', lastName: 'Ortiz', status: 'PENDING', skaterNames: ['Jack Park'], waitingNames: ['Jack Park'], details: null }],
   };
   render(<Home family={two} />);
 
@@ -42,4 +42,42 @@ test('a skater a coach declined is shown with no coach', () => {
   const declined: Family = { ...APPROVED, skaters: [APPROVED.skaters[0]!, { ...APPROVED.skaters[1]!, coaches: [] }] };
   render(<Home family={declined} />);
   expect(screen.getByText('Not with a coach yet')).toBeInTheDocument();
+});
+
+afterEach(() => vi.useRealTimers());
+
+test('an approved family can book from Home, and sees what’s coming up', () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-10T15:00:00Z'));
+  render(<Home family={APPROVED} lessons={LESSONS} />);
+
+  // The header button and the Go to card both open booking.
+  expect(screen.getAllByRole('link', { name: 'Book a lesson' }).map((a) => a.getAttribute('href'))).toEqual(['#/book', '#/book']);
+  const today = screen.getByRole('heading', { name: 'Today' }).closest('section')!;
+  expect(today).toHaveTextContent('No lessons today');
+  expect(today).toHaveTextContent('Next: Ava, Mon, Nov 16 at 7am');
+  const next = screen.getByRole('heading', { name: 'Coming up' }).closest('section')!;
+  expect(within(next).getByText('Ava Park')).toBeInTheDocument();
+  expect(next).toHaveTextContent('Mon, Nov 16');
+  expect(next).toHaveTextContent('30 min');
+  expect(next).not.toHaveTextContent('Coach Dana');
+  const goTo = screen.getByRole('heading', { name: 'Go to' }).closest('section')!;
+  expect(within(goTo).getByText('My bookings').closest('.quick__item')).toHaveAttribute('aria-disabled', 'true');
+});
+
+test('a lesson today is under Today, and with two coaches each lesson names its coach', () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-16T12:00:00Z'));
+  render(<Home family={TWO_COACHES} lessons={LESSONS} />);
+
+  const today = screen.getByRole('heading', { name: 'Today' }).closest('section')!;
+  expect(today).toHaveTextContent('Ava Park');
+  expect(today).toHaveTextContent('Today');
+  expect(today).toHaveTextContent('Coach Dana · 30 min');
+});
+
+test('nothing booked yet points to booking', () => {
+  render(<Home family={APPROVED} lessons={[]} />);
+  expect(screen.getByText('Nothing booked yet.')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Coming up' }).closest('section')!).toHaveTextContent('Nothing booked');
 });

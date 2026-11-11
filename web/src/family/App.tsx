@@ -1,14 +1,15 @@
 /**
  * The family website. Batch 3: sign-up with coach codes (steps 1, 2, 4 and 5), the local log-in stand-in, and
- * the waiting family's Home and Profile. Once a coach approves, Home shows that coach's details; booking
- * arrives with Batch 4.
+ * the waiting family's Home and Profile. Batch 4: once a coach approves, Book a lesson (#/book…) and Home's
+ * Today and Coming up.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { familySession } from '../shared/auth/localAuth';
 import { Banner } from '../shared/components/harbor';
-import { familyApi, type Family } from './api';
+import { familyApi, type Family, type FamilyLesson } from './api';
 import { FamilyShell } from './components/Shells';
+import { Book } from './pages/Book';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
@@ -51,6 +52,7 @@ export function App() {
   const [signingUp, setSigningUp] = useState(false);
   const route = useHashRoute();
   const api = useMemo(() => (token ? familyApi(token) : null), [token]);
+  const [lessons, setLessons] = useState<FamilyLesson[] | null>(null);
 
   const signOut = useCallback((message = '') => {
     familySession.signOut();
@@ -84,6 +86,22 @@ export function App() {
     return () => { live = false; };
   }, [api, handleError]);
 
+  // Home's Today and Coming up, read again each time Home opens so a new booking shows. A waiting family has none.
+  const approved = load.state === 'ready' && !load.family.waiting;
+  const onHome = route !== '#/profile' && !route.startsWith('#/book');
+  useEffect(() => {
+    if (!api || !approved || !onHome) return;
+    let live = true;
+    api.lessons()
+      .then((l) => live && setLessons(l))
+      .catch((e: unknown) => {
+        if (!live) return;
+        if (e instanceof ApiError && e.status === 401) handleError(e);
+        else setLessons([]);
+      });
+    return () => { live = false; };
+  }, [api, approved, onHome, handleError]);
+
   let page;
   if (signingUp || (!token && route === '#/signup')) {
     page = (
@@ -104,8 +122,14 @@ export function App() {
           onSignOut={() => signOut()} onError={handleError} />
       </FamilyShell>
     );
+  } else if (route.startsWith('#/book')) {
+    page = (
+      <FamilyShell family={load.family} section="Book a lesson" wide>
+        <Book family={load.family} api={api} route={route} onError={handleError} />
+      </FamilyShell>
+    );
   } else {
-    page = <FamilyShell family={load.family} section="Home" wide={!load.family.waiting}><Home family={load.family} /></FamilyShell>;
+    page = <FamilyShell family={load.family} section="Home" wide={!load.family.waiting}><Home family={load.family} lessons={lessons} /></FamilyShell>;
   }
 
   return <div className="bb" data-layout="top">{page}</div>;

@@ -4,12 +4,18 @@ import com.bladebook.core.domain.CoachName;
 import com.bladebook.core.domain.CoachPublicProfile;
 import com.bladebook.core.domain.PaymentTypes;
 import com.bladebook.core.domain.RegistrationRequest;
+import com.bladebook.core.domain.StudentStatus;
 import com.bladebook.core.service.FamilyService;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** What the family website sends and gets back. No coach or student IDs ever leave api-client. */
+/**
+ * What the family website sends and gets back. The only IDs that leave api-client are the family's own:
+ * its skaters' IDs, and the ID of each coach who has approved one of its skaters (a waiting family gets no
+ * coach ID). Booking sends them back, and every one is checked against the family's links (ADR-MASTER
+ * section 16). Another family's IDs never leave.
+ */
 public final class FamilyDtos {
 
     private FamilyDtos() {
@@ -61,14 +67,14 @@ public final class FamilyDtos {
         }
     }
 
-    public record CoachDto(String firstName, String lastName, String status, List<String> skaterNames,
+    public record CoachDto(String coachId, String firstName, String lastName, String status, List<String> skaterNames,
                            List<String> waitingNames, CoachDetailsDto details) {
     }
 
-    public record CoachStatusDto(String firstName, String lastName, String status) {
+    public record CoachStatusDto(String coachId, String firstName, String lastName, String status) {
     }
 
-    public record SkaterDto(String name, boolean isMinor, String skatingOrg, String registrationNumber,
+    public record SkaterDto(String studentId, String name, boolean isMinor, String skatingOrg, String registrationNumber,
                             List<CoachStatusDto> coaches) {
     }
 
@@ -78,13 +84,18 @@ public final class FamilyDtos {
     public record FamilyResponse(ContactDto contact, boolean waiting, List<SkaterDto> skaters, List<CoachDto> coaches) {
         public static FamilyResponse of(FamilyService.FamilyView v) {
             FamilyService.Contact c = v.contact();
-            List<SkaterDto> skaters = v.skaters().stream().map(s -> new SkaterDto(s.name(), s.isMinor(), s.skatingOrg().name(),
+            List<SkaterDto> skaters = v.skaters().stream().map(s -> new SkaterDto(s.studentId(), s.name(), s.isMinor(), s.skatingOrg().name(),
                     s.registrationNumber(), s.coaches().stream()
-                    .map(x -> new CoachStatusDto(x.firstName(), x.lastName(), x.status().name())).toList())).toList();
-            List<CoachDto> coaches = v.coaches().stream().map(x -> new CoachDto(x.firstName(), x.lastName(), x.status().name(),
+                    .map(x -> new CoachStatusDto(activeOnly(x.coachId(), x.status()), x.firstName(), x.lastName(), x.status().name())).toList())).toList();
+            List<CoachDto> coaches = v.coaches().stream().map(x -> new CoachDto(activeOnly(x.coachId(), x.status()), x.firstName(), x.lastName(), x.status().name(),
                     x.skaterNames(), x.waitingNames(), CoachDetailsDto.of(x.details()))).toList();
             return new FamilyResponse(new ContactDto(c.firstName(), c.lastName(), c.email(), c.phone(), c.relationship().name()),
                     v.waiting(), skaters, coaches);
         }
+    }
+
+    /** A coach's ID only once they've approved: a waiting family reads nothing of the coach but the name. */
+    private static String activeOnly(String coachId, StudentStatus status) {
+        return status == StudentStatus.ACTIVE ? coachId : null;
     }
 }

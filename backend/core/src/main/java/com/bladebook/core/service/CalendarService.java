@@ -3,10 +3,13 @@ package com.bladebook.core.service;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
+import com.bladebook.core.data.StudentRepository;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.ScheduleBlock;
+import com.bladebook.core.domain.Seat;
+import com.bladebook.core.domain.StudentRecord;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -15,23 +18,32 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * The coach's month, week and day views (ADR-MASTER section 6, Calendars): one range of dates with each
- * date's lesson times and whether an override applies. Dates and "now" are the coach's, in the coach's
- * time zone, so the website never uses the browser's.
+ * date's lesson times, who is booked in them, and whether an override applies. Dates and "now" are the
+ * coach's, in the coach's time zone, so the website never uses the browser's.
  */
 public final class CalendarService {
 
     /** A month grid is six weeks at most. */
     static final int MAX_DAYS = 42;
 
-    public record CalendarDay(LocalDate date, boolean override, List<LessonTime> lessons) {
+    /**
+     * A skater booked in one of the day's times: the seat's display name for the week view ("Ava P."), and the
+     * full name and family contact from the coach's own {@code STUDENT#} record for the day view.
+     */
+    public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName) {
+    }
+
+    public record CalendarDay(LocalDate date, boolean override, List<LessonTime> lessons, List<Booked> booked) {
 
         public CalendarDay {
             lessons = List.copyOf(lessons);
+            booked = List.copyOf(booked);
         }
     }
 
@@ -44,11 +56,13 @@ public final class CalendarService {
 
     private final ScheduleRepository schedules;
     private final CoachRepository coaches;
+    private final StudentRepository students;
     private final Clock clock;
 
-    public CalendarService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
+    public CalendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
         this.schedules = schedules;
         this.coaches = coaches;
+        this.students = students;
         this.clock = clock;
     }
 
@@ -63,6 +77,11 @@ public final class CalendarService {
         List<LessonTime> lessons = schedules.lessonTimes(ctx, from, to);
         Map<LocalDate, List<ScheduleBlock>> overrides = schedules.overrides(ctx, from, to);
         boolean hasSchedule = schedules.findDefault(ctx).map(w -> !w.isEmpty()).orElse(false);
+        List<Seat> seats = schedules.seats(ctx, from, to);
+        Map<String, StudentRecord> records = new HashMap<>();
+        if (!seats.isEmpty()) {
+            students.list(ctx).forEach(r -> records.put(r.studentId(), r));
+        }
 
         List<CalendarDay> days = new ArrayList<>();
         int i = 0;
@@ -71,7 +90,15 @@ public final class CalendarService {
             while (i < lessons.size() && lessons.get(i).lessonDate().equals(d)) {
                 on.add(lessons.get(i++));
             }
-            days.add(new CalendarDay(d, overrides.containsKey(d), on));
+            List<Booked> booked = new ArrayList<>();
+            for (Seat s : seats) {
+                if (s.lessonDate().equals(d)) {
+                    StudentRecord r = records.get(s.studentId());
+                    booked.add(new Booked(s.startTime(), s.studentId(), s.studentName(),
+                            r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName()));
+                }
+            }
+            days.add(new CalendarDay(d, overrides.containsKey(d), on, booked));
         }
         return new CalendarView(coach.coachTimezone(), now.toLocalDate(), now.toLocalTime().truncatedTo(ChronoUnit.MINUTES),
                 hasSchedule, days);

@@ -7,13 +7,13 @@ import type { Family } from '../api';
 const FAMILY_STEPS = ['Coach code', 'Your details', 'Verify email', 'Skaters', 'Done'];
 
 /**
- * A waiting family sees only Home and Profile (ADR-022 d6). Once a coach approves, the booking pages are
- * named; they arrive with Batch 4.
+ * A waiting family sees only Home and Profile (ADR-022 d6). Once a coach approves, Book a lesson opens
+ * (Batch 4); My bookings is named and arrives with Batch 5.
  */
 function nav(family: Family): Array<[string, string | null]> {
   return family.waiting
     ? [['Home', '#/home'], ['Profile', '#/profile']]
-    : [['Home', '#/home'], ['Book a lesson', null], ['My bookings', null], ['Profile', '#/profile']];
+    : [['Home', '#/home'], ['Book a lesson', '#/book'], ['My bookings', null], ['Profile', '#/profile']];
 }
 
 export function FamilyShell({ family, section, children, wide, flash }: {

@@ -4,7 +4,11 @@ import { scheduleApi, type CalendarDto, type LessonDto } from '../api';
 import { Calendar } from './Calendar';
 
 const open = (startTime: string, durationMinutes = 30): LessonDto => ({
-  startTime, durationMinutes, priceMinor: 5000, currency: 'USD', lessonStatus: 'OPEN', maxSkaters: 1, seatsTaken: 0,
+  startTime, durationMinutes, priceMinor: 5000, currency: 'USD', lessonStatus: 'OPEN', maxSkaters: 1, seatsTaken: 0, skaters: [],
+});
+const booked = (startTime: string): LessonDto => ({
+  ...open(startTime), lessonStatus: 'BOOKED', seatsTaken: 1,
+  skaters: [{ studentId: 'ava', shortName: 'Ava P.', fullName: 'Ava Park', familyName: 'Sarah Park' }],
 });
 
 function days(from: string, n: number, lessons: (date: string) => LessonDto[]) {
@@ -66,4 +70,18 @@ test('a coach with no schedule is prompted to build one', async () => {
   render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-10' }} onError={vi.fn()} />);
   expect(await screen.findByRole('link', { name: 'Build your teaching week' })).toHaveAttribute('href', '#/schedule/weekly');
   expect(screen.getByText('No lessons on Tuesdays')).toBeInTheDocument();
+});
+
+test('a booked time names the skater: short in the week, in full with the family in the day', async () => {
+  serve({ ...BASE, days: days('2026-11-15', 7, (d) => (d === '2026-11-16' ? [booked('07:00'), open('07:30')] : [])) });
+  const week = render(<Calendar api={scheduleApi('t')} route={{ view: 'week', date: '2026-11-15' }} onError={vi.fn()} />);
+  expect(await screen.findByText('Ava P.')).toBeInTheDocument();
+  expect(screen.getByText('Ava P.').closest('.wl')).not.toHaveClass('wl--open');
+  week.unmount();
+
+  serve({ ...BASE, days: days('2026-11-16', 1, () => [booked('07:00'), open('07:30')]) });
+  render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-16' }} onError={vi.fn()} />);
+  expect(await screen.findByText('Ava Park')).toBeInTheDocument();
+  expect(screen.getByText('Sarah Park')).toBeInTheDocument();
+  expect(screen.getByText('1 lesson booked · 1 open time')).toBeInTheDocument();
 });

@@ -1,8 +1,9 @@
 /**
  * Typed fetch for /api/coach and /api/client.
  *
- * Retries once on a server error or a dropped connection (ADR-MASTER section 1), but only for a GET:
- * a write is retried only when it carries an idempotency key, and none do yet (booking adds one).
+ * Retries once on a server error or a dropped connection (ADR-MASTER section 1), but only for a GET or a
+ * write marked {@code idempotent}: one that carries an idempotency key in its body, so the retry is recognised
+ * as the same request and nothing is done twice (ADR-006 d4b). Booking is the only one so far.
  */
 
 export class ApiError extends Error {
@@ -21,6 +22,8 @@ export interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   token?: string | null;
+  /** The body carries an idempotency key, so a retry after a server error is safe. */
+  idempotent?: boolean;
 }
 
 const FALLBACK = 'Something went wrong. Try again.';
@@ -36,7 +39,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   };
 
-  const attempts = method === 'GET' ? 2 : 1;
+  const attempts = method === 'GET' || options.idempotent ? 2 : 1;
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
     let res: Response;

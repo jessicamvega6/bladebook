@@ -34,6 +34,14 @@ public record LessonTime(LocalDate lessonDate, LocalTime startTime, Instant star
                 && Objects.equals(currency, o.currency) && Objects.equals(startsAtUtc, o.startsAtUtc);
     }
 
+    /**
+     * Seat capacity (ADR-031 decisions 2 and 4): a time takes a new seat only while it's {@code OPEN}, hasn't
+     * started, and has a place left. The booking transaction's condition is the same rule, and is the authority.
+     */
+    public boolean canTakeSeat(Instant now) {
+        return lessonStatus == Status.OPEN && startsAtUtc.isAfter(now) && seatsTaken < maxSkaters;
+    }
+
     public LessonTime withPrice(int price) {
         return new LessonTime(lessonDate, startTime, startsAtUtc, coachTz, durationMinutes, price, currency,
                 missedLessonFeeMinor, requiredNoticeHours, maxSkaters, seatsTaken, blockSeq, iceType, scheduleVersion,

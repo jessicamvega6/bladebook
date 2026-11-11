@@ -1,0 +1,90 @@
+/* COPIED from design/harbor/client/screens-booking.css (the source of truth). Re-copy when the design changes. */
+/* Client website — booking and My bookings (screens-booking.js). Harbor tokens only. */
+.bb button.cal__cell { font: inherit; color: inherit; text-align: left; width: 100%; }
+.bb button.cal__cell--open:hover { border-color: var(--primary); }
+.bb .cal__cell.bk-today { box-shadow: inset 0 0 0 2px var(--primary-border); }
+.bb .bk-cellfoot { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.bb .bk-calmine { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: var(--w-bold); color: var(--success-text); }
+.bb .bk-calnote { font-size: 11px; color: var(--text-3); }
+.bb .bk-split { grid-template-columns: minmax(0, 1fr) minmax(0, 280px); }
+.bb .bk-scroll { overflow-x: auto; position: relative; }
+.bb .bk-calgrid { display: grid; grid-template-columns: 112px minmax(560px, 1fr); gap: 10px; align-items: start; }
+.bb .bk-weeks { display: flex; flex-direction: column; gap: 8px; }
+.bb .bk-weeks__h { font-size: 12px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 4px 0 8px 2px; }
+.bb .bk-week { height: 78px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface-2); font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.bb .bk-week b { font-size: 13px; }
+.bb .bk-week span { font-size: 11.5px; color: var(--text-3); }
+.bb button.bk-week:hover { border-color: var(--primary); }
+.bb .bk-week--off { cursor: default; background: transparent; border-style: dashed; color: var(--text-3); }
+.bb .bk-months { display: flex; flex-direction: column; gap: 8px; }
+.bb .bk-month { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font: inherit; color: var(--text); cursor: pointer; text-align: left; }
+.bb .bk-month span { font-size: 12.5px; color: var(--text-3); }
+.bb .bk-month.is-on { border-color: var(--primary); background: var(--primary-tint); box-shadow: 0 0 0 1px var(--primary); }
+.bb .bk-strip { overflow-x: auto; padding-top: 8px; }
+.bb .bk-strip .dchip { font: inherit; color: inherit; cursor: pointer; min-width: 64px; }
+.bb .bk-strip .dchip--sel { color: var(--on-primary); }
+.bb button.slot { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.bb button.slot--open:hover { border-color: var(--primary); }
+.bb .slot--45 { height: 63px; } .bb .slot--90 { height: 132px; } .bb .slot--120 { height: 178px; }
+.bb .slot.bk-yours { background: var(--success-soft); border-color: var(--success-border); color: var(--success-text); cursor: default; }
+.bb .slot.bk-yours .slot__time, .bb .slot.bk-yours .slot__price { color: var(--success-text); font-weight: var(--w-bold); }
+.bb .slot.bk-yours .slot__mark { opacity: 1; border-color: var(--success-border); color: var(--success); }
+.bb .sw.bk-sw-yours { background: var(--success-soft); border: 1px solid var(--success-border); }
+.bb .bk-dlist { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; text-align: left; }
+.bb .bk-dlist .row:last-child { border-bottom: 0; }
+.bb .dialog .check, .bb .dialog .summary, .bb .dialog .grid2 { text-align: left; }
+.bb .bk-hero--warn .hero__icon { background: var(--warning-soft); color: var(--warning); }
+.bb .bk-series .series { min-width: 0; }
+.bb .bk-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-dateblock--past { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
+.bb .bk-opt { display: flex; flex-direction: column; gap: 10px; }
+.bb .bk-opt + .bk-opt { margin-top: 10px; }
+.bb button.rcard { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.bb button.rcard:hover { border-color: var(--primary); }
+.bb .rcard__text .rcard__title, .bb .rcard__text .rcard__sub { display: block; }
+.bb .bk-optfield { padding: 0 4px 4px 52px; }
+/* Share this lesson (ADR-026 d5) */
+.bb .bk-share { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); text-align: left; }
+.bb .bk-share__head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.bb .bk-share__head .label__opt { margin-left: auto; }
+.bb .bk-share .fine { margin: 0; }
+.bb .bk-share .found { padding: 10px 12px; gap: 10px; }
+.bb .bk-share__sibs { display: flex; flex-direction: column; gap: 6px; }
+.bb .bk-share__sibs .listbox { background: var(--surface); border-radius: var(--r-md); }
+.bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
+@media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .bb .tl { grid-template-columns: minmax(0, 1fr); }
+  .bb .bk-optfield { padding-left: 4px; }
+  .bb .decide { flex-wrap: wrap; }
+  .bb .bk-series { grid-template-columns: minmax(0, 1fr); }
+  .bb .dialog { width: calc(100% - 24px); max-width: 440px; top: 80px; padding: 20px; }
+  .bb .dialog .grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+/* Many coaches (ADR-025): the coach dropdown, picks grouped by coach, and clashes with another coach's lessons. */
+.bb .bk-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.bb .bk-coachsel { width: auto; min-width: 210px; height: 40px; border-radius: 999px; font-weight: var(--w-bold); }
+.bb .bk-pickcoach { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 4px 0 6px; font-size: 13px; }
+.bb .bk-pickcoach span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bb .picks + .bk-pickcoach { margin-top: 14px; }
+.bb .bk-total-note { font-size: 13px; color: var(--text-2); font-weight: var(--w-med); }
+.bb .slot.bk-clash { border-color: var(--warning-border); box-shadow: inset 3px 0 0 var(--warning); }
+.bb .slot .bk-clash__note { display: inline-flex; align-items: center; gap: 4px; color: var(--warning-text, var(--text-2)); font-weight: var(--w-med); }
+.bb .slot--mine .bk-clash__note { color: var(--on-primary); }
+.bb .bk-pick--clash { box-shadow: inset 3px 0 0 var(--warning); }
+.bb .bk-dlist__h { margin: 12px 0 6px; font-size: 13px; font-weight: var(--w-bold); color: var(--text-2); text-align: left; }
+.bb .bk-dlist + .bk-dlist__h { margin-top: 14px; }
+.bb .bk-clashes { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+@media (max-width: 760px) { .bb .bk-coachsel { min-width: 0; width: 100%; } .bb .bk-pickers > .picker { width: 100%; } }
+.bb .total:has(.bk-total-note) { flex-wrap: wrap; gap: 4px 12px; }
+.bb .total span { white-space: nowrap; }
+.bb .slot.bk-clash .slot__time { white-space: nowrap; }
+.bb .dialog > * { flex-shrink: 0; }
+/* Result split by coach (owner, 2026-10-13). */
+.bb .bk-rescoach { display: flex; align-items: center; gap: 12px; margin: 8px 0 -4px; }
+.bb .bk-rescoach > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.bb .bk-rescoach b { font-size: 16px; }
+.bb .bk-rescoach span { font-size: 13px; color: var(--text-3); }
+.bb .dialog .summary__note + .summary__note { margin-top: 6px; }
+
+.bb .bk-share__retry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }

@@ -88,4 +88,12 @@
 
 /* Added for the React build (not in the design's CSS). */
 .bb .nav__item.is-disabled { opacity: .5; cursor: not-allowed; }
+.bb .quick__item.is-disabled { opacity: .5; cursor: not-allowed; }
 .bb button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-decoration: underline; cursor: pointer; }
+
+/* Not in the design: the booking month (owner, 2026-11-11). A day with a lesson shows only a tick beside its
+   number; "12 open" stays on one line; and below 1200px wide the Months column moves under the calendar, so the
+   calendar never needs a scrollbar on a laptop. */
+.bb .bk-cellhead { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.bb .cal__cell .cal__meta { white-space: nowrap; }
+@media (max-width: 1200px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }

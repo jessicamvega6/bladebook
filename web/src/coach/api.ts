@@ -101,6 +101,8 @@ export interface LessonDto {
   lessonStatus: 'OPEN' | 'BOOKED' | 'HELD';
   maxSkaters: number;
   seatsTaken: number;
+  /** Who is booked: the seat's "Ava P." for the week view, the full name and family for the day view. */
+  skaters: Array<{ studentId: string; shortName: string; fullName: string; familyName: string | null }>;
 }
 
 export interface CalendarDto {
