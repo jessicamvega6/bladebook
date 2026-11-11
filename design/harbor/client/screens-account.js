@@ -190,7 +190,7 @@ const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtShortT(l.t)}</b>
 
 /** Invitations for this family's skaters that are still open, to answer. */
 const acInviteCard = () => {
-  const open = invsToMe().filter(i => i.status === 'SENT');
+  const open = invsToMe().filter(i => invStatus(i) === 'SENT');
   if (!open.length) return '';
   return card(open.map(i => { const k = student(i.skater), host = student(i.fromSkater);
     return row(`<span class="roundicon">${ic('users', 18)}</span>${rowTitle(`${esc(i.from)} invited ${esc(firstName(k.name))} to share a lesson with Coach ${esc(cName(invCoach(i)))}`, `${invWhen(i)}${i.series ? ` · ${invDates(i)}` : ''} · with ${esc(shortName(host.name))}`)}`,
@@ -215,7 +215,7 @@ function acHomePending() {
 SCREENS.home = () => {
   if (isPendingFamily()) return acHomePending();
   const mine = myLessons(), today = mine.filter(l => l.iso === TODAY);
-  const next = mine.filter(l => !isStarted(l)).slice(0, 4);
+  const next = mine.filter(l => !isStarted(l) && !bkNoAnswer(l)).slice(0, 4);
   const waits = waitingByCoach();
   return shell(`
     ${pageHead(`Good morning, ${esc(firstName(state.me.name))}`, dLong(TODAY), B('Book a lesson', 'primary', '', { href: href('book'), icon: 'calendar' }))}
@@ -319,7 +319,7 @@ SCREENS.profile = () => {
    (ADR-033 d1), so going ahead books the seat straight away. The lesson's price is split between the two skaters
    (owner, 2026-10-13; ADR-026 P2). */
 const invUi = () => (state.ui.inv ??= { id: null });
-const invCur = () => { const mine = invsToMe(); return mine.find(i => i.id === invUi().id) || mine.find(i => i.status === 'SENT') || mine[0]; };
+const invCur = () => { const mine = invsToMe(); return mine.find(i => i.id === invUi().id) || mine.find(i => invStatus(i) === 'SENT') || mine[0]; };
 /** How many skaters split the lesson once the invited skater joins: the booking's skater, anyone already joined, and
     the invited skater (ADR-MASTER "Price shares"; owner, 2026-11-11, B10). */
 const invSkaters = (l, inv) => 2 + (l.with || []).filter(w => w.sid !== inv.skater).length;
@@ -342,7 +342,7 @@ SCREENS.invite = () => {
   if (inv.status === 'CONFIRMED') return page(hero('hero--success', 'check', `${kf} has joined ${host}’s ${inv.series ? 'lessons' : 'lesson'}`, `${inv.series ? `Every lesson in the series is` : 'It’s'} in ${isPendingFamily() ? 'your account' : A_('bookings', 'My bookings')}. Coach ${coach} sees both skaters.`));
   if (inv.status === 'DECLINED') return page(hero('bk-hero--warn', 'x', 'Invitation declined', `We’ve told ${esc(inv.from)}. Nothing was booked for ${kf}.`));
   if (inv.status === 'WITHDRAWN') return page(hero('bk-hero--warn', 'x', `${esc(inv.from)} withdrew this invitation`, `Nothing was booked for ${kf}.`));
-  if (inv.status === 'EXPIRED') return page(hero('bk-hero--warn', 'clock', 'This lesson is no longer available', `It wasn’t answered before it started, so ${kf} wasn’t added.`));
+  if (invStatus(inv) === 'EXPIRED') return page(hero('bk-hero--warn', 'clock', 'This lesson is no longer available', `It wasn’t answered before it started, so ${kf} wasn’t added.`));
   const clashes = inv.clashes || [];
   return page(pageHead(`${esc(inv.from)} invited ${kf} to share a lesson`, `${host} and ${kf}, together with Coach ${esc(cName(ic_))}${inv.series ? `, ${invWhen(inv)}` : ` on ${invWhen(inv)}`}.`, '', crumb('home', 'Home'))
 , `
