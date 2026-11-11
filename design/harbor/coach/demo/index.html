@@ -1658,10 +1658,13 @@ function freshLessons(students) {
 /** A shared lesson has one set price, the block's price when it was booked, split evenly between its skaters (owner,
     2026-10-13; ADR-026 P2). `full` keeps the lesson's own price; each skater's `price` is their share. Personal prices are
     Phase 2, so the split is always of the schedule's price. */
+/** One skater's share of a shared price: the price divided by the number of skaters splitting it, with odd cents one
+    each to the skaters who joined first (idx = place in join order; ADR-MASTER "Price shares", owner 2026-11-11, B10). */
+function shareOf(full, n, idx = 0) { const c = Math.round(full * 100), base = Math.floor(c / n); return (base + (idx < c - base * n ? 1 : 0)) / 100; }
 function splitPrice(l) {
   l.full = l.full ?? l.price;
-  const per = Math.round(l.full / (1 + (l.with || []).length) * 100) / 100;
-  l.price = per; for (const w of l.with || []) w.price = per;
+  const n = 1 + (l.with || []).length;
+  l.price = shareOf(l.full, n, 0); (l.with || []).forEach((w, i) => { w.price = shareOf(l.full, n, i + 1); });
 }
 
 /* Shared-lesson invitations (ADR-026 d5, ADR-033). inviteStatus: SENT | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.

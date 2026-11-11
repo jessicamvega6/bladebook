@@ -119,6 +119,9 @@ Price:
       pays nothing yet.
     Odd cents go one each to the skaters who joined first (owner: "I don't care which"). $45.01 for two is $22.51
       and $22.50.
+    *Owner, 2026-11-11 (B10):* every page works a share out as the price divided by the number of skaters splitting
+      it, never as "half". The booking pop-up says "Once they join, the lesson's $50 is split between the skaters:
+      with 2 skaters, each pays $25." The invitation page says "$25 for Zoe: the lesson's $50, split between 2 skaters."
     Shares are worked out again whenever who's paying changes: a skater joins, a freed place is filled, the staying
       family keeps a lesson at the full price, or the coach changes the price.
     ~~A lesson already marked paid or waived never changes.~~ *Revised 2026-10-13 (ADR-031): its price follows the
