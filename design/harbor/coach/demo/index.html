@@ -1658,10 +1658,13 @@ function freshLessons(students) {
 /** A shared lesson has one set price, the block's price when it was booked, split evenly between its skaters (owner,
     2026-10-13; ADR-026 P2). `full` keeps the lesson's own price; each skater's `price` is their share. Personal prices are
     Phase 2, so the split is always of the schedule's price. */
+/** One skater's share of a shared price: the price divided by the number of skaters splitting it, with odd cents one
+    each to the skaters who joined first (idx = place in join order; ADR-MASTER "Price shares", owner 2026-11-11, B10). */
+function shareOf(full, n, idx = 0) { const c = Math.round(full * 100), base = Math.floor(c / n); return (base + (idx < c - base * n ? 1 : 0)) / 100; }
 function splitPrice(l) {
   l.full = l.full ?? l.price;
-  const per = Math.round(l.full / (1 + (l.with || []).length) * 100) / 100;
-  l.price = per; for (const w of l.with || []) w.price = per;
+  const n = 1 + (l.with || []).length;
+  l.price = shareOf(l.full, n, 0); (l.with || []).forEach((w, i) => { w.price = shareOf(l.full, n, i + 1); });
 }
 
 /* Shared-lesson invitations (ADR-026 d5, ADR-033). inviteStatus: SENT | CONFIRMED | DECLINED | WITHDRAWN | EXPIRED.
@@ -2767,7 +2770,7 @@ SCREENS.students = () => {
     ${pageHead('Students', 'Everyone you coach, and how to reach their family.', stuTabs(0))}
     <div class="stu-search">${INP('stu-search', 'Search', 'ui.stu.search', { live: true, placeholder: 'Name, family, email or phone' })}</div>
     ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Skater number</th><th>Family contact</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
-      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Families change them on their own profile, and the change reaches every coach. Skater numbers are entered by the family and checked for shape only, not with the organization.</div>`
+      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Families change them on their own profile.</div>`
       : `<div class="pempty"><span class="pempty__icon">${ic('users', 22)}</span><b>No students match “${esc(u.search)}”</b><span class="muted">Try a first name, a family name or a phone number.</span></div>`,
       { pad: false, title: plural(list.length, 'student'), sub: q ? `Matching “${esc(u.search)}”` : `${plural(families(active()).length, 'family', 'families')}` })}`, { width: 'wide' });
 };

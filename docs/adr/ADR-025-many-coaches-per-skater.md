@@ -28,7 +28,8 @@ a load still brings in all their coaches.
 invitation to a shared lesson is a second way to add a coach. A family whose skater isn't yet the
 coach's student follows the invitation's consent link and goes through decision 2's route, as if
 they had entered the coach code. Decision 5's clash warning is shown on the invitation's confirm
-page, where the family chooses to go ahead or cancel; it isn't re-checked when the skater joins
+page, where the family chooses to go ahead or ~~cancel~~ *decline (buttons **Go ahead** and
+**Decline**; owner, 2026-11-11, B11)*; it isn't re-checked when the skater joins
 later.
 
 **Amended — 2026-10-07.** *Decided by the owner.* **No limit on coaches per skater** (product

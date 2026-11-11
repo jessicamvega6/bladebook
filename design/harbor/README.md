@@ -16,8 +16,8 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
 | `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 61 pages. |
-| `rinkside/` | The rinkside check-in app: 19 phone screens. |
+| `client/` | The family website: 69 pages. |
+| `rinkside/` | The rinkside check-in app: 20 phone screens. |
 
 ## Coach website — `coach/`
 
