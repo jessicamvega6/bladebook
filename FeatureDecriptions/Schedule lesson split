@@ -63,7 +63,9 @@ Invitation (changed 2026-10-07):
   ~~If skater B is not part of that coach, the email says something like:~~
     ~~"Coach XXX needs to accept you first. By clicking the link below you agree to be added to Coach XXX's roster of students."~~
   ~~The link opens a confirmation page.~~ Family B must sign in and confirm on the page.
-  The confirmation page shows skater B any conflicting bookings they would have. They can go ahead or cancel.
+  The confirmation page shows skater B any conflicting bookings they would have. They can go ahead or ~~cancel~~ decline.
+  The buttons are "Go ahead" and "Decline". *(Owner, 2026-11-11, B11: Decline says what it does; "Cancel" could read
+  as cancelling a lesson.)*
   ~~If they go ahead, the request follows the same flow as if they had entered the coach code at sign up.~~
   ~~When the coach accepts skater B, skater B joins the lesson automatically.~~
   *Changed 2026-10-20 (ADR-033): the email is always a normal invite to accept or decline; inviting a skater new to the

@@ -98,7 +98,7 @@ its batch. The accounts and people conflicts were ruled on 2026-11-06.
 | B8 | Expired and "cancelled, no answer" come from stored status, not from the clock | M:774-775 | `client/screens-account.js:193,332-335,432-435` | ADR: the pages work out *expired* and *cancelled, no answer* from the clock, without waiting for the hourly sweep (ruled 2026-11-11). **Redrawn 2026-11-11:** `client/app.js` (`invStatus`), `client/screens-booking.js` (`bkNoAnswer`), `client/screens-account.js`; new pages `invite-expired` and `bookings-share-no-answer`. |
 | B9 | The recurrence change doesn't name the late lessons | M:916-917 | `client/screens-booking.js:466` | Rule (`cancelation.md`): the warning names each cancelled lesson inside the notice period (*"Thu, Oct 15 · 4:15 PM is less than 24 hours away. Cancelling it may incur a late cancellation fee from Coach Ben."*), and the date list marks it *Cancelled · late* (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-booking.js` (new `recurrence-late`). |
 | B10 | Shared-price wording reveals the seat count (low) | M:635-636 | `client/screens-booking.js:254` | ADR: a share is the price divided by the number of skaters, odd cents to the earliest joiners; no page says "half" (ruled 2026-11-11). **Redrawn 2026-11-11:** `shared.js` (`shareOf`, `splitPrice`), `client/screens-booking.js` (share box, cancel pop-up), `client/screens-account.js` (invitation price). *Feature note: `Schedule lesson split`.* |
-| B11 | Invitation buttons say Go ahead / Decline; the ADR says Go ahead / Cancel (low) | M:671 | `client/screens-account.js:342` | **Not ruled yet** |
+| B11 | Invitation buttons say Go ahead / Decline; the ADR says Go ahead / Cancel (low) | M:671 | `client/screens-account.js:342` | Screen: the buttons stay **Go ahead** / **Decline**; ADR-025 d5 and the feature note now say decline (ruled 2026-11-11). *No redraw needed. Feature note: `FeatureDecriptions/Schedule lesson split`.* |
 | B12 | Home says "repeats weekly" for any series; series repeat every 1–4 weeks (low) | M:580-581 | `client/screens-account.js:188` | ADR: Home says how often the series repeats (*"repeats weekly"* or *"repeats every N weeks"*), matching My bookings; the coach's day view is fixed the same way (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-account.js`, `client/screens-booking.js` (new `home-every-2-weeks`), `coach/screens-calendar.js`. |
 
 ### Attendance and money
@@ -242,7 +242,7 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 |---|---|---|
 | 9 | Recurring bookings and recurrence changes | — (B4, B9 and B12 ruled 2026-11-09) |
 | 10 | Rinkside offline queue and service worker | — (R2, R3, R4 and R5 ruled 2026-11-09) |
-| 11 | Shared lessons: share code, invite, accept, leave | B11; the gate-test rows (B2, B3, B7, B8 and B10 ruled 2026-11-11) |
+| 11 | Shared lessons: share code, invite, accept, leave | The gate-test rows (B2, B3, B7, B8, B10 and B11 ruled 2026-11-11) |
 | 12 | Financial page: gross and the summary CSV | Rink-fee method |
 | 13 | Emails and scheduled jobs (confirmations, day-of, morning, end-of-day, unpaid reminder) | Question 4, R10 |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | How the link is built and how long it lasts (ADR-MASTER §25). Proposed: a one-time random token, valid 24 hours |
