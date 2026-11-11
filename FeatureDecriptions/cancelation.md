@@ -29,6 +29,9 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
     They see a card on Home and My bookings; no answer by ~~the start of the notice period~~ *the answer-by time* cancels it, no charge.
     *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time is whichever comes first, the start of the notice
     period or 7 days after the other skater left. An unanswered lesson is cancelled with no charge by the hourly check.
+    *Owner, 2026-11-11 (B8):* the pages don't wait for that check. Once the answer-by time passes, My bookings shows
+      the lesson as "Cancelled, no answer" with no charge, and the card is gone. An invitation still unanswered when its
+      lesson starts shows "This lesson is no longer available" at once.
     Both emails ("keep at full price or cancel", "cancelled, no answer") are always sent.*
   Late: the one cancelling may be charged their share of the late-cancellation fee (half, for two skaters); the other skater keeps their share of the price.
   *Added 2026-10-13 (ADR-031):*

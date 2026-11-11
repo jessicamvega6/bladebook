@@ -133,6 +133,9 @@ const invLessons = inv => state.lessons.filter(l => l.sid === inv.fromSkater && 
 const invWhen = inv => inv.series ? `${DOW_LONG[inv.dow]}s at ${fmtT(inv.t)}` : `${dDow(inv.iso)} at ${fmtT(inv.t)}`;
 const invDates = inv => { const ls = invLessons(inv); return inv.series && ls.length ? `${dShort(ls[0].iso)} – ${dShort(ls[ls.length - 1].iso)} · ${plural(ls.length, 'lesson')}` : ''; };
 /** Invitations for this family's skaters (Family B), and invitations this family sent (Family A). */
+/** Where an invitation stands, worked out from the clock (owner, 2026-11-11, B8; ADR-MASTER "Deadlines"): one still
+    unanswered once all its lessons have started is expired, without waiting for the hourly sweep to write EXPIRED. */
+const invStatus = inv => inv.status === 'SENT' && invLessons(inv).every(isStarted) ? 'EXPIRED' : inv.status;
 const invsToMe = () => state.invites.filter(i => myKids().some(k => k.id === i.skater));
 const invsFromMe = () => state.invites.filter(i => i.from === state.me.name);
 const invLink = (id, label, v = 'primary') => `<a class="btn btn--${v} btn--sm" href="${href('invite')}"${actAttr('invOpen', [id])}><span>${label}</span></a>`;
