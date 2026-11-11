@@ -7,12 +7,13 @@ export const COACH_STEPS = ['Account', 'Verify login email', 'Business details',
 
 /** Pages that exist in this build; the rest are named so the coach sees where they will be. */
 const NAV: Array<[label: string, route: string | null]> = [
-  ['Today', '#/today'], ['Calendar', '#/calendar'], ['Schedule', '#/schedule'], ['Students', null],
+  ['Today', '#/today'], ['Calendar', '#/calendar'], ['Schedule', '#/schedule'], ['Students', '#/students'],
   ['Lessons', null], ['Payments', null], ['Profile', '#/profile'],
 ];
 
-export function CoachShell({ profile, section, flash, children, wide, full }: {
-  profile: Profile; section: string; flash?: ReactNode; children: ReactNode; wide?: boolean; full?: boolean;
+/** {@code waiting}: skaters waiting for approval, counted on the Students tab (FeatureDecriptions/Client Sign Up). */
+export function CoachShell({ profile, section, flash, children, wide, full, waiting = 0 }: {
+  profile: Profile; section: string; flash?: ReactNode; children: ReactNode; wide?: boolean; full?: boolean; waiting?: number;
 }) {
   return (
     <div className="app app--coach">
@@ -20,7 +21,9 @@ export function CoachShell({ profile, section, flash, children, wide, full }: {
         <a className="brand" href="#/today"><span className="brand__mark"><Icon name="logo" size={18} /></span><span className="brand__name">BladeBook</span></a>
         <nav className="nav__items" aria-label="Main">
           {NAV.map(([label, route]) => route
-            ? <a key={label} className={`nav__item${label === section ? ' is-active' : ''}`} href={route} aria-current={label === section ? 'page' : undefined}><span>{label}</span></a>
+            ? <a key={label} className={`nav__item${label === section ? ' is-active' : ''}`} href={route} aria-current={label === section ? 'page' : undefined}>
+                <span>{label}</span>{label === 'Students' && waiting > 0 && <span className="navcount" aria-label={`${waiting} waiting`}>{waiting}</span>}
+              </a>
             : <span key={label} className="nav__item is-disabled" aria-disabled="true" title="Comes in a later batch"><span>{label}</span></span>)}
         </nav>
         <a className="nav__user" href="#/profile">

@@ -1,0 +1,91 @@
+/* COPIED from design/harbor/client/app.css and screens-account.css (the source of truth). Re-copy when the design changes. */
+/* Client website — additions to harbor.css shared with the coach shell (nav, auth frame, inputs). Harbor tokens only. */
+.bb a.btn, .bb a.nav__item, .bb a.nav__user, .bb a.brand, .bb a.quick__item { text-decoration: none; }
+.bb a.nav__user { color: inherit; border-radius: 999px; padding: 2px 6px 2px 2px; }
+.bb a.nav__user:hover { background: var(--surface-2); }
+.bb .nav__item:not(.is-active):hover { color: var(--nav-text-strong); }
+.bb .navcount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: var(--w-bold); display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.bb .wgrid--solo { grid-template-columns: minmax(0, 480px); justify-content: center; }
+.bb .wgrid { grid-template-columns: minmax(0, 560px) minmax(0, 300px); justify-content: center; }
+.bb .ctl--area { min-height: 88px; padding: 10px 14px; line-height: 1.45; resize: vertical; }
+.bb .ctl[type="date"] { min-width: 0; }
+.bb .ctl[disabled], .bb select.ctl[disabled] { background-color: var(--surface-2); color: var(--text-3); }
+.bb .photo-pick { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
+.bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
+.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .card__foot { padding: 14px 20px 18px; }
+.bb .card--attn { border-color: var(--warning-border); }
+.bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bb .quick__item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text); font-weight: var(--w-med); font-size: 13px; line-height: 1.25; min-width: 0; }
+.bb .quick__item:hover { border-color: var(--primary); }
+.bb .quick__item small { margin-left: auto; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.bb .quick__icon { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--primary-tint); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center; }
+.bb .seg__opt { font: inherit; border: 0; cursor: pointer; }
+.bb button.switch { border: 0; padding: 0; cursor: pointer; flex: none; }
+.bb .dialog { max-height: calc(100% - 40px); overflow: auto; }
+.bb .dialog .field { text-align: left; }
+.bb .phead__actions { flex-wrap: wrap; min-width: 0; }
+.bb .stepper { max-width: 100%; }
+.bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 980px) {
+  .bb .split--today, .bb .wgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
+  .bb .phead__actions { width: 100%; }
+  .bb .wmain { padding: 20px 16px 40px; }
+  .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .bb .wbar__right { width: 100%; }
+  .bb .stepper { overflow-x: auto; }
+  .bb .wcol > .card > .card__body { padding: 20px; }
+  .bb .quick { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Client account screens (sign-up, home, profile, payments). Harbor tokens only. */
+.bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
+.bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.bb .ac-when { width: 64px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }
+.bb .ac-when b { font-size: 14px; color: var(--text); }
+.bb .ac-when small { font-size: 12px; color: var(--text-3); }
+.bb .ac-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-2); }
+.bb .ac-steps b { color: var(--text); }
+.bb .ac-wait { border-color: var(--warning-border); background: var(--warning-soft); }
+.bb .ac-add { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--border); }
+.bb .ac-tablewrap { overflow-x: auto; position: relative; }
+.bb .ac-tablewrap .table { min-width: 560px; }
+.bb .ac-instr { margin: 0; color: var(--text-2); }
+.bb .ac-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 0 20px 12px 64px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bb .ac-code__label { color: var(--text-3); }
+.bb .ac-code__v { font-weight: var(--w-bold); color: var(--text); letter-spacing: .04em; }
+.bb .ac-code__btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
+.bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
+@media (max-width: 760px) {
+  .bb .ac-when { width: 52px; }
+  .bb .ac-code { padding-left: 20px; }
+  .bb .ac-code__btns { margin-left: 0; }
+}
+/* Many coaches (ADR-025): each skater's coaches, and adding a coach. */
+.bb .ac-kc { border-bottom: 0; padding-bottom: 8px; }
+.bb .ac-kc__list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.bb .card__body > .ac-kc:not(:has(+ .ac-code)) { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.bb .card__body > .row:has(+ .ac-kc) { border-bottom: 0; }
+.bb .ac-coachkids { display: flex; flex-direction: column; gap: 8px; }
+.bb .ac-check--done { cursor: default; background: var(--surface-2); align-items: center; }
+.bb .ac-check--done .check__text { flex: 1; }
+/* One card per coach on Home; waiting coaches listed on the waiting home (owner, 2026-10-13). */
+.bb .ac-cardshead { font-size: 13px; font-weight: var(--w-bold); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.bb .ac-coachcard .found--plain { padding-top: 0; }
+.bb .ac-waitlist { margin-top: 14px; background: var(--surface); }
+
+/* skating organization picker: three names don't fit side by side on a phone, so they stack */
+@media (max-width: 560px) {
+  .bb .ac-org .seg { flex-direction: column; border-radius: var(--r-lg); }
+  .bb .ac-org .seg__opt { border-radius: var(--r-md); }
+}
+
+/* Added for the React build (not in the design's CSS). */
+.bb .nav__item.is-disabled { opacity: .5; cursor: not-allowed; }
+.bb button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-decoration: underline; cursor: pointer; }

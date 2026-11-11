@@ -51,6 +51,9 @@ in the coach's records.
   override applied when the skater's share is worked out. Whether it reaches lessons already booked is still the Phase 2
   question for Kim (§5).*
   The page has two tabs: Students, and Waiting for approval, each with a count.
+  *Decided by the owner 2026-11-09:* the Students tab lists skaters by their family contact's name (first name, then
+    last), then by the skater's name, so a family's skaters sit together. Waiting for approval stays in the order
+    families signed up.
   *Phase 2 (owner, 2026-10-07; decided 2026-10-06):* on a skater's record, a coach sees "Also coached by: Sam Ortiz." —
     only the other coaches' first and last names, and only once the skater is approved with both coaches. Nothing else
     crosses: not the other coach's schedule, prices, lessons, notes or contact details. *(from ADR-025 decision 4,
@@ -63,8 +66,10 @@ in the coach's records.
   Rink download (owner, 2026-10-16): coaches download the numbers for the rinks. The rinks require each skater's number;
     the coach passes it on and the rinks validate it. A file on the coach's Students tab with Student First Name,
     Student Last Name, Skater Number. The download is logged as a read of personal data (ADR-012).
-    Open: the rink download's phase (MVP or later) (added 2026-10-16). How the name is split stays an open item in
-    ADR-029. *(from ADR-029, amendment 2026-10-16 and Open, moved 2026-11-08)*
+    ~~Open: the rink download's phase (MVP or later) (added 2026-10-16). How the name is split stays an open item in
+    ADR-029.~~ *(from ADR-029, amendment 2026-10-16 and Open, moved 2026-11-08)*
+    *Decided by the owner 2026-11-09:* the rink download is **Phase 2**. The skater's one full name is split into
+    Student First Name and Student Last Name when the file is made; sign-up keeps one full-name box.
 
 
 On the coach profile page is a form that allows the coach to update their email, phone number, profile picture (Phase 2), ~~payment currency~~, where they want to display their contact info to the client. 

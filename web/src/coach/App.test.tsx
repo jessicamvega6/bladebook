@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from './App';
@@ -85,12 +85,65 @@ test('an expired sign-in returns to sign-in with a note', async () => {
 test('a coach with a profile lands on Today with the pending-code banner', async () => {
   sessionStorage.setItem('bb.coach.idToken', TOKEN);
   window.location.hash = '#/today';
-  vi.stubGlobal('fetch', vi.fn(() => json(200, PENDING)));
+  vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
+    ? json(200, { active: [], pending: [] })
+    : json(200, PENDING)));
 
   render(<App />);
 
   expect(await screen.findByRole('heading', { name: /, Dana$/ })).toBeInTheDocument();
   expect(screen.getByText('Your code starts working once you confirm your business email')).toBeInTheDocument();
+});
+
+test('overview: a signed-in coach with a working code and a family waiting sees the whole Today screen', async () => {
+  const profile: Profile = { ...PENDING, businessEmail: 'lessons@dana.com', pendingBusinessEmail: null, codeWorks: true };
+  const kid = (id: string, name: string) => ({
+    studentId: id, familyId: 'park', status: 'PENDING', studentName: name, isMinor: true, relationship: 'GUARDIAN',
+    clientName: 'Sarah Park', clientEmail: 'sarah@example.com', clientPhone: '(205) 555-0196', skatingOrg: 'USFS',
+    registrationNumber: '1234567', signedUpAt: '2026-11-09T15:00:00Z',
+  });
+  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  window.location.hash = '#/today';
+  vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
+    ? json(200, { active: [], pending: [kid('a', 'Ava Park'), kid('j', 'Jack Park')] })
+    : json(200, profile)));
+
+  render(<App />);
+
+  // Greeting
+  expect(await screen.findByRole('heading', { level: 1, name: /, Dana$/ })).toBeInTheDocument();
+
+  // Navigation: Today is the current page; the waiting count reaches the Students tab; later batches are shown disabled.
+  const nav = within(screen.getByRole('navigation', { name: 'Main' }));
+  expect(nav.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+  expect(nav.getByRole('link', { name: 'Calendar' })).toHaveAttribute('href', '#/calendar');
+  expect(nav.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '#/schedule');
+  expect(nav.getByRole('link', { name: /^Students/ })).toHaveAttribute('href', '#/students');
+  expect(await nav.findByLabelText('2 waiting')).toBeInTheDocument();
+  expect(nav.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile');
+  for (const later of ['Lessons', 'Payments']) {
+    expect(nav.getByText(later).parentElement).toHaveAttribute('aria-disabled', 'true');
+  }
+  expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();
+
+  // The code works, so there is no "not working yet" banner.
+  expect(screen.queryByText('Your code starts working once you confirm your business email')).not.toBeInTheDocument();
+
+  // New families to approve
+  expect(screen.getByRole('heading', { name: 'New families to approve' })).toBeInTheDocument();
+  expect(screen.getByText('Sarah Park')).toBeInTheDocument();
+  expect(screen.getByText('Ava Park & Jack Park · signed up Nov 9')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Review sign-ups' })).toHaveAttribute('href', '#/students/pending');
+
+  // Coach code
+  expect(screen.getByRole('heading', { name: 'Your coach code' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Coach code 7 K 2 Q - M 9 X T')).toBeInTheDocument();
+  expect(screen.getByText('Families enter this to sign up with you.')).toBeInTheDocument();
+
+  // Today's lessons
+  expect(screen.getByRole('heading', { name: 'Today’s lessons' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'calendar' })).toHaveAttribute('href', '#/calendar');
+  expect(screen.getByRole('link', { name: 'edit your teaching week' })).toHaveAttribute('href', '#/schedule/weekly');
 });
 
 test('opening the plain address starts at sign-in, signed out, even after a coach signed in', () => {

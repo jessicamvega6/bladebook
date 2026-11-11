@@ -126,3 +126,35 @@ export function scheduleApi(token: string) {
 }
 
 export type ScheduleApi = ReturnType<typeof scheduleApi>;
+
+/** One skater with this coach (design: coach/screens-students.js). Contact details are the family's, read-only (A4). */
+export interface StudentDto {
+  studentId: string;
+  /** Groups a family's skaters on Waiting for approval. */
+  familyId: string;
+  status: 'PENDING' | 'ACTIVE';
+  studentName: string;
+  isMinor: boolean;
+  relationship: 'SELF' | 'GUARDIAN';
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  skatingOrg: 'USFS' | 'USA_HOCKEY' | 'LEARN_TO_SKATE_USA';
+  registrationNumber: string;
+  signedUpAt: string;
+}
+
+export interface StudentsDto {
+  active: StudentDto[];
+  pending: StudentDto[];
+}
+
+export function studentApi(token: string) {
+  return {
+    list: () => apiFetch<StudentsDto>('/api/coach/students', { token }),
+    approve: (studentIds: string[]) => apiFetch<StudentsDto>('/api/coach/students/approve', { method: 'POST', body: { studentIds }, token }),
+    decline: (studentId: string) => apiFetch<StudentsDto>(`/api/coach/students/${encodeURIComponent(studentId)}`, { method: 'DELETE', token }),
+  };
+}
+
+export type StudentApi = ReturnType<typeof studentApi>;

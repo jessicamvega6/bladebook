@@ -275,11 +275,13 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   §7's data minimisation needs a stated purpose. (Kim §9, question 2)~~ *Settled 2026-10-16
   (Kim):* the rinks require it; the coach passes it on and the rinks validate it. (ADR-029,
   amended 2026-10-16)
-- **Pending decision: Is the rink download MVP or later?** A file on the coach's Students tab
+- ~~**Pending decision: Is the rink download MVP or later?** A file on the coach's Students tab
   with Student First Name, Student Last Name and Skater Number, so coaches can give the numbers
-  to their rinks (owner, 2026-10-16). Logged as a read of personal data (ADR-012). (ADR-029 Open)
-- **Pending decision: First and last name for the download.** The skater's name is one
-  `studentName` field: split it at sign-up, or when the file is made. (ADR-029 Open)
+  to their rinks (owner, 2026-10-16). Logged as a read of personal data (ADR-012). (ADR-029 Open)~~
+  *Decided by the owner 2026-11-09: Phase 2.*
+- ~~**Pending decision: First and last name for the download.** The skater's name is one
+  `studentName` field: split it at sign-up, or when the file is made. (ADR-029 Open)~~
+  *Decided by the owner 2026-11-09: split when the file is made.*
 - **Open question — needs Kim (§9, question 7): Learn to Skate USA's number format,** now that
   those numbers are accepted. Until then, digits only within a loose length range. (ADR-029
   Open) *Added 2026-10-16.*

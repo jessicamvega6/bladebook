@@ -3,6 +3,7 @@
  * copied stylesheet applies unchanged.
  */
 import { Fragment, useEffect, useId, useRef, type ReactNode } from 'react';
+import { initials } from '../logic/names';
 
 const ICONS: Record<string, ReactNode> = {
   logo: <><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7" /><path d="M4 20h16" /><path d="M6.5 20v-2" /><path d="M17.5 20v-2.3" /></>,
@@ -27,6 +28,9 @@ const ICONS: Record<string, ReactNode> = {
   trash: <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />,
   undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></>,
   ban: <><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
+  users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  phone: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />,
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof ICONS | string; size?: number }) {
@@ -66,12 +70,15 @@ export function Badge({ tone = 'neutral', icon, children }: { tone?: string; ico
   return <span className={`badge badge--${tone}`}>{icon && <Icon name={icon} size={12} />}{children}</span>;
 }
 
-export function Card({ title, sub, children, flush, className }: { title?: ReactNode; sub?: ReactNode; children: ReactNode; flush?: boolean; className?: string }) {
+export function Card({ title, sub, children, flush, className, action }: {
+  title?: ReactNode; sub?: ReactNode; children: ReactNode; flush?: boolean; className?: string; action?: ReactNode;
+}) {
   return (
     <section className={`card${flush ? ' card--flush' : ''}${className ? ' ' + className : ''}`}>
       {title && (
         <header className="card__head">
           <div><h2 className="h2">{title}</h2>{sub && <p className="card__sub">{sub}</p>}</div>
+          {action}
         </header>
       )}
       <div className="card__body">{children}</div>
@@ -122,9 +129,13 @@ interface FieldProps {
   autoComplete?: string;
   /** Fixed text shown before the box, such as "$". Not part of {@code value}. */
   prefix?: string;
+  /** Monospaced, for codes and numbers. */
+  mono?: boolean;
+  /** Turns pasting off (the confirm-password box). */
+  noPaste?: boolean;
 }
 
-export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste }: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   return (
@@ -132,8 +143,8 @@ export function Field({ label, value, onChange, type = 'text', hint, error, opti
       <label className="label" htmlFor={id}>{label}{optional && <> <span className="label__opt">Optional</span></>}</label>
       {(() => {
         const input = (
-          <input id={id} className={`ctl${error ? ' is-error' : ''}`} type={type} value={value} placeholder={placeholder}
-            autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)}
+          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={type} value={value} placeholder={placeholder}
+            autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)} onPaste={noPaste ? (e) => e.preventDefault() : undefined}
             aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
         );
         return prefix
@@ -234,5 +245,30 @@ export function Dialog({ children, onClose, labelledBy }: { children: ReactNode;
       <div className="scrim" onClick={onClose} />
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby={labelledBy} ref={ref}>{children}</div>
     </>
+  );
+}
+
+/** Initials in a circle. Photos are Phase 2 (A1). */
+export function Avatar({ name, size }: { name: string; size?: 'sm' | 'lg' }) {
+  return <span className={`avatar${size ? ` avatar--${size}` : ''}`} aria-hidden="true">{initials(name)}</span>;
+}
+
+/** A list row (design's row and rowTitle). */
+export function Row({ title, sub, lead, side, muted }: { title: ReactNode; sub?: ReactNode; lead?: ReactNode; side?: ReactNode; muted?: boolean }) {
+  return (
+    <div className={`row${muted ? ' row--muted' : ''}`}>
+      <div className="row__main">{lead}<div><div className="row__title">{title}</div>{sub && <div className="row__sub">{sub}</div>}</div></div>
+      {side && <div className="row__side">{side}</div>}
+    </div>
+  );
+}
+
+/** Checkbox (design's CHK). */
+export function Check({ label, sub, checked, onChange, disabled }: { label: ReactNode; sub?: ReactNode; checked: boolean; onChange: (on: boolean) => void; disabled?: boolean }) {
+  return (
+    <label className="check">
+      <input type="checkbox" className="check__input" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="check__text"><span className="check__label">{label}</span>{sub && <span className="check__sub">{sub}</span>}</span>
+    </label>
   );
 }

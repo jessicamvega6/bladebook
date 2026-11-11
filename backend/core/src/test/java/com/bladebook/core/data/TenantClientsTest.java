@@ -35,7 +35,19 @@ class TenantClientsTest {
     @Test
     void clientForNeedsAnAccessContext() {
         TenantClients clients = TenantClients.local(URI.create("http://localhost:8000"));
-        assertThatThrownBy(() -> clients.clientFor(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> clients.clientFor((AccessContext) null)).isInstanceOf(NullPointerException.class);
         assertThat(clients.clientFor(new AccessContext("sub-1"))).isNotNull();
+    }
+
+    @Test
+    void aFamilysClientNeedsAClientContextAndACoachsNeedsALinkedCoach() {
+        TenantClients clients = TenantClients.local(URI.create("http://localhost:8000"));
+        ClientContext family = new ClientContext("sub-2");
+        assertThatThrownBy(() -> clients.clientFor((ClientContext) null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> clients.clientFor(family, null)).isInstanceOf(NullPointerException.class);
+        assertThat(clients.clientFor(family)).isNotNull();
+        assertThat(clients.clientFor(family, new LinkedCoach("dana", com.bladebook.core.domain.StudentStatus.ACTIVE))).isNotNull();
+        assertThat(clients.forCodeLookup()).isNotNull();
+        assertThat(clients.forConsumer()).isNotNull();
     }
 }
