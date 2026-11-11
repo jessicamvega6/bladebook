@@ -3,7 +3,7 @@
  * FeatureDecriptions/Bookings:). One date per pick, one skater per lesson: Repeat is Batch 9 and sharing Batch 11.
  *
  *   #/book                pick a day: the three months of the booking window, one coach at a time
- *   #/book/day/<date>     pick your times on a day; #/book/week/<sunday> opens a week at its first open day
+ *   #/book/day/<date>     pick your times on a day
  *   #/book/result         what happened to each pick, one section per coach
  *
  * Every date and time is the coach's, from api-client, labelled with the coach's time zone. A family sees only
@@ -18,7 +18,7 @@ import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
 import { Avatar, Badge, Banner, Button, Card, Dialog, Help, Icon, Row, Seg } from '../../shared/components/harbor';
 import {
-  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, inWindow, monthWeeks, newKey, plural, samePick,
+  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, inWindow, newKey, plural, samePick,
   slotState, sortPicks, windowMonths, type Pick,
 } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
@@ -40,9 +40,9 @@ interface Result { studentId: string; studentName: string; sections: Section[] }
 export const bookableSkaters = (f: Family) => f.skaters.filter((k) => k.coaches.some((c) => c.status === 'ACTIVE' && c.coachId));
 const activeCoaches = (k: Skater | undefined) => (k?.coaches ?? []).filter((c): c is CoachLink & { coachId: string } => c.status === 'ACTIVE' && !!c.coachId);
 
-export function parseBookRoute(route: string): { view: 'month' | 'day' | 'week' | 'result'; date?: string } {
-  const m = /^#\/book\/(day|week)\/(\d{4}-\d{2}-\d{2})$/.exec(route);
-  if (m) return { view: m[1] as 'day' | 'week', date: m[2] };
+export function parseBookRoute(route: string): { view: 'month' | 'day' | 'result'; date?: string } {
+  const m = /^#\/book\/day\/(\d{4}-\d{2}-\d{2})$/.exec(route);
+  if (m) return { view: 'day', date: m[1] };
   if (route === '#/book/result') return { view: 'result' };
   return { view: 'month' };
 }
@@ -183,7 +183,7 @@ export function Book({ family, api, route, onError }: {
   const body = r.view === 'month'
     ? <MonthPage page={page} kid={kid} month={month && windowMonths(page.windowFirst, page.windowLast).includes(month) ? month : null}
         onMonth={setMonth} pickers={pickers} kept={kept} multiCoach={activeCoaches(kid).length > 1} />
-    : <DayPage page={page} kid={kid} coachId={coachId} picks={picks} date={r.date!} week={r.view === 'week'}
+    : <DayPage page={page} kid={kid} coachId={coachId} picks={picks} date={r.date!}
         pickers={pickers} kept={kept} panel={panel} onToggle={toggle} />;
   return (
     <>
@@ -321,9 +321,6 @@ function MonthPage({ page, kid, month, onMonth, pickers, kept, multiCoach }: {
       </button>
     );
   };
-  const weeks = monthWeeks(ym).map((sun, i) => openIn(sun, addDays(sun, 6))
-    ? <button key={sun} type="button" className="bk-week" onClick={() => go(`#/book/week/${sun}`)}><b>Week {i + 1}</b><span>{shortDate(sun)} – {shortDate(addDays(sun, 6))}</span></button>
-    : <div key={sun} className="bk-week bk-week--off"><b>Week {i + 1}</b><span>Nothing open</span></div>);
 
   return (
     <>
@@ -332,7 +329,8 @@ function MonthPage({ page, kid, month, onMonth, pickers, kept, multiCoach }: {
       <div className="split split--cal bk-split">
         <Card>
           {calbar}
-          <div className="bk-scroll"><div className="bk-calgrid"><div className="bk-weeks"><div className="bk-weeks__h">Jump to</div>{weeks}</div>{grid(cell)}</div></div>
+          {/* No week links beside the month (owner, 2026-11-11): the design's Jump to column is removed. */}
+          <div className="bk-scroll">{grid(cell)}</div>
           <div className="legend">
             <span className="legend__item"><i className="sw sw--open" />Open times</span>
             <span className="legend__item"><i className="sw sw--off" />Nothing open</span>
@@ -359,14 +357,12 @@ function MonthPage({ page, kid, month, onMonth, pickers, kept, multiCoach }: {
 
 // ------------------------------------------------------- 2 · Pick your times
 
-function DayPage({ page, kid, coachId, picks, date, week, pickers, kept, panel, onToggle }: {
-  page: BookingPage; kid: Skater; coachId: string; picks: Pick[]; date: string; week: boolean; pickers: ReactNode;
+function DayPage({ page, kid, coachId, picks, date, pickers, kept, panel, onToggle }: {
+  page: BookingPage; kid: Skater; coachId: string; picks: Pick[]; date: string; pickers: ReactNode;
   kept: ReactNode; panel: ReactNode; onToggle: (t: TimeDto) => void;
 }) {
   const { windowFirst: first, windowLast: last } = page;
-  // A week link opens that week at its first day with an open time (design: bkWeek).
-  const start = week ? (Array.from({ length: 7 }, (_, i) => addDays(date, i)).find((d) => inWindow(d, first, last) && openOn(page, d).length) ?? date) : date;
-  const iso = clamp(start, first, last);
+  const iso = clamp(date, first, last);
   const sun = weekStart(iso);
   const prevOk = sun > first, nextOk = addDays(sun, 7) <= last;
   const times = timesOn(page, iso);
@@ -436,9 +432,8 @@ function DayPage({ page, kid, coachId, picks, date, week, pickers, kept, panel, 
 
   return (
     <>
-      <Head title={week ? `Week of ${shortDate(sun)}` : longDate(iso)}
-        lede={week ? `${longDate(iso)} · ${plural(open, 'open time')} · pick times on any day this week`
-          : times.length ? `${open} of ${times.length} times still open · picks are kept as you move between days` : 'No lesson times on this day'}
+      <Head title={longDate(iso)}
+        lede={times.length ? `${open} of ${times.length} times still open · picks are kept as you move between days` : 'No lesson times on this day'}
         actions={pickers}
         crumb={<a className="link" href="#/book"><Icon name="arrowL" size={14} /> {MONTHS_LONG[Number(iso.slice(5, 7)) - 1]}</a>} />
       {strip}

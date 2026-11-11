@@ -2,7 +2,7 @@
  * The booking pages' rules that don't need the screen (FeatureDecriptions/Bookings:; ADR-MASTER section 7). Dates
  * are the coach's ISO dates ("2026-11-16") and times the coach's "HH:mm"; the server's are the authority.
  */
-import { addDays, addMonths, monthEnd, weekStart } from './schedule';
+import { addMonths } from './schedule';
 
 /** The one message for every date that couldn't be booked, whatever the cause (B1, owner 2026-11-08; wording 2026-11-09). */
 export const UNAVAILABLE = 'That time was taken or no longer exists.';
@@ -20,13 +20,6 @@ export const inWindow = (date: string, first: string, last: string) => date >= f
 
 /** A date held to the window: the day view never leaves it (B5, owner 2026-11-08). */
 export const clamp = (date: string, first: string, last: string) => (date < first ? first : date > last ? last : date);
-
-/** The Sunday-to-Saturday rows of a month's grid, as the Sundays that start them. */
-export function monthWeeks(ym: string): string[] {
-  const first = `${ym}-01`, last = monthEnd(first), out: string[] = [];
-  for (let sun = weekStart(first); sun <= last; sun = addDays(sun, 7)) out.push(sun);
-  return out;
-}
 
 /** A block with no name is labelled from its stored number (S2, ruled 2026-11-08). */
 export const blockLabel = (name: string | null, seq: number) => (name && name.trim() ? name.trim() : `Block ${seq}`);

@@ -63,7 +63,9 @@ describe('1 · pick a day', () => {
     // Only a tick in the square, no name (owner, 2026-11-11).
     expect(sixteenth).not.toHaveTextContent('Ava');
     expect(sixteenth.querySelector('.bk-calmine svg')).not.toBeNull();
-    expect(screen.getByRole('button', { name: /^Week 3/ })).toHaveTextContent('Nov 15 – Nov 21');
+    // No week links beside the month (owner, 2026-11-11).
+    expect(screen.queryByText('Jump to')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Week \d/ })).not.toBeInTheDocument();
     expect(screen.getByText('Cancelling with Coach Dana')).toBeInTheDocument();
 
     await userEvent.click(sixteenth);
@@ -135,13 +137,6 @@ describe('2 · pick your times', () => {
     expect(screen.getByText('No lessons with Dana on Tuesdays')).toBeInTheDocument();
   });
 
-
-  test('a week link opens the week at its first open day', async () => {
-    server(APPROVED, { dana: DANA_PAGE });
-    open('#/book/week/2026-11-15');
-    expect(await screen.findByRole('heading', { name: 'Week of Nov 15' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^6:00 AM/ })).toBeInTheDocument();
-  });
 
   test('tapping a time picks it and tapping again removes it; picks stay as the family moves between days', async () => {
     server(APPROVED, { dana: DANA_PAGE });

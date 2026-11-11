@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, inWindow, monthWeeks, newKey, slotState, sortPicks,
+  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, inWindow, newKey, slotState, sortPicks,
   windowMonths, type Pick,
 } from './booking';
 
@@ -26,14 +26,6 @@ describe('the booking window', () => {
     expect(clamp('2027-02-07', '2026-11-10', '2027-01-31')).toBe('2027-01-31');
     expect(clamp('2026-12-25', '2026-11-10', '2027-01-31')).toBe('2026-12-25');
   });
-});
-
-test('a month’s rows start on the Sundays covering it', () => {
-  // November 2026 starts on a Sunday and ends on a Monday: five rows.
-  expect(monthWeeks('2026-11')).toEqual(['2026-11-01', '2026-11-08', '2026-11-15', '2026-11-22', '2026-11-29']);
-  // January 2027 starts on a Friday: six rows.
-  expect(monthWeeks('2027-01')).toHaveLength(6);
-  expect(monthWeeks('2027-01')[0]).toBe('2026-12-27');
 });
 
 test('an unnamed block is labelled from its number (S2)', () => {
