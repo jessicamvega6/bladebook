@@ -27,6 +27,7 @@ A lesson that has started can't be cancelled, and cancelling needs signal.
     happened, anything larger than one lesson gets the same preview-then-accept step, and families are told once.
   The rinkside app cannot cancel without a connection. *Decided by the owner, 2026-09-30.* With no signal, every cancel
     action — in the check-in list and the cancel section — is disabled, with the note "Cancelling needs a connection."
+    The Week tab shows no lessons offline, only that the week needs a connection (owner, 2026-11-09, R5).
     Check-ins are queued offline because they record something that already happened; a cancellation changes something
     that is about to happen, and a queued one would not reach the family until the phone reconnected — possibly after
     they had left for the rink. It also needs the server for the preview.

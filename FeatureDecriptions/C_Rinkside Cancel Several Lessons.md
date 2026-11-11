@@ -21,5 +21,9 @@ families who will be emailed, and says held times stay closed and this can't be 
 Buttons: "Cancel N lessons" and "Keep them".
 Afterwards a message says how many were cancelled, how many held, and how many families will be emailed.
 
-No signal: the coach can look but not cancel. A banner says cancelling needs a connection and the
-checkboxes are disabled.
+~~No signal: the coach can look but not cancel. A banner says cancelling needs a connection and the
+checkboxes are disabled.~~
+No signal: the Week tab shows no lessons. It says "The week needs a connection. Cancelling needs signal
+too. Today's lessons are on the Today tab." with a "Go to Today" button. *Owner, 2026-11-09 (R5).*
+Why: the phone saves only today's lessons (one device, one day of names, ADR-014), and cancelling needs
+signal anyway, so there is nothing to show or do for the rest of the week.
