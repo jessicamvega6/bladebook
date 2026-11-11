@@ -69,7 +69,7 @@ function Roster({ data }: { data: StudentsDto }) {
                 ))}</tbody>
               </table>
             </div>
-            <div className="card__note"><Icon name="info" size={14} /> Contact details are the family’s. Families change them on their own profile, and the change reaches every coach. Skater numbers are entered by the family and checked for shape only, not with the organization.</div>
+            <div className="card__note"><Icon name="info" size={14} /> Contact details are the family’s. Families change them on their own profile.</div>
           </>
         ) : q ? (
           <div className="pempty"><span className="pempty__icon"><Icon name="users" size={22} /></span><b>No students match “{search.trim()}”</b><span className="muted">Try a first name, a family name or a phone number.</span></div>

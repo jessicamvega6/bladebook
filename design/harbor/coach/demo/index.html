@@ -2770,7 +2770,7 @@ SCREENS.students = () => {
     ${pageHead('Students', 'Everyone you coach, and how to reach their family.', stuTabs(0))}
     <div class="stu-search">${INP('stu-search', 'Search', 'ui.stu.search', { live: true, placeholder: 'Name, family, email or phone' })}</div>
     ${card(list.length ? `<div class="stu-tablewrap"><table class="table stu-table"><thead><tr><th>Skater</th><th>Skater number</th><th>Family contact</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
-      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Families change them on their own profile, and the change reaches every coach. Skater numbers are entered by the family and checked for shape only, not with the organization.</div>`
+      <div class="card__note">${ic('info', 14)} Contact details are the family’s. Families change them on their own profile.</div>`
       : `<div class="pempty"><span class="pempty__icon">${ic('users', 22)}</span><b>No students match “${esc(u.search)}”</b><span class="muted">Try a first name, a family name or a phone number.</span></div>`,
       { pad: false, title: plural(list.length, 'student'), sub: q ? `Matching “${esc(u.search)}”` : `${plural(families(active()).length, 'family', 'families')}` })}`, { width: 'wide' });
 };
