@@ -5,6 +5,7 @@ import com.bladebook.core.domain.IceType;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.ScheduleChange;
+import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -34,8 +35,8 @@ import java.util.Optional;
 
 /**
  * The coach's schedule and lesson times, all in the coach's own partition (ADR-MASTER sections 3, 6, 7):
- * {@code SCHEDULE#DEFAULT}, {@code SCHEDULE#DATE#<date>} (read only until Batch 6 writes them) and
- * {@code LESSON#<date>#<startTime>}.
+ * {@code SCHEDULE#DEFAULT}, {@code SCHEDULE#DATE#<date>} (read only until Batch 6 writes them),
+ * {@code LESSON#<date>#<startTime>}, and, read only, the {@code SEAT#} items booking writes.
  *
  * <p>Lesson-time writes are conditional, so nothing a family has done since the read is undone: a time
  * is added only if it doesn't exist, and removed or replaced only while still in the status it was read
@@ -73,6 +74,11 @@ public final class ScheduleRepository {
         if (item == null || item.isEmpty()) {
             return Optional.empty();
         }
+        return Optional.of(weekly(item));
+    }
+
+    /** The {@code SCHEDULE#DEFAULT} item as a schedule. Also read on the family path, for block names. */
+    static WeeklySchedule weekly(Map<String, AttributeValue> item) {
         Map<DayOfWeek, List<ScheduleBlock>> days = new EnumMap<>(DayOfWeek.class);
         Map<String, AttributeValue> stored = item.containsKey("days") ? item.get("days").m() : Map.of();
         DAY_KEYS.forEach((day, k) -> {
@@ -80,7 +86,7 @@ public final class ScheduleRepository {
                 days.put(day, blocks(stored.get(k)));
             }
         });
-        return Optional.of(new WeeklySchedule(days, Long.parseLong(item.get("scheduleVersion").n())));
+        return new WeeklySchedule(days, Long.parseLong(item.get("scheduleVersion").n()));
     }
 
     /**
@@ -132,6 +138,18 @@ public final class ScheduleRepository {
         List<LessonTime> out = new ArrayList<>();
         for (Map<String, AttributeValue> item : query(ctx, LESSON + from, LESSON + to + "#~")) {
             out.add(lessonFrom(item));
+        }
+        return out;
+    }
+
+    /**
+     * The seats from {@code from} to {@code to} inclusive, in key order: who is booked, for the coach's calendars.
+     * A separate {@code SEAT#} prefix keeps them out of the lesson-time query (ADR-031 decision 2).
+     */
+    public List<Seat> seats(AccessContext ctx, LocalDate from, LocalDate to) {
+        List<Seat> out = new ArrayList<>();
+        for (Map<String, AttributeValue> item : query(ctx, SeatItems.SEAT + from, SeatItems.SEAT + to + "#~")) {
+            out.add(SeatItems.seat(item));
         }
         return out;
     }
@@ -214,7 +232,7 @@ public final class ScheduleRepository {
         return AttributeValue.fromL(out);
     }
 
-    private static List<ScheduleBlock> blocks(AttributeValue list) {
+    static List<ScheduleBlock> blocks(AttributeValue list) {
         List<ScheduleBlock> out = new ArrayList<>();
         for (AttributeValue v : list.l()) {
             Map<String, AttributeValue> m = v.m();

@@ -91,12 +91,18 @@ public final class ScheduleDtos {
     }
 
     /** One lesson time as the coach's calendar shows it. */
-    public record LessonDto(String startTime, int durationMinutes, int priceMinor, String currency, String lessonStatus,
-                            int maxSkaters, int seatsTaken) {
+    /** A skater in a booked time: "Ava P." for the week view; the full name and family for the day view. */
+    public record SkaterDto(String studentId, String shortName, String fullName, String familyName) {
+    }
 
-        static LessonDto of(LessonTime t) {
+    public record LessonDto(String startTime, int durationMinutes, int priceMinor, String currency, String lessonStatus,
+                            int maxSkaters, int seatsTaken, List<SkaterDto> skaters) {
+
+        static LessonDto of(LessonTime t, List<CalendarService.Booked> booked) {
+            List<SkaterDto> in = booked.stream().filter(b -> b.startTime().equals(t.startTime()))
+                    .map(b -> new SkaterDto(b.studentId(), b.shortName(), b.fullName(), b.familyName())).toList();
             return new LessonDto(t.startTime().toString(), t.durationMinutes(), t.priceMinor(), t.currency(),
-                    t.lessonStatus().name(), t.maxSkaters(), t.seatsTaken());
+                    t.lessonStatus().name(), t.maxSkaters(), t.seatsTaken(), in);
         }
     }
 
@@ -109,7 +115,7 @@ public final class ScheduleDtos {
         public static CalendarResponse of(CalendarService.CalendarView v) {
             return new CalendarResponse(v.coachTimezone(), v.today().toString(), v.now().toString(), v.hasSchedule(),
                     v.days().stream().map(d -> new DayDto(d.date().toString(), d.override(),
-                            d.lessons().stream().map(LessonDto::of).toList())).toList());
+                            d.lessons().stream().map(t -> LessonDto.of(t, d.booked())).toList())).toList());
         }
     }
 

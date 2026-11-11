@@ -3,10 +3,11 @@
  * calendar-day). Dates, "today" and "now" are the coach's, from api-coach, never the browser's.
  *
  * Rulings applied: S7 clicking a month date opens that day; S12 the day view as drawn (ruled 2026-11-08).
- * Not yet: who is booked (Batch 4), and every cancel button (Batch 5).
+ * Batch 4: a booked time names its skater, "Ava P." in the week and in full with the family in the day.
+ * Not yet: every cancel button (Batch 5).
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { Banner, Icon } from '../../shared/components/harbor';
+import { Avatar, Banner, Icon } from '../../shared/components/harbor';
 import {
   DAYS, DAYS_LONG, MONTHS_LONG, addDays, addMonths, dayOfWeek, formatClock, formatMoney, formatTime, longDate,
   monthEnd, shortDate, toMinutes, weekStart,
@@ -21,6 +22,8 @@ const isPast = (cal: CalendarDto, date: string, l: LessonDto) =>
   date < cal.today || (date === cal.today && toMinutes(l.startTime) + l.durationMinutes <= toMinutes(cal.now));
 const isBooked = (l: LessonDto) => l.lessonStatus === 'BOOKED';
 const isOpen = (cal: CalendarDto, date: string, l: LessonDto) => l.lessonStatus === 'OPEN' && !isPast(cal, date, l);
+/** A shared lesson names both skaters: "Sam R. & Leo M." (design: whoIn). */
+const whoIn = (l: LessonDto, full = false) => l.skaters.map((s) => (full ? s.fullName : s.shortName)).join(' & ') || 'Booked';
 
 /** The dates a view needs: a month grid (whole weeks), a week, or one day. */
 function span({ view, date }: CalendarRoute): [string, string] {
@@ -158,7 +161,7 @@ function Week({ data, start, views, prompt }: ViewProps & { start: string }) {
             return (
               <div key={l.startTime} className={`wl${kind ? ` wl--${kind}` : ''}${isPast(data, date, l) ? ' wl--past' : ''}`}>
                 <span className="wl__t">{formatClock(l.startTime)}{l.durationMinutes !== 30 ? ` · ${l.durationMinutes}m` : ''}</span>
-                <span className="wl__n">{l.lessonStatus === 'OPEN' ? 'Open' : l.lessonStatus === 'HELD' ? 'Held' : 'Booked'}</span>
+                <span className="wl__n">{l.lessonStatus === 'OPEN' ? 'Open' : l.lessonStatus === 'HELD' ? 'Held' : whoIn(l)}</span>
               </div>
             );
           }) : <div className="week__empty">No lessons</div>}
@@ -211,7 +214,8 @@ function Day({ data, date, views, prompt }: ViewProps & { date: string }) {
                   ? <><span className="roundicon"><Icon name="plus" size={14} /></span><div><div className="row__title">Open</div><div className="row__sub">Families can book this time</div></div></>
                   : l.lessonStatus === 'HELD'
                     ? <><span className="roundicon roundicon--warn"><Icon name="lock" size={14} /></span><div><div className="row__title">Held</div><div className="row__sub">You kept this time closed</div></div></>
-                    : <div><div className="row__title">Booked</div></div>}
+                    : <><Avatar name={whoIn(l, true)} size="sm" /><div><div className="row__title">{whoIn(l, true)}</div>
+                        {l.skaters.some((s) => s.familyName) && <div className="row__sub">{[...new Set(l.skaters.map((s) => s.familyName).filter(Boolean))].join(' · ')}</div>}</div></>}
               </div>
               <div className="row__side"><span className="muted num">{l.durationMinutes} min · {formatMoney(l.priceMinor)}</span></div>
             </div>

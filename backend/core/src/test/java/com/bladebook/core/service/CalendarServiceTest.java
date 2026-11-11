@@ -1,10 +1,16 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.BookingRepository;
+import com.bladebook.core.data.ClientContext;
+import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.DynamoDbLocal;
 import com.bladebook.core.data.ScheduleRepository;
+import com.bladebook.core.data.StudentRepository;
+import com.bladebook.core.domain.BookingRequest;
 import com.bladebook.core.domain.DomainException;
+import com.bladebook.core.domain.LessonTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +46,7 @@ class CalendarServiceTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         schedules = new ScheduleService(repo, coaches);
         change = new ScheduleChangeService(repo, coaches, clock);
-        calendar = new CalendarService(repo, coaches, clock);
+        calendar = new CalendarService(repo, coaches, new StudentRepository(f.clients, f.table), clock);
         ctx = new AccessContext(UUID.randomUUID().toString());
         ScheduleTestSupport.signUp(coaches, ctx);
     }
@@ -79,5 +85,38 @@ class CalendarServiceTest {
     @Test
     void theEndCantComeBeforeTheStart() {
         assertThatThrownBy(() -> calendar.range(ctx, SUNDAY, SUNDAY.minusDays(1))).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void aBookedTimeNamesTheSkaterShortForTheWeekAndInFullWithTheFamilyForTheDay() {
+        FamilyTestSupport t = new FamilyTestSupport();
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        ScheduleRepository repo = new ScheduleRepository(t.f.clients, t.f.table);
+        AccessContext dana = t.coach("Dana", "7K2Q-M9XT");
+        new ScheduleService(repo, t.coaches).save(dana, 0, List.of(mondayMornings(5000)));
+        new ScheduleChangeService(repo, t.coaches, clock).apply(dana);
+        ClientContext park = FamilyTestSupport.newFamily();
+        t.registration.register(park, "sarah@example.com",
+                FamilyTestSupport.guardian(List.of("7K2Q-M9XT"), FamilyTestSupport.kid("Ava Park", "7K2Q-M9XT")));
+        t.studentRepo.list(dana).forEach(r -> t.links.approved(t.studentRepo.approve(dana, r.studentId())));
+        String ava = t.familyService.view(park).skaters().get(0).studentId();
+        new BookingService(new ClientLinks(t.f.clients, t.f.table),
+                new BookingRepository(t.f.clients, t.f.table), t.families, clock)
+                .book(park, BookingRequest.parse(dana.coachId(), ava, UUID.randomUUID().toString(),
+                        List.of(new BookingRequest.PickInput("2026-11-16", "07:00"))));
+
+        CalendarService.CalendarView v = new CalendarService(repo, t.coaches, t.studentRepo, clock)
+                .range(dana, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 21));
+
+        CalendarService.CalendarDay monday = v.days().get(1);
+        assertThat(monday.booked()).singleElement().satisfies(b -> {
+            assertThat(b.startTime()).isEqualTo(LocalTime.of(7, 0));
+            assertThat(b.shortName()).isEqualTo("Ava P.");
+            assertThat(b.fullName()).isEqualTo("Ava Park");
+            assertThat(b.familyName()).isEqualTo("Sarah Park");
+        });
+        assertThat(monday.lessons()).filteredOn(l -> l.startTime().equals(LocalTime.of(7, 0)))
+                .singleElement().satisfies(l -> assertThat(l.lessonStatus()).isEqualTo(LessonTime.Status.BOOKED));
+        assertThat(v.days().get(2).booked()).isEmpty();
     }
 }

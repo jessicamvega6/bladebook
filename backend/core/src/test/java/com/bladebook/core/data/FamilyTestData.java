@@ -5,12 +5,18 @@ import com.bladebook.core.domain.CoachCode;
 import com.bladebook.core.domain.CoachName;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.FamilyProfile;
+import com.bladebook.core.domain.IceType;
+import com.bladebook.core.domain.LessonTime;
+import com.bladebook.core.domain.ScheduleChange;
 import com.bladebook.core.domain.Skater;
 import com.bladebook.core.domain.SkatingOrg;
 import com.bladebook.core.domain.StudentRecord;
 import com.bladebook.core.domain.StudentStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,21 @@ final class FamilyTestData {
     static StudentRecord pending(String coachId, Skater s, FamilyProfile p) {
         return new StudentRecord(coachId, s.studentId(), p.clientId(), StudentStatus.PENDING, s.name(), s.isMinor(),
                 p.relationship(), p.fullName(), p.email(), p.phone(), s.skatingOrg(), s.registrationNumber(), p.createdAt());
+    }
+
+    /** The coach approves the skater, and the family's link follows, as consumer-student-link does. */
+    static void approve(DynamoDbLocal.Fixture f, AccessContext coach, ClientContext family, Skater s) {
+        new StudentRepository(f.clients, f.table).approve(coach, s.studentId());
+        new SyncRepository(f.clients, f.table).setLinkStatus(family.clientId(), coach.coachId(), s.studentId(), StudentStatus.ACTIVE);
+    }
+
+    /** One open lesson time in the coach's partition, as a schedule save makes it. */
+    static LessonTime openTime(DynamoDbLocal.Fixture f, AccessContext coach, LocalDate date, LocalTime start, int price, int maxSkaters) {
+        Instant startsAt = date.atTime(start).atZone(ZoneId.of("America/Chicago")).toInstant();
+        LessonTime t = new LessonTime(date, start, startsAt, "America/Chicago", 30, price, "USD", 0, 24, maxSkaters, 0, 1,
+                IceType.PUBLIC, 1, LessonTime.Status.OPEN);
+        new ScheduleRepository(f.clients, f.table).apply(coach, new ScheduleChange(List.of(t), List.of(), List.of(), 0));
+        return t;
     }
 
     /** Registers a family with each skater joining every coach given. */

@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from './App';
-import { json, WAITING } from './testData';
+import { APPROVED, LESSONS, json, WAITING } from './testData';
 
 beforeEach(() => { sessionStorage.clear(); window.location.hash = ''; });
 afterEach(() => vi.unstubAllGlobals());
@@ -54,4 +54,19 @@ test('a link to a page inside the site keeps the sign-in', async () => {
   vi.stubGlobal('fetch', vi.fn(() => json(200, WAITING)));
   render(<App />);
   expect(await screen.findByRole('heading', { name: 'Welcome, Sarah' })).toBeInTheDocument();
+});
+
+test('an approved family’s menu opens Book a lesson; My bookings is still to come', async () => {
+  sessionStorage.setItem('bb.family.idToken', 'tok');
+  window.location.hash = '#/home';
+  const fetchMock = vi.fn((url: string) => json(200, url === '/api/client/lessons' ? LESSONS : APPROVED));
+  vi.stubGlobal('fetch', fetchMock);
+  render(<App />);
+
+  const nav = await screen.findByRole('navigation', { name: 'Main' });
+  expect(within(nav).getByRole('link', { name: 'Book a lesson' })).toHaveAttribute('href', '#/book');
+  expect(within(nav).getByText('My bookings').closest('.nav__item')).toHaveAttribute('aria-disabled', 'true');
+  // Home reads the family's lessons for Today and Coming up.
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/client/lessons', expect.anything()));
+  expect(await screen.findByRole('heading', { name: 'Coming up' })).toBeInTheDocument();
 });

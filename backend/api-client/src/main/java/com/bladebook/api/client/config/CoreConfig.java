@@ -1,5 +1,7 @@
 package com.bladebook.api.client.config;
 
+import com.bladebook.core.data.BookingRepository;
+import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.FamilyRepository;
 import com.bladebook.core.data.LocalTable;
@@ -7,6 +9,7 @@ import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.domain.RegistrationNumbers;
 import com.bladebook.core.domain.RegistrationRules;
+import com.bladebook.core.service.BookingService;
 import com.bladebook.core.service.CodeLookupService;
 import com.bladebook.core.service.FamilySyncService;
 import com.bladebook.core.service.FamilyService;
@@ -69,6 +72,13 @@ public class CoreConfig {
                                             FamilyService familyService, Clock clock) {
         return new RegistrationService(codes, families, new RegistrationRules(numbers), familyService,
                 () -> UUID.randomUUID().toString(), clock);
+    }
+
+    /** Booking one lesson (Batch 4): the write link check, the family-path booking reads and writes. */
+    @Bean
+    BookingService bookingService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
+                                  Clock clock) {
+        return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, clock);
     }
 
     /** What consumer-family-sync will run on AWS; locally {@code LocalEventDispatcher} calls it. */

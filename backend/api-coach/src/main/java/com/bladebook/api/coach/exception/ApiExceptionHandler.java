@@ -30,6 +30,8 @@ public class ApiExceptionHandler {
                 return body(HttpStatus.NOT_FOUND, "NO_PROFILE", e.getMessage(), null);
             case CONFLICT:
                 return body(HttpStatus.CONFLICT, "CONFLICT", e.getMessage(), null);
+            case NO_SUCH_ITEM:
+                return body(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage(), null);
             default:
                 return body(HttpStatus.BAD_REQUEST, "INVALID", e.getMessage(), e.field());
         }

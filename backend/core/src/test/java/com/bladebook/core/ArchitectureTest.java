@@ -37,7 +37,17 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule familyPathNeverReturnsValuesOnConditionFailure = noClasses()
             .that().haveSimpleNameStartingWith("Family").or().haveSimpleName("CodeRepository")
+            .or().haveSimpleName("BookingRepository").or().haveSimpleName("ClientLinks").or().haveSimpleName("SeatItems")
             .should().dependOnClassesThat().haveSimpleName("ReturnValuesOnConditionCheckFailure")
+            .allowEmptyShould(true);
+
+    /** ADR-MASTER section 16, the write link check: a LinkedSkater is made only by ClientLinks, in core.data. */
+    @ArchTest
+    static final ArchRule onlyCoreDataMakesALinkedSkater = noClasses()
+            .that().resideOutsideOfPackage("com.bladebook.core.data..")
+            .should().callConstructorWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                    com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.type(com.bladebook.core.data.LinkedSkater.class))))
             .allowEmptyShould(true);
 
     @ArchTest

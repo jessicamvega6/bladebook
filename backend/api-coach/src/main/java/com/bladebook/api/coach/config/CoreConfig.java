@@ -64,13 +64,18 @@ public class CoreConfig {
     }
 
     @Bean
-    CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
-        return new CalendarService(schedules, coaches, clock);
+    CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
+        return new CalendarService(schedules, coaches, students, clock);
     }
 
     @Bean
-    StudentService studentService(TenantClients clients, @Value("${bladebook.table}") String table) {
-        return new StudentService(new StudentRepository(clients, table));
+    StudentRepository studentRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new StudentRepository(clients, table);
+    }
+
+    @Bean
+    StudentService studentService(StudentRepository students) {
+        return new StudentService(students);
     }
 
     /** What consumer-student-link will run on AWS; locally {@code LocalEventDispatcher} calls it. */

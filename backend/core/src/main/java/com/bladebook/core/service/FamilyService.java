@@ -34,19 +34,22 @@ public final class FamilyService {
     public record Contact(String firstName, String lastName, String email, String phone, ClientRelationship relationship) {
     }
 
-    /** A skater, and their status with each coach they're with or waiting for. */
-    public record SkaterView(String name, boolean isMinor, SkatingOrg skatingOrg, String registrationNumber,
+    /**
+     * A skater, and their status with each coach they're with or waiting for. The IDs are the family's own:
+     * booking sends them back, and {@code ClientLinks.requireActive} checks them against the family's links.
+     */
+    public record SkaterView(String studentId, String name, boolean isMinor, SkatingOrg skatingOrg, String registrationNumber,
                              List<CoachStatus> coaches) {
     }
 
-    public record CoachStatus(String firstName, String lastName, StudentStatus status) {
+    public record CoachStatus(String coachId, String firstName, String lastName, StudentStatus status) {
     }
 
     /**
      * One coach, listed by name. {@code status} is the family's standing with them; {@code details} is null
      * unless it's {@code ACTIVE}.
      */
-    public record CoachView(String firstName, String lastName, StudentStatus status, List<String> skaterNames,
+    public record CoachView(String coachId, String firstName, String lastName, StudentStatus status, List<String> skaterNames,
                             List<String> waitingNames, CoachPublicProfile details) {
     }
 
@@ -66,10 +69,10 @@ public final class FamilyService {
             List<CoachStatus> with = new ArrayList<>();
             for (SkaterLink l : a.links()) {
                 if (l.studentId().equals(k.studentId())) {
-                    with.add(new CoachStatus(l.coachFirstName(), l.coachLastName(), l.status()));
+                    with.add(new CoachStatus(l.coachId(), l.coachFirstName(), l.coachLastName(), l.status()));
                 }
             }
-            skaters.add(new SkaterView(k.name(), k.isMinor(), k.skatingOrg(), k.registrationNumber(), with));
+            skaters.add(new SkaterView(k.studentId(), k.name(), k.isMinor(), k.skatingOrg(), k.registrationNumber(), with));
         }
         skaters.sort(Comparator.comparing(SkaterView::name, String.CASE_INSENSITIVE_ORDER));
 
@@ -79,7 +82,7 @@ public final class FamilyService {
                     .sorted(Comparator.comparing(SkaterLink::studentName, String.CASE_INSENSITIVE_ORDER)).toList();
             SkaterLink any = with.get(0);
             Optional<CoachPublicProfile> details = families.coachProfile(ctx, coach);
-            coaches.add(new CoachView(any.coachFirstName(), any.coachLastName(),
+            coaches.add(new CoachView(coach.coachId(), any.coachFirstName(), any.coachLastName(),
                     standing.statusWith(coach.coachId()).orElseThrow(),
                     with.stream().map(SkaterLink::studentName).toList(),
                     standing.waitingWith(coach.coachId()).stream().map(SkaterLink::studentName)
