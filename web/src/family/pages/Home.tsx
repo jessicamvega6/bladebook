@@ -105,32 +105,37 @@ function Waiting({ family }: { family: Family }) {
   );
 }
 
-/** A lesson row (design: acLessonRow): the coach's time, the skater, and the coach when there's more than one. */
-function LessonRow({ l, multi }: { l: FamilyLesson; multi: boolean }) {
-  const today = l.date === todayIn(l.coachTz);
+/**
+ * A lesson row (design: acLessonRow): the coach's time, the skater, and the coach when there's more than one.
+ * The date sits to the right of the name (owner, 2026-11-11); the Today card leaves it out, its heading says it.
+ */
+function LessonRow({ l, multi, showDate }: { l: FamilyLesson; multi: boolean; showDate: boolean }) {
   return (
-    <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b><small>{today ? 'Today' : `${DAYS[new Date(`${l.date}T00:00:00Z`).getUTCDay()]}, ${shortDate(l.date)}`}</small></span>
-      <Avatar name={l.studentName} size="sm" /></>}
-      title={l.studentName} sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min`}
+    <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
+      title={<>{l.studentName}{showDate && <span className="ac-date">{dateOf(l.date)}</span>}</>}
+      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min`}
       side={<Badge tone="primary">Booked</Badge>} />
   );
 }
+
+const dateOf = (date: string) => `${DAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]}, ${shortDate(date)}`;
 
 function Lessons({ lessons, multi }: { lessons: FamilyLesson[] | null; multi: boolean }) {
   if (!lessons) return <Card title="Today"><p className="muted" aria-busy="true">Loading…</p></Card>;
   const now = Date.now();
   const today = lessons.filter((l) => l.date === todayIn(l.coachTz));
-  const next = lessons.filter((l) => Date.parse(l.startsAtUtc) > now).slice(0, 4);
+  // Coming up starts tomorrow: today's lessons are in the Today card (owner, 2026-11-11).
+  const next = lessons.filter((l) => l.date !== todayIn(l.coachTz) && Date.parse(l.startsAtUtc) > now).slice(0, 4);
   const first = next[0];
   return (
     <>
       <Card title="Today" sub={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} flush>
-        {today.length ? today.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} />)
+        {today.length ? today.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} showDate={false} />)
           : <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span><b>No lessons today</b>
-              <span className="muted">{first ? `Next: ${firstName(first.studentName)}, ${DAYS[new Date(`${first.date}T00:00:00Z`).getUTCDay()]}, ${shortDate(first.date)} at ${formatShort(first.startTime)}` : 'Nothing booked yet.'}</span></div>}
+              <span className="muted">{first ? `Next: ${firstName(first.studentName)}, ${dateOf(first.date)} at ${formatShort(first.startTime)}` : 'Nothing booked yet.'}</span></div>}
       </Card>
       <Card title="Coming up" flush>
-        {next.length ? next.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} />)
+        {next.length ? next.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} showDate />)
           : <div className="pempty"><b>Nothing booked</b><span className="muted"><a className="link" href="#/book">Book a lesson</a></span></div>}
       </Card>
     </>

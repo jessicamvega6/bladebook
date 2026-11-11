@@ -97,3 +97,6 @@
 .bb .bk-cellhead { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .bb .cal__cell .cal__meta { white-space: nowrap; }
 @media (max-width: 1200px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
+
+/* Not in the design: a lesson's date to the right of the skater's name on Home (owner, 2026-11-11). */
+.bb .ac-date { font-weight: var(--w-reg); font-size: 13px; color: var(--text-3); white-space: nowrap; }

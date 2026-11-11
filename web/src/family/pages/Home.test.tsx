@@ -57,23 +57,29 @@ test('an approved family can book from Home, and sees what’s coming up', () =>
   expect(today).toHaveTextContent('No lessons today');
   expect(today).toHaveTextContent('Next: Ava, Mon, Nov 16 at 7am');
   const next = screen.getByRole('heading', { name: 'Coming up' }).closest('section')!;
-  expect(within(next).getByText('Ava Park')).toBeInTheDocument();
-  expect(next).toHaveTextContent('Mon, Nov 16');
+  // The date sits to the right of the name, not under the time (owner, 2026-11-11).
+  expect(within(next).getByText('Ava Park').closest('.row__title')).toHaveTextContent('Ava ParkMon, Nov 16');
+  expect(next.querySelector('.ac-when')).toHaveTextContent(/^7am$/);
   expect(next).toHaveTextContent('30 min');
   expect(next).not.toHaveTextContent('Coach Dana');
   const goTo = screen.getByRole('heading', { name: 'Go to' }).closest('section')!;
   expect(within(goTo).getByText('My bookings').closest('.quick__item')).toHaveAttribute('aria-disabled', 'true');
 });
 
-test('a lesson today is under Today, and with two coaches each lesson names its coach', () => {
+test('a lesson today is under Today only, not Coming up; with two coaches each lesson names its coach', () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-16T12:00:00Z'));
-  render(<Home family={TWO_COACHES} lessons={LESSONS} />);
+  const later = { ...LESSONS[0]!, date: '2026-11-24', startTime: '12:00', startsAtUtc: '2026-11-24T18:00:00Z' };
+  render(<Home family={TWO_COACHES} lessons={[...LESSONS, later]} />);
 
   const today = screen.getByRole('heading', { name: 'Today' }).closest('section')!;
   expect(today).toHaveTextContent('Ava Park');
-  expect(today).toHaveTextContent('Today');
   expect(today).toHaveTextContent('Coach Dana · 30 min');
+  expect(today).not.toHaveTextContent('Mon, Nov 16');
+  // Today's 7:00 hasn't started yet, but it stays out of Coming up (owner, 2026-11-11).
+  const next = screen.getByRole('heading', { name: 'Coming up' }).closest('section')!;
+  expect(next.querySelectorAll('.row')).toHaveLength(1);
+  expect(next).toHaveTextContent('Tue, Nov 24');
 });
 
 test('nothing booked yet points to booking', () => {
