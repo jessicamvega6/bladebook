@@ -1,6 +1,8 @@
 package com.bladebook.api.client.controller;
 
 import com.bladebook.api.client.config.LocalEventDispatcher;
+import com.bladebook.api.client.dto.FamilyDtos.AddCoachBody;
+import com.bladebook.api.client.dto.FamilyDtos.AddSkaterBody;
 import com.bladebook.api.client.dto.FamilyDtos.ContactBody;
 import com.bladebook.api.client.dto.FamilyDtos.FamilyResponse;
 import com.bladebook.api.client.dto.FamilyDtos.RegistrationBody;
@@ -52,5 +54,17 @@ public class FamilyController {
         FamilyResponse r = FamilyResponse.of(families.updateContact(ctx, body.firstName(), body.lastName(), body.phone()));
         localEvents.ifAvailable(e -> e.familyChanged(ctx));
         return r;
+    }
+
+    /** Profile → Add a skater (A9; ADR-025 item k): waiting for each approved coach picked, or with none yet. */
+    @PostMapping("/api/client/me/skaters")
+    public FamilyResponse addSkater(@AuthenticationPrincipal Jwt jwt, @RequestBody AddSkaterBody body) {
+        return FamilyResponse.of(registration.addSkater(CurrentFamily.of(jwt), body.toRequest()));
+    }
+
+    /** Profile → Add a coach (ADR-025 d2): each chosen skater waits for that coach alone. */
+    @PostMapping("/api/client/me/coaches")
+    public FamilyResponse addCoach(@AuthenticationPrincipal Jwt jwt, @RequestBody AddCoachBody body) {
+        return FamilyResponse.of(registration.addCoach(CurrentFamily.of(jwt), body.coachCode(), body.studentIds()));
     }
 }

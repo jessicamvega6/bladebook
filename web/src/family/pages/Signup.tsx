@@ -46,7 +46,7 @@ function phoneOk(p: string) {
   return /^[0-9 +().-]+$/.test(p.trim()) && digits >= 10 && digits <= 15;
 }
 
-function CoachFound({ coach, extra }: { coach: FoundCoach; extra?: ReactNode }) {
+export function CoachFound({ coach, extra }: { coach: FoundCoach; extra?: ReactNode }) {
   return (
     <div className="found">
       <span className="avatar" aria-hidden="true">{coach.initials}</span>
@@ -56,7 +56,7 @@ function CoachFound({ coach, extra }: { coach: FoundCoach; extra?: ReactNode }) 
   );
 }
 
-function OrgFields({ org, number, onOrg, onNumber }: { org: number; number: string; onOrg: (i: number) => void; onNumber: (v: string) => void }) {
+export function OrgFields({ org, number, onOrg, onNumber }: { org: number; number: string; onOrg: (i: number) => void; onNumber: (v: string) => void }) {
   const o = SKATING_ORGS[org]!;
   return (
     <>
