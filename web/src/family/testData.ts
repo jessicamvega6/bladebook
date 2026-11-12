@@ -1,5 +1,5 @@
 /** Families for the family website's tests. */
-import type { BookingPage, Family, FamilyLesson, TimeDto } from './api';
+import type { BookingPage, Family, MyLesson, TimeDto } from './api';
 
 export const WAITING: Family = {
   contact: { firstName: 'Sarah', lastName: 'Park', email: 'sarah@example.com', phone: '(205) 555-0196', relationship: 'GUARDIAN' },
@@ -70,8 +70,8 @@ export const BEN_PAGE: BookingPage = {
   times: [time('2026-11-17', '17:00', { blockName: 'Evening' })],
 };
 
-export const LESSONS: FamilyLesson[] = [
-  { coachId: 'dana', coachFirstName: 'Dana', studentId: 'ava', studentName: 'Ava Park', date: '2026-11-16', startTime: '07:00', durationMinutes: 30, startsAtUtc: '2026-11-16T13:00:00Z', coachTz: 'America/Chicago' },
+export const LESSONS: MyLesson[] = [
+  { coachId: 'dana', coachFirstName: 'Dana', studentId: 'ava', studentName: 'Ava Park', date: '2026-11-16', startTime: '07:00', durationMinutes: 30, startsAtUtc: '2026-11-16T13:00:00Z', coachTz: 'America/Chicago', priceMinor: 5000, currency: 'USD', requiredNoticeHours: 24 },
 ];
 
 export function json(status: number, body: unknown) {

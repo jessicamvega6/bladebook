@@ -3,6 +3,7 @@ package com.bladebook.api.client.dto;
 import com.bladebook.core.domain.BookingOutcome;
 import com.bladebook.core.domain.BookingRequest;
 import com.bladebook.core.service.BookingService;
+import com.bladebook.core.service.CancellationService;
 
 import java.util.List;
 
@@ -24,6 +25,36 @@ public final class BookingDtos {
         public static LessonDto of(BookingService.FamilyLesson l) {
             return new LessonDto(l.coachId(), l.coachFirstName(), l.studentId(), l.studentName(), l.date().toString(),
                     l.startTime().toString(), l.durationMinutes(), l.startsAtUtc().toString(), l.coachTz());
+        }
+    }
+
+    /** A lesson on My bookings: the family's share of the price, and the lesson's own notice period. */
+    public record MyLessonDto(String coachId, String coachFirstName, String studentId, String studentName, String date,
+                              String startTime, int durationMinutes, String startsAtUtc, String coachTz, Integer priceMinor,
+                              String currency, int requiredNoticeHours) {
+        public static MyLessonDto of(BookingService.MyLesson m) {
+            BookingService.FamilyLesson l = m.lesson();
+            return new MyLessonDto(l.coachId(), l.coachFirstName(), l.studentId(), l.studentName(), l.date().toString(),
+                    l.startTime().toString(), l.durationMinutes(), l.startsAtUtc().toString(), l.coachTz(), m.priceMinor(),
+                    m.currency(), m.requiredNoticeHours());
+        }
+    }
+
+    public record MyBookingsResponse(List<MyLessonDto> upcoming, List<MyLessonDto> recent) {
+        public static MyBookingsResponse of(BookingService.MyBookings b) {
+            return new MyBookingsResponse(b.upcoming().stream().map(MyLessonDto::of).toList(),
+                    b.recent().stream().map(MyLessonDto::of).toList());
+        }
+    }
+
+    public record CancelBody(String coachId, String studentId, String date, String startTime) {
+    }
+
+    /** {@code late}: inside the notice period, so the coach is told. */
+    public record CancelResponse(String outcome, boolean late, String coachFirstName, String studentName, String date, String startTime) {
+        public static CancelResponse of(CancellationService.FamilyCancel c) {
+            return new CancelResponse(c.outcome().name(), c.late(), c.coachFirstName(), c.studentName(), c.date().toString(),
+                    c.startTime().toString());
         }
     }
 

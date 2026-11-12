@@ -189,7 +189,8 @@ class BookingServiceTest {
     void upcomingListsTheFamilysLessonsWithEveryCoachInOrder() {
         book(park, ava, UUID.randomUUID().toString(), pick(MONDAY.plusDays(7), "07:00"), pick(MONDAY, "06:30"));
 
-        List<BookingService.FamilyLesson> up = booking.upcoming(park);
+        List<BookingService.FamilyLesson> up = booking.upcoming(park).stream().map(BookingService.MyLesson::lesson).toList();
+        assertThat(booking.upcoming(park).get(0).priceMinor()).isEqualTo(5000);
 
         assertThat(up).extracting(BookingService.FamilyLesson::date).containsExactly(MONDAY, MONDAY.plusDays(7));
         assertThat(up.get(0).coachFirstName()).isEqualTo("Dana");
@@ -209,5 +210,44 @@ class BookingServiceTest {
         BookingPage p = booking.page(lee, ben.coachId(), idOf(lee, "Sam Lee"));
         assertThat(p.hasSchedule()).isFalse();
         assertThat(p.times()).isEmpty();
+    }
+
+    @Test
+    void myBookingsListsWhatsComingWithItsPriceAndTheLastLessonsNewestFirst() {
+        book(park, ava, UUID.randomUUID().toString(), pick(MONDAY, "07:00"), pick(MONDAY, "06:00"), pick(MONDAY.plusDays(7), "06:00"));
+
+        BookingService.MyBookings mine = booking.myBookings(park);
+        assertThat(mine.upcoming()).extracting(l -> l.lesson().date() + " " + l.lesson().startTime())
+                .containsExactly("2026-11-16 06:00", "2026-11-16 07:00", "2026-11-23 06:00");
+        assertThat(mine.upcoming().get(0).priceMinor()).isEqualTo(5000);
+        assertThat(mine.upcoming().get(0).currency()).isEqualTo("USD");
+        assertThat(mine.upcoming().get(0).requiredNoticeHours()).isEqualTo(24);
+        assertThat(mine.upcoming().get(0).lesson().studentName()).isEqualTo("Ava Park");
+        assertThat(mine.recent()).isEmpty();
+
+        // Monday at 7:15 AM: both of Monday's lessons have started.
+        BookingService later = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table),
+                t.families, Clock.fixed(Instant.parse("2026-11-16T13:15:00Z"), ZoneOffset.UTC));
+        BookingService.MyBookings after = later.myBookings(park);
+        assertThat(after.upcoming()).extracting(l -> l.lesson().date().toString()).containsExactly("2026-11-23");
+        assertThat(after.recent()).extracting(l -> l.lesson().startTime().toString()).containsExactly("07:00", "06:00");
+    }
+
+    @Test
+    void myBookingsShowsTheLastFourOnly() {
+        for (LocalDate d = MONDAY; d.isBefore(MONDAY.plusDays(35)); d = d.plusDays(7)) {
+            book(park, ava, UUID.randomUUID().toString(), pick(d, "06:00"));
+        }
+        BookingService later = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table),
+                t.families, Clock.fixed(Instant.parse("2026-12-30T15:00:00Z"), ZoneOffset.UTC));
+        assertThat(later.myBookings(park).recent()).extracting(l -> l.lesson().date().toString())
+                .containsExactly("2026-12-14", "2026-12-07", "2026-11-30", "2026-11-23");
+    }
+
+    @Test
+    void myBookingsIsEmptyForAFamilyWithNothingBooked() {
+        BookingService.MyBookings mine = booking.myBookings(park);
+        assertThat(mine.upcoming()).isEmpty();
+        assertThat(mine.recent()).isEmpty();
     }
 }

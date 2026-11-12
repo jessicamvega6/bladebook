@@ -246,6 +246,65 @@ class BookingApiTest {
         assertThat(new ScheduleRepository(clients, table).seats(dana, day, day)).isEmpty();
     }
 
+    private String cancelBody(String studentId, String time) {
+        return "{\"coachId\":\"" + dana.coachId() + "\",\"studentId\":\"" + studentId + "\",\"date\":\"" + day
+                + "\",\"startTime\":\"" + time + "\"}";
+    }
+
+    @Test
+    void myBookingsListsTheLessonWithItsPriceAndNoticePeriod() throws Exception {
+        approve("Ava Park");
+        call("POST", "/api/client/bookings", token, bookBody(skaterId("Ava Park"), UUID.randomUUID().toString(), "10:30"));
+
+        Res r = call("GET", "/api/client/bookings", token, null);
+
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("upcoming")).hasSize(1);
+        JsonNode l = r.body().get("upcoming").get(0);
+        assertThat(l.get("studentName").asString()).isEqualTo("Ava Park");
+        assertThat(l.get("priceMinor").asInt()).isEqualTo(5000);
+        assertThat(l.get("currency").asString()).isEqualTo("USD");
+        assertThat(l.get("requiredNoticeHours").asInt()).isEqualTo(24);
+        assertThat(r.body().get("recent")).isEmpty();
+    }
+
+    @Test
+    void cancellingFreesTheTimeAndAskingAgainIsAlreadyCancelled() throws Exception {
+        approve("Ava Park");
+        String ava = skaterId("Ava Park");
+        call("POST", "/api/client/bookings", token, bookBody(ava, UUID.randomUUID().toString(), "10:00"));
+
+        Res r = call("POST", "/api/client/bookings/cancel", token, cancelBody(ava, "10:00"));
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.s("outcome")).isEqualTo("CANCELLED");
+        assertThat(r.s("coachFirstName")).isEqualTo("Dana");
+        assertThat(r.s("studentName")).isEqualTo("Ava Park");
+        assertThat(r.body().get("late").isBoolean()).isTrue();
+
+        assertThat(new ScheduleRepository(clients, table).seats(dana, day, day)).isEmpty();
+        Res page = call("GET", "/api/client/booking?coachId=" + dana.coachId() + "&studentId=" + ava, token, null);
+        assertThat(page.body().get("times").get(0).get("free").asBoolean()).isTrue();
+        assertThat(call("GET", "/api/client/bookings", token, null).body().get("upcoming")).isEmpty();
+
+        assertThat(call("POST", "/api/client/bookings/cancel", token, cancelBody(ava, "10:00")).s("outcome")).isEqualTo("ALREADY_CANCELLED");
+    }
+
+    @Test
+    void cancellingSomeoneElsesSkaterIsAPlainNotFound() throws Exception {
+        approve("Ava Park");
+        Res r = call("POST", "/api/client/bookings/cancel", token, cancelBody(UUID.randomUUID().toString(), "10:00"));
+        assertThat(r.status()).isEqualTo(404);
+        assertThat(r.s("error")).isEqualTo("NOT_FOUND");
+    }
+
+    @Test
+    void aBadDateIsRefused() throws Exception {
+        approve("Ava Park");
+        String body = "{\"coachId\":\"" + dana.coachId() + "\",\"studentId\":\"" + skaterId("Ava Park")
+                + "\",\"date\":\"soon\",\"startTime\":\"10:00\"}";
+        assertThat(call("POST", "/api/client/bookings/cancel", token, body).status()).isEqualTo(400);
+    }
+
     @Test
     void noTokenCantBook() throws Exception {
         assertThat(call("POST", "/api/client/bookings", null, "{}").status()).isEqualTo(401);

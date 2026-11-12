@@ -89,6 +89,40 @@ class ScheduleApiTest {
     }
 
     @Test
+    void cancelRestOfAFutureWeekHoldsEveryOpenTimeAndTheScheduleStays() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        LocalDate sunday = nextSunday();
+
+        Res r = call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"WEEK\",\"weekStart\":\"" + sunday + "\"}");
+
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("openHeld").asInt()).isEqualTo(7);
+        assertThat(r.body().get("cancelled").asInt()).isZero();
+        assertThat(r.body().get("families").asInt()).isZero();
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(13), token, null);
+        for (int i = 0; i < 14; i++) {
+            assertThat(cal.body().get("days").get(i).get("lessons").get(0).get("lessonStatus").asString()).isEqualTo(i < 7 ? "HELD" : "OPEN");
+        }
+        assertThat(call("GET", "/api/coach/schedule", token, null).body().get("scheduleVersion").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void cancellingAnOpenTimeAsALessonFindsNothingToCancel() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        Res r = call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"LESSON\",\"picks\":[{\"date\":\"" + nextSunday()
+                + "\",\"startTime\":\"09:00\",\"after\":\"HOLD\"}]}");
+        assertThat(r.status()).isEqualTo(409);
+        assertThat(r.s("message")).isEqualTo("These lessons have already started or were cancelled.");
+    }
+
+    @Test
+    void aCancelWithNoScopeOrChoiceIsInvalid() throws Exception {
+        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"MONTH\"}").status()).isEqualTo(400);
+        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"DAY\",\"picks\":[{\"date\":\"" + nextSunday()
+                + "\",\"startTime\":\"09:00\"}]}").s("message")).isEqualTo("Choose release or hold for each lesson.");
+    }
+
+    @Test
     void aNewCoachHasNoScheduleYet() throws Exception {
         Res r = call("GET", "/api/coach/schedule", token, null);
         assertThat(r.status()).isEqualTo(200);

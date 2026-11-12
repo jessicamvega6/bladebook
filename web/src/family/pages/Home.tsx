@@ -5,12 +5,13 @@
  * coach is shown beyond the name (ADR-022 d6).
  * Approved by a coach (Batch 4 closes G-16): Book a lesson, banners for coaches still waiting, Today and Coming
  * up from the family's own lessons with every coach, the skaters, one card per coach with the contact details and
- * payment types that coach shows, and Go to. My bookings arrives with Batch 5; Payments is Phase 2.
+ * payment types that coach shows, and Go to. Batch 5: each lesson's price, My bookings in Go to and "All bookings"
+ * on Coming up. Payments is Phase 2.
  */
 import { Avatar, Badge, Banner, Card, Icon, Row } from '../../shared/components/harbor';
 import { firstName, joinNames } from '../../shared/logic/names';
-import { DAYS, formatShort, shortDate, todayIn } from '../../shared/logic/schedule';
-import type { Family, FamilyLesson } from '../api';
+import { DAYS, formatMoney, formatShort, shortDate, todayIn } from '../../shared/logic/schedule';
+import type { Family, MyLesson } from '../api';
 
 type Coach = Family['coaches'][number];
 type Skater = Family['skaters'][number];
@@ -109,18 +110,18 @@ function Waiting({ family }: { family: Family }) {
  * A lesson row (design: acLessonRow): the coach's time, the skater, and the coach when there's more than one.
  * The date sits to the right of the name (owner, 2026-11-11); the Today card leaves it out, its heading says it.
  */
-function LessonRow({ l, multi, showDate }: { l: FamilyLesson; multi: boolean; showDate: boolean }) {
+function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDate: boolean }) {
   return (
     <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
       title={<>{l.studentName}{showDate && <span className="ac-date">{dateOf(l.date)}</span>}</>}
-      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min`}
+      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}`}
       side={<Badge tone="primary">Booked</Badge>} />
   );
 }
 
 const dateOf = (date: string) => `${DAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]}, ${shortDate(date)}`;
 
-function Lessons({ lessons, multi }: { lessons: FamilyLesson[] | null; multi: boolean }) {
+function Lessons({ lessons, multi }: { lessons: MyLesson[] | null; multi: boolean }) {
   if (!lessons) return <Card title="Today"><p className="muted" aria-busy="true">Loading…</p></Card>;
   const now = Date.now();
   const today = lessons.filter((l) => l.date === todayIn(l.coachTz));
@@ -134,7 +135,7 @@ function Lessons({ lessons, multi }: { lessons: FamilyLesson[] | null; multi: bo
           : <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span><b>No lessons today</b>
               <span className="muted">{first ? `Next: ${firstName(first.studentName)}, ${dateOf(first.date)} at ${formatShort(first.startTime)}` : 'Nothing booked yet.'}</span></div>}
       </Card>
-      <Card title="Coming up" flush>
+      <Card title="Coming up" flush action={<a className="link" href="#/bookings">All bookings</a>}>
         {next.length ? next.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} showDate />)
           : <div className="pempty"><b>Nothing booked</b><span className="muted"><a className="link" href="#/book">Book a lesson</a></span></div>}
       </Card>
@@ -147,7 +148,7 @@ function GoTo() {
     <Card title="Go to">
       <div className="quick">
         <a className="quick__item" href="#/book"><span className="quick__icon"><Icon name="calendar" size={18} /></span><span>Book a lesson</span></a>
-        <span className="quick__item is-disabled" aria-disabled="true" title="Comes in a later batch"><span className="quick__icon"><Icon name="repeat" size={18} /></span><span>My bookings</span></span>
+        <a className="quick__item" href="#/bookings"><span className="quick__icon"><Icon name="repeat" size={18} /></span><span>My bookings</span></a>
         <a className="quick__item" href="#/profile"><span className="quick__icon"><Icon name="user" size={18} /></span><span>Profile</span></a>
         <span className="quick__item is-disabled" aria-disabled="true"><span className="quick__icon"><Icon name="card" size={18} /></span><span>Payments</span><small>Phase 2</small></span>
       </div>
@@ -155,7 +156,7 @@ function GoTo() {
   );
 }
 
-export function Home({ family, lessons = null }: { family: Family; lessons?: FamilyLesson[] | null }) {
+export function Home({ family, lessons = null }: { family: Family; lessons?: MyLesson[] | null }) {
   if (family.waiting) return <Waiting family={family} />;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';

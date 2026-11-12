@@ -46,6 +46,19 @@ export interface FamilyLesson {
   durationMinutes: number; startsAtUtc: string; coachTz: string;
 }
 
+/** A lesson on Home and My bookings: the family's share of the price (null if it can't be read) and its notice period. */
+export interface MyLesson extends FamilyLesson {
+  priceMinor: number | null; currency: string | null; requiredNoticeHours: number;
+}
+
+/** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
+export interface MyBookings { upcoming: MyLesson[]; recent: MyLesson[] }
+
+/** {@code late}: inside the notice period, so the coach is told. */
+export interface CancelResult {
+  outcome: 'CANCELLED' | 'ALREADY_CANCELLED'; late: boolean; coachFirstName: string; studentName: string; date: string; startTime: string;
+}
+
 /** One coach's booking page for one skater: every time in the booking window. */
 export interface BookingPage {
   coachFirstName: string; coachLastName: string; coachTimezone: string; requiredNoticeHours: number;
@@ -81,7 +94,13 @@ export function familyApi(token: string) {
       apiFetch<BookingPage>(`/api/client/booking?coachId=${encodeURIComponent(coachId)}&studentId=${encodeURIComponent(studentId)}`, { token }),
     /** One request per coach. A server error is retried once with the same key, so nothing is booked twice. */
     book: (body: BookBody) => apiFetch<BookResult>('/api/client/bookings', { method: 'POST', body, token, idempotent: true }),
-    lessons: () => apiFetch<FamilyLesson[]>('/api/client/lessons', { token }),
+    lessons: () => apiFetch<MyLesson[]>('/api/client/lessons', { token }),
+    myBookings: () => apiFetch<MyBookings>('/api/client/bookings', { token }),
+    /** Safe to retry: asking again for a lesson already gone answers ALREADY_CANCELLED. */
+    cancel: (l: { coachId: string; studentId: string; date: string; startTime: string }) =>
+      apiFetch<CancelResult>('/api/client/bookings/cancel', {
+        method: 'POST', body: { coachId: l.coachId, studentId: l.studentId, date: l.date, startTime: l.startTime }, token, idempotent: true,
+      }),
   };
 }
 

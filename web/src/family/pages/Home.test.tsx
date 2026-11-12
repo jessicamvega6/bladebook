@@ -60,10 +60,11 @@ test('an approved family can book from Home, and sees what’s coming up', () =>
   // The date sits to the right of the name, not under the time (owner, 2026-11-11).
   expect(within(next).getByText('Ava Park').closest('.row__title')).toHaveTextContent('Ava ParkMon, Nov 16');
   expect(next.querySelector('.ac-when')).toHaveTextContent(/^7am$/);
-  expect(next).toHaveTextContent('30 min');
+  expect(next).toHaveTextContent('30 min · $50');
+  expect(within(next).getByRole('link', { name: 'All bookings' })).toHaveAttribute('href', '#/bookings');
   expect(next).not.toHaveTextContent('Coach Dana');
   const goTo = screen.getByRole('heading', { name: 'Go to' }).closest('section')!;
-  expect(within(goTo).getByText('My bookings').closest('.quick__item')).toHaveAttribute('aria-disabled', 'true');
+  expect(within(goTo).getByRole('link', { name: 'My bookings' })).toHaveAttribute('href', '#/bookings');
 });
 
 test('a lesson today is under Today only, not Coming up; with two coaches each lesson names its coach', () => {
