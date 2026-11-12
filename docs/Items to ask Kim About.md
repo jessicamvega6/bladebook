@@ -461,6 +461,30 @@ let one account be both a coach and a family, with one email and password (owner
 
 ---
 
+## 14. Special schedules set up by mistake
+
+*Added 2026-11-12.*
+
+**The scenario.** A coach can now delete time off or a special schedule. Deleting a special
+schedule puts the normal week back on those dates, which can cancel lessons families booked under
+it. Today every family affected is emailed straight away. If a coach sets up the wrong special
+schedule and deletes it, families could get an email for a mistake.
+
+**Questions:**
+
+1. How likely is it that a coach adds the wrong special schedule (wrong dates, wrong times, wrong
+   prices) and has to remove or redo it?
+2. If that happened, would you rather families were emailed at once, or would you rather check
+   and send the emails yourself?
+
+**What the answers decide:**
+
+- Whether Phase 2 stops emailing families automatically after a schedule change, and lets the
+  coach review and send instead (`FeatureDecriptions/C_Coach Schedule Hub.md`, "Deleting time off
+  or a special schedule").
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.

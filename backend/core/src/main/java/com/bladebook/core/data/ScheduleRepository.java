@@ -1,11 +1,13 @@
 package com.bladebook.core.data;
 
+import com.bladebook.core.domain.BlockTemplate;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.IceType;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.ScheduleChange;
 import com.bladebook.core.domain.Seat;
+import com.bladebook.core.domain.TempSchedule;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -35,7 +37,8 @@ import java.util.Optional;
 
 /**
  * The coach's schedule and lesson times, all in the coach's own partition (ADR-MASTER sections 3, 6, 7):
- * {@code SCHEDULE#DEFAULT}, {@code SCHEDULE#DATE#<date>} (read only until Batch 6 writes them),
+ * {@code SCHEDULE#DEFAULT}, {@code SCHEDULE#DATE#<date>} and {@code SCHEDULE#TEMP#<tempId>} (time off and special
+ * schedules, Batch 6),
  * {@code LESSON#<date>#<startTime>}, and, read only, the {@code SEAT#} items booking writes.
  *
  * <p>Lesson-time writes are conditional, so nothing a family has done since the read is undone: a time
@@ -64,6 +67,11 @@ public final class ScheduleRepository {
     public ScheduleRepository(TenantClients clients, String table) {
         this.clients = clients;
         this.table = table;
+    }
+
+    /** The change batches in this coach's partition, on the same table. */
+    public ChangeBatchRepository changeBatches() {
+        return new ChangeBatchRepository(clients, table);
     }
 
     // ------------------------------------------------------- default schedule
@@ -129,6 +137,131 @@ public final class ScheduleRepository {
             out.put(date, item.containsKey("blocks") ? blocks(item.get("blocks")) : List.of());
         }
         return out;
+    }
+
+    // ------------------------------------------- time off and special schedules
+
+    static final String TEMP = "SCHEDULE#TEMP#";
+    /** Date items per transaction: TransactWriteItems takes 100 (ADR-MASTER section 6 chunks past 99 days). */
+    static final int DATE_CHUNK = 99;
+
+    /** Every time off and special schedule, by start date. */
+    public List<TempSchedule> temps(AccessContext ctx) {
+        List<TempSchedule> out = new ArrayList<>();
+        for (Map<String, AttributeValue> item : query(ctx, TEMP, TEMP + "~")) {
+            out.add(tempFrom(item));
+        }
+        out.sort(java.util.Comparator.comparing(TempSchedule::startDate));
+        return out;
+    }
+
+    public Optional<TempSchedule> temp(AccessContext ctx, String tempId) {
+        Map<String, AttributeValue> m = db(ctx).getItem(GetItemRequest.builder().tableName(table).consistentRead(true)
+                .key(key(ctx, TempSchedule.key(tempId))).build()).item();
+        return m == null || m.isEmpty() ? Optional.empty() : Optional.of(tempFrom(m));
+    }
+
+    /**
+     * Saves time off or a special schedule: on an edit, the old version's date items go first (only those still
+     * carrying its {@code tempId}); then one date item per date, up to 99 per transaction, each written only where no
+     * other one already has the date; then the header, last (ADR-MASTER section 6).
+     *
+     * @param previous the version opened for editing, or {@code null} for a new one
+     * @throws DomainException CONFLICT if another time off or special schedule took one of the dates meanwhile
+     */
+    public void saveTemp(AccessContext ctx, TempSchedule t, TempSchedule previous) {
+        if (previous != null) {
+            for (LocalDate d : previous.dates()) {
+                try {
+                    db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, DATE + d))
+                            .conditionExpression("tempId = :id").expressionAttributeValues(Map.of(":id", s(previous.tempId()))).build());
+                } catch (ConditionalCheckFailedException gone) {
+                    // Already gone or someone else's: nothing to remove.
+                }
+            }
+        }
+        List<TransactWriteItem> writes = new ArrayList<>();
+        t.dateBlocks().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> {
+            Map<String, AttributeValue> item = new HashMap<>(key(ctx, DATE + e.getKey()));
+            item.put("blocks", blocksAttr(e.getValue()));
+            item.put("tempId", s(t.tempId()));
+            writes.add(TransactWriteItem.builder().put(Put.builder().tableName(table).item(item)
+                    .conditionExpression("attribute_not_exists(SK) OR tempId = :id")
+                    .expressionAttributeValues(Map.of(":id", s(t.tempId()))).build()).build());
+        });
+        for (int i = 0; i < writes.size(); i += DATE_CHUNK) {
+            try {
+                db(ctx).transactWriteItems(TransactWriteItemsRequest.builder()
+                        .transactItems(writes.subList(i, Math.min(writes.size(), i + DATE_CHUNK))).build());
+            } catch (TransactionCanceledException e) {
+                throw DomainException.conflict("Another time off or special schedule was saved on these dates. Reload the page and try again.");
+            }
+        }
+        db(ctx).putItem(PutItemRequest.builder().tableName(table).item(tempItem(ctx, t)).build());
+    }
+
+    /**
+     * Deletes time off or a special schedule: its date items (only those still carrying its {@code tempId}) first,
+     * then its header (ADR-MASTER section 6). The weekly schedule applies to those dates again.
+     */
+    public void deleteTemp(AccessContext ctx, TempSchedule t) {
+        for (LocalDate d : t.dates()) {
+            try {
+                db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, DATE + d))
+                        .conditionExpression("tempId = :id").expressionAttributeValues(Map.of(":id", s(t.tempId()))).build());
+            } catch (ConditionalCheckFailedException gone) {
+                // Already gone or someone else's: nothing to remove.
+            }
+        }
+        db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, t.key())).build());
+    }
+
+    private static Map<String, AttributeValue> tempItem(AccessContext ctx, TempSchedule t) {
+        Map<String, AttributeValue> m = new HashMap<>(key(ctx, t.key()));
+        m.put("tempId", s(t.tempId()));
+        m.put("tempKind", s(t.kind().name()));
+        m.put("scheduleName", s(t.name()));
+        m.put("startDate", s(t.startDate().toString()));
+        m.put("endDate", s(t.endDate().toString()));
+        List<AttributeValue> templates = new ArrayList<>();
+        for (BlockTemplate b : t.templates()) {
+            Map<String, AttributeValue> x = new HashMap<>();
+            x.put("seq", n(b.seq()));
+            x.put("blockName", s(b.name()));
+            x.put("startTime", s(b.startTime().toString()));
+            x.put("endTime", s(b.effectiveEnd().toString()));
+            x.put("lessonMinutes", n(b.lessonMinutes()));
+            x.put("priceMinor", n(b.priceMinor()));
+            x.put("maxSkaters", n(b.maxSkaters()));
+            x.put("iceType", s(b.iceType().name()));
+            Map<String, AttributeValue> off = new HashMap<>();
+            t.off().getOrDefault(b.seq(), Map.of()).forEach((d, times) ->
+                    off.put(d.toString(), AttributeValue.fromL(times.stream().sorted().map(tt -> s(tt.toString())).toList())));
+            x.put("off", AttributeValue.fromM(off));
+            templates.add(AttributeValue.fromM(x));
+        }
+        m.put("templates", AttributeValue.fromL(templates));
+        return m;
+    }
+
+    private static TempSchedule tempFrom(Map<String, AttributeValue> m) {
+        List<BlockTemplate> templates = new ArrayList<>();
+        Map<Integer, Map<LocalDate, java.util.Set<LocalTime>>> off = new HashMap<>();
+        if (m.containsKey("templates")) {
+            for (AttributeValue v : m.get("templates").l()) {
+                Map<String, AttributeValue> x = v.m();
+                int seq = i(x, "seq");
+                templates.add(new BlockTemplate(seq, x.get("blockName").s(), LocalTime.parse(x.get("startTime").s()),
+                        LocalTime.parse(x.get("endTime").s()), i(x, "lessonMinutes"), i(x, "priceMinor"), i(x, "maxSkaters"),
+                        IceType.valueOf(x.get("iceType").s()), java.util.Set.of(), Map.of()));
+                Map<LocalDate, java.util.Set<LocalTime>> byDate = new HashMap<>();
+                x.getOrDefault("off", AttributeValue.fromM(Map.of())).m().forEach((d, times) ->
+                        byDate.put(LocalDate.parse(d), new java.util.HashSet<>(times.l().stream().map(tt -> LocalTime.parse(tt.s())).toList())));
+                off.put(seq, byDate);
+            }
+        }
+        return new TempSchedule(m.get("tempId").s(), TempSchedule.Kind.valueOf(m.get("tempKind").s()), m.get("scheduleName").s(),
+                LocalDate.parse(m.get("startDate").s()), LocalDate.parse(m.get("endDate").s()), templates, off);
     }
 
     // ----------------------------------------------------------- lesson times
@@ -243,7 +376,7 @@ public final class ScheduleRepository {
         return out;
     }
 
-    private static Map<String, AttributeValue> lessonItem(AccessContext ctx, LessonTime t) {
+    static Map<String, AttributeValue> lessonItem(AccessContext ctx, LessonTime t) {
         Map<String, AttributeValue> m = new HashMap<>(key(ctx, t.key()));
         m.put("lessonStatus", s(t.lessonStatus().name()));
         m.put("lessonDate", s(t.lessonDate().toString()));

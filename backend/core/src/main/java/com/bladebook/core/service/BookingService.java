@@ -58,9 +58,11 @@ public final class BookingService {
     /** Everything the booking pages need for one coach and skater: the whole window at once. */
     public record BookingPage(String coachFirstName, String coachLastName, String coachTimezone, int requiredNoticeHours,
                               LocalDate today, LocalTime now, LocalDate windowFirst, LocalDate windowLast,
-                              boolean hasSchedule, List<Time> times, List<FamilyLesson> familyLessons) {
+                              boolean hasSchedule, List<Time> times, List<FamilyLesson> familyLessons,
+                              List<BookingRepository.Special> specials) {
 
         public BookingPage {
+            specials = List.copyOf(specials);
             times = List.copyOf(times);
             familyLessons = List.copyOf(familyLessons);
         }
@@ -131,7 +133,7 @@ public final class BookingService {
 
         return new BookingPage(coach.firstName(), coach.lastName(), coach.coachTimezone(), coach.requiredNoticeHours(),
                 local.toLocalDate(), local.toLocalTime().truncatedTo(ChronoUnit.MINUTES), window.first(), window.last(),
-                hasSchedule, times, mine);
+                hasSchedule, times, mine, bookings.specials(ctx, skater.coach(), window.first(), window.last()));
     }
 
     /**

@@ -108,7 +108,11 @@ public final class ScheduleDtos {
         }
     }
 
-    public record DayDto(String date, boolean override, List<LessonDto> lessons) {
+    /** {@code special}: the time off or special schedule on that date ({@code kind}, {@code name}, dates), or null. */
+    public record SpecialDto(String kind, String name, String startDate, String endDate) {
+    }
+
+    public record DayDto(String date, boolean override, List<LessonDto> lessons, SpecialDto special) {
     }
 
     /** {@code today} and {@code now} are the coach's, in the coach's time zone. */
@@ -117,7 +121,9 @@ public final class ScheduleDtos {
         public static CalendarResponse of(CalendarService.CalendarView v) {
             return new CalendarResponse(v.coachTimezone(), v.today().toString(), v.now().toString(), v.hasSchedule(),
                     v.days().stream().map(d -> new DayDto(d.date().toString(), d.override(),
-                            d.lessons().stream().map(t -> LessonDto.of(t, d.booked())).toList())).toList());
+                            d.lessons().stream().map(t -> LessonDto.of(t, d.booked())).toList(),
+                            d.special() == null ? null : new SpecialDto(d.special().kind().name(), d.special().displayName(),
+                                    d.special().startDate().toString(), d.special().endDate().toString()))).toList());
         }
     }
 
@@ -135,7 +141,7 @@ public final class ScheduleDtos {
     }
 
     /** {@code HH:mm} on the quarter hour (ADR-MASTER section 6), or {@code null} when blank. */
-    static LocalTime time(String field, String s) {
+    public static LocalTime time(String field, String s) {
         if (s == null || s.isBlank()) {
             return null;
         }

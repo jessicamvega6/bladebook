@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { scheduleApi, type Profile, type ScheduleDto, type TemplateDto } from '../api';
-import { ScheduleHub, WeeklyEditor } from './Schedule';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { scheduleApi, type PreviewDto, type Profile, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, WeeklyEditor } from './Schedule';
 
 const PROFILE: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com', businessEmail: 'dana@gmail.com',
@@ -19,8 +19,17 @@ function json(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
 }
 
-function serve(schedule: ScheduleDto, onPut?: (body: { scheduleVersion: number; templates: TemplateDto[] }, auth: string) => Promise<Response>) {
+const NOTHING: PreviewDto = { cancel: [], reprice: [], kept: [], families: 0, big: [] };
+
+function serve(schedule: ScheduleDto, onPut?: (body: { scheduleVersion: number; templates: TemplateDto[] }, auth: string) => Promise<Response>,
+  extra: { preview?: PreviewDto; temps?: TempDto[]; onTemp?: (body: TempDto, method: string) => Promise<Response> } = {}) {
   const f = vi.fn((url: string, init?: RequestInit) => {
+    if (url === '/api/coach/schedule/preview' || url === '/api/coach/schedule/temps/preview') return json(200, extra.preview ?? NOTHING);
+    if (url === '/api/coach/schedule/temps' && (!init?.method || init.method === 'GET')) return json(200, extra.temps ?? []);
+    if (url.startsWith('/api/coach/schedule/temps/') && (!init?.method || init.method === 'GET')) {
+      return json(200, (extra.temps ?? []).find((t) => url.endsWith(`/${t.tempId}`)) ?? {});
+    }
+    if (url.startsWith('/api/coach/schedule/temps') && extra.onTemp) return extra.onTemp(JSON.parse(init!.body as string), init!.method!);
     if (url === '/api/coach/schedule' && (!init?.method || init.method === 'GET')) return json(200, schedule);
     if (url === '/api/coach/schedule' && init?.method === 'PUT' && onPut) {
       return onPut(JSON.parse(init.body as string), new Headers(init.headers).get('Authorization') ?? '');
@@ -82,7 +91,7 @@ test('building a week and saving sends the templates with the version it opened'
   expect(screen.getByText('No clashes · 4 lessons a week')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
   expect(screen.getByRole('heading', { name: 'Review your changes' })).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Accept & save' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
 
   await waitFor(() => expect(props.onSaved).toHaveBeenCalled());
   expect(sent).toEqual({ scheduleVersion: 0, templates: [{ seq: 1, name: 'Morning ice', startTime: '06:00', endTime: '08:00',
@@ -142,7 +151,7 @@ test('a save past 15 minutes asks to sign in again, keeps the edits and retries 
   const props = editor();
   await screen.findByRole('heading', { name: 'Edit Morning ice' });
   await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
-  await userEvent.click(screen.getByRole('button', { name: 'Accept & save' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
 
   expect(await screen.findByRole('dialog', { name: 'Confirm it’s you' })).toBeInTheDocument();
   expect(props.onError).not.toHaveBeenCalled();
@@ -159,7 +168,7 @@ test('a save from a stale window shows why and stays on the review', async () =>
   editor();
   await screen.findByRole('heading', { name: 'Edit Morning ice' });
   await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
-  await userEvent.click(screen.getByRole('button', { name: 'Accept & save' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
   expect(await screen.findByText('Your schedule changed in another window. Reload the page and try again.')).toBeInTheDocument();
 });
 
@@ -172,9 +181,141 @@ test('Undo edits puts the saved week back', async () => {
   expect(screen.queryByText(/Block 2/)).not.toBeInTheDocument();
 });
 
-test('the hub offers to build the week, and time off is not available yet', async () => {
-  serve({ scheduleVersion: 0, exists: false, templates: [] });
+test('the hub offers to build the week and to add dates, and lists time off and special schedules', async () => {
+  serve({ scheduleVersion: 0, exists: false, templates: [] }, undefined, { temps: [CAMP, THANKSGIVING] });
   render(<ScheduleHub api={scheduleApi('t')} profile={PROFILE} flash="" onError={vi.fn()} />);
-  expect(await screen.findByRole('link', { name: /Build your teaching week/ })).toHaveAttribute('href', '#/schedule/weekly');
-  expect(screen.getByText('Add time off or a special schedule').closest('[aria-disabled]')).toHaveAttribute('aria-disabled', 'true');
+  expect(await screen.findByRole('link', { name: /Build your repeating weekly schedule/ })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(screen.getByRole('link', { name: /Add time off or a special schedule/ })).toHaveAttribute('href', '#/schedule/dates');
+  const list = (await screen.findByRole('heading', { name: 'Time off and special schedules' })).closest('section')!;
+  expect(list).toHaveTextContent('Holiday camp weekSpecial schedule');
+  expect(list).toHaveTextContent('Dec 21 – 27');
+  expect(list).toHaveTextContent('Thanksgiving breakNo lessons');
+  // Only a special schedule has Edit, as drawn; both can be deleted (owner, 2026-11-12).
+  expect(within(list).getAllByRole('link', { name: 'Edit' })).toHaveLength(1);
+  expect(within(list).getByRole('link', { name: 'Edit' })).toHaveAttribute('href', '#/schedule/special/camp');
+  expect(within(list).getByRole('link', { name: 'Delete Thanksgiving break' })).toHaveAttribute('href', '#/schedule/delete/tg');
+  expect(within(list).getByRole('link', { name: 'Delete Holiday camp week' })).toHaveAttribute('href', '#/schedule/delete/camp');
+});
+
+const CAMP: TempDto = {
+  tempId: 'camp', kind: 'SPECIAL', name: 'Holiday camp week', displayName: 'Holiday camp week', startDate: '2026-12-21', endDate: '2026-12-27',
+  templates: [{ seq: 5, name: 'Camp ice', startTime: '09:00', endTime: '16:00', lessonMinutes: 60, priceMinor: 8000, maxSkaters: 1, iceType: 'BFSC_FREESTYLE', days: [], off: {} }],
+};
+const THANKSGIVING: TempDto = { tempId: 'tg', kind: 'TIME_OFF', name: 'Thanksgiving break', displayName: 'Thanksgiving break', startDate: '2026-11-22', endDate: '2026-11-28', templates: [] };
+
+const IMPACT = (date: string, startTime: string, name: string, price: number, newPrice: number | null = null) =>
+  ({ date, startTime, durationMinutes: 30, priceMinor: price, newPriceMinor: newPrice, skaters: [{ studentId: name, name, familyId: name }] });
+
+test('the review lists what the save cancels and re-prices, and a big cut must be ticked before accepting', async () => {
+  serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, (body) => json(200, { ...body, scheduleVersion: 2, exists: true }), {
+    preview: {
+      cancel: [IMPACT('2026-11-16', '07:00', 'Mia R.', 5000)],
+      reprice: [IMPACT('2026-11-23', '06:00', 'Ava P.', 5000, 500)],
+      kept: [IMPACT('2026-11-12', '06:00', 'Leo M.', 5000, 6000)],
+      families: 2, big: [{ seq: 1, label: 'Morning ice', fromMinor: 5000, toMinor: 500, percent: 90, cut: true }],
+    },
+  });
+  const props = editor();
+  await screen.findByRole('heading', { name: 'Edit Morning ice' });
+  await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Check this price — it’s a big change');
+  expect(alert).toHaveTextContent('Morning ice drops from $50 to $5, a 90% cut.');
+  expect(screen.getByRole('heading', { name: '1 lesson will be cancelled' }).closest('section')).toHaveTextContent('Mia R.Mon, Nov 16 · 7:00 AM');
+  expect(screen.getByRole('heading', { name: '1 upcoming lesson will change price' }).closest('section')).toHaveTextContent('Good news — some lessons are now cheaper.');
+  expect(screen.getByRole('heading', { name: 'Not changed — inside your 24-hour notice' }).closest('section')).toHaveTextContent('stays $50');
+  expect(screen.getByText('Families emailed').nextElementSibling).toHaveTextContent('2');
+
+  const accept = screen.getByRole('button', { name: 'Tick the box above to continue' });
+  expect(accept).toBeDisabled();
+  await userEvent.click(screen.getByLabelText('I’ve checked the new price'));
+  await userEvent.click(screen.getByRole('button', { name: 'Accept & email 2 families' }));
+  await waitFor(() => expect(props.onSaved).toHaveBeenCalledWith(expect.objectContaining({ lessons: 2, families: 2 })));
+});
+
+test('Add dates offers time off or a special schedule, and points a sick day to Cancel this day', () => {
+  render(<ChooseDates />);
+  expect(screen.getByRole('link', { name: /No lessons/ })).toHaveAttribute('href', '#/schedule/time-off');
+  expect(screen.getByRole('link', { name: /Special schedule/ })).toHaveAttribute('href', '#/schedule/special/new');
+  expect(screen.getByText('Sick today?')).toBeInTheDocument();
+});
+
+describe('time off', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-14T15:00:00Z')); });
+  afterEach(() => vi.useRealTimers());
+
+  test('an overlap is named and blocks review; clear dates show the booked count, review, and save', async () => {
+    let saved: TempDto | undefined;
+    serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, undefined, {
+      temps: [THANKSGIVING], preview: { ...NOTHING, cancel: [IMPACT('2026-10-26', '06:00', 'Mia C.', 5000)], families: 1 },
+      onTemp: (body) => { saved = body; return json(200, { ...body, tempId: 'new' }); },
+    });
+    const onSaved = vi.fn();
+    render(<TimeOffForm api={scheduleApi('t')} profile={PROFILE} onSaved={onSaved} onToken={vi.fn()} onError={vi.fn()} />);
+    await screen.findByRole('heading', { name: 'Time off' });
+
+    fireEvent.change(screen.getByLabelText('First day off'), { target: { value: '2026-11-23' } });
+    fireEvent.change(screen.getByLabelText('Last day off'), { target: { value: '2026-11-24' } });
+    expect(screen.getByText('These dates overlap Thanksgiving break (Nov 22 – 28) on Nov 23 – 24. Edit Thanksgiving break to change those days, or choose dates outside it.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Review changes/ })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('First day off'), { target: { value: '2026-10-26' } });
+    fireEvent.change(screen.getByLabelText('Last day off'), { target: { value: '2026-10-27' } });
+    await userEvent.type(screen.getByLabelText(/^Name/), 'Fall break');
+    expect(await screen.findByText('1 booked lesson will be cancelled')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
+
+    expect(await screen.findByText('Fall break · no lessons Oct 26 – 27')).toBeInTheDocument();
+    expect(screen.getByText(/These times stop existing, so nobody can rebook them./)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Accept & email 1 family' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(saved).toEqual({ tempId: null, kind: 'TIME_OFF', name: 'Fall break', startDate: '2026-10-26', endDate: '2026-10-27', templates: [] });
+  });
+});
+
+test('a special schedule shows one column per date and switches a time off on that date only', async () => {
+  let saved: TempDto | undefined;
+  serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, undefined, {
+    temps: [CAMP], onTemp: (body, method) => { saved = { ...body, tempId: method === 'PUT' ? 'camp' : null }; return json(200, body); },
+  });
+  const onSaved = vi.fn();
+  render(<ScheduleEditor api={scheduleApi('t')} profile={PROFILE} special="camp" onSaved={onSaved} onToken={vi.fn()} onError={vi.fn()} />);
+  expect(await screen.findByRole('heading', { name: 'Holiday camp week' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Start date')).toHaveValue('2026-12-21');
+  expect(screen.queryByRole('group', { name: 'Days' })).not.toBeInTheDocument();
+  expect(screen.getByText(/Every date · 9am–4pm · 60 min · \$80/)).toBeInTheDocument();
+  expect(screen.getByText('7 dates · 49 lessons')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Tue 22 10:00 AM on' }));
+  expect(screen.getByText('7 dates · 48 lessons')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Wed 23 10:00 AM on' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
+  expect(await screen.findByText('Holiday camp week · Dec 21 – 27 · weekly schedule resumes after Dec 27')).toBeInTheDocument();
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(saved?.tempId).toBe('camp');
+  expect(saved?.templates[0]?.off).toEqual({ '2026-12-22': ['10:00'] });
+});
+
+test('deleting a special schedule reviews what it cancels, then deletes it', async () => {
+  const deleted: string[] = [];
+  const f = serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, undefined, {
+    temps: [CAMP],
+  });
+  f.mockImplementation(((url: string, init?: RequestInit) => {
+    if (url === '/api/coach/schedule/temps/camp/delete-preview') {
+      return json(200, { ...NOTHING, cancel: [IMPACT('2026-12-22', '10:00', 'Noah C.', 8000)], families: 1 });
+    }
+    if (url === '/api/coach/schedule/temps/camp' && init?.method === 'DELETE') { deleted.push(url); return json(200, CAMP); }
+    if (url === '/api/coach/schedule/temps/camp') return json(200, CAMP);
+    return json(500, {});
+  }) as never);
+  const onSaved = vi.fn();
+  render(<DeleteDates api={scheduleApi('t')} profile={PROFILE} tempId="camp" onSaved={onSaved} onToken={vi.fn()} onError={vi.fn()} />);
+  expect(await screen.findByText('Delete Holiday camp week · Dec 21 – 27 · your weekly schedule applies to these dates again')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '1 lesson will be cancelled' }).closest('section')).toHaveTextContent('Noah C.');
+  await userEvent.click(screen.getByRole('button', { name: 'Accept & email 1 family' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ lessons: 1, families: 1 })));
+  expect(deleted).toEqual(['/api/coach/schedule/temps/camp']);
 });

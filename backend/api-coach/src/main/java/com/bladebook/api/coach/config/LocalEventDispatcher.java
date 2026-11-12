@@ -1,6 +1,7 @@
 package com.bladebook.api.coach.config;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.domain.ChangeBatch;
 import com.bladebook.core.domain.StudentRecord;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.StudentLinkService;
@@ -29,11 +30,12 @@ public class LocalEventDispatcher {
         this.studentLink = studentLink;
     }
 
-    /** {@code ScheduleChanged}. */
-    public void scheduleChanged(AccessContext ctx) {
-        ScheduleChangeService.Result r = scheduleChange.apply(ctx);
-        LOG.info("ScheduleChanged (local): {} added, {} removed, {} updated, {} skipped, {} booked left alone",
-                r.added(), r.removed(), r.replaced(), r.skipped(), r.bookedNotChanged());
+    /** {@code ScheduleChanged}, from the weekly schedule ({@code DEFAULT}) or a dated one ({@code DATE_OVERRIDE}). */
+    public ScheduleChangeService.Result scheduleChanged(AccessContext ctx, ChangeBatch.Source source) {
+        ScheduleChangeService.Result r = scheduleChange.apply(ctx, source);
+        LOG.info("ScheduleChanged (local): {} added, {} removed, {} updated, {} skipped; {} cancelled, {} re-priced, {} families",
+                r.added(), r.removed(), r.replaced(), r.skipped(), r.cancelled(), r.repriced(), r.families());
+        return r;
     }
 
     /** {@code StudentChanged}, status now {@code ACTIVE}. No approval email: Phase 2 (A10). */

@@ -64,6 +64,8 @@ export interface BookingPage {
   coachFirstName: string; coachLastName: string; coachTimezone: string; requiredNoticeHours: number;
   today: string; now: string; windowFirst: string; windowLast: string; hasSchedule: boolean;
   times: TimeDto[]; familyLessons: FamilyLesson[];
+  /** The coach's time off and special schedules in the window (G-24). Optional: older answers have none. */
+  specials?: Array<{ kind: 'TIME_OFF' | 'SPECIAL'; name: string; startDate: string; endDate: string }>;
 }
 
 export type Outcome = 'BOOKED' | 'ALREADY_BOOKED' | 'UNAVAILABLE';

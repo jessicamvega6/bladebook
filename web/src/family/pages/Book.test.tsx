@@ -137,6 +137,16 @@ describe('2 · pick your times', () => {
     expect(screen.getByText('No lessons with Dana on Tuesdays')).toBeInTheDocument();
   });
 
+  test('a day of the coach’s time off says they’re away, and special hours are named (G-24)', async () => {
+    const specials = [{ kind: 'TIME_OFF' as const, name: 'Fall break', startDate: '2026-11-10', endDate: '2026-11-11' },
+      { kind: 'SPECIAL' as const, name: 'Holiday camp', startDate: '2026-11-16', endDate: '2026-11-16' }];
+    server(APPROVED, { dana: { ...DANA_PAGE, specials } });
+    open('#/book/day/2026-11-10');
+    expect(await screen.findByText('Dana is away (Fall break)')).toBeInTheDocument();
+    open('#/book/day/2026-11-16');
+    expect(await screen.findByText('Special hours from Nov 16 to Nov 16.')).toBeInTheDocument();
+  });
+
 
   test('tapping a time picks it and tapping again removes it; picks stay as the family moves between days', async () => {
     server(APPROVED, { dana: DANA_PAGE });

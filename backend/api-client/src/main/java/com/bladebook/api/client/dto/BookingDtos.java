@@ -60,14 +60,19 @@ public final class BookingDtos {
 
     public record PageResponse(String coachFirstName, String coachLastName, String coachTimezone, int requiredNoticeHours,
                                String today, String now, String windowFirst, String windowLast, boolean hasSchedule,
-                               List<TimeDto> times, List<LessonDto> familyLessons) {
+                               List<TimeDto> times, List<LessonDto> familyLessons, List<SpecialDto> specials) {
         public static PageResponse of(BookingService.BookingPage p) {
             return new PageResponse(p.coachFirstName(), p.coachLastName(), p.coachTimezone(), p.requiredNoticeHours(),
                     p.today().toString(), p.now().toString(), p.windowFirst().toString(), p.windowLast().toString(), p.hasSchedule(),
                     p.times().stream().map(t -> new TimeDto(t.date().toString(), t.startTime().toString(), t.endTime().toString(),
                             t.durationMinutes(), t.priceMinor(), t.currency(), t.blockSeq(), t.blockName(), t.free(), t.started())).toList(),
-                    p.familyLessons().stream().map(LessonDto::of).toList());
+                    p.familyLessons().stream().map(LessonDto::of).toList(),
+                    p.specials().stream().map(x -> new SpecialDto(x.kind(), x.name(), x.startDate().toString(), x.endDate().toString())).toList());
         }
+    }
+
+    /** The coach's time off ({@code TIME_OFF}) or special schedule ({@code SPECIAL}): the day view says so (G-24). */
+    public record SpecialDto(String kind, String name, String startDate, String endDate) {
     }
 
     public record PickBody(String date, String startTime) {

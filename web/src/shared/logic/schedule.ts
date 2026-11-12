@@ -225,3 +225,59 @@ export const longDate = (date: string): string => { const d = parse(date); retur
 export function todayIn(timeZone: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }
+
+// ------------------------------------------------ time off and special schedules (Batch 6)
+
+/** A special schedule shows one column per date, so it runs at most 31 days; time off at most 366 (TempRules). */
+export const MAX_SPECIAL_DAYS = 31;
+export const MAX_TIME_OFF_DAYS = 366;
+
+/** Every date from {@code a} to {@code b} inclusive, at most {@code max}. */
+export function datesBetween(a: string, b: string, max = MAX_TIME_OFF_DAYS + 1): string[] {
+  const out: string[] = [];
+  if (!a || !b || b < a) return out;
+  for (let d = a; d <= b && out.length < max; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+/** "Dec 21", "Dec 21 – 27", "Nov 30 – Dec 4": the design's date ranges. */
+export function dateRange(a: string, b: string): string {
+  if (a === b) return shortDate(a);
+  return a.slice(0, 7) === b.slice(0, 7) ? `${shortDate(a)} – ${Number(b.slice(8))}` : `${shortDate(a)} – ${shortDate(b)}`;
+}
+
+/** A special schedule's block on one date: the weekday's rules with that date's times off ({@code off} is keyed by date). */
+export const forDate = (t: Template, date: string): Template => {
+  const dow = dayOfWeek(date);
+  return { ...t, days: [dow], off: { [String(dow)]: t.off[date] ?? [] } };
+};
+
+/** A special schedule's block checks: the weekly ones, on one day standing for every date, worded for dates. */
+export function specialProblems(templates: Template[]): string[] {
+  return problems(templates.map((t) => ({ ...t, days: [1], off: {} })))
+    .map((p) => (p.startsWith('Monday: ') ? `On these dates, ${p.slice('Monday: '.length)}` : p));
+}
+
+export interface TempSummary { tempId: string; kind: 'TIME_OFF' | 'SPECIAL'; displayName: string; startDate: string; endDate: string }
+
+/** The date checks the server makes (TempRules), worded the same, for the form before review. */
+export function tempProblems(kind: TempSummary['kind'], name: string, sd: string, ed: string, others: TempSummary[], today: string,
+  self: string | null, savedStart: string | null): string[] {
+  const off = kind === 'TIME_OFF';
+  const out: string[] = [];
+  if (name.trim().length > MAX_NAME) out.push(`The name can be up to ${MAX_NAME} characters.`);
+  if (!sd || !ed) { out.push(off ? 'Time off needs a first and last day.' : 'A special schedule needs a start and end date.'); return out; }
+  if (ed < sd) { out.push(off ? 'The last day is before the first day.' : 'The end date is before the start date.'); return out; }
+  if (sd < today && sd !== savedStart) out.push(off ? 'The first day off can’t be in the past.' : 'The start date can’t be in the past.');
+  const days = datesBetween(sd, ed).length;
+  if (off && days > MAX_TIME_OFF_DAYS) out.push(`Time off can be at most ${MAX_TIME_OFF_DAYS} days. Add another for the rest.`);
+  else if (!off && days > MAX_SPECIAL_DAYS) out.push(`A special schedule can be at most ${MAX_SPECIAL_DAYS} days.`);
+  for (const o of others) {
+    if (o.tempId === self) continue;
+    const s = sd > o.startDate ? sd : o.startDate, e = ed < o.endDate ? ed : o.endDate;
+    if (s <= e) {
+      out.push(`These dates overlap ${o.displayName} (${dateRange(o.startDate, o.endDate)}) on ${dateRange(s, e)}. Edit ${o.displayName} to change those days, or choose dates outside it.`);
+    }
+  }
+  return out;
+}

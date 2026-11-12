@@ -110,7 +110,7 @@ class BookingApiTest {
     private void open(LocalTime start) {
         LessonTime t = new LessonTime(day, start, day.atTime(start).atZone(CHICAGO).toInstant(), "America/Chicago", 30, 5000, "USD",
                 0, 24, 1, 0, 1, IceType.PUBLIC, 1, LessonTime.Status.OPEN);
-        new ScheduleRepository(clients, table).apply(dana, new ScheduleChange(List.of(t), List.of(), List.of(), 0));
+        new ScheduleRepository(clients, table).apply(dana, new ScheduleChange(List.of(t), List.of(), List.of()));
     }
 
     private String signUp() {

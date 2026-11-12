@@ -74,7 +74,7 @@ test('the day view lists every time with its length and price', async () => {
 test('a coach with no schedule is prompted to build one', async () => {
   serve({ ...BASE, hasSchedule: false, days: days('2026-11-10', 1, () => []) });
   render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-10' }} onError={vi.fn()} />);
-  expect(await screen.findByRole('link', { name: 'Build your teaching week' })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(await screen.findByRole('link', { name: 'Build your repeating weekly schedule' })).toHaveAttribute('href', '#/schedule/weekly');
   expect(screen.getByText('No lessons on Tuesdays')).toBeInTheDocument();
 });
 
@@ -200,4 +200,27 @@ test('a lesson gone since the preview shows the server’s message on the previe
   await userEvent.click(screen.getByRole('button', { name: 'Cancel 1 lesson' }));
   expect(await screen.findByText('These lessons have already started or were cancelled.')).toBeInTheDocument();
   await waitFor(() => expect(onError).not.toHaveBeenCalled());
+});
+
+test('time off and a special schedule are named on the week and day views', async () => {
+  const off = { kind: 'TIME_OFF' as const, name: 'Thanksgiving break', startDate: '2026-11-22', endDate: '2026-11-28' };
+  const camp = { kind: 'SPECIAL' as const, name: 'Holiday camp', startDate: '2026-11-17', endDate: '2026-11-18' };
+  const body = { ...WEEK, days: days('2026-11-15', 7, (d) => (d === '2026-11-17' ? [open('09:00')] : [])) };
+  body.days = body.days.map((d) => ({ ...d, special: d.date === '2026-11-17' || d.date === '2026-11-18' ? camp : d.date === '2026-11-21' ? off : null }));
+  serveWithCancel(body);
+  const week = render(<Calendar api={scheduleApi('t')} route={{ view: 'week', date: '2026-11-15' }} onError={vi.fn()} />);
+  expect(await screen.findAllByText('Holiday camp')).toHaveLength(2);
+  expect(screen.getByText('Thanksgiving break')).toBeInTheDocument();
+  week.unmount();
+
+  serveWithCancel({ ...WEEK, days: days('2026-11-21', 1, () => []).map((d) => ({ ...d, special: off })) });
+  const day = render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-21' }} onError={vi.fn()} />);
+  expect(await screen.findByText('Time off: Thanksgiving break')).toBeInTheDocument();
+  expect(screen.getByText('Nov 22 – Nov 28. Families can’t book these days.')).toBeInTheDocument();
+  day.unmount();
+
+  serveWithCancel({ ...WEEK, days: days('2026-11-17', 1, () => [open('09:00')]).map((d) => ({ ...d, special: camp })) });
+  render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-17' }} onError={vi.fn()} />);
+  expect(await screen.findByText('Special schedule: Holiday camp')).toBeInTheDocument();
+  expect(screen.getByText('Nov 17 – Nov 18. These times replace your weekly schedule.')).toBeInTheDocument();
 });

@@ -394,10 +394,13 @@ function DayPage({ page, kid, coachId, picks, date, pickers, kept, panel, onTogg
   );
 
   const runs = blockRuns(times);
+  // The coach's time off or special schedule on this date (G-24, closed in Batch 6).
+  const sp = (page.specials ?? []).find((x) => x.startDate <= iso && iso <= x.endDate);
   const body = !times.length
     ? <div className="pempty"><span className="pempty__icon"><Icon name="calOff" size={22} /></span>
-        <b>No lessons with {page.coachFirstName} on {DAYS_LONG[dayOfWeek(iso)]}s</b><span className="muted">Pick another day above.</span></div>
+        <b>{sp?.kind === 'TIME_OFF' ? `${page.coachFirstName} is away (${sp.name})` : `No lessons with ${page.coachFirstName} on ${DAYS_LONG[dayOfWeek(iso)]}s`}</b><span className="muted">Pick another day above.</span></div>
     : <>
+        {sp?.kind === 'SPECIAL' && <Banner tone="info" title={sp.name}>Special hours from {shortDate(sp.startDate)} to {shortDate(sp.endDate)}.</Banner>}
         <div className="tl">{runs.map((run, ri) => {
           const prev = runs[ri - 1];
           return (

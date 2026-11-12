@@ -118,6 +118,29 @@ public final class BookingRepository {
         return out;
     }
 
+    /** A coach's time off or special schedule as a family may read it: the kind, the coach's name for it, its dates. */
+    public record Special(String kind, String name, LocalDate startDate, LocalDate endDate) {
+    }
+
+    /** The coach's time off and special schedules that touch {@code from} to {@code to} (G-24). */
+    public List<Special> specials(ClientContext ctx, LinkedCoach coach, LocalDate from, LocalDate to) {
+        List<Special> out = new ArrayList<>();
+        if (!coach.active()) {
+            return out;
+        }
+        for (Map<String, AttributeValue> m : range(ctx, coach, "SCHEDULE#TEMP#", "SCHEDULE#TEMP#~",
+                List.of("tempKind", "scheduleName", "startDate", "endDate"))) {
+            LocalDate a = LocalDate.parse(FamilyItems.str(m, "startDate"));
+            LocalDate b = LocalDate.parse(FamilyItems.str(m, "endDate"));
+            if (!b.isBefore(from) && !a.isAfter(to)) {
+                String kind = FamilyItems.str(m, "tempKind");
+                String name = FamilyItems.str(m, "scheduleName");
+                out.add(new Special(kind, name == null || name.isBlank() ? ("TIME_OFF".equals(kind) ? "Time off" : "Special schedule") : name, a, b));
+            }
+        }
+        return out;
+    }
+
     /** The coach's weekly schedule, for the block names the booking page shows. */
     public Optional<WeeklySchedule> weekly(ClientContext ctx, LinkedCoach coach) {
         if (!coach.active()) {

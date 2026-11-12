@@ -16,7 +16,8 @@ import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
 import { ProfileDetails, ProfilePayments } from './pages/Profile';
-import { ScheduleHub, WeeklyEditor } from './pages/Schedule';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
+import { SaveStatus } from './pages/ScheduleReview';
 import { SignupBusiness } from './pages/SignupBusiness';
 import { SignupConfirm } from './pages/SignupConfirm';
 import { SignupDone } from './pages/SignupDone';
@@ -78,6 +79,9 @@ export function App() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState('');
+  // What the last accepted review said, for the save status page that follows it.
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const afterSave = useCallback((s: Saved) => { setSaved(s); go('#/schedule/status'); window.scrollTo(0, 0); }, []);
   const route = useHashRoute();
   const api = useMemo(() => (token ? coachApi(token) : null), [token]);
   const schedules = useMemo(() => (token ? scheduleApi(token) : null), [token]);
@@ -161,11 +165,29 @@ export function App() {
       page = <SignupDone profile={profile} />;
     } else if (route === '#/schedule') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule" wide><ScheduleHub api={schedules} profile={profile} flash={flash} onError={handleError} /></CoachShell>;
-    } else if (route === '#/schedule/weekly') {
+    } else if (route === '#/schedule/weekly' || route.startsWith('#/schedule/special/')) {
+      const id = route.startsWith('#/schedule/special/') ? route.slice('#/schedule/special/'.length) : undefined;
       page = (
         <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule" full>
-          <WeeklyEditor api={schedules} profile={profile} onError={handleError} onToken={setToken}
-            onSaved={() => { go('#/schedule'); setFlash('Saved. Your schedule is live.'); window.scrollTo(0, 0); }} />
+          <ScheduleEditor key={route} api={schedules} profile={profile} special={id === undefined ? undefined : id === 'new' ? null : id}
+            onError={handleError} onToken={setToken} onSaved={afterSave} />
+        </CoachShell>
+      );
+    } else if (route.startsWith('#/schedule/delete/')) {
+      page = (
+        <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule">
+          <DeleteDates key={route} api={schedules} profile={profile} tempId={route.slice('#/schedule/delete/'.length)}
+            onError={handleError} onToken={setToken} onSaved={afterSave} />
+        </CoachShell>
+      );
+    } else if (route === '#/schedule/dates') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule"><ChooseDates /></CoachShell>;
+    } else if (route === '#/schedule/time-off') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule"><TimeOffForm api={schedules} profile={profile} onError={handleError} onToken={setToken} onSaved={afterSave} /></CoachShell>;
+    } else if (route === '#/schedule/status') {
+      page = (
+        <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule">
+          <SaveStatus api={schedules} lessons={saved?.lessons ?? 0} families={saved?.families ?? 0} since={saved?.since ?? 0} onError={handleError} />
         </CoachShell>
       );
     } else if (calendarRoute(route, profile.coachTimezone)) {
