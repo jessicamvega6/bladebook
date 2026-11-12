@@ -1,5 +1,6 @@
 package com.bladebook.core.domain;
 
+import com.bladebook.core.domain.BookingRequest.PickInput;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -68,5 +69,56 @@ class BookingRequestTest {
             assertThatThrownBy(() -> BookingRequest.parse("coach-1", "ava-1", bad, List.of(pick("2026-11-16", "06:00"))))
                     .as("key %s", bad).isInstanceOf(DomainException.class).hasMessage("Reload the page and try again.");
         }
+    }
+
+    private static BookingRequest repeating(Integer every, String until, PickInput... picks) {
+        return BookingRequest.parse("coach", "ava", "key-12345678", List.of(picks), true, every, until);
+    }
+
+    @Test
+    void aRepeatingPickBooksItsWeekdayEveryNWeeksUpToTheEndDate() {
+        BookingRequest r = repeating(2, "2026-12-14", new PickInput("2026-11-16", "06:00"));
+        assertThat(r.occurrences()).extracting(o -> o.date().toString())
+                .containsExactly("2026-11-16", "2026-11-30", "2026-12-14");
+        assertThat(r.occurrences()).allMatch(o -> o.intervalWeeks() == 2 && o.recurrenceId().equals(r.occurrences().get(0).recurrenceId()));
+    }
+
+    @Test
+    void eachWeekdayAndTimeIsItsOwnSeriesAndTheIdFollowsTheKey() {
+        BookingRequest r = repeating(1, "2026-11-25", new PickInput("2026-11-16", "06:00"), new PickInput("2026-11-18", "16:00"));
+        assertThat(r.occurrences()).hasSize(4);
+        assertThat(r.occurrences().stream().map(BookingRequest.Occurrence::recurrenceId).distinct()).hasSize(2);
+        BookingRequest again = repeating(1, "2026-11-25", new PickInput("2026-11-16", "06:00"));
+        assertThat(again.occurrences().get(0).recurrenceId()).isEqualTo(r.occurrences().get(0).recurrenceId());
+        BookingRequest otherKey = BookingRequest.parse("coach", "ava", "key-87654321", List.of(new PickInput("2026-11-16", "06:00")), true, 1, "2026-11-25");
+        assertThat(otherKey.occurrences().get(0).recurrenceId()).isNotEqualTo(r.occurrences().get(0).recurrenceId());
+    }
+
+    @Test
+    void withoutRepeatEachPickIsOneDateWithNoSeries() {
+        BookingRequest r = BookingRequest.parse("coach", "ava", "key-12345678", List.of(new PickInput("2026-11-16", "06:00")), false, 1, "2027-01-01");
+        assertThat(r.repeat()).isNull();
+        assertThat(r.occurrences()).singleElement().satisfies(o -> assertThat(o.recurrenceId()).isNull());
+    }
+
+    @Test
+    void theEndDateMustBeThereAfterTheFirstPickAndWithinTwelveMonths() {
+        PickInput six = new PickInput("2026-11-16", "06:00");
+        assertThatThrownBy(() -> repeating(1, null, six)).hasMessage("Pick an end date.");
+        assertThatThrownBy(() -> repeating(1, "soon", six)).hasMessage("Pick an end date.");
+        assertThatThrownBy(() -> repeating(1, "2026-11-15", six)).hasMessage("The end date is before your first lesson.");
+        assertThat(repeating(4, "2027-11-16", six).occurrences()).hasSize(14);
+        assertThatThrownBy(() -> repeating(1, "2027-11-17", six)).hasMessage("A repeating booking can run up to 12 months.");
+        assertThatThrownBy(() -> repeating(5, "2026-12-14", six)).hasMessage("Pick how often it repeats.");
+        assertThatThrownBy(() -> repeating(0, "2026-12-14", six)).hasMessage("Pick how often it repeats.");
+    }
+
+    @Test
+    void atMostThreeHundredDates() {
+        PickInput[] seven = new PickInput[7];
+        for (int i = 0; i < 7; i++) {
+            seven[i] = new PickInput(java.time.LocalDate.of(2026, 11, 16).plusDays(i).toString(), "06:00");
+        }
+        assertThatThrownBy(() -> repeating(1, "2027-11-16", seven)).hasMessage("That’s more than 300 lessons. Pick an earlier end date.");
     }
 }

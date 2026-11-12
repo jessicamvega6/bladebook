@@ -31,19 +31,19 @@ public final class BookingDtos {
     /** A lesson on My bookings: the family's share of the price, and the lesson's own notice period. */
     public record MyLessonDto(String coachId, String coachFirstName, String studentId, String studentName, String date,
                               String startTime, int durationMinutes, String startsAtUtc, String coachTz, Integer priceMinor,
-                              String currency, int requiredNoticeHours, String attendance) {
+                              String currency, int requiredNoticeHours, String attendance, String recurrenceId, int intervalWeeks) {
         public static MyLessonDto of(BookingService.MyLesson m) {
             BookingService.FamilyLesson l = m.lesson();
             return new MyLessonDto(l.coachId(), l.coachFirstName(), l.studentId(), l.studentName(), l.date().toString(),
                     l.startTime().toString(), l.durationMinutes(), l.startsAtUtc().toString(), l.coachTz(), m.priceMinor(),
-                    m.currency(), m.requiredNoticeHours(), m.attendance());
+                    m.currency(), m.requiredNoticeHours(), m.attendance(), m.recurrenceId(), m.intervalWeeks());
         }
     }
 
-    public record MyBookingsResponse(List<MyLessonDto> upcoming, List<MyLessonDto> recent) {
+    public record MyBookingsResponse(List<MyLessonDto> upcoming, List<MyLessonDto> recent, List<MySeriesDto> series) {
         public static MyBookingsResponse of(BookingService.MyBookings b) {
             return new MyBookingsResponse(b.upcoming().stream().map(MyLessonDto::of).toList(),
-                    b.recent().stream().map(MyLessonDto::of).toList());
+                    b.recent().stream().map(MyLessonDto::of).toList(), b.series().stream().map(MySeriesDto::of).toList());
         }
     }
 
@@ -79,25 +79,58 @@ public final class BookingDtos {
     }
 
     /** One request per coach (ADR-025 d3). The website makes {@code idempotencyKey} and resends it on a retry. */
-    public record BookBody(String coachId, String studentId, String idempotencyKey, List<PickBody> picks) {
+    /** {@code repeat}: each pick repeats every {@code everyWeeks} weeks up to {@code until} (Batch 9). */
+    public record BookBody(String coachId, String studentId, String idempotencyKey, List<PickBody> picks, Boolean repeat,
+                           Integer everyWeeks, String until) {
         public BookingRequest toRequest() {
             List<BookingRequest.PickInput> in = picks == null ? null
                     : picks.stream().map(p -> p == null ? null : new BookingRequest.PickInput(p.date(), p.startTime())).toList();
-            return BookingRequest.parse(coachId, studentId, idempotencyKey, in);
+            return BookingRequest.parse(coachId, studentId, idempotencyKey, in, repeat, everyWeeks, until);
+        }
+    }
+
+    /** One repeating pick's series. {@code weekday}: MONDAY…SUNDAY. */
+    public record SeriesDto(String recurrenceId, String weekday, String startTime, int intervalWeeks, String first, String until) {
+        public static SeriesDto of(BookingService.Series s) {
+            return new SeriesDto(s.recurrenceId(), s.weekday().name(), s.startTime().toString(), s.intervalWeeks(), s.first().toString(),
+                    s.until().toString());
+        }
+    }
+
+    /** A series still running on My bookings. */
+    public record MySeriesDto(String coachId, String recurrenceId, String studentId, String studentName, String coachFirstName,
+                              String weekday, String startTime, int intervalWeeks, String endDate, int lessonsLeft, String lastLesson) {
+        public static MySeriesDto of(BookingService.SeriesView v) {
+            return new MySeriesDto(v.recurrence().coachId(), v.recurrence().recurrenceId(), v.recurrence().studentId(), v.studentName(),
+                    v.coachFirstName(), v.recurrence().weekday().name(), v.recurrence().startTime().toString(), v.recurrence().intervalWeeks(),
+                    v.recurrence().endDate().toString(), v.lessonsLeft(), v.lastLesson().toString());
+        }
+    }
+
+    /** {@code change}: END_EARLIER (with {@code endDate}), LESS_OFTEN (with {@code intervalWeeks}) or STOP. */
+    public record SeriesChangeBody(String coachId, String recurrenceId, String change, String endDate, Integer intervalWeeks) {
+    }
+
+    public record SeriesChangedDto(int cancelled, boolean late, String coachFirstName, String studentName, String endDate, int intervalWeeks,
+                                   String status) {
+        public static SeriesChangedDto of(com.bladebook.core.service.RecurrenceService.Changed c) {
+            return new SeriesChangedDto(c.cancelled(), c.late(), c.coachFirstName(), c.studentName(), c.after().endDate().toString(),
+                    c.after().intervalWeeks(), c.after().status().name());
         }
     }
 
     /** {@code message} only for an unavailable date: the one wording for every cause (B1). */
     public record PickResultDto(String date, String startTime, String outcome, String message, Integer durationMinutes,
-                                Integer priceMinor, String currency) {
+                                Integer priceMinor, String currency, String recurrenceId) {
     }
 
-    public record BookResponse(String coachFirstName, String studentName, List<PickResultDto> picks) {
+    public record BookResponse(String coachFirstName, String studentName, List<PickResultDto> picks, List<SeriesDto> series) {
         public static BookResponse of(BookingService.BookingResult r) {
             return new BookResponse(r.coachFirstName(), r.studentName(), r.picks().stream().map(p -> new PickResultDto(
                     p.date().toString(), p.startTime().toString(), p.outcome().name(),
                     p.outcome() == BookingOutcome.UNAVAILABLE ? BookingOutcome.UNAVAILABLE_MESSAGE : null,
-                    p.durationMinutes(), p.priceMinor(), p.currency())).toList());
+                    p.durationMinutes(), p.priceMinor(), p.currency(), p.recurrenceId())).toList(),
+                    r.series().stream().map(SeriesDto::of).toList());
         }
     }
 }

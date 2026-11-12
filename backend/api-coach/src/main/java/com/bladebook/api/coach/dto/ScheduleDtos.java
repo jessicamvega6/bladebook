@@ -94,7 +94,7 @@ public final class ScheduleDtos {
 
     /** One lesson time as the coach's calendar shows it. */
     /** A skater in a booked time: "Ava P." for the week view; the full name and family for the day view. */
-    public record SkaterDto(String studentId, String shortName, String fullName, String familyName, String familyId) {
+    public record SkaterDto(String studentId, String shortName, String fullName, String familyName, String familyId, int repeatsEveryWeeks) {
     }
 
     public record LessonDto(String startTime, int durationMinutes, int priceMinor, String currency, String lessonStatus,
@@ -102,7 +102,7 @@ public final class ScheduleDtos {
 
         static LessonDto of(LessonTime t, List<CalendarService.Booked> booked) {
             List<SkaterDto> in = booked.stream().filter(b -> b.startTime().equals(t.startTime()))
-                    .map(b -> new SkaterDto(b.studentId(), b.shortName(), b.fullName(), b.familyName(), b.familyId())).toList();
+                    .map(b -> new SkaterDto(b.studentId(), b.shortName(), b.fullName(), b.familyName(), b.familyId(), b.repeatsEveryWeeks())).toList();
             return new LessonDto(t.startTime().toString(), t.durationMinutes(), t.priceMinor(), t.currency(),
                     t.lessonStatus().name(), t.maxSkaters(), t.seatsTaken(), in);
         }

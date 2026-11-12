@@ -10,7 +10,7 @@ import { Banner } from '../shared/components/harbor';
 import { familyApi, type Family, type MyLesson } from './api';
 import { FamilyShell } from './components/Shells';
 import { Book } from './pages/Book';
-import { Bookings } from './pages/Bookings';
+import { Bookings, SeriesChange } from './pages/Bookings';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
@@ -123,6 +123,9 @@ export function App() {
           onSignOut={() => signOut()} onError={handleError} />
       </FamilyShell>
     );
+  } else if (route.startsWith('#/bookings/series/') && !load.family.waiting) {
+    const [coachId = '', rid = ''] = route.slice('#/bookings/series/'.length).split('/');
+    page = <FamilyShell family={load.family} section="My bookings" wide><SeriesChange key={route} api={api} coachId={coachId} recurrenceId={rid} onError={handleError} /></FamilyShell>;
   } else if (route === '#/bookings') {
     // A waiting family has no bookings page (ADR-022 d6): Home says who they're waiting for.
     page = load.family.waiting

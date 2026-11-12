@@ -1,11 +1,11 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../App';
 import type { BookResult, BookingPage, Family } from '../api';
 import { APPROVED, BEN_PAGE, DANA_PAGE, LESSONS, TWO_COACHES, WAITING, json } from '../testData';
 
-type Sent = { coachId: string; studentId: string; idempotencyKey: string; picks: Array<{ date: string; startTime: string }> };
+type Sent = { coachId: string; studentId: string; idempotencyKey: string; picks: Array<{ date: string; startTime: string }>; repeat?: boolean; everyWeeks?: number; until?: string };
 
 const booked = (body: Sent, outcomes: Record<string, BookResult['picks'][number]['outcome']> = {}): BookResult => ({
   coachFirstName: body.coachId === 'ben' ? 'Ben' : 'Dana', studentName: 'Ava Park',
@@ -184,7 +184,9 @@ describe('3 · confirm and 4 · result', () => {
     expect(dialog).toHaveTextContent('Monday · 6:00 AM');
     expect(dialog).toHaveTextContent('$100');
     expect(dialog).toHaveTextContent('You pay Dana directly. BladeBook only sends reminders.');
-    expect(dialog).not.toHaveTextContent(/repeat/i);
+    // Repeat is offered, off until ticked (Batch 9).
+    expect(within(dialog).getByRole('checkbox', { name: /Repeat these lessons/ })).not.toBeChecked();
+    expect(within(dialog).getByLabelText('Until')).toBeDisabled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Book 2 lessons' }));
 
     expect(await screen.findByRole('heading', { name: '1 lesson booked for Ava' })).toBeInTheDocument();
@@ -199,6 +201,37 @@ describe('3 · confirm and 4 · result', () => {
 
     await userEvent.click(within(another).getByRole('button', { name: 'Pick another time' }));
     expect(window.location.hash).toBe('#/book/day/2026-11-16');
+  });
+
+  test('repeating a pick books it every N weeks to the end date and the result shows the series', async () => {
+    const { sent } = server(APPROVED, { dana: DANA_PAGE }, (b) => {
+      const dates = ['2026-11-16', '2026-11-30', '2026-12-14'];
+      return json(200, { coachFirstName: 'Dana', studentName: 'Ava Park',
+        picks: dates.map((d) => ({ date: d, startTime: '06:00', outcome: d === '2026-11-30' ? 'UNAVAILABLE' : 'BOOKED',
+          message: d === '2026-11-30' ? 'That time was taken or no longer exists.' : null, durationMinutes: 30, priceMinor: 5000, currency: 'USD', recurrenceId: 'r1' })),
+        series: [{ recurrenceId: 'r1', weekday: 'MONDAY', startTime: '06:00', intervalWeeks: b.everyWeeks, first: '2026-11-16', until: b.until }] });
+    });
+    open('#/book/day/2026-11-16');
+    await userEvent.click(await screen.findByRole('button', { name: /^6:00 AM/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const dialog = screen.getByRole('dialog', { name: 'Book for Ava' });
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Repeat these lessons/ }));
+    await userEvent.selectOptions(within(dialog).getByLabelText('Repeats'), '2');
+    fireEvent.change(within(dialog).getByLabelText('Until'), { target: { value: '2026-12-14' } });
+    expect(dialog).toHaveTextContent('3 lessons until Dec 14');
+    expect(dialog).toHaveTextContent('First week$50');
+    expect(dialog).toHaveTextContent('All lessons$150');
+    fireEvent.change(within(dialog).getByLabelText('Until'), { target: { value: '2027-11-17' } });
+    expect(dialog).toHaveTextContent('A repeating booking can run up to 12 months.');
+    expect(within(dialog).getByRole('button', { name: /^Book/ })).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText('Until'), { target: { value: '2026-12-14' } });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Book 3 lessons' }));
+
+    expect(sent[0]).toMatchObject({ repeat: true, everyWeeks: 2, until: '2026-12-14', picks: [{ date: '2026-11-16', startTime: '06:00' }] });
+    expect(await screen.findByText('Mondays · 6:00 AM')).toBeInTheDocument();
+    expect(screen.getByText('30 min · $50 · every 2 weeks, Nov 16 – Dec 14')).toBeInTheDocument();
+    expect(screen.getByText('2 booked')).toBeInTheDocument();
+    expect(screen.getByText('1 unavailable')).toBeInTheDocument();
   });
 
   test('a time already the skater’s is recognised and never booked twice', async () => {

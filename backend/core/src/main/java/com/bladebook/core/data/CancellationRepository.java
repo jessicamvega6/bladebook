@@ -43,7 +43,8 @@ public final class CancellationRepository {
 
     /** What the family's read of its own seat names (ADR-MASTER section 16). */
     private static final List<String> SEAT_FIELDS = List.of("PK", "lessonDate", "startTime", "studentId", "clientId",
-            "studentName", "seatStatus", "startsAtUtc", "coachTz", "durationMinutes", "joinedAt", "idempotencyKey");
+            "studentName", "seatStatus", "startsAtUtc", "coachTz", "durationMinutes", "joinedAt", "idempotencyKey", "recurrenceId",
+            "bookedIntervalWeeks");
 
     private final TenantClients clients;
     private final String table;
@@ -83,6 +84,29 @@ public final class CancellationRepository {
         items.add(put(CancellationItems.header(skater.coachId(), batch)));
         items.add(put(CancellationItems.line(skater.coachId(), line)));
         return write(clients.clientFor(ctx, skater.coach()), items);
+    }
+
+    /**
+     * One seat of a family's batch (a series change, ADR-MASTER section 10): the seat deleted, its line put, the lesson time
+     * back to {@code OPEN}, in one transaction, with the batch's header written by {@link #startForFamily} and
+     * {@link #finishForFamily}.
+     */
+    public boolean cancelSeatByFamily(ClientContext ctx, LinkedSkater skater, Seat seat, CancellationLine line, Instant now) {
+        List<TransactWriteItem> items = new ArrayList<>();
+        items.add(deleteSeat(seat, now, ":c", skater.clientId()));
+        items.add(lessonAfter(skater.coachId(), seat.lessonDate(), seat.startTime(), 1, AfterCancel.RELEASE, now));
+        items.add(put(CancellationItems.line(skater.coachId(), line)));
+        return write(clients.clientFor(ctx, skater.coach()), items);
+    }
+
+    /** A family's batch header, {@code PLANNED}, in the coach's partition. */
+    public void startForFamily(ClientContext ctx, LinkedSkater skater, ChangeBatch planned) {
+        clients.clientFor(ctx, skater.coach()).putItem(b -> b.tableName(table).item(CancellationItems.header(skater.coachId(), planned))
+                .conditionExpression("attribute_not_exists(SK)"));
+    }
+
+    public void finishForFamily(ClientContext ctx, LinkedSkater skater, ChangeBatch executed) {
+        clients.clientFor(ctx, skater.coach()).putItem(b -> b.tableName(table).item(CancellationItems.header(skater.coachId(), executed)));
     }
 
     // ---------------------------------------------------------------------- the coach

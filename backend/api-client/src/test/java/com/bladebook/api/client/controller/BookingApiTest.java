@@ -306,6 +306,35 @@ class BookingApiTest {
     }
 
     @Test
+    void aRepeatingBookingIsListedAsASeriesAndCanBeStopped() throws Exception {
+        approve("Ava Park");
+        String ava = skaterId("Ava Park");
+        // The lesson times exist on one day only, so the series books its first date and reports the rest unavailable.
+        String body = "{\"coachId\":\"" + dana.coachId() + "\",\"studentId\":\"" + ava + "\",\"idempotencyKey\":\"series-key-0001\","
+                + "\"picks\":[{\"date\":\"" + day + "\",\"startTime\":\"10:00\"}],\"repeat\":true,\"everyWeeks\":1,\"until\":\"" + day.plusDays(14) + "\"}";
+        Res r = call("POST", "/api/client/bookings", token, body);
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("picks")).hasSize(3);
+        assertThat(r.body().get("picks").get(0).get("outcome").asString()).isEqualTo("BOOKED");
+        assertThat(r.body().get("picks").get(1).get("outcome").asString()).isEqualTo("UNAVAILABLE");
+        String rid = r.body().get("series").get(0).get("recurrenceId").asString();
+
+        Res mine = call("GET", "/api/client/bookings", token, null);
+        assertThat(mine.body().get("series").get(0).get("lessonsLeft").asInt()).isEqualTo(1);
+        assertThat(mine.body().get("upcoming").get(0).get("intervalWeeks").asInt()).isEqualTo(1);
+
+        Res stop = call("POST", "/api/client/series/change", token, "{\"coachId\":\"" + dana.coachId() + "\",\"recurrenceId\":\"" + rid
+                + "\",\"change\":\"STOP\"}");
+        assertThat(stop.status()).isEqualTo(200);
+        assertThat(stop.s("status")).isEqualTo("ENDED");
+        assertThat(call("GET", "/api/client/bookings", token, null).body().get("series")).isEmpty();
+
+        Res wrong = call("POST", "/api/client/bookings", token, body.replace("\"everyWeeks\":1", "\"everyWeeks\":6"));
+        assertThat(wrong.status()).isEqualTo(400);
+        assertThat(wrong.s("message")).isEqualTo("Pick how often it repeats.");
+    }
+
+    @Test
     void noTokenCantBook() throws Exception {
         assertThat(call("POST", "/api/client/bookings", null, "{}").status()).isEqualTo(401);
     }

@@ -38,6 +38,10 @@ final class SeatItems {
         m.put("joinedAt", FamilyItems.s(s.joinedAt().toString()));
         m.put("idempotencyKey", FamilyItems.s(s.idempotencyKey()));
         m.put("paymentStatus", FamilyItems.s("UNPAID"));
+        if (s.recurrenceId() != null) {
+            m.put("recurrenceId", FamilyItems.s(s.recurrenceId()));
+            m.put("bookedIntervalWeeks", AttributeValue.fromN(Integer.toString(s.bookedIntervalWeeks())));
+        }
         return m;
     }
 
@@ -47,6 +51,7 @@ final class SeatItems {
                 FamilyItems.str(m, "studentName"), Seat.Status.valueOf(FamilyItems.str(m, "seatStatus")),
                 Instant.parse(FamilyItems.str(m, "startsAtUtc")), FamilyItems.str(m, "coachTz"),
                 Integer.parseInt(m.get("durationMinutes").n()), Instant.parse(FamilyItems.str(m, "joinedAt")),
-                FamilyItems.str(m, "idempotencyKey"));
+                FamilyItems.str(m, "idempotencyKey"), FamilyItems.str(m, "recurrenceId"),
+                m.containsKey("bookedIntervalWeeks") ? Integer.parseInt(m.get("bookedIntervalWeeks").n()) : 0);
     }
 }
