@@ -65,7 +65,7 @@ is one skater's place in a lesson time. Acronyms are defined in [glossary.md](..
 | Events | DynamoDB Streams → EventBridge Pipe → custom EventBridge bus; EventBridge Scheduler for timed jobs. |
 | Email / SMS | SES for email; SNS for SMS. |
 | Frontend | React + TypeScript + Vite, served from S3 through CloudFront. Theme: **Harbor** (`design/harbor/`). |
-| Infrastructure as Code | **CDK (TypeScript) or Terraform — undecided** (see §25). Whichever is chosen must (1) fail the build on least-privilege violations (`cdk-nag`, or `checkov`/`tfsec`), (2) never deploy a stale JAR, (3) build and destroy the dev stack from nothing, and (4) deploy into two AWS accounts through an OpenID Connect (OIDC) deploy role. |
+| Infrastructure as Code | **AWS CDK (TypeScript)** — decided by the owner 2026-11-12 (ADR-001 A4 resolved). It must (1) fail the build on least-privilege violations (`cdk-nag`), (2) never deploy a stale JAR, (3) build and destroy the dev stack from nothing, and (4) deploy into two AWS accounts through an OpenID Connect (OIDC) deploy role. |
 
 **Repository** — one monorepo:
 
@@ -78,7 +78,7 @@ bladebook/
 │   ├── api-client/          # Spring Boot 4 → api-client
 │   └── consumers/           # every event and scheduled handler, one JAR
 ├── web/                     # React + TS + Vite (npm workspace)
-├── infra/                   # IaC (CDK TS or Terraform)
+├── infra/                   # IaC (CDK TypeScript)
 └── <root>/fixtures.json     # shared test cases read by Java and TypeScript (§22)
 ```
 
@@ -1770,7 +1770,8 @@ technical.*
 
 **Blocks building**
 
-- **Infrastructure as Code: CDK or Terraform**, against ADR-001 A4's criteria.
+- ~~**Infrastructure as Code: CDK or Terraform**, against ADR-001 A4's criteria.~~ **Settled 2026-11-12:**
+  CDK (TypeScript), decided by the owner (ADR-001 A4 resolved).
 - **The rink-fee calculation** (`docs/Q_Rink-Fees.md`).
 - **The family read allowlist** for `LESSON#` and the family's own `SEAT#`, and the **gate-test
   rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4, and ADR-033's rows (the booking's

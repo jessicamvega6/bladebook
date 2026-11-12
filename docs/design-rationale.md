@@ -73,9 +73,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 3; A3
 
-### Infrastructure as code — undecided
+### Infrastructure as code — AWS CDK in TypeScript
 
-**What it is.** AWS CDK in TypeScript or Terraform. The choice is open, to be made against criteria written in advance (ADR-001 A4).
+**What it is.** AWS CDK in TypeScript, chosen by the owner on 2026-11-12 against criteria written in advance (ADR-001 A4).
 
 **Why.** The original decision never actually compared Terraform, and switching is free only until infrastructure exists. The deciding gate is whether least-privilege rules can be enforced as a build check.
 
@@ -473,4 +473,4 @@ The architecture itself is close to free when idle. Most of the bill is fixed fe
 
 ## Still open
 
-Still undecided: CDK or Terraform; how deletion requests work (Phase 2, owner 2026-10-20); the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.
+Still undecided: how deletion requests work (Phase 2, owner 2026-10-20); the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.
