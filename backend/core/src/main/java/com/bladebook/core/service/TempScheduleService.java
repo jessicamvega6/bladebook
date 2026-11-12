@@ -58,6 +58,18 @@ public final class TempScheduleService {
         return t;
     }
 
+    /** What deleting it would do: its dates go back to the weekly schedule, which can cancel or re-price lessons. */
+    public ScheduleChangeService.Preview previewDelete(AccessContext ctx, String tempId) {
+        return change.previewTemp(ctx, null, get(ctx, tempId));
+    }
+
+    /** Deletes it (owner, 2026-11-12; not in the design). Returns what was deleted. */
+    public TempSchedule delete(AccessContext ctx, String tempId) {
+        TempSchedule t = get(ctx, tempId);
+        schedules.deleteTemp(ctx, t);
+        return t;
+    }
+
     private TempSchedule check(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
         if (previous != null && previous.kind() != proposed.kind()) {
             throw DomainException.invalid("kind", "Time off can’t become a special schedule. Add a new one instead.");

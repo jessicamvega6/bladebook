@@ -16,7 +16,7 @@ import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
 import { ProfileDetails, ProfilePayments } from './pages/Profile';
-import { ChooseDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { SignupBusiness } from './pages/SignupBusiness';
 import { SignupConfirm } from './pages/SignupConfirm';
@@ -170,6 +170,13 @@ export function App() {
       page = (
         <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule" full>
           <ScheduleEditor key={route} api={schedules} profile={profile} special={id === undefined ? undefined : id === 'new' ? null : id}
+            onError={handleError} onToken={setToken} onSaved={afterSave} />
+        </CoachShell>
+      );
+    } else if (route.startsWith('#/schedule/delete/')) {
+      page = (
+        <CoachShell profile={profile} waiting={students?.pending.length} section="Schedule">
+          <DeleteDates key={route} api={schedules} profile={profile} tempId={route.slice('#/schedule/delete/'.length)}
             onError={handleError} onToken={setToken} onSaved={afterSave} />
         </CoachShell>
       );

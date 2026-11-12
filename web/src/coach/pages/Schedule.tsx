@@ -124,11 +124,45 @@ export function ScheduleHub({ api, profile, flash, onError }: {
                 <div><div className="row__title">{t.displayName ?? t.name}</div><div className="row__sub">{t.kind === 'SPECIAL' ? 'Special schedule' : 'No lessons'}</div></div>
               </div>
               <div className="row__side"><span className="muted num">{dateRange(t.startDate, t.endDate)}</span>
-                {t.kind === 'SPECIAL' && <a className="btn btn--ghost btn--sm" href={`#/schedule/special/${t.tempId}`}><span>Edit</span></a>}</div>
+                {t.kind === 'SPECIAL' && <a className="btn btn--ghost btn--sm" href={`#/schedule/special/${t.tempId}`}><span>Edit</span></a>}
+                <a className="btn btn--ghost btn--sm" href={`#/schedule/delete/${t.tempId}`} aria-label={`Delete ${t.displayName ?? t.name}`}><Icon name="trash" size={14} /><span>Delete</span></a></div>
             </div>
           ))}
         </Card>
       )}
+    </>
+  );
+}
+
+/**
+ * Deleting time off or a special schedule (owner, 2026-11-12; not in the design; C_Coach Schedule Hub.md). Its dates go
+ * back to the weekly schedule, which can cancel or re-price booked lessons, so it goes through the same review as any
+ * schedule change, then the save status.
+ */
+export function DeleteDates({ api, profile, tempId, onSaved, onToken, onError }: {
+  api: ScheduleApi; profile: Profile; tempId: string; onSaved: (s: Saved) => void; onToken: (token: string) => void; onError: (e: unknown) => void;
+}) {
+  const [temp, setTemp] = useState<TempDto | null>(null);
+  const [preview, setPreview] = useState<PreviewDto | null>(null);
+  const save = useGuardedSave(profile, onToken, onError);
+  useEffect(() => {
+    let live = true;
+    Promise.all([api.temp(tempId), api.previewDelete(tempId)])
+      .then(([t, p]) => { if (live) { setTemp(t); setPreview(p); } })
+      .catch((e: unknown) => live && onError(e));
+    return () => { live = false; };
+  }, [api, tempId, onError]);
+  if (!temp) return <Loading />;
+  const name = temp.displayName ?? temp.name;
+  const what = temp.kind === 'TIME_OFF'
+    ? `Delete ${name} · ${dateRange(temp.startDate, temp.endDate)} · families can book these dates again`
+    : `Delete ${name} · ${dateRange(temp.startDate, temp.endDate)} · your weekly schedule applies to these dates again`;
+  return (
+    <>
+      <ChangeReview what={what} preview={preview} noticeHours={profile.requiredNoticeHours} errors={save.errors} busy={save.busy}
+        onBack={() => { window.location.hash = '#/schedule'; }}
+        onAccept={() => { const since = Date.now(); void save.run(api, async (a) => { await a.deleteTemp(tempId); onSaved({ lessons: preview ? touched(preview) : 0, families: preview?.families ?? 0, since }); }); }} />
+      {save.dialog}
     </>
   );
 }

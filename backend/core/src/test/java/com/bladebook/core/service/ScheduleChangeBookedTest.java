@@ -262,4 +262,38 @@ class ScheduleChangeBookedTest {
         TempSchedule asSpecial = new TempSchedule(saved.tempId(), TempSchedule.Kind.SPECIAL, "", MONDAY, MONDAY, List.of(), Map.of());
         assertThatThrownBy(() -> temps.save(dana, asSpecial)).hasMessage("Time off can’t become a special schedule. Add a new one instead.");
     }
+
+    @Test
+    void deletingASpecialSchedulePreviewsItThenPutsTheWeekBackAndCancelsWhatOnlyItMade() {
+        BlockTemplate camp = new BlockTemplate(1, "Camp ice", LocalTime.of(9, 0), LocalTime.of(10, 0), 60, 8000, 1, IceType.BFSC_FREESTYLE,
+                Set.of(), Map.of());
+        TempSchedule saved = temps.save(dana, new TempSchedule(null, TempSchedule.Kind.SPECIAL, "Camp", MONDAY.plusDays(14), MONDAY.plusDays(14),
+                List.of(camp), Map.of()));
+        change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
+        book(park, ava, MONDAY.plusDays(14), "09:00");
+
+        ScheduleChangeService.Preview p = temps.previewDelete(dana, saved.tempId());
+        assertThat(p.cancel()).extracting(i -> i.date() + " " + i.startTime()).containsExactly("2026-11-30 09:00");
+        assertThat(p.families()).isEqualTo(1);
+
+        temps.delete(dana, saved.tempId());
+        ScheduleChangeService.Result r = change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
+        assertThat(r.cancelled()).isEqualTo(1);
+        assertThat(temps.upcoming(dana)).isEmpty();
+        assertThat(repo.overrides(dana, MONDAY.plusDays(14), MONDAY.plusDays(14))).isEmpty();
+        assertThat(repo.lessonTimes(dana, MONDAY.plusDays(14), MONDAY.plusDays(14))).extracting(l -> l.startTime().toString())
+                .containsExactly("06:00", "06:30", "07:00", "07:30");
+    }
+
+    @Test
+    void deletingTimeOffOpensItsDatesAgainAndCancelsNothing() {
+        TempSchedule saved = temps.save(dana, timeOff(null, MONDAY.plusDays(14), MONDAY.plusDays(14)));
+        change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
+        assertThat(repo.lessonTimes(dana, MONDAY.plusDays(14), MONDAY.plusDays(14))).isEmpty();
+        assertThat(temps.previewDelete(dana, saved.tempId()).cancel()).isEmpty();
+        temps.delete(dana, saved.tempId());
+        change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
+        assertThat(repo.lessonTimes(dana, MONDAY.plusDays(14), MONDAY.plusDays(14))).hasSize(4);
+        assertThatThrownBy(() -> temps.delete(dana, saved.tempId())).hasMessage("That time off or special schedule couldn’t be found.");
+    }
 }

@@ -222,17 +222,22 @@ public final class ScheduleChangeService {
                 PriceChange.big(saved.map(ScheduleRules::fromWeekly).orElse(List.of()), templates));
     }
 
-    /** The review of time off or a special schedule: only its dates, old and new, are reported. */
+    /**
+     * The review of time off or a special schedule: only its dates, old and new, are reported. {@code proposed} null:
+     * deleting {@code previous}, so the weekly schedule applies to its dates again.
+     */
     public Preview previewTemp(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(coach(ctx).coachTimezone()));
         Map<LocalDate, List<ScheduleBlock>> overrides = new HashMap<>(schedules.overrides(ctx, today, Weeks.storeUntil(today)));
         if (previous != null) {
             previous.dates().forEach(overrides::remove);
         }
-        overrides.putAll(proposed.dateBlocks());
-        List<PriceChange> big = previous == null ? List.of() : PriceChange.big(previous.templates(), proposed.templates());
+        if (proposed != null) {
+            overrides.putAll(proposed.dateBlocks());
+        }
+        List<PriceChange> big = previous == null || proposed == null ? List.of() : PriceChange.big(previous.templates(), proposed.templates());
         return preview(ctx, schedules.findDefault(ctx).orElse(null), overrides,
-                d -> proposed.covers(d) || (previous != null && previous.covers(d)), big);
+                d -> (proposed != null && proposed.covers(d)) || (previous != null && previous.covers(d)), big);
     }
 
     /** The newest schedule-change batch, for the save status. */

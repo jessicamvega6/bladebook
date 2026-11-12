@@ -148,7 +148,7 @@ export interface ChangeStatusDto {
 }
 
 export function scheduleApi(token: string) {
-  const call = <T>(path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unknown) =>
+  const call = <T>(path: string, method: 'GET' | 'PUT' | 'POST' | 'DELETE' = 'GET', body?: unknown) =>
     apiFetch<T>(`/api/coach${path}`, { method, body, token });
   return {
     /** Never retried: a second cancel after a lost reply finds nothing left and says so. */
@@ -167,6 +167,9 @@ export function scheduleApi(token: string) {
       ? call<TempDto>(`/schedule/temps/${encodeURIComponent(t.tempId)}`, 'PUT', t)
       : call<TempDto>('/schedule/temps', 'POST', t)),
     status: () => call<ChangeStatusDto>('/schedule/status'),
+    previewDelete: (tempId: string) => call<PreviewDto>(`/schedule/temps/${encodeURIComponent(tempId)}/delete-preview`),
+    /** Needs a sign-in from the last 15 minutes, or fails with SIGN_IN_TO_SAVE. */
+    deleteTemp: (tempId: string) => call<TempDto>(`/schedule/temps/${encodeURIComponent(tempId)}`, 'DELETE'),
     calendar: (from: string, to: string) =>
       call<CalendarDto>(`/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   };

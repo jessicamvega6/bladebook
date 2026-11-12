@@ -121,6 +121,14 @@ class ScheduleApiTest {
         Res overlap = call("POST", "/api/coach/schedule/temps/preview", token, timeOff(sunday.plusDays(1), sunday.plusDays(3)));
         assertThat(overlap.status()).isEqualTo(400);
         assertThat(overlap.s("message")).startsWith("These dates overlap Fall break");
+
+        Res before = call("GET", "/api/coach/schedule/temps/" + saved.s("tempId") + "/delete-preview", token, null);
+        assertThat(before.status()).isEqualTo(200);
+        assertThat(before.body().get("cancel")).isEmpty();
+        assertThat(call("DELETE", "/api/coach/schedule/temps/" + saved.s("tempId"), token, null).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/coach/schedule/temps", token, null).body()).isEmpty();
+        Res back = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday, token, null);
+        assertThat(back.body().get("days").get(0).get("lessons")).hasSize(1);
     }
 
     @Test
