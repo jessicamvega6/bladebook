@@ -101,7 +101,7 @@ export function ScheduleHub({ api, profile, flash, onError }: {
         <div className="grid2">
           <a className="action-card action-card--primary" href="#/schedule/weekly">
             <span className="action-card__icon"><Icon name="repeat" size={22} /></span>
-            <span className="action-card__title">{data.exists ? 'Edit weekly schedule' : 'Build your teaching week'}</span>
+            <span className="action-card__title">{data.exists ? 'Edit weekly schedule' : 'Build your repeating weekly schedule'}</span>
             <span className="action-card__sub">Your normal week. It repeats until you change it.</span>
             <span className="action-card__meta">
               {data.exists ? `${days} · ${plural(templates.length, 'block')} · ${weekLessons(asTemplates)} lessons` : 'Start here'} <Icon name="arrowR" />

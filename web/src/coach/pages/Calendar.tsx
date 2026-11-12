@@ -76,8 +76,8 @@ export function Calendar({ api, route, onError }: { api: ScheduleApi; route: Cal
   const start = (p: CancelPlan) => { setFlash(null); setCancel({ on: routeKey, plan: p }); };
   const done = flash?.on === routeKey && <Banner tone="success">{flash.text}</Banner>;
   const prompt = !data.hasSchedule && (
-    <Banner tone="info" title="You haven’t built your teaching week yet">
-      Families can book once it’s saved. <a className="link" href="#/schedule/weekly">Build your teaching week</a>
+    <Banner tone="info" title="You haven’t built your repeating weekly schedule yet">
+      Families can book once it’s saved. <a className="link" href="#/schedule/weekly">Build your repeating weekly schedule</a>
     </Banner>
   );
   if (route.view === 'month') return <Month data={data} first={route.date} views={views} prompt={prompt} />;

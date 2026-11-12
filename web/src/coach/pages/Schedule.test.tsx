@@ -184,7 +184,7 @@ test('Undo edits puts the saved week back', async () => {
 test('the hub offers to build the week and to add dates, and lists time off and special schedules', async () => {
   serve({ scheduleVersion: 0, exists: false, templates: [] }, undefined, { temps: [CAMP, THANKSGIVING] });
   render(<ScheduleHub api={scheduleApi('t')} profile={PROFILE} flash="" onError={vi.fn()} />);
-  expect(await screen.findByRole('link', { name: /Build your teaching week/ })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(await screen.findByRole('link', { name: /Build your repeating weekly schedule/ })).toHaveAttribute('href', '#/schedule/weekly');
   expect(screen.getByRole('link', { name: /Add time off or a special schedule/ })).toHaveAttribute('href', '#/schedule/dates');
   const list = (await screen.findByRole('heading', { name: 'Time off and special schedules' })).closest('section')!;
   expect(list).toHaveTextContent('Holiday camp weekSpecial schedule');

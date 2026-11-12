@@ -74,7 +74,7 @@ test('the day view lists every time with its length and price', async () => {
 test('a coach with no schedule is prompted to build one', async () => {
   serve({ ...BASE, hasSchedule: false, days: days('2026-11-10', 1, () => []) });
   render(<Calendar api={scheduleApi('t')} route={{ view: 'day', date: '2026-11-10' }} onError={vi.fn()} />);
-  expect(await screen.findByRole('link', { name: 'Build your teaching week' })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(await screen.findByRole('link', { name: 'Build your repeating weekly schedule' })).toHaveAttribute('href', '#/schedule/weekly');
   expect(screen.getByText('No lessons on Tuesdays')).toBeInTheDocument();
 });
 
