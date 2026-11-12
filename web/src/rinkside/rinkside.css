@@ -79,7 +79,32 @@
 .bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
 
 /* Not in the design: on a real phone the page is the phone. The design draws a device frame and status bar for the
-   demo; the site leaves both out and fills the screen, up to a phone's width on a desktop. */
-.bb .rk-app { min-height: 100vh; background: var(--bg); }
-.bb .rk-app .phone { width: 100%; max-width: 480px; height: 100vh; height: 100dvh; margin: 0 auto; box-shadow: var(--shadow); }
-.bb .rk-app .tabbar__item.is-disabled { opacity: .45; pointer-events: none; }
+   demo; the site leaves both out. The page scrolls as a whole, in either orientation, with the tab bar fixed at the
+   bottom and room left for the phone's notch and home bar (owner, 2026-11-12: it must work turned sideways). */
+.bb.rk-app { min-height: 100vh; min-height: 100dvh; background: var(--bg); }
+.bb.rk-app .phone { width: 100%; max-width: 480px; height: auto; min-height: 100vh; min-height: 100dvh; margin: 0 auto; overflow: visible; box-shadow: var(--shadow); }
+.bb.rk-app .rk-body { overflow: visible; }
+.bb.rk-app .phone__head, .bb.rk-app .phone__progress, .bb.rk-app .phone__body {
+  padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right));
+}
+.bb.rk-app .phone__body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.bb.rk-app .tabbar { position: fixed; left: 0; right: 0; margin: 0 auto; max-width: 480px; z-index: 4;
+  height: auto; min-height: 64px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.bb.rk-app .tabbar__item.is-disabled { opacity: .45; pointer-events: none; }
+.bb.rk-app .scrim { position: fixed; }
+.bb.rk-app .sheet { position: fixed; left: 0; right: 0; margin: 0 auto; max-width: 560px; max-height: 90vh; max-height: 90dvh;
+  padding-bottom: max(34px, env(safe-area-inset-bottom)); }
+.bb .rk-cards { display: flex; flex-direction: column; gap: 10px; }
+/* Wider screens, a phone turned sideways included: use the width, two lessons a row. */
+@media (min-width: 640px) {
+  .bb.rk-app .phone, .bb.rk-app .tabbar { max-width: 960px; }
+  .bb .rk-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+/* A short screen (a phone sideways): a compact header and tab bar, so the lessons get the room. */
+@media (max-height: 500px) {
+  .bb.rk-app .phone__head { padding-top: 8px; padding-bottom: 8px; }
+  .bb.rk-app .phone__title { font-size: 22px; }
+  .bb.rk-app .tabbar { min-height: 48px; padding-top: 4px; }
+  .bb.rk-app .tabbar__item { flex-direction: row; gap: 6px; font-size: 13px; }
+  .bb.rk-app .phone__body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}

@@ -175,10 +175,12 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         ) : !day ? <p className="muted" aria-busy="true">Loading today’s lessons…</p> : (
           <>
             {!day.lessons.length && <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={28} /></span><h2 className="h2">No lessons today</h2></div>}
-            {day.lessons.map((l) => (
-              <LessonCard key={l.startTime} l={l} now={now} tz={day.coachTimezone} onRecord={(s, o) => void record(l, s, o)}
-                onName={(s) => void openContact(l, s)} onMore={() => setSheet({ kind: 'more', l })} />
-            ))}
+            <div className="rk-cards">
+              {day.lessons.map((l) => (
+                <LessonCard key={l.startTime} l={l} now={now} tz={day.coachTimezone} onRecord={(s, o) => void record(l, s, o)}
+                  onName={(s) => void openContact(l, s)} onMore={() => setSheet({ kind: 'more', l })} />
+              ))}
+            </div>
             <p className="phone__hint">Tap a name for the family’s contact details.</p>
           </>
         )}
