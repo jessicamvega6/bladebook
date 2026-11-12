@@ -205,3 +205,24 @@ export function studentApi(token: string) {
 }
 
 export type StudentApi = ReturnType<typeof studentApi>;
+
+// ------------------------------------------------------------- Batch 7
+
+/** One skater's lesson that has happened, for the Lessons page. {@code status} NOT_RECORDED: nothing recorded yet. */
+export interface PastLessonDto {
+  date: string; startTime: string; durationMinutes: number; sharedWith: string[];
+  skater: { studentId: string; shortName: string; fullName: string; familyName: string | null; status: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED'; outcomeAt: string | null };
+}
+
+export function lessonsApi(token: string) {
+  return {
+    list: (from: string, to: string) => apiFetch<PastLessonDto[]>(`/api/coach/lessons?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
+    /** A correction overwrites whatever was recorded at the rink (R1). */
+    correct: (l: PastLessonDto, outcome: 'CHECKED_IN' | 'NO_SHOW') =>
+      apiFetch<PastLessonDto['skater']>('/api/coach/lessons/attendance', {
+        method: 'PUT', token, idempotent: true, body: { date: l.date, startTime: l.startTime, studentId: l.skater.studentId, outcome },
+      }),
+  };
+}
+
+export type LessonsApi = ReturnType<typeof lessonsApi>;

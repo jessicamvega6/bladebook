@@ -7,7 +7,8 @@
  * coaches have lessons coming up.
  *
  * Late or not is the lesson's own notice period (B6) against the clock now; the server decides again when it cancels.
- * Not yet: repeating lessons (Batch 9, G-20), shared lessons (Batch 11, G-21), attendance badges (Batch 7).
+ * Recent shows the attendance the coach recorded (Batch 7, G-27); nothing recorded shows no badge.
+ * Not yet: repeating lessons (Batch 9, G-20), shared lessons (Batch 11, G-21).
  */
 import { useCallback, useEffect, useId, useState } from 'react';
 import { ApiError } from '../../shared/api/client';
@@ -138,7 +139,9 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
         <Card title="Recent" flush>
           {recent.map((l) => (
             <Row key={keyOf(l)} muted lead={<DateBlock date={l.date} past />} title={`${DAYS[dayOfWeek(l.date)]} · ${formatTime(l.startTime)}`}
-              sub={`${firstName(l.studentName)}${coachTag(l)} · ${l.durationMinutes} min${money(l)}`} />
+              sub={`${firstName(l.studentName)}${coachTag(l)} · ${l.durationMinutes} min${money(l)}`}
+              side={l.attendance === 'CHECKED_IN' ? <Badge tone="success" icon="check">Attended</Badge>
+                : l.attendance === 'NO_SHOW' ? <Badge tone="danger" icon="x">No-show</Badge> : undefined} />
           ))}
         </Card>
       )}

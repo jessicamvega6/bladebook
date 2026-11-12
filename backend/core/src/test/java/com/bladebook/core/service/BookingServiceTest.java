@@ -231,6 +231,7 @@ class BookingServiceTest {
         BookingService.MyBookings after = later.myBookings(park);
         assertThat(after.upcoming()).extracting(l -> l.lesson().date().toString()).containsExactly("2026-11-23");
         assertThat(after.recent()).extracting(l -> l.lesson().startTime().toString()).containsExactly("07:00", "06:00");
+        assertThat(after.recent()).extracting(BookingService.MyLesson::attendance).containsOnlyNulls();
     }
 
     @Test

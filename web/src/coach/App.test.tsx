@@ -121,7 +121,8 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   expect(nav.getByRole('link', { name: /^Students/ })).toHaveAttribute('href', '#/students');
   expect(await nav.findByLabelText('2 waiting')).toBeInTheDocument();
   expect(nav.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile');
-  for (const later of ['Lessons', 'Payments']) {
+  expect(nav.getByRole('link', { name: 'Lessons' })).toHaveAttribute('href', '#/lessons');
+  for (const later of ['Payments']) {
     expect(nav.getByText(later).parentElement).toHaveAttribute('aria-disabled', 'true');
   }
   expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();

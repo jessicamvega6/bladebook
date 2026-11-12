@@ -539,3 +539,35 @@ The full list, with what closes each one, is in the root `README.md`.
   lesson's date previews that lesson (*"Ava P."*) → saving it cancels the lesson; the status is `EXECUTED`, 1
   lesson, 1 family → the calendar and the family's booking page name *"Fall break"* → My bookings shows one lesson
   at $50 → a weekly save at $40 re-prices it to $40. **Not checked in a browser.**
+
+### Batch 7 (2026-11-12)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** R1 (no Undo on the phone; corrections on the website's Lessons page), R6 (the rinkside cancel
+  sheet names the skater, date and time), R9 (the rinkside page says what it's for).
+- **Closed:** G-27 (My bookings' *Recent* shows *Attended* or *No-show*); G-6 in part (the Lessons page); G-28 in part
+  (the cancel on each lesson in Today's list).
+- **Shortcuts:** SC-15 contact-detail reveals go to the application log.
+- **Gaps:** G-32 the rinkside page is online only (Batch 10); G-33 the attendance events aren't raised; G-28 narrowed
+  to the Week tab.
+- **Settled while building (owner may override):**
+  - **The tap time may be up to 2 minutes ahead of the server's clock** (the ADR's "small clock-skew allowance").
+  - **A tap time outside the lesson's window is refused** with the design's *"The phone’s time didn’t match the
+    lesson, so it couldn’t be recorded."*; a tap on a lesson that's gone says *"This lesson was cancelled, so there’s
+    nothing to record."*
+  - **A second tap answers with what was recorded first**, as a replay does (the condition fails silently).
+  - **A correction keeps the first tap time** and sets `recordedAt`; one on a lesson never recorded takes now.
+  - **A lesson that hasn't started can't be corrected** on the Lessons page; it lists only lessons that have started.
+    Ranges are at most a year.
+  - **The rinkside routes are `/api/coach/rinkside/**`**, with the 4-hour session; cancelling from Today uses
+    `/api/coach/rinkside/cancel`, the same cancel as the website's, so it keeps that session too.
+  - **The rinkside page fills the phone's screen** (up to 480px wide on a desktop). The design's device frame and
+    fake status bar are left out; they draw the phone for the demo.
+  - **The rinkside sign-in is the coach website's local stand-in** (SC-1), sharing the coach site's sign-in in the
+    same browser tab; the password box is shown, as designed, and not checked.
+  - **Contact details come from the coach's own `STUDENT#` copy** of the family's details (ADR-MASTER §3).
+- **Checked in the running app (APIs only; table `bladebook-b7check`):** a coach's lessons an hour from now, booked
+  by a family → rinkside Today lists them → Present records the tap time → a second tap as No-show keeps Present →
+  contact details for a tap (one `contact-reveal` log line) → the family can't cancel the checked-in lesson → the
+  rinkside cancel holds the other time. **Not checked in a browser.**

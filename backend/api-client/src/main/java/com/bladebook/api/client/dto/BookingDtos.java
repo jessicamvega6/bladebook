@@ -31,12 +31,12 @@ public final class BookingDtos {
     /** A lesson on My bookings: the family's share of the price, and the lesson's own notice period. */
     public record MyLessonDto(String coachId, String coachFirstName, String studentId, String studentName, String date,
                               String startTime, int durationMinutes, String startsAtUtc, String coachTz, Integer priceMinor,
-                              String currency, int requiredNoticeHours) {
+                              String currency, int requiredNoticeHours, String attendance) {
         public static MyLessonDto of(BookingService.MyLesson m) {
             BookingService.FamilyLesson l = m.lesson();
             return new MyLessonDto(l.coachId(), l.coachFirstName(), l.studentId(), l.studentName(), l.date().toString(),
                     l.startTime().toString(), l.durationMinutes(), l.startsAtUtc().toString(), l.coachTz(), m.priceMinor(),
-                    m.currency(), m.requiredNoticeHours());
+                    m.currency(), m.requiredNoticeHours(), m.attendance());
         }
     }
 

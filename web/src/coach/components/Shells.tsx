@@ -8,7 +8,7 @@ export const COACH_STEPS = ['Account', 'Verify login email', 'Business details',
 /** Pages that exist in this build; the rest are named so the coach sees where they will be. */
 const NAV: Array<[label: string, route: string | null]> = [
   ['Today', '#/today'], ['Calendar', '#/calendar'], ['Schedule', '#/schedule'], ['Students', '#/students'],
-  ['Lessons', null], ['Payments', null], ['Profile', '#/profile'],
+  ['Lessons', '#/lessons'], ['Payments', null], ['Profile', '#/profile'],
 ];
 
 /** {@code waiting}: skaters waiting for approval, counted on the Students tab (FeatureDecriptions/Client Sign Up). */

@@ -14,7 +14,8 @@ Today and Coming up; the coach's calendars name who is booked. Batch 5 — cance
 family's My bookings, with Cancel on each lesson; the coach cancels a lesson, a day or the rest of the week
 from the calendar, releasing or holding each time. Batch 6 — time off and special schedules, and the review
 before every schedule save: what it cancels and re-prices, a big price change to confirm, then the save status.
-Everything runs on this computer only; nothing is
+Batch 7 — the rinkside page online (today's lessons, Present / No-show, contact details on a tap, cancelling one
+lesson) and the coach's Lessons page for correcting attendance. Everything runs on this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -75,6 +76,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | SC-9 | **Declining sends no email.** The dialog and the confirmation say the family is emailed, as designed, but locally the decline is only logged (without the address). | The notification batch (the decline message is in `FeatureDecriptions/Coach Dashboard on website.md`) |
 | SC-10 | **The family's “Create account” stores no password.** The password rules and the matching confirm box are checked in the browser, then the local stand-in signs the family in with the email alone. Because the stand-in signs any email in, it then checks for an existing family and refuses the email on step 2, as Cognito's sign-up will. | The Cognito user pool existing |
 | SC-11 | **Booking sends no confirmation email.** The result page says *"A confirmation email is on its way"*, as designed, but `LessonBooked` isn't raised and nothing is sent. | The notification batch (Batch 13) |
+| SC-15 | **Contact-detail reveals are logged to the application log** (`bladebook.pii-access`: the coach, the skater, the surface), not to their own access-log group (ADR-012; ADR-MASTER §18). | Infrastructure code (the access-log group) |
 | SC-12 | **The family's never-linked failures go to the application log.** `ClientLinks` logs the family ID, the IDs asked for and the operation as a security event, but not to its own access-log group, and without the request ID or source address; the paging alarms (3 in 15 minutes, 10 in a day) don't exist. | Infrastructure code (the access-log group and its alarms) |
 | SC-13 | **Cancelling and schedule changes send no email or text.** As designed, the family's message after a late cancel says *"Coach Dana has been told"*, and the coach's cancel preview, the schedule review (*"Accept & email 2 families"*) and the save status (*"2 families emailed."*) say families are emailed; nothing raises `LessonsChanged` or tells the coach, and nothing is sent. The save status treats an `EXECUTED` batch as done. | The notification batch (Batch 13); the coach's late-cancel text also waits on ADR-007 d8 |
 | SC-14 | **A coach's cancel of more than one lesson is carried out as it goes.** `api-coach` writes the change-batch header `PLANNED`, then each lesson in its own transaction with its `CANCELLED#` lines already `EXECUTED`, then marks the header `EXECUTED`. ADR-MASTER §9 writes every line `PLANNED` first so a retry can resume; here a failure part-way leaves the header `PLANNED` with the lessons done so far, and nothing resumes it. | Infrastructure code (the retried event that resumes a batch) |
@@ -105,11 +107,12 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-22 | **No clash warning across coaches** (ADR-025 d5). A time that overlaps the skater's lesson or pick with another coach isn't marked, and the confirm pop-up lists no clashes. | Not yet placed in the plan |
 | G-25 | **Seats carry no GSI2 or GSI3 keys and no `paymentStatus`.** The 7am and 9pm jobs (GSI2) and the unpaid list (GSI3) don't exist yet; local tables have GSI1 only. | Batches 8 and 13 |
 | G-26 | **ADR-022's read allowlist doesn't list the lesson-time and seat attributes yet** (its own note says it fails closed until written). The family path reads only `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `lessonStatus`, `shareCount`, `joinOrder`, `blockSeq` and `requiredNoticeHours` on `LESSON#` items; on its own seat, `idempotencyKey` and (to cancel it) `lessonDate`, `startTime`, `studentId`, `clientId`, `studentName`, `seatStatus`, `startsAtUtc`, `coachTz`, `durationMinutes` and `joinedAt`; and `coachTimezone` and `requiredNoticeHours` on the profile. Its cancel writes a `CHANGEBATCH#` header and a `CANCELLED#` line in the coach's partition. | Before the gate tests on real AWS |
-| G-27 | **My bookings' *Recent* shows no attendance badge** (present or no-show): nothing records attendance yet. | Batch 7 |
-| G-28 | **Cancelling from the rinkside page** (its cancel section, the Week tab's *Cancel rest of week*, and the cancel on each lesson in the check-in list). | Batch 7, with the rinkside page |
+| G-28 | **Cancelling several lessons from the rinkside page**: the Week tab (shown greyed) with its cancel section and *Cancel rest of week*. The cancel on each lesson in Today's list is built (Batch 7). | Batch 10, with the rinkside offline work |
 | G-30 | **Time off can't be edited, and nothing can be deleted.** As drawn, the hub has *Edit* on a special schedule only, and no delete on either. | An owner ruling (not in the design) |
 | G-31 | **The schedule review doesn't say when skaters per lesson changes** (*"Lessons already booked keep their current setting"*): the evaluator leaves booked lessons' skater count alone (owner, 2026-11-12) and nothing reports the change. | A later batch, if wanted |
-| G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: not the coach's Lessons page, and not the family (a family's own cancellation history is Phase 2, owner 2026-10-12). | The coach's Lessons page (Batch 7); the family's, Phase 2 |
+| G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: the coach's Lessons page lists lessons that happened, as drawn, and a family's own cancellation history is Phase 2 (owner, 2026-10-12). | Not yet placed; the family's, Phase 2 |
+| G-32 | **The rinkside page works online only.** No service worker, no offline copy of today, no queue: with no signal nothing loads or records. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 10 |
+| G-33 | **`CheckInRecorded` and `NoShowRecorded` aren't raised**, so no payment reminder follows a check-in. | The payments and notification batches |
 
 ## Repository
 
