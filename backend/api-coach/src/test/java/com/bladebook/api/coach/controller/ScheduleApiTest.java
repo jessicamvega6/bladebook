@@ -88,6 +88,70 @@ class ScheduleApiTest {
         return LocalDate.now(ZoneId.of("America/Chicago")).with(TemporalAdjusters.next(java.time.DayOfWeek.SUNDAY));
     }
 
+    private static String timeOff(LocalDate from, LocalDate to) {
+        return "{\"kind\":\"TIME_OFF\",\"name\":\"Fall break\",\"startDate\":\"" + from + "\",\"endDate\":\"" + to + "\"}";
+    }
+
+    @Test
+    void timeOffPreviewsSavesAndShowsOnTheHubAndCalendar() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        LocalDate sunday = nextSunday();
+
+        Res preview = call("POST", "/api/coach/schedule/temps/preview", token, timeOff(sunday, sunday.plusDays(1)));
+        assertThat(preview.status()).isEqualTo(200);
+        assertThat(preview.body().get("cancel")).isEmpty();
+        assertThat(preview.body().get("families").asInt()).isZero();
+
+        Res saved = call("POST", "/api/coach/schedule/temps", token, timeOff(sunday, sunday.plusDays(1)));
+        assertThat(saved.status()).isEqualTo(200);
+        assertThat(saved.s("tempId")).isNotBlank();
+        assertThat(saved.s("displayName")).isEqualTo("Fall break");
+
+        Res list = call("GET", "/api/coach/schedule/temps", token, null);
+        assertThat(list.body()).hasSize(1);
+        assertThat(list.body().get(0).get("kind").asString()).isEqualTo("TIME_OFF");
+
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(2), token, null);
+        JsonNode first = cal.body().get("days").get(0);
+        assertThat(first.get("lessons")).isEmpty();
+        assertThat(first.get("special").get("name").asString()).isEqualTo("Fall break");
+        assertThat(cal.body().get("days").get(2).get("special").isNull()).isTrue();
+        assertThat(cal.body().get("days").get(2).get("lessons")).hasSize(1);
+
+        Res overlap = call("POST", "/api/coach/schedule/temps/preview", token, timeOff(sunday.plusDays(1), sunday.plusDays(3)));
+        assertThat(overlap.status()).isEqualTo(400);
+        assertThat(overlap.s("message")).startsWith("These dates overlap Fall break");
+    }
+
+    @Test
+    void aSpecialScheduleIsSavedWithItsBlocksAndCanBeOpenedToEdit() throws Exception {
+        LocalDate sunday = nextSunday();
+        String body = "{\"kind\":\"SPECIAL\",\"name\":\"Camp\",\"startDate\":\"" + sunday + "\",\"endDate\":\"" + sunday.plusDays(1)
+                + "\",\"templates\":[{\"seq\":1,\"name\":\"Camp ice\",\"startTime\":\"09:00\",\"endTime\":\"11:00\",\"lessonMinutes\":60,"
+                + "\"priceMinor\":8000,\"maxSkaters\":1,\"iceType\":\"PUBLIC\",\"days\":[],\"off\":{\"" + sunday.plusDays(1) + "\":[\"10:00\"]}}]}";
+        Res saved = call("POST", "/api/coach/schedule/temps", token, body);
+        assertThat(saved.status()).isEqualTo(200);
+        Res one = call("GET", "/api/coach/schedule/temps/" + saved.s("tempId"), token, null);
+        assertThat(one.body().get("templates").get(0).get("off").get(sunday.plusDays(1).toString()).get(0).asString()).isEqualTo("10:00");
+
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(1), token, null);
+        assertThat(cal.body().get("days").get(0).get("lessons")).hasSize(2);
+        assertThat(cal.body().get("days").get(1).get("lessons")).hasSize(1);
+    }
+
+    @Test
+    void theWeeklyPreviewWarnsOfABigPriceChangeAndTheStatusSaysNothingHasRunYet() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        Res r = call("POST", "/api/coach/schedule/preview", token, everyDay(1).replace("4550", "455"));
+        assertThat(r.status()).isEqualTo(200);
+        JsonNode big = r.body().get("big").get(0);
+        assertThat(big.get("fromMinor").asInt()).isEqualTo(4550);
+        assertThat(big.get("toMinor").asInt()).isEqualTo(455);
+        assertThat(big.get("percent").asInt()).isEqualTo(90);
+        assertThat(big.get("cut").asBoolean()).isTrue();
+        assertThat(call("GET", "/api/coach/schedule/status", token, null).body().get("exists").asBoolean()).isFalse();
+    }
+
     @Test
     void cancelRestOfAFutureWeekHoldsEveryOpenTimeAndTheScheduleStays() throws Exception {
         call("PUT", "/api/coach/schedule", token, everyDay(0));

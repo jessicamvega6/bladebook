@@ -40,4 +40,12 @@ class CancellationLineTest {
         CancellationLine l = CancellationLine.of(BATCH, SEAT, 5000, "USD", NOW);
         assertThat(l.key()).contains(BATCH.stamp() + "#" + BATCH.batchId());
     }
+
+    @Test
+    void withStatusChangesOnlyTheStatus() {
+        CancellationLine l = CancellationLine.of(BATCH, SEAT, 5000, "USD", NOW);
+        CancellationLine p = l.withStatus(ChangeBatch.Execution.PLANNED);
+        assertThat(p.executionStatus()).isEqualTo(ChangeBatch.Execution.PLANNED);
+        assertThat(p.withStatus(ChangeBatch.Execution.EXECUTED)).isEqualTo(l);
+    }
 }

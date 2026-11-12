@@ -133,7 +133,7 @@ class ScheduleRepositoryTest {
         LessonTime a = lesson(MON, 6, 5000);
         LessonTime b = lesson(MON.plusDays(6), 23, 5000);
         LessonTime c = lesson(MON.plusDays(7), 6, 5000);
-        ScheduleRepository.Applied done = repo.apply(ctx, new ScheduleChange(List.of(a, b, c), List.of(), List.of(), 0));
+        ScheduleRepository.Applied done = repo.apply(ctx, new ScheduleChange(List.of(a, b, c), List.of(), List.of()));
 
         assertThat(done.added()).isEqualTo(3);
         assertThat(repo.lessonTimes(ctx, MON, MON.plusDays(6))).containsExactly(a, b);
@@ -147,17 +147,17 @@ class ScheduleRepositoryTest {
                 many.add(lesson(MON.plusDays(d), h + 6, 5000));
             }
         }
-        repo.apply(ctx, new ScheduleChange(many, List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(many, List.of(), List.of()));
         assertThat(repo.lessonTimes(ctx, MON, MON.plusDays(30))).hasSize(255);
     }
 
     @Test
     void addingATimeThatAlreadyExistsLeavesItAlone() {
         LessonTime a = lesson(MON, 6, 5000);
-        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of()));
         setStatus(a, "BOOKED");
 
-        ScheduleRepository.Applied done = repo.apply(ctx, new ScheduleChange(List.of(a, lesson(MON, 7, 5000)), List.of(), List.of(), 0));
+        ScheduleRepository.Applied done = repo.apply(ctx, new ScheduleChange(List.of(a, lesson(MON, 7, 5000)), List.of(), List.of()));
 
         assertThat(done.added()).isEqualTo(1);
         assertThat(done.skipped()).isEqualTo(1);
@@ -170,12 +170,12 @@ class ScheduleRepositoryTest {
         LessonTime bookedSince = lesson(MON, 7, 5000);
         LessonTime toReprice = lesson(MON, 8, 5000);
         LessonTime bookedBeforeReprice = lesson(MON, 9, 5000);
-        repo.apply(ctx, new ScheduleChange(List.of(open, bookedSince, toReprice, bookedBeforeReprice), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(open, bookedSince, toReprice, bookedBeforeReprice), List.of(), List.of()));
         setStatus(bookedSince, "BOOKED");
         setStatus(bookedBeforeReprice, "BOOKED");
 
         ScheduleRepository.Applied done = repo.apply(ctx, new ScheduleChange(List.of(), List.of(open, bookedSince),
-                List.of(toReprice.withPrice(4000), bookedBeforeReprice.withPrice(4000)), 0));
+                List.of(toReprice.withPrice(4000), bookedBeforeReprice.withPrice(4000))));
 
         assertThat(done.removed()).isEqualTo(1);
         assertThat(done.replaced()).isEqualTo(1);
@@ -189,19 +189,19 @@ class ScheduleRepositoryTest {
     @Test
     void aHeldTimeIsRemovedOnlyWhileHeld() {
         LessonTime held = lesson(MON, 6, 5000);
-        repo.apply(ctx, new ScheduleChange(List.of(held), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(held), List.of(), List.of()));
         setStatus(held, "HELD");
         LessonTime asRead = new LessonTime(held.lessonDate(), held.startTime(), held.startsAtUtc(), held.coachTz(), 30, 5000,
                 "USD", 0, 24, 2, 0, 1, IceType.PUBLIC, 1, LessonTime.Status.HELD);
 
-        assertThat(repo.apply(ctx, new ScheduleChange(List.of(), List.of(asRead), List.of(), 0)).removed()).isEqualTo(1);
+        assertThat(repo.apply(ctx, new ScheduleChange(List.of(), List.of(asRead), List.of())).removed()).isEqualTo(1);
         assertThat(repo.lessonTimes(ctx, MON, MON)).isEmpty();
     }
 
     @Test
     void aLessonTimeStoresEveryAttributeTheModelNames() {
         LessonTime a = lesson(MON, 6, 5000);
-        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of()));
         Map<String, AttributeValue> item = db.getItem(GetItemRequest.builder().tableName(table)
                 .key(Map.of("PK", AttributeValue.fromS(ctx.partitionKey()), "SK", AttributeValue.fromS(a.key()))).build()).item();
         assertThat(item).containsKeys("lessonStatus", "lessonDate", "startTime", "startsAtUtc", "coachTz", "durationMinutes",
@@ -213,14 +213,43 @@ class ScheduleRepositoryTest {
 
     @Test
     void oneCoachsLessonTimesAreNotAnothers() {
-        repo.apply(ctx, new ScheduleChange(List.of(lesson(MON, 6, 5000)), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(lesson(MON, 6, 5000)), List.of(), List.of()));
         assertThat(repo.lessonTimes(new AccessContext(UUID.randomUUID().toString()), MON, MON)).isEmpty();
     }
 
     @Test
     void startsAtUtcIsKeptToTheSecond() {
         LessonTime a = lesson(MON, 6, 5000);
-        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of(), 0));
+        repo.apply(ctx, new ScheduleChange(List.of(a), List.of(), List.of()));
         assertThat(repo.lessonTimes(ctx, MON, MON).get(0).startsAtUtc()).isEqualTo(Instant.parse("2026-11-09T12:00:00Z"));
+    }
+
+    @Test
+    void longTimeOffIsWrittenInChunksWithItsHeaderLastAndAnEditReplacesEveryDate() {
+        com.bladebook.core.domain.TempSchedule off = new com.bladebook.core.domain.TempSchedule("t1",
+                com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF, "Sabbatical", LocalDate.of(2026, 12, 1), LocalDate.of(2027, 3, 31),
+                List.of(), java.util.Map.of());
+        repo.saveTemp(ctx, off, null);
+        assertThat(repo.overrides(ctx, LocalDate.of(2026, 12, 1), LocalDate.of(2027, 3, 31))).hasSize(121).allSatisfy((d, b) -> assertThat(b).isEmpty());
+        assertThat(repo.temps(ctx)).containsExactly(off);
+
+        com.bladebook.core.domain.TempSchedule shorter = new com.bladebook.core.domain.TempSchedule("t1",
+                com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF, "Sabbatical", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 2),
+                List.of(), java.util.Map.of());
+        repo.saveTemp(ctx, shorter, off);
+        assertThat(repo.overrides(ctx, LocalDate.of(2026, 12, 1), LocalDate.of(2027, 3, 31))).hasSize(2);
+        assertThat(repo.temp(ctx, "t1")).contains(shorter);
+    }
+
+    @Test
+    void anotherOnesDatesArentOverwritten() {
+        com.bladebook.core.domain.TempSchedule a = new com.bladebook.core.domain.TempSchedule("a",
+                com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF, "", LocalDate.of(2026, 12, 1), LocalDate.of(2026, 12, 2), List.of(), java.util.Map.of());
+        com.bladebook.core.domain.TempSchedule b = new com.bladebook.core.domain.TempSchedule("b",
+                com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF, "", LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 3), List.of(), java.util.Map.of());
+        repo.saveTemp(ctx, a, null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> repo.saveTemp(ctx, b, null))
+                .isInstanceOf(com.bladebook.core.domain.DomainException.class);
+        assertThat(repo.temps(ctx)).containsExactly(a);
     }
 }

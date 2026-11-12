@@ -14,6 +14,7 @@ import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.ScheduleService;
 import com.bladebook.core.service.StudentLinkService;
 import com.bladebook.core.service.StudentService;
+import com.bladebook.core.service.TempScheduleService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -68,6 +69,12 @@ public class CoreConfig {
     @Bean
     CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
         return new CalendarService(schedules, coaches, students, clock);
+    }
+
+    /** Time off and special schedules (Batch 6). */
+    @Bean
+    TempScheduleService tempScheduleService(ScheduleRepository schedules, CoachRepository coaches, ScheduleChangeService change, Clock clock) {
+        return new TempScheduleService(schedules, coaches, change, clock);
     }
 
     /** Cancelling from the calendar (Batch 5). */

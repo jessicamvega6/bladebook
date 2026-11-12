@@ -10,6 +10,7 @@ import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.StudentRecord;
+import com.bladebook.core.domain.TempSchedule;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -40,7 +41,8 @@ public final class CalendarService {
     public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName, String familyId) {
     }
 
-    public record CalendarDay(LocalDate date, boolean override, List<LessonTime> lessons, List<Booked> booked) {
+    /** {@code special}: the time off or special schedule on that date, or {@code null}. */
+    public record CalendarDay(LocalDate date, boolean override, List<LessonTime> lessons, List<Booked> booked, TempSchedule special) {
 
         public CalendarDay {
             lessons = List.copyOf(lessons);
@@ -79,6 +81,7 @@ public final class CalendarService {
         Map<LocalDate, List<ScheduleBlock>> overrides = schedules.overrides(ctx, from, to);
         boolean hasSchedule = schedules.findDefault(ctx).map(w -> !w.isEmpty()).orElse(false);
         List<Seat> seats = schedules.seats(ctx, from, to);
+        List<TempSchedule> temps = schedules.temps(ctx).stream().filter(t -> !t.endDate().isBefore(from) && !t.startDate().isAfter(to)).toList();
         Map<String, StudentRecord> records = new HashMap<>();
         if (!seats.isEmpty()) {
             students.list(ctx).forEach(r -> records.put(r.studentId(), r));
@@ -99,7 +102,8 @@ public final class CalendarService {
                             r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName(), s.clientId()));
                 }
             }
-            days.add(new CalendarDay(d, overrides.containsKey(d), on, booked));
+            LocalDate day = d;
+            days.add(new CalendarDay(d, overrides.containsKey(d), on, booked, temps.stream().filter(t -> t.covers(day)).findFirst().orElse(null)));
         }
         return new CalendarView(coach.coachTimezone(), now.toLocalDate(), now.toLocalTime().truncatedTo(ChronoUnit.MINUTES),
                 hasSchedule, days);

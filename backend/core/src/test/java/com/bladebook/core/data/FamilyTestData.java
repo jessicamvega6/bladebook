@@ -66,7 +66,7 @@ final class FamilyTestData {
         Instant startsAt = date.atTime(start).atZone(ZoneId.of("America/Chicago")).toInstant();
         LessonTime t = new LessonTime(date, start, startsAt, "America/Chicago", 30, price, "USD", 0, 24, maxSkaters, 0, 1,
                 IceType.PUBLIC, 1, LessonTime.Status.OPEN);
-        new ScheduleRepository(f.clients, f.table).apply(coach, new ScheduleChange(List.of(t), List.of(), List.of(), 0));
+        new ScheduleRepository(f.clients, f.table).apply(coach, new ScheduleChange(List.of(t), List.of(), List.of()));
         return t;
     }
 

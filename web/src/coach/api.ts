@@ -119,7 +119,32 @@ export interface CalendarDto {
   today: string;
   now: string;
   hasSchedule: boolean;
-  days: Array<{ date: string; override: boolean; lessons: LessonDto[] }>;
+  /** {@code special}: the time off or special schedule on that date, if any (Batch 6). */
+  days: Array<{ date: string; override: boolean; lessons: LessonDto[]; special?: { kind: 'TIME_OFF' | 'SPECIAL'; name: string; startDate: string; endDate: string } | null }>;
+}
+
+/** Time off or a special schedule. A special schedule's templates ignore {@code days}; {@code off} is keyed by date. */
+export interface TempDto {
+  tempId: string | null; kind: 'TIME_OFF' | 'SPECIAL'; name: string; displayName?: string; startDate: string; endDate: string;
+  templates: TemplateDto[];
+}
+
+/** One booked lesson a change affects, by the seats' display names ("Ava P."). */
+export interface ImpactDto {
+  date: string; startTime: string; durationMinutes: number; priceMinor: number; newPriceMinor: number | null;
+  skaters: Array<{ studentId: string; name: string; familyId: string }>;
+}
+
+/** The review page: what saving would cancel and re-price, what an increase won't reach, and big price changes. */
+export interface PreviewDto {
+  cancel: ImpactDto[]; reprice: ImpactDto[]; kept: ImpactDto[]; families: number;
+  big: Array<{ seq: number; label: string; fromMinor: number; toMinor: number; percent: number; cut: boolean }>;
+}
+
+/** The newest schedule change's batch, for the save status. */
+export interface ChangeStatusDto {
+  exists: boolean; createdAt: string | null; executionStatus: 'PLANNED' | 'EXECUTED' | 'SKIPPED' | null;
+  lessonCount: number; clientCount: number; stuck: boolean; passed: ImpactDto[];
 }
 
 export function scheduleApi(token: string) {
@@ -132,6 +157,16 @@ export function scheduleApi(token: string) {
     /** Needs a sign-in from the last 15 minutes, or fails with SIGN_IN_TO_SAVE. */
     saveSchedule: (scheduleVersion: number, templates: TemplateDto[]) =>
       call<ScheduleDto>('/schedule', 'PUT', { scheduleVersion, templates }),
+    /** What saving this week would do to booked lessons. Writes nothing; no recent sign-in needed. */
+    previewWeekly: (templates: TemplateDto[]) => call<PreviewDto>('/schedule/preview', 'POST', { scheduleVersion: 0, templates }),
+    temps: () => call<TempDto[]>('/schedule/temps'),
+    temp: (tempId: string) => call<TempDto>(`/schedule/temps/${encodeURIComponent(tempId)}`),
+    previewTemp: (t: TempDto) => call<PreviewDto>('/schedule/temps/preview', 'POST', t),
+    /** Needs a sign-in from the last 15 minutes, or fails with SIGN_IN_TO_SAVE. */
+    saveTemp: (t: TempDto) => (t.tempId
+      ? call<TempDto>(`/schedule/temps/${encodeURIComponent(t.tempId)}`, 'PUT', t)
+      : call<TempDto>('/schedule/temps', 'POST', t)),
+    status: () => call<ChangeStatusDto>('/schedule/status'),
     calendar: (from: string, to: string) =>
       call<CalendarDto>(`/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   };

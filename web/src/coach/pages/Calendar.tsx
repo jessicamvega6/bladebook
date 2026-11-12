@@ -130,7 +130,7 @@ function Month({ data, first, views, prompt }: ViewProps & { first: string }) {
     const now = ws <= data.today && data.today <= addDays(ws, 6);
     return [
       <a key={`w${ws}`} className={`cal-wk${now ? ' is-now' : ''}`} href={href('week', from)}><b>Week {i + 1}</b><small>{shortDate(from)} – {shortDate(to)}</small></a>,
-      ...week.map(({ date, lessons }) => {
+      ...week.map(({ date, lessons, special }) => {
         const inMonth = date >= first && date <= last;
         const b = lessons.filter(isBooked).length, o = lessons.filter((l) => isOpen(data, date, l)).length;
         if (inMonth) { booked += b; open += o; }
@@ -139,9 +139,10 @@ function Month({ data, first, views, prompt }: ViewProps & { first: string }) {
           <a key={date} className={cls} href={href('day', date)} aria-label={`${longDate(date)}: ${b} booked, ${o} open`}>
             <span className="cal-day__num">{Number(date.slice(8))}{date === data.today && <em>Today</em>}</span>
             <span className="cal-day__meta">
+              {special && <span className={`cal-chip cal-chip--${special.kind === 'TIME_OFF' ? 'off' : 'special'}`}>{special.kind === 'TIME_OFF' ? 'Time off' : special.name}</span>}
               {lessons.length
                 ? <>{b > 0 && <span className="cal-chip">{b} booked</span>}{o > 0 && <span className="cal-chip cal-chip--open">{o} open</span>}</>
-                : <span className="cal-day__none">No lessons</span>}
+                : !special && <span className="cal-day__none">No lessons</span>}
             </span>
           </a>
         );
@@ -180,7 +181,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
   const end = addDays(start, 6);
   const thisWeek = start === weekStart(data.today);
   const back = `Week of ${shortDate(start)}`;
-  const cols = data.days.map(({ date, lessons }) => {
+  const cols = data.days.map(({ date, lessons, special }) => {
     const colCls = date < data.today ? ' week__col--past' : date === data.today ? ' week__col--today' : '';
     const fut = futureOn(data, date, lessons);
     return (
@@ -188,6 +189,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
         <a className="week__head cal-head" href={href('day', date)}>
           <span>{DAYS[dayOfWeek(date)]}</span><b>{Number(date.slice(8))}</b>{date === data.today && <em>Today</em>}
         </a>
+        {special?.kind === 'SPECIAL' && <div className="cal-colnote">{special.name}</div>}
         <div className="week__body">
           {lessons.length ? lessons.map((l) => {
             const kind = l.lessonStatus === 'OPEN' ? 'open' : l.lessonStatus === 'HELD' ? 'held' : '';
@@ -200,7 +202,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
               ? <button key={l.startTime} type="button" className={`${cls} cal-wl`} title={`Cancel ${whoIn(l, true)}’s lesson`}
                   onClick={() => onCancel(dayPlan('LESSON', back, [{ date, l }]))}>{inner}</button>
               : <div key={l.startTime} className={cls}>{inner}</div>;
-          }) : <div className="week__empty">No lessons</div>}
+          }) : <div className="week__empty">{special?.kind === 'TIME_OFF' ? <>Time off<br /><small>{special.name}</small></> : 'No lessons'}</div>}
         </div>
         {fut.length > 0 && <button type="button" className="week__cancel" onClick={() => onCancel(dayPlan('DAY', back, fut))}>Cancel day</button>}
       </div>
@@ -239,6 +241,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
 
 function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string; onCancel: (p: CancelPlan) => void }) {
   const lessons = data.days[0]?.lessons ?? [];
+  const special = data.days[0]?.special ?? null;
   const fut = futureOn(data, date, lessons);
   const back = longDate(date);
   const booked = lessons.filter(isBooked).length, open = lessons.filter((l) => isOpen(data, date, l)).length;
@@ -251,6 +254,7 @@ function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string
         crumb={<a className="link" href={href('week', date)}><Icon name="arrowL" size={14} /> Week of {shortDate(weekStart(date))}</a>}
         actions={<>{views}<Steps label="day" prev={href('day', addDays(date, -1))} next={href('day', addDays(date, 1))} today={href('day', data.today)} /></>} />
       {prompt}
+      {special?.kind === 'SPECIAL' && <Banner tone="info" title={`Special schedule: ${special.name}`}>{shortDate(special.startDate)} – {shortDate(special.endDate)}. These times replace your weekly schedule.</Banner>}
       <section className="card">
         {lessons.length > 0 && <header className="card__head"><div><h2 className="h2">Every time on this day</h2></div>
           {fut.length > 0 && <button type="button" className="btn btn--danger-outline btn--sm" onClick={() => onCancel(dayPlan('DAY', back, fut))}>
@@ -271,7 +275,13 @@ function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string
                 {cancellable(data, date, l) && <button type="button" className="btn btn--ghost btn--sm"
                   onClick={() => onCancel(dayPlan('LESSON', back, [{ date, l }]))}><span>Cancel</span></button>}</div>
             </div>
-          )) : (
+          )) : special?.kind === 'TIME_OFF' ? (
+            <div className="pempty">
+              <span className="pempty__icon"><Icon name="calOff" size={22} /></span>
+              <b>Time off: {special.name}</b>
+              <span className="muted">{shortDate(special.startDate)} – {shortDate(special.endDate)}. Families can’t book these days.</span>
+            </div>
+          ) : (
             <div className="pempty">
               <span className="pempty__icon"><Icon name="calendar" size={22} /></span>
               <b>No lessons on {DAYS_LONG[dayOfWeek(date)]}s</b>

@@ -250,4 +250,15 @@ class BookingServiceTest {
         assertThat(mine.upcoming()).isEmpty();
         assertThat(mine.recent()).isEmpty();
     }
+
+    @Test
+    void thePageNamesTheCoachsTimeOffAndSpecialSchedulesInTheWindow() {
+        scheduleRepo.saveTemp(dana, new com.bladebook.core.domain.TempSchedule("t1", com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF,
+                "", MONDAY, MONDAY, List.of(), java.util.Map.of()), null);
+        scheduleRepo.saveTemp(dana, new com.bladebook.core.domain.TempSchedule("t2", com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF,
+                "Far off", LocalDate.of(2027, 6, 1), LocalDate.of(2027, 6, 2), List.of(), java.util.Map.of()), null);
+        BookingPage p = booking.page(park, dana.coachId(), ava);
+        assertThat(p.specials()).extracting(com.bladebook.core.data.BookingRepository.Special::name).containsExactly("Time off");
+        assertThat(p.specials().get(0).kind()).isEqualTo("TIME_OFF");
+    }
 }

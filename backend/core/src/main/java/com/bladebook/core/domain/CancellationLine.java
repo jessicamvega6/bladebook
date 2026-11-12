@@ -9,7 +9,7 @@ import java.time.LocalTime;
  * A seat that ends is moved, not kept: the seat is deleted and this line put in the same transaction, so the key
  * is free for the skater to book again. {@code priceMinor} is the skater's share when it was cancelled.
  *
- * <p>Batch 5 writes every line {@code EXECUTED}. {@code recurrenceId} waits for repeating bookings (Batch 9) and the
+ * <p>A cancel by the family or the coach writes its lines {@code EXECUTED}; a schedule change plans them first. {@code recurrenceId} waits for repeating bookings (Batch 9) and the
  * notification fields for the notification batch.
  */
 public record CancellationLine(String batchId, String batchStamp, String seatKey, LocalDate lessonDate, LocalTime startTime,
@@ -19,6 +19,11 @@ public record CancellationLine(String batchId, String batchStamp, String seatKey
 
     public String key() {
         return "CANCELLED#" + batchStamp + "#" + batchId + "#" + seatKey;
+    }
+
+    public CancellationLine withStatus(ChangeBatch.Execution status) {
+        return new CancellationLine(batchId, batchStamp, seatKey, lessonDate, startTime, durationMinutes, priceMinor, currency,
+                studentId, studentName, clientId, cancelledBy, cancelledAt, noticeHours, status);
     }
 
     /** The line for {@code seat}, cancelled now in {@code batch}. */

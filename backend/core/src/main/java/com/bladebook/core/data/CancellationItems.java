@@ -2,6 +2,7 @@ package com.bladebook.core.data;
 
 import com.bladebook.core.domain.CancellationLine;
 import com.bladebook.core.domain.ChangeBatch;
+import com.bladebook.core.domain.RepriceLine;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.Instant;
@@ -19,11 +20,17 @@ final class CancellationItems {
 
     static final String BATCH = "CHANGEBATCH#";
     static final String LINE = "CANCELLED#";
+    static final String REPRICED = "REPRICED#";
 
     private CancellationItems() {
     }
 
     static Map<String, AttributeValue> header(String coachId, ChangeBatch b) {
+        return header(coachId, b, "COMPLETE");
+    }
+
+    /** A schedule change writes its header {@code WRITING} until every line is planned. */
+    static Map<String, AttributeValue> header(String coachId, ChangeBatch b, String planStatus) {
         Map<String, AttributeValue> m = new HashMap<>(FamilyItems.key("COACH#" + coachId, b.key()));
         m.put("batchId", FamilyItems.s(b.batchId()));
         m.put("createdAt", FamilyItems.s(b.createdAt().toString()));
@@ -36,7 +43,7 @@ final class CancellationItems {
         }
         m.put("lessonCount", n(b.lessonCount()));
         m.put("clientCount", n(b.clientCount()));
-        m.put("planStatus", FamilyItems.s("COMPLETE"));
+        m.put("planStatus", FamilyItems.s(planStatus));
         m.put("executionStatus", FamilyItems.s(b.executionStatus().name()));
         return m;
     }
@@ -76,6 +83,32 @@ final class CancellationItems {
                 i(m, "durationMinutes"), i(m, "priceMinor"), FamilyItems.str(m, "currency"), FamilyItems.str(m, "studentId"),
                 FamilyItems.str(m, "studentName"), FamilyItems.str(m, "clientId"), ChangeBatch.By.valueOf(FamilyItems.str(m, "cancelledBy")),
                 Instant.parse(FamilyItems.str(m, "cancelledAt")), Long.parseLong(m.get("noticeHours").n()),
+                ChangeBatch.Execution.valueOf(FamilyItems.str(m, "executionStatus")));
+    }
+
+    static Map<String, AttributeValue> reprice(String coachId, RepriceLine l) {
+        Map<String, AttributeValue> m = new HashMap<>(FamilyItems.key("COACH#" + coachId, l.key()));
+        m.put("batchId", FamilyItems.s(l.batchId()));
+        m.put("batchStamp", FamilyItems.s(l.batchStamp()));
+        m.put("seatKey", FamilyItems.s(l.seatKey()));
+        m.put("lessonDate", FamilyItems.s(l.lessonDate().toString()));
+        m.put("startTime", FamilyItems.s(l.startTime().toString()));
+        m.put("studentId", FamilyItems.s(l.studentId()));
+        m.put("studentName", FamilyItems.s(l.studentName()));
+        m.put("clientId", FamilyItems.s(l.clientId()));
+        m.put("oldPriceMinor", n(l.oldPriceMinor()));
+        m.put("newPriceMinor", n(l.newPriceMinor()));
+        m.put("currency", FamilyItems.s(l.currency()));
+        m.put("direction", FamilyItems.s(l.direction()));
+        m.put("executionStatus", FamilyItems.s(l.executionStatus().name()));
+        return m;
+    }
+
+    static RepriceLine repriceFrom(Map<String, AttributeValue> m) {
+        return new RepriceLine(FamilyItems.str(m, "batchId"), FamilyItems.str(m, "batchStamp"), FamilyItems.str(m, "seatKey"),
+                LocalDate.parse(FamilyItems.str(m, "lessonDate")), LocalTime.parse(FamilyItems.str(m, "startTime")),
+                FamilyItems.str(m, "studentId"), FamilyItems.str(m, "studentName"), FamilyItems.str(m, "clientId"),
+                i(m, "oldPriceMinor"), i(m, "newPriceMinor"), FamilyItems.str(m, "currency"),
                 ChangeBatch.Execution.valueOf(FamilyItems.str(m, "executionStatus")));
     }
 

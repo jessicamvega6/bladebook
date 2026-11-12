@@ -9,6 +9,7 @@ import com.bladebook.api.coach.dto.ScheduleDtos.ScheduleResponse;
 import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.api.coach.security.RecentSignIn;
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.domain.ChangeBatch;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.service.CalendarService;
 import com.bladebook.core.service.CoachCancelService;
@@ -52,16 +53,13 @@ public class ScheduleController {
         return ScheduleResponse.of(schedules.schedule(CurrentCoach.of(jwt)));
     }
 
-    /**
-     * Saves the week. Needs a sign-in from the last 15 minutes. The impact preview isn't built yet
-     * (Batch 6), so nothing is shown before saving.
-     */
+    /** Saves the week. Needs a sign-in from the last 15 minutes; the review page's preview is {@code POST /schedule/preview}. */
     @PutMapping("/schedule")
     public ScheduleResponse save(@AuthenticationPrincipal Jwt jwt, @RequestBody SaveRequest body) {
         recentSignIn.require(jwt);
         AccessContext ctx = CurrentCoach.of(jwt);
         ScheduleResponse saved = ScheduleResponse.of(schedules.save(ctx, body.scheduleVersion(), body.toTemplates()));
-        localEvents.ifAvailable(e -> e.scheduleChanged(ctx));
+        localEvents.ifAvailable(e -> e.scheduleChanged(ctx, ChangeBatch.Source.DEFAULT));
         return saved;
     }
 
