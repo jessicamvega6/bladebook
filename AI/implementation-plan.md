@@ -212,7 +212,9 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
   - Odd cents.
   - Temp-overlap ranges.
 - **Slice:** time off and special-schedule forms, then review (with the must-acknowledge warning), then save status.
-- **Gaps to raise:** changes to `iceType` or `maxSkaters` on an `OPEN` time aren't covered by the evaluator, and nothing says how re-authentication works locally.
+- **Rulings (2026-11-12):**
+  - The evaluator doesn't need to cover a change of `iceType` or `maxSkaters` on an `OPEN` time (owner).
+  - Signing in again before a save works locally as shortcut SC-7 (Batch 2): the token stub gives a fresh sign-in, and the real 15-minute `auth_time` check runs against it. Time off and special-schedule saves use the same flow.
 
 ### Batch 7 — Rinkside attendance online, and lesson-list corrections (MVP 12 part, 13 part)
 
