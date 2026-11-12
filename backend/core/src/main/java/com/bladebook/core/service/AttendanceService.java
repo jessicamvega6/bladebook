@@ -3,6 +3,7 @@ package com.bladebook.core.service;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.AttendanceRepository;
 import com.bladebook.core.data.AttendanceRepository.SeatOutcome;
+import com.bladebook.core.data.CancellationRepository;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -76,10 +77,18 @@ public final class AttendanceService {
     private final ScheduleRepository schedules;
     private final StudentRepository students;
     private final CoachRepository coaches;
+    private final CancellationRepository cancels;
     private final Clock clock;
 
     public AttendanceService(AttendanceRepository attendance, ScheduleRepository schedules, StudentRepository students,
                              CoachRepository coaches, Clock clock) {
+        this(attendance, schedules, students, coaches, null, clock);
+    }
+
+    /** {@code cancels}: to say when a family cancelled a lesson a saved check-in reaches (Batch 10). */
+    public AttendanceService(AttendanceRepository attendance, ScheduleRepository schedules, StudentRepository students,
+                             CoachRepository coaches, CancellationRepository cancels, Clock clock) {
+        this.cancels = cancels;
         this.attendance = attendance;
         this.schedules = schedules;
         this.students = students;
@@ -115,7 +124,7 @@ public final class AttendanceService {
         Seat.Status status = Attendance.outcome(outcome);
         Instant at = instant(outcomeAt);
         Instant now = clock.instant();
-        SeatOutcome seat = seat(ctx, date, start, studentId).orElseThrow(() -> DomainException.conflict(CANCELLED));
+        SeatOutcome seat = seat(ctx, date, start, studentId).orElseThrow(() -> DomainException.conflict(cancelled(ctx, date, start, studentId)));
         if (!Attendance.fits(seat.seat().startsAtUtc(), seat.seat().coachTz(), at, now)) {
             throw DomainException.invalid("outcomeAt", WRONG_TIME);
         }
@@ -175,6 +184,28 @@ public final class AttendanceService {
     }
 
     // ---------------------------------------------------------------------- helpers
+
+    /**
+     * Why there's no seat to record on: a family's cancel names when, in the coach's time (C_Rinkside Offline.md, "The family
+     * had cancelled": "This lesson was cancelled by the family at 3:50 PM, after you recorded it.").
+     */
+    private String cancelled(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        if (cancels == null) {
+            return CANCELLED;
+        }
+        String key = Seat.key(date, start, studentId);
+        return cancels.lines(ctx).stream().filter(l -> l.seatKey().equals(key) && l.cancelledBy() == com.bladebook.core.domain.ChangeBatch.By.CLIENT)
+                .max(Comparator.comparing(com.bladebook.core.domain.CancellationLine::cancelledAt))
+                .map(l -> "This lesson was cancelled by the family at " + clockOf(l.cancelledAt(), coach(ctx).coachTimezone())
+                        + ", after you recorded it.")
+                .orElse(CANCELLED);
+    }
+
+    private static String clockOf(Instant at, String zone) {
+        LocalTime t = at.atZone(ZoneId.of(zone)).toLocalTime();
+        int h = t.getHour() % 12 == 0 ? 12 : t.getHour() % 12;
+        return h + ":" + String.format("%02d", t.getMinute()) + (t.getHour() < 12 ? " AM" : " PM");
+    }
 
     private Optional<SeatOutcome> seat(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         String key = Seat.key(date, start, studentId);

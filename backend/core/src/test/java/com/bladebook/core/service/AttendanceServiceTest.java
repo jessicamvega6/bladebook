@@ -40,6 +40,8 @@ class AttendanceServiceTest {
     private final AtomicReference<Instant> now = new AtomicReference<>(BOOKED_AT);
     private AttendanceService service;
     private CoachCancelService cancels;
+    private CancellationService familyCancels;
+    private ClientContext park;
     private AccessContext dana;
     private String ava;
     private String jack;
@@ -53,14 +55,17 @@ class AttendanceServiceTest {
             @Override public Instant instant() { return now.get(); }
         };
         ScheduleRepository repo = new ScheduleRepository(t.f.clients, t.f.table);
-        service = new AttendanceService(new AttendanceRepository(t.f.clients, t.f.table), repo, t.studentRepo, t.coaches, clock);
+        service = new AttendanceService(new AttendanceRepository(t.f.clients, t.f.table), repo, t.studentRepo, t.coaches,
+                new CancellationRepository(t.f.clients, t.f.table), clock);
+        familyCancels = new CancellationService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table),
+                new CancellationRepository(t.f.clients, t.f.table), clock);
         cancels = new CoachCancelService(repo, new CancellationRepository(t.f.clients, t.f.table), clock);
         BookingService booking = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), t.families, clock);
 
         dana = t.coach("Dana", DANA_CODE);
         new ScheduleService(repo, t.coaches).save(dana, 0, List.of(mondayMornings(5000)));
         new ScheduleChangeService(repo, t.coaches, clock).apply(dana);
-        ClientContext park = FamilyTestSupport.newFamily();
+        park = FamilyTestSupport.newFamily();
         t.registration.register(park, "sarah@example.com", FamilyTestSupport.guardian(List.of(DANA_CODE),
                 FamilyTestSupport.kid("Ava Park", DANA_CODE), FamilyTestSupport.kid("Jack Park", DANA_CODE)));
         t.studentRepo.list(dana).forEach(r -> t.links.approved(t.studentRepo.approve(dana, r.studentId())));
@@ -152,5 +157,14 @@ class AttendanceServiceTest {
         assertThat(service.today(dana).lessons().get(0).time().lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
         assertThatThrownBy(() -> cancels.cancel(dana, CoachCancelRequest.parse("LESSON",
                 List.of(new CoachCancelRequest.PickInput(MONDAY.toString(), "06:00", "RELEASE")), null))).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void aSavedCheckInOnALessonTheFamilyCancelledSaysWhenTheyCancelled() {
+        now.set(Instant.parse("2026-11-16T13:20:00Z")); // Monday 7:20 AM: the family cancels the 7:30
+        familyCancels.cancel(park, dana.coachId(), ava, MONDAY, LocalTime.of(7, 30));
+        now.set(Instant.parse("2026-11-16T14:00:00Z"));
+        assertThatThrownBy(() -> record(ava, "07:30", "NO_SHOW", "2026-11-16T13:45:00Z"))
+                .hasMessage("This lesson was cancelled by the family at 7:20 AM, after you recorded it.");
     }
 }
