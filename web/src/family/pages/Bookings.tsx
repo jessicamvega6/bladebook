@@ -110,11 +110,11 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
   );
 
   const empty = whoName || coachName
-    ? <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span>
+    ? <div className="pempty bk-pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span>
         <b>Nothing booked{whoName ? ` for ${whoName}` : ''}{coachName ? ` with Coach ${coachName}` : ''}</b>
         <span className="muted">Try another skater or coach, or book a lesson.</span>
         <Button variant="secondary" onClick={() => { setWho('all'); setCoach('all'); setAll(false); }}>Show everything</Button></div>
-    : <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span><b>Nothing booked</b>
+    : <div className="pempty bk-pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span><b>Nothing booked</b>
         <span className="muted">Book a time with Coach {approvedCoaches[0]?.firstName}.</span>
         <a className="btn btn--primary" href="#/book"><span>Book a lesson</span></a></div>;
 
