@@ -194,4 +194,27 @@ class AttendanceApiTest {
         String fiveHours = stub.token(email, List.of("Coach"), coachClient, Instant.now().minus(Duration.ofHours(5)));
         assertThat(call("GET", "/api/coach/rinkside/today", fiveHours, null).status()).isEqualTo(401);
     }
+
+    @Test
+    void paymentsListMarkPaidWaiveAndUndo() throws Exception {
+        Res list = call("GET", "/api/coach/payments?from=" + today + "&to=" + today, token, null);
+        assertThat(list.status()).isEqualTo(200);
+        assertThat(list.body().get("rows")).hasSize(1);
+        JsonNode row = list.body().get("rows").get(0);
+        assertThat(row.get("amountMinor").asInt()).isEqualTo(5000);
+        assertThat(row.get("status").asString()).isEqualTo("UNPAID");
+        assertThat(list.body().get("totals").get("unpaid").get("USD").asLong()).isEqualTo(5000);
+        assertThat(list.body().get("choices").get(0).asString()).isEqualTo("OTHER");
+
+        String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
+        Res paid = call("POST", "/api/coach/payments/paid", token, seat);
+        assertThat(paid.s("status")).isEqualTo("PAID");
+        assertThat(paid.s("paidVia")).isEqualTo("OTHER");
+        assertThat(call("POST", "/api/coach/payments/waive", token, seat).status()).isEqualTo(409);
+        assertThat(call("POST", "/api/coach/payments/undo", token, seat).s("status")).isEqualTo("UNPAID");
+        assertThat(call("POST", "/api/coach/payments/waive", token, seat).s("status")).isEqualTo("WAIVED");
+        Res again = call("POST", "/api/coach/payments/undo", token, seat);
+        assertThat(again.status()).isEqualTo(409);
+        assertThat(again.s("message")).isEqualTo("A waived lesson can’t be changed.");
+    }
 }

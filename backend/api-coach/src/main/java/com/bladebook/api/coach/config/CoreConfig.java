@@ -2,6 +2,7 @@ package com.bladebook.api.coach.config;
 
 import com.bladebook.core.data.AttendanceRepository;
 import com.bladebook.core.data.CancellationRepository;
+import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.LocalTable;
 import com.bladebook.core.data.ScheduleRepository;
@@ -10,6 +11,7 @@ import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.PaymentService;
 import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.CoachProfileService;
 import com.bladebook.core.service.ScheduleChangeService;
@@ -71,6 +73,13 @@ public class CoreConfig {
     @Bean
     CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
         return new CalendarService(schedules, coaches, students, clock);
+    }
+
+    /** The Payments page (Batch 8). */
+    @Bean
+    PaymentService paymentService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
+                                  StudentRepository students, CoachRepository coaches, Clock clock) {
+        return new PaymentService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
     }
 
     /** Attendance: the rinkside page and the Lessons page (Batch 7). */

@@ -15,7 +15,8 @@ family's My bookings, with Cancel on each lesson; the coach cancels a lesson, a 
 from the calendar, releasing or holding each time. Batch 6 — time off and special schedules, and the review
 before every schedule save: what it cancels and re-prices, a big price change to confirm, then the save status.
 Batch 7 — the rinkside page online (today's lessons, Present / No-show, contact details on a tap, cancelling one
-lesson) and the coach's Lessons page for correcting attendance. Everything runs on this computer only; nothing is
+lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the coach's Payments page: mark paid with how they paid, waive (final), undo paid. Everything runs on
+this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -93,7 +94,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-3 | Profile → Visibility & texts: show phone or email to families; text me on late cancellations. **Not built in Batch 3**, so an approved family sees the coach's payment types but never the phone or email: both start off and nothing switches them on yet. | Batch 16 (owner, 2026-11-09); the texts switch also waits on ADR-007 d8 |
 | G-4 | Profile → Account: change password, log out through Cognito. | The Cognito user pool existing |
 | G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | The Cognito user pool existing |
-| G-6 | Today's lessons and stats, Lessons and Payments. | Batches 4–8 |
+| G-6 | **Today's lessons and stats.** Today shows the coach code, new families and the rink card; its lessons list and the week, unpaid and waiting figures aren't built. Lessons (Batch 7) and Payments (Batch 8) are. | Not yet placed |
 | G-9 | `sched-lesson-roller` isn't built: lesson times run to the window's end as it was at the last save, and nothing tops them up nightly. | A later batch, with the scheduled jobs |
 | G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Not yet placed; needs an owner ruling |
 | G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | A later batch, not yet placed in the plan |
@@ -105,7 +106,8 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-20 | **No repeating bookings.** The confirm pop-up has no *Repeat these lessons*, *Repeats* or *Until*; each pick books one date. A key seen again with a different request isn't refused, and nothing asks about a series an earlier attempt booked (ADR-006 d4b). | Batch 9 |
 | G-21 | **No sharing at booking.** The confirm pop-up has no share-code box, and no lesson takes a second skater. | Batch 11 |
 | G-22 | **No clash warning across coaches** (ADR-025 d5). A time that overlaps the skater's lesson or pick with another coach isn't marked, and the confirm pop-up lists no clashes. | Not yet placed in the plan |
-| G-25 | **Seats carry no GSI2 or GSI3 keys and no `paymentStatus`.** The 7am and 9pm jobs (GSI2) and the unpaid list (GSI3) don't exist yet; local tables have GSI1 only. | Batches 8 and 13 |
+| G-25 | **Seats carry no GSI2 or GSI3 keys.** The 7am and 9pm jobs (GSI2) and the weekly unpaid reminder (GSI3) don't exist yet; local tables have GSI1 only. Payments reads seats by date range instead. New seats carry `paymentStatus = UNPAID` (Batch 8); one booked before then counts as unpaid. | Batch 13 |
+| G-35 | **Payments' *Financial summary* and *Send reminders* are shown disabled.** | Batch 12; Phase 2 |
 | G-26 | **ADR-022's read allowlist doesn't list the lesson-time and seat attributes yet** (its own note says it fails closed until written). The family path reads only `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `lessonStatus`, `shareCount`, `joinOrder`, `blockSeq` and `requiredNoticeHours` on `LESSON#` items; on its own seat, `idempotencyKey` and (to cancel it) `lessonDate`, `startTime`, `studentId`, `clientId`, `studentName`, `seatStatus`, `startsAtUtc`, `coachTz`, `durationMinutes` and `joinedAt`; and `coachTimezone` and `requiredNoticeHours` on the profile. Its cancel writes a `CHANGEBATCH#` header and a `CANCELLED#` line in the coach's partition. | Before the gate tests on real AWS |
 | G-27 | **My bookings' *Recent* shows no attendance badge** (present or no-show): nothing records attendance yet. | Batch 7 |
 | G-28 | **Cancelling from the rinkside page** (its cancel section, the Week tab's *Cancel rest of week*, and the cancel on each lesson in the check-in list). | Batch 7, with the rinkside page |
