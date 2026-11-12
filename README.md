@@ -18,7 +18,8 @@ Batch 7 — the rinkside page online (today's lessons, Present / No-show, contac
 lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the coach's Payments page: mark paid with how they paid, waive (final), undo paid. Batch 9 — repeating bookings: book a series, see it on My bookings and Home, and end it earlier, make it less frequent or
 stop it. Batch 10 — the rinkside page with no signal: today kept on the phone, check-ins saved and sent when signal
 returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Batch 15 — the family's Profile:
-*Add a skater* (with *None of my coaches yet*) and *Add a coach*. Everything runs on this computer only; nothing is
+*Add a skater* (with *None of my coaches yet*) and *Add a coach*. Batch 16 — the coach's Profile → Visibility & texts:
+show my phone and my business email to approved families. Everything runs on this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -93,7 +94,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | A3 | No texts switch at sign-up. Ruled 2026-11-06: it's on the profile only, under Visibility & texts (G-3). | G-3 |
 | G-1 | “Resend link” and “Change address” for a business email waiting to be confirmed. | Batch 14 |
 | G-2 | Profile → Business email (the list of addresses). | Batch 14 |
-| G-3 | Profile → Visibility & texts: show phone or email to families; text me on late cancellations. **Not built in Batch 3**, so an approved family sees the coach's payment types but never the phone or email: both start off and nothing switches them on yet. | Batch 16 (owner, 2026-11-09); the texts switch also waits on ADR-007 d8 |
+| G-3 | Profile → Visibility & texts: the *Text me when a family cancels late* switch is shown off and can't be turned on. The two contact switches are built (Batch 16). | ADR-007 d8 |
 | G-4 | Profile → Account: change password, log out through Cognito. | The Cognito user pool existing |
 | G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | The Cognito user pool existing |
 | G-6 | **Today's lessons and stats.** Today shows the coach code, new families and the rink card; its lessons list and the week, unpaid and waiting figures aren't built. Lessons (Batch 7) and Payments (Batch 8) are. | Not yet placed |

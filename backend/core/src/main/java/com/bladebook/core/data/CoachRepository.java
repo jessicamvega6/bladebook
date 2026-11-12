@@ -124,6 +124,15 @@ public final class CoachRepository {
     }
 
     /** Replaces the payment instructions and every payment type. */
+    /** The two contact switches families see the effect of (ADR-MASTER section 4). */
+    public void updateVisibility(AccessContext ctx, boolean showPhone, boolean showEmail) {
+        transact(ctx, List.of(TransactWriteItem.builder().update(Update.builder().tableName(table).key(profileKey(ctx))
+                .conditionExpression("attribute_exists(PK)")
+                .updateExpression("SET displayPhoneToClients = :p, displayEmailToClients = :e")
+                .expressionAttributeValues(Map.of(":p", AttributeValue.fromBool(showPhone), ":e", AttributeValue.fromBool(showEmail)))
+                .build()).build()), DomainException.notFound(NOT_FOUND), -1);
+    }
+
     public void updatePayments(AccessContext ctx, String instructions, PaymentTypes payments) {
         Map<String, AttributeValue> values = new HashMap<>();
         List<String> set = new ArrayList<>();

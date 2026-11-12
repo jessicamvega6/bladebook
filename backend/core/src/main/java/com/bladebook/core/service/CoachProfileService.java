@@ -155,6 +155,22 @@ public final class CoachProfileService {
         return current.toBuilder().paymentInstructions(instructions).payments(payments).build();
     }
 
+    /**
+     * What approved families see (Profile → Visibility & texts; ADR-MASTER section 4): the phone and the business email,
+     * each the coach's choice. A waiting family never sees either, whatever these say (FamilyRepository.coachProfile).
+     */
+    public CoachProfile updateVisibility(AccessContext ctx, boolean showPhone, boolean showEmail) {
+        CoachProfile current = profile(ctx);
+        if (showPhone && current.phone() == null) {
+            throw DomainException.invalid("showPhone", "Add your phone number under Details first.");
+        }
+        if (showEmail && current.businessEmail() == null) {
+            throw DomainException.invalid("showEmail", "Your business email isn’t confirmed yet. Use the link we emailed you first.");
+        }
+        repo.updateVisibility(ctx, showPhone, showEmail);
+        return current.toBuilder().displayPhoneToClients(showPhone).displayEmailToClients(showEmail).build();
+    }
+
     /** A new code. A working code's old {@code CODE#} item is deleted at once. */
     public CoachProfile rotateCode(AccessContext ctx) {
         CoachProfile current = profile(ctx);

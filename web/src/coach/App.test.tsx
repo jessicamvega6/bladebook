@@ -11,7 +11,7 @@ const PENDING: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com',
   businessEmail: null, pendingBusinessEmail: 'lessons@dana.com', phone: null, coachTimezone: 'America/New_York',
   currency: 'USD', requiredNoticeHours: 24, coachCode: '7K2Q-M9XT', codeWorks: false, paymentInstructions: null,
-  paymentTypes: [],
+  paymentTypes: [], showPhone: false, showEmail: false,
 };
 
 function json(status: number, body: unknown) {

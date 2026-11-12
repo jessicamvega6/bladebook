@@ -291,4 +291,33 @@ class CoachProfileServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting("reason").isEqualTo(DomainException.Reason.CONFLICT);
     }
+
+    // ---- visibility (Profile → Visibility & texts; ADR-MASTER section 4, "What families see"; A3) ----
+
+    @Test
+    void bothContactSwitchesStartOffAndAreSavedAndReadBack() {
+        CoachProfile start = service.completeSignup(ctx, LOGIN, sameEmail());
+        assertThat(start.displayPhoneToClients()).isFalse();
+        assertThat(start.displayEmailToClients()).isFalse();
+
+        CoachProfile after = service.updateVisibility(ctx, true, true);
+
+        assertThat(after.displayPhoneToClients()).isTrue();
+        assertThat(after.displayEmailToClients()).isTrue();
+        assertThat(service.profile(ctx).displayPhoneToClients()).isTrue();
+        assertThat(service.updateVisibility(ctx, false, true).displayPhoneToClients()).isFalse();
+        assertThat(service.profile(ctx).displayEmailToClients()).isTrue();
+    }
+
+    @Test
+    void showingAPhoneOrEmailThatIsntThereIsRefused() {
+        service.completeSignup(ctx, LOGIN, differentEmail("lessons@dana.com")); // no phone; the email waits for its link
+        assertThatThrownBy(() -> service.updateVisibility(ctx, true, false))
+                .isInstanceOf(DomainException.class).hasMessage("Add your phone number under Details first.")
+                .extracting("field").isEqualTo("showPhone");
+        assertThatThrownBy(() -> service.updateVisibility(ctx, false, true))
+                .isInstanceOf(DomainException.class).hasMessage("Your business email isn’t confirmed yet. Use the link we emailed you first.")
+                .extracting("field").isEqualTo("showEmail");
+        assertThat(service.updateVisibility(ctx, false, false).displayPhoneToClients()).isFalse();
+    }
 }

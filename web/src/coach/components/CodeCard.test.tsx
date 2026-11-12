@@ -8,7 +8,7 @@ export const DANA: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com',
   businessEmail: 'dana@gmail.com', pendingBusinessEmail: null, phone: null, coachTimezone: 'America/Chicago',
   currency: 'USD', requiredNoticeHours: 24, coachCode: '7K2Q-M9XT', codeWorks: true, paymentInstructions: null,
-  paymentTypes: [],
+  paymentTypes: [], showPhone: false, showEmail: false,
 };
 const PENDING: Profile = { ...DANA, businessEmail: null, pendingBusinessEmail: 'lessons@dana.com', codeWorks: false };
 

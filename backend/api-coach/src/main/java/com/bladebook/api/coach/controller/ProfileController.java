@@ -4,6 +4,7 @@ import com.bladebook.api.coach.dto.ProfileDtos.DetailsRequest;
 import com.bladebook.api.coach.dto.ProfileDtos.PaymentsRequest;
 import com.bladebook.api.coach.dto.ProfileDtos.ProfileResponse;
 import com.bladebook.api.coach.dto.ProfileDtos.SignupRequest;
+import com.bladebook.api.coach.dto.ProfileDtos.VisibilityRequest;
 import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.core.service.CoachProfileService;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,12 @@ public class ProfileController {
     @PutMapping("/profile/payments")
     public ProfileResponse payments(@AuthenticationPrincipal Jwt jwt, @RequestBody PaymentsRequest body) {
         return ProfileResponse.of(profiles.updatePayments(CurrentCoach.of(jwt), body.toPayments()));
+    }
+
+    /** What approved families see: the phone and the business email, each switched on or off. */
+    @PutMapping("/profile/visibility")
+    public ProfileResponse visibility(@AuthenticationPrincipal Jwt jwt, @RequestBody VisibilityRequest body) {
+        return ProfileResponse.of(profiles.updateVisibility(CurrentCoach.of(jwt), body.showPhone(), body.showEmail()));
     }
 
     @PostMapping("/profile/code/rotate")

@@ -26,7 +26,9 @@ public final class ProfileDtos {
             String loginEmail, String businessEmail, String pendingBusinessEmail,
             String phone, String coachTimezone, String currency, int requiredNoticeHours,
             String coachCode, boolean codeWorks,
-            String paymentInstructions, List<PaymentTypeDto> paymentTypes) {
+            String paymentInstructions, List<PaymentTypeDto> paymentTypes,
+            /* Profile → Visibility & texts: shown to approved families only. */
+            boolean showPhone, boolean showEmail) {
 
         public static ProfileResponse of(CoachProfile p) {
             List<PaymentTypeDto> types = new ArrayList<>();
@@ -37,8 +39,12 @@ public final class ProfileDtos {
                     p.loginEmail(), p.businessEmail(), p.pendingBusinessEmail(),
                     p.phone(), p.coachTimezone(), p.currency().name(), p.requiredNoticeHours(),
                     p.coachCode().display(), p.codeWorks(),
-                    p.paymentInstructions(), types);
+                    p.paymentInstructions(), types, p.displayPhoneToClients(), p.displayEmailToClients());
         }
+    }
+
+    /** Profile → Visibility & texts: the two contact switches. */
+    public record VisibilityRequest(boolean showPhone, boolean showEmail) {
     }
 
     /** Sign-up step 3. */

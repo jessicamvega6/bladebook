@@ -1,10 +1,10 @@
 /**
- * Profile → Details and Profile → Payments (design: profile-details, profile-details-code-pending,
- * profile-payments, profile-payments-verify). Business email, Visibility & texts and Account aren't
- * built yet (gaps G-2, G-3, G-4).
+ * Profile → Details, Visibility & texts, and Payments (design: profile-details, profile-details-code-pending,
+ * profile-visibility, profile-payments, profile-payments-verify). Business email and Account aren't built yet
+ * (gaps G-2, G-4). The texts switch waits on ADR-007 d8 (G-3).
  */
 import { useState, type FormEvent } from 'react';
-import { Badge, Banner, Button, Card, Dialog, Field, Icon, Select, TextArea } from '../../shared/components/harbor';
+import { Badge, Banner, Button, Card, Dialog, Field, Icon, Select, TextArea, Toggle } from '../../shared/components/harbor';
 import { TIMEZONES } from '../../shared/logic/timezones';
 import type { CoachApi, PaymentType, PaymentTypeName, Profile } from '../api';
 import { CodeCard, CodePendingBanner } from '../components/CodeCard';
@@ -12,7 +12,7 @@ import { allTypes, PaymentTypeRows, PAY_TYPES } from '../components/PaymentTypeR
 import { fieldErrors, payErrors } from './SignupBusiness';
 
 const TABS: Array<[label: string, route: string | null]> = [
-  ['Details', '#/profile'], ['Business email', null], ['Visibility & texts', null], ['Payments', '#/profile/payments'], ['Account', null],
+  ['Details', '#/profile'], ['Business email', null], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', null],
 ];
 
 function ProfileHead({ tab }: { tab: string }) {
@@ -180,6 +180,71 @@ export function ProfilePayments({ api, profile, onChange }: PageProps) {
         <Card title="How families paid" sub="Only you see this.">
           <div className="mp-chips">{chips.map((c) => <span key={c} className="badge badge--neutral">{c}</span>)}</div>
           <div className="hint">When you mark a lesson paid you can note how the family paid. The choices are the payment types you’ve switched on, plus Other. Lessons you’ve already marked keep what you chose.</div>
+        </Card>
+        <SaveBar busy={busy} saved={saved} />
+      </form>
+    </>
+  );
+}
+
+/**
+ * Profile → Visibility & texts (design: profile-visibility; ADR-MASTER section 4, "What families see"; A3). Families see
+ * the phone or email only once the coach has approved one of their skaters; the server enforces that, not this page.
+ */
+export function ProfileVisibility({ api, profile, onChange }: PageProps) {
+  const [showPhone, setShowPhone] = useState(profile.showPhone);
+  const [showEmail, setShowEmail] = useState(profile.showEmail);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const shown = PAY_TYPES.flatMap((t) => {
+    const p = profile.paymentTypes.find((x) => x.type === t.type);
+    return p?.on ? [p.handle ? `${t.label} ${t.prefix}${p.handle}` : t.label] : [];
+  });
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setErrors({});
+    setSaved(false);
+    try {
+      onChange(await api.saveVisibility({ showPhone, showEmail }));
+      setSaved(true);
+    } catch (err) {
+      const f = fieldErrors(err);
+      setErrors(f);
+      if (!Object.keys(f).length) setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <ProfileHead tab="Visibility & texts" />
+      {error && <Banner tone="danger">{error}</Banner>}
+      <form onSubmit={save} noValidate>
+        <Card title="What families can see" sub="Only families you’ve approved. Never someone who has only entered your coach code." flush>
+          <Toggle label="Phone number" on={showPhone} sub={profile.phone ?? 'No phone number yet. Add one under Details.'} onToggle={() => { setShowPhone(!showPhone); setSaved(false); }} />
+          {errors.showPhone && <div className="hint hint--error mp-toggle-err"><Icon name="alert" size={14} />{errors.showPhone}</div>}
+          <Toggle label="Email address" on={showEmail} sub={profile.businessEmail ?? `${profile.pendingBusinessEmail ?? 'Your business email'} isn’t confirmed yet.`}
+            onToggle={() => { setShowEmail(!showEmail); setSaved(false); }} />
+          {errors.showEmail && <div className="hint hint--error mp-toggle-err"><Icon name="alert" size={14} />{errors.showEmail}</div>}
+          <div className="toggle-row"><div className="toggle-row__text"><div className="toggle-row__label">Payment types</div>
+            <div className="toggle-row__sub">{shown.join(' · ') || 'None switched on.'} Each has its own switch under <a className="link" href="#/profile/payments">Payments</a>.</div></div></div>
+          <div className="card__note"><Icon name="info" size={14} /> Your payment instructions always appear in payment-reminder emails. Replies always reach your business email, whichever of these are on.</div>
+        </Card>
+        <Card title="Texts to you" flush
+          sub={`You get an email when a family cancels inside your ${profile.requiredNoticeHours}-hour notice period. Other cancellations just free the time. Texts are extra.`}>
+          {/* Not in the design: the switch is off until texts are set up (ADR-007 d8, gap G-3). */}
+          <div className="toggle-row">
+            <div className="toggle-row__text"><div className="toggle-row__label">Text me when a family cancels late <Badge>Not yet</Badge></div>
+              <div className="toggle-row__sub">Texts aren’t set up yet. Until they are, you get the email.</div></div>
+            <button type="button" className="switch" role="switch" aria-checked={false} aria-label="Text me when a family cancels late" disabled><span className="switch__knob" /></button>
+          </div>
+          <div className="smsprev"><div className="smsprev__label">Example</div><div className="smsprev__bubble">BladeBook: Mia C. cancelled Fri 16 Oct 8:30am, inside your notice period. See email.</div></div>
         </Card>
         <SaveBar busy={busy} saved={saved} />
       </form>

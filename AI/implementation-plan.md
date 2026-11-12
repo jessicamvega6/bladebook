@@ -684,3 +684,19 @@ The full list, with what closes each one, is in the root `README.md`.
   Max added with no coach has none and no coach sees him; *Add a coach* with Coach Ben's code puts Max on Ben's
   Students page alone, the family isn't marked waiting, and Ben's ID isn't given out.
 
+### Batch 16 (2026-11-12)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** A3 (ADR-MASTER §4, "What families see"): the phone and the business email are each the coach's
+  choice, both off to start, and only families the coach has approved see them (enforced since Batch 3).
+- **Closed:** G-3's two contact switches. Left in G-3: the texts switch, which waits on ADR-007 d8.
+- **Settled while building (owner may override):**
+  - **A switch can't show what isn't there:** *"Add your phone number under Details first."* and *"Your business
+    email isn’t confirmed yet. Use the link we emailed you first."*, each by its switch.
+  - **The texts card is shown** as the design draws it, with the switch off and disabled and *"Texts aren’t set up
+    yet. Until they are, you get the email."* (marked "Not in the design").
+  - **Payment types** are listed read-only, with their handles, linking to the Payments tab, as the design does.
+- **Checked in the running app (APIs; table `bladebook-b9check`):** an approved family saw no phone or email; the
+  coach switched both on; the family then saw both.
+
