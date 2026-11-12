@@ -36,9 +36,15 @@ public class SecurityConfig {
         return new CoachTokenRules(coachAppClientId, Duration.ofMinutes(signInMinutes));
     }
 
+    /** The rinkside page's routes: 4 hours from sign-in (ADR-023 d6; ADR-MASTER section 15). */
+    static final String RINKSIDE = "/api/coach/rinkside/";
+
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, CoachTokenRules rules, Clock clock, Environment env)
+    SecurityFilterChain securityFilterChain(HttpSecurity http, CoachTokenRules rules, Clock clock, Environment env,
+                                            @Value("${bladebook.auth.coach-app-client-id}") String coachAppClientId,
+                                            @Value("${bladebook.auth.rinkside-sign-in-minutes:240}") long rinksideMinutes)
             throws Exception {
+        CoachTokenRules rinkside = new CoachTokenRules(coachAppClientId, Duration.ofMinutes(rinksideMinutes));
         boolean local = env.acceptsProfiles(Profiles.of("local"));
         http.csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -50,7 +56,7 @@ public class SecurityConfig {
                     a.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(o -> o.jwt(j -> { }))
-                .addFilterAfter(new CoachTokenFilter(rules, clock), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new CoachTokenFilter(rules, rinkside, RINKSIDE, clock), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

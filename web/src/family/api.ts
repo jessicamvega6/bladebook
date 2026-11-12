@@ -49,6 +49,8 @@ export interface FamilyLesson {
 /** A lesson on Home and My bookings: the family's share of the price (null if it can't be read) and its notice period. */
 export interface MyLesson extends FamilyLesson {
   priceMinor: number | null; currency: string | null; requiredNoticeHours: number;
+  /** What the coach recorded, once they have (Batch 7). */
+  attendance?: 'CHECKED_IN' | 'NO_SHOW' | null;
 }
 
 /** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
