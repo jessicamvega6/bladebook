@@ -141,6 +141,9 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   expect(screen.getByLabelText('Coach code 7 K 2 Q - M 9 X T')).toBeInTheDocument();
   expect(screen.getByText('Families enter this to sign up with you.')).toBeInTheDocument();
 
+  // The way to the rinkside page (Batch 7).
+  expect(screen.getByText('Heading to the rink?')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Open the rinkside app' })).toHaveAttribute('href', '/coach/rinkside/');
   // Today's lessons
   expect(screen.getByRole('heading', { name: 'Today’s lessons' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'calendar' })).toHaveAttribute('href', '#/calendar');

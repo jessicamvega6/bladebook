@@ -112,6 +112,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-30 | **Time off can't be edited.** As drawn, the hub has *Edit* on a special schedule only. Both can be deleted (owner, 2026-11-12). | An owner ruling (not in the design) |
 | G-31 | **The schedule review doesn't say when skaters per lesson changes** (*"Lessons already booked keep their current setting"*): the evaluator leaves booked lessons' skater count alone (owner, 2026-11-12) and nothing reports the change. | A later batch, if wanted |
 | G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: the coach's Lessons page lists lessons that happened, as drawn, and a family's own cancellation history is Phase 2 (owner, 2026-10-12). | Not yet placed; the family's, Phase 2 |
+| G-34 | **No morning email.** Today's *"Heading to the rink?"* card says *"The link is in your morning email too"*, as designed, but nothing sends it; Today's card is the only way to the rinkside page. | The notification batch (Batch 13) |
 | G-32 | **The rinkside page works online only.** No service worker, no offline copy of today, no queue: with no signal nothing loads or records. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 10 |
 | G-33 | **`CheckInRecorded` and `NoShowRecorded` aren't raised**, so no payment reminder follows a check-in. | The payments and notification batches |
 

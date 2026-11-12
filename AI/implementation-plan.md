@@ -571,6 +571,10 @@ The full list, with what closes each one, is in the root `README.md`.
   - **The rinkside sign-in is the coach website's local stand-in** (SC-1), sharing the coach site's sign-in in the
     same browser tab; the password box is shown, as designed, and not checked.
   - **Contact details come from the coach's own `STUDENT#` copy** of the family's details (ADR-MASTER §3).
+- **Added after review (owner, 2026-11-12):** Today's *"Heading to the rink?"* card with *Open the rinkside app*, and
+  the log-in page's *"Checking in at the rink?"* note, both as designed (no batch had placed them; G-34 the morning
+  email they mention). The rinkside page now fits a phone turned sideways: it scrolls as one page, uses the width
+  (two lessons a row), and keeps clear of the notch and home bar. Checked in headless Chrome at 390×844 and 844×390.
 - **Checked in the running app (APIs only; table `bladebook-b7check`):** a coach's lessons an hour from now, booked
   by a family → rinkside Today lists them → Present records the tap time → a second tap as No-show keeps Present →
   contact details for a tap (one `contact-reveal` log line) → the family can't cancel the checked-in lesson → the
