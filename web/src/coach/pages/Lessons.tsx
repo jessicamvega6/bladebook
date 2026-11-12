@@ -52,7 +52,7 @@ export function Lessons({ api, onError }: { api: LessonsApi; onError: (e: unknow
     const ns = list.filter((l) => l.skater.status === 'NO_SHOW').length;
     body = (
       <>
-        {nr > 0 && <Banner tone="warning" title={`${plural(nr, 'lesson has', 'lessons have')} no attendance`}>The rinkside app may still be holding a check-in that hasn’t been sent, or nobody recorded it. Pick Attended or No-show to settle it.</Banner>}
+        {nr > 0 && <Banner tone="warning" title={`${plural(nr, 'lesson has', 'lessons have')} no attendance`}>The rinkside page may still be holding a check-in that hasn’t been sent, or nobody recorded it. Pick Attended or No-show to settle it.</Banner>}
         <Card title={plural(list.length, 'lesson')} sub={`${dFull(from)} – ${dFull(to)} · ${att} attended · ${ns} no-show${nr ? ` · ${nr} not recorded` : ''}`} flush>
           {list.length ? list.map((l) => {
             const s = l.skater;
@@ -79,7 +79,7 @@ export function Lessons({ api, onError }: { api: LessonsApi; onError: (e: unknow
     <>
       {flash && <Banner tone="success">{flash}</Banner>}
       <div className="phead"><div className="phead__text"><h1 className="h1">Lessons</h1>
-        <p className="lede">Check who came. Fix anything recorded wrong at the rink here; the rinkside app can’t change a recorded lesson.</p></div></div>
+        <p className="lede">Check who came. Fix anything recorded wrong at the rink here; the rinkside page can’t change a recorded lesson.</p></div></div>
       <div className="filters mp-filters">
         <div className="field"><label className="label" htmlFor="les-from">From</label>
           <input id="les-from" type="date" className="ctl" value={from} onChange={(e) => setFrom(e.target.value)} /></div>

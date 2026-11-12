@@ -152,7 +152,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         <div>
           <a className="rk-home" href="/coach/"><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
           <div className="phone__title">{tab === 'account' ? 'Account' : 'Today'}</div>
-          <div className="phone__sub">{tab === 'account' ? 'Rinkside app' : sub}</div>
+          <div className="phone__sub">{tab === 'account' ? 'Rinkside page' : sub}</div>
         </div>
         <span className="rk-pill rk-pill--ok"><Icon name="check" size={13} />All saved</span>
       </header>
