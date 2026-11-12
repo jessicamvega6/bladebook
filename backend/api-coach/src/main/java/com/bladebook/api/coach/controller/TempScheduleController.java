@@ -14,6 +14,7 @@ import com.bladebook.core.service.TempScheduleService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +78,22 @@ public class TempScheduleController {
     @PutMapping("/temps/{tempId}")
     public TempDto edit(@AuthenticationPrincipal Jwt jwt, @PathVariable String tempId, @RequestBody TempDto body) {
         return save(jwt, new TempDto(tempId, body.kind(), body.name(), null, body.startDate(), body.endDate(), body.templates()));
+    }
+
+    /** What deleting one would do to booked lessons. Writes nothing. */
+    @GetMapping("/temps/{tempId}/delete-preview")
+    public PreviewDto previewDelete(@AuthenticationPrincipal Jwt jwt, @PathVariable String tempId) {
+        return PreviewDto.of(temps.previewDelete(CurrentCoach.of(jwt), tempId));
+    }
+
+    /** Deletes one: its dates follow the weekly schedule again. Needs a sign-in from the last 15 minutes. */
+    @DeleteMapping("/temps/{tempId}")
+    public TempDto delete(@AuthenticationPrincipal Jwt jwt, @PathVariable String tempId) {
+        recentSignIn.require(jwt);
+        AccessContext ctx = CurrentCoach.of(jwt);
+        TempDto deleted = TempDto.of(temps.delete(ctx, tempId));
+        localEvents.ifAvailable(e -> e.scheduleChanged(ctx, ChangeBatch.Source.DATE_OVERRIDE));
+        return deleted;
     }
 
     /** The newest schedule change's batch: applying, done, or stuck. */

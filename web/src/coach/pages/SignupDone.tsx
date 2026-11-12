@@ -22,7 +22,7 @@ export function SignupDone({ profile }: { profile: Profile }) {
         <div className="nextup">
           <div>
             <div className="eyebrow">Next up</div>
-            <div className="nextup__title">Build your teaching week <Badge>Next batch</Badge></div>
+            <div className="nextup__title">Build your repeating weekly schedule <Badge>Next batch</Badge></div>
             <div className="nextup__sub">Set your blocks, lesson lengths and prices.</div>
           </div>
           <Button lg iconRight="arrowR" disabled>Start</Button>

@@ -512,8 +512,12 @@ The full list, with what closes each one, is in the root `README.md`.
   hours banner).
 - **Shortcuts:** SC-5 now also covers the change batch, which nothing resumes after a failure; SC-13 widened to the
   schedule review and save status's email wording; SC-14 stays open (it needs the retried event, not this batch).
-- **Gaps:** G-30 time off can't be edited and nothing can be deleted (not in the design); G-31 the review doesn't
-  report a skaters-per-lesson change.
+- **Gaps:** G-30 time off can't be edited (not in the design); G-31 the review doesn't report a skaters-per-lesson
+  change.
+- **Added by the owner (2026-11-12, not in the design):** *Delete* on every time off and special schedule in the
+  hub's list, through the review page and the save status (`FeatureDecriptions/C_Coach Schedule Hub.md`). Phase 2
+  note there, and question 14 for Kim: if coaches often add the wrong special schedule, stop emailing families
+  automatically after a schedule change.
 - **Settled while building (owner may override):**
   - **The 50% warning doesn't fire for a block that was $0**, as the design draws it (there's no percentage of
     nothing). Exactly 50% warns. Blocks are matched by their number; a new block has nothing to compare.

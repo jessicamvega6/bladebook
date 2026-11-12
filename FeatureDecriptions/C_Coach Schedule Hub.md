@@ -18,6 +18,26 @@ No schedule yet:
 Time off and special schedules:
   Every upcoming one, with its name, whether it's a special schedule or time off ("No lessons"), its dates,
   and an Edit button.
+  *Built 2026-11-12 (Batch 6): Edit shows on a special schedule only, as the design draws it.*
+
+Deleting time off or a special schedule:
+  *Added by the owner, 2026-11-12. Not in the Harbor design.*
+  Every one in the list has a Delete button, time off and special schedules alike.
+  Delete opens the same review page as any schedule change (see Schedule Creater.md), titled
+  "Delete <name> · <dates>":
+    Time off: "families can book these dates again". The weekly schedule's times come back on those
+      dates, so nothing is cancelled.
+    Special schedule: "your weekly schedule applies to these dates again". Lessons the special schedule
+      made that the weekly schedule doesn't are cancelled; lessons whose price differs are re-priced, by
+      the usual rules (Re-pricing Booked Lessons.md). The review lists them and the families emailed.
+  Nothing is deleted until the coach accepts. Deleting needs a sign-in from the last 15 minutes, like any
+    schedule save. After accepting, the save status page follows (C_Coach Schedule Save Status.md).
+  A deleted one is gone: there's no undo. The coach adds it again if it was a mistake.
+  Past dates of one that has already started (a camp under way) aren't changed: past lessons are never
+    cancelled or re-priced.
+  *Phase 2 note (owner, 2026-11-12):* if Kim says coaches are likely to add the wrong special schedule
+    (Items to ask Kim About.md §14), take out the automatic emailing of families after a schedule change,
+    so a mistake and its fix don't email families twice. The coach would review and send the emails instead.
 
 Booked lessons coming up:
   The upcoming booked lessons: skater, date and time, length and price.

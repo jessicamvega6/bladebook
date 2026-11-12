@@ -100,3 +100,6 @@
 
 /* Not in the design: a lesson's date to the right of the skater's name on Home (owner, 2026-11-11). */
 .bb .ac-date { font-weight: var(--w-reg); font-size: 13px; color: var(--text-3); white-space: nowrap; }
+
+/* Not in the design: room under My bookings' empty Upcoming, so its button doesn't sit on the card's edge (owner, 2026-11-12). */
+.bb .bk-pempty { padding-bottom: 32px; }

@@ -200,6 +200,22 @@ public final class ScheduleRepository {
         db(ctx).putItem(PutItemRequest.builder().tableName(table).item(tempItem(ctx, t)).build());
     }
 
+    /**
+     * Deletes time off or a special schedule: its date items (only those still carrying its {@code tempId}) first,
+     * then its header (ADR-MASTER section 6). The weekly schedule applies to those dates again.
+     */
+    public void deleteTemp(AccessContext ctx, TempSchedule t) {
+        for (LocalDate d : t.dates()) {
+            try {
+                db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, DATE + d))
+                        .conditionExpression("tempId = :id").expressionAttributeValues(Map.of(":id", s(t.tempId()))).build());
+            } catch (ConditionalCheckFailedException gone) {
+                // Already gone or someone else's: nothing to remove.
+            }
+        }
+        db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, t.key())).build());
+    }
+
     private static Map<String, AttributeValue> tempItem(AccessContext ctx, TempSchedule t) {
         Map<String, AttributeValue> m = new HashMap<>(key(ctx, t.key()));
         m.put("tempId", s(t.tempId()));

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { scheduleApi, type PreviewDto, type Profile, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
-import { ChooseDates, ScheduleEditor, ScheduleHub, TimeOffForm, WeeklyEditor } from './Schedule';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, WeeklyEditor } from './Schedule';
 
 const PROFILE: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com', businessEmail: 'dana@gmail.com',
@@ -184,15 +184,17 @@ test('Undo edits puts the saved week back', async () => {
 test('the hub offers to build the week and to add dates, and lists time off and special schedules', async () => {
   serve({ scheduleVersion: 0, exists: false, templates: [] }, undefined, { temps: [CAMP, THANKSGIVING] });
   render(<ScheduleHub api={scheduleApi('t')} profile={PROFILE} flash="" onError={vi.fn()} />);
-  expect(await screen.findByRole('link', { name: /Build your teaching week/ })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(await screen.findByRole('link', { name: /Build your repeating weekly schedule/ })).toHaveAttribute('href', '#/schedule/weekly');
   expect(screen.getByRole('link', { name: /Add time off or a special schedule/ })).toHaveAttribute('href', '#/schedule/dates');
   const list = (await screen.findByRole('heading', { name: 'Time off and special schedules' })).closest('section')!;
   expect(list).toHaveTextContent('Holiday camp weekSpecial schedule');
   expect(list).toHaveTextContent('Dec 21 – 27');
   expect(list).toHaveTextContent('Thanksgiving breakNo lessons');
-  // Only a special schedule has Edit, as drawn.
+  // Only a special schedule has Edit, as drawn; both can be deleted (owner, 2026-11-12).
   expect(within(list).getAllByRole('link', { name: 'Edit' })).toHaveLength(1);
   expect(within(list).getByRole('link', { name: 'Edit' })).toHaveAttribute('href', '#/schedule/special/camp');
+  expect(within(list).getByRole('link', { name: 'Delete Thanksgiving break' })).toHaveAttribute('href', '#/schedule/delete/tg');
+  expect(within(list).getByRole('link', { name: 'Delete Holiday camp week' })).toHaveAttribute('href', '#/schedule/delete/camp');
 });
 
 const CAMP: TempDto = {
@@ -294,4 +296,26 @@ test('a special schedule shows one column per date and switches a time off on th
   await waitFor(() => expect(onSaved).toHaveBeenCalled());
   expect(saved?.tempId).toBe('camp');
   expect(saved?.templates[0]?.off).toEqual({ '2026-12-22': ['10:00'] });
+});
+
+test('deleting a special schedule reviews what it cancels, then deletes it', async () => {
+  const deleted: string[] = [];
+  const f = serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, undefined, {
+    temps: [CAMP],
+  });
+  f.mockImplementation(((url: string, init?: RequestInit) => {
+    if (url === '/api/coach/schedule/temps/camp/delete-preview') {
+      return json(200, { ...NOTHING, cancel: [IMPACT('2026-12-22', '10:00', 'Noah C.', 8000)], families: 1 });
+    }
+    if (url === '/api/coach/schedule/temps/camp' && init?.method === 'DELETE') { deleted.push(url); return json(200, CAMP); }
+    if (url === '/api/coach/schedule/temps/camp') return json(200, CAMP);
+    return json(500, {});
+  }) as never);
+  const onSaved = vi.fn();
+  render(<DeleteDates api={scheduleApi('t')} profile={PROFILE} tempId="camp" onSaved={onSaved} onToken={vi.fn()} onError={vi.fn()} />);
+  expect(await screen.findByText('Delete Holiday camp week · Dec 21 – 27 · your weekly schedule applies to these dates again')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '1 lesson will be cancelled' }).closest('section')).toHaveTextContent('Noah C.');
+  await userEvent.click(screen.getByRole('button', { name: 'Accept & email 1 family' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ lessons: 1, families: 1 })));
+  expect(deleted).toEqual(['/api/coach/schedule/temps/camp']);
 });
