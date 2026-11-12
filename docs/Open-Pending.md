@@ -13,9 +13,10 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 
 ## 1. Blocking — settle before the code it touches
 
-- **Pending decision: Infrastructure as Code (IaC) — AWS Cloud Development Kit (CDK) or
+- ~~**Pending decision: Infrastructure as Code (IaC) — AWS Cloud Development Kit (CDK) or
   Terraform?** Undecided; ADR-001 amendment A4 lists the criteria. Switching gets expensive
-  once anything is deployed. (ADR-001 A4)
+  once anything is deployed.~~ **Settled 2026-11-12 (owner):** CDK (TypeScript); decision 2
+  stands. (ADR-001 A4)
 - ~~**Pending decision: Which continuous integration (CI) system?** No ADR names one. The repo
   is on GitHub, so GitHub Actions is the obvious candidate; AWS CodePipeline/CodeBuild is the
   AWS-native alternative. It must build the JARs before every deploy (no stale-JAR deploys),
@@ -777,10 +778,13 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   access-log bucket live in their own small stack in the production account.
 - ~~**Open question: What runs the dev masking job?**~~ **Settled 2026-10-09:** an AWS Step
   Functions workflow in the data-loading stack (ADR-027 decision 9, amended).
-- **To-do: Set up the AWS Organization** — production and dev accounts, IAM Identity Center
+- ~~**To-do: Set up the AWS Organization** — production and dev accounts, IAM Identity Center
   sign-in with multi-factor authentication, and `dev.<domain>` delegated to a hosted zone in the
   dev account. Before any infrastructure is built: tables and Cognito users can't move between
-  accounts later. (ADR-027 decision 8)
+  accounts later.~~ **Done:** the accounts and Identity Center exist, and `dev.bladebook.org` is
+  delegated from Cloudflare to Route 53 in `bladebook-dev`. ADR-027 decision 8 still owes an
+  amendment: the domain's DNS stays in Cloudflare, and 307202557124 is the management account.
+  (ADR-027 decision 8)
 - **To-do: Write the data-loading stack's cross-account permissions** — dev's table import reading
   the masked bucket, and dev's CloudTrail writing to the log bucket in production. (ADR-027
   decision 9, ADR-028)

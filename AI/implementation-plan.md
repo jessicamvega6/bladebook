@@ -35,7 +35,7 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 
 | Blocker | Effect on this plan |
 |---|---|
-| Infrastructure as Code (IaC) tool not chosen (CDK or Terraform); no AWS Organization or domain (Blockers 2, 22) | Nothing is deployed. "End to end" means **running locally**. |
+| Infrastructure as Code (IaC) chosen (CDK, TypeScript, 2026-11-12) but not written yet; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | Nothing is deployed. "End to end" means **running locally**. |
 | Amazon Cognito user pool doesn't exist yet | Signing in locally needs a stand-in. See Question 3. |
 | Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | The consumers (emails, family-sync, link sync, deadline sweep, roller) are built later, or called in-process as a listed shortcut. See Question 4. |
 | Rink-fee calculation undecided (`docs/Q_Rink-Fees.md`) | The financial page's rink-fee figure isn't built. Gross can be. |
