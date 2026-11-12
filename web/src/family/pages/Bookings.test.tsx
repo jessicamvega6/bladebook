@@ -79,11 +79,14 @@ test('more than ten shows the first ten and Show all', async () => {
 
 test('recent lessons are greyed, newest first, with no Cancel', async () => {
   at('2026-11-20T15:00:00Z');
-  show(APPROVED, fakeApi({ upcoming: [], recent: [TUESDAY, MONDAY] }));
+  show(APPROVED, fakeApi({ upcoming: [], recent: [{ ...TUESDAY, attendance: 'NO_SHOW' }, { ...MONDAY, attendance: null }] }));
   const recent = (await screen.findByRole('heading', { name: 'Recent' })).closest('section')!;
   expect(recent.querySelectorAll('.row--muted')).toHaveLength(2);
   expect(recent.querySelector('.row')).toHaveTextContent('Tue · 4:00 PM');
   expect(within(recent).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  // The attendance the coach recorded; nothing recorded shows no badge (G-27).
+  expect(recent.querySelectorAll('.row')[0]).toHaveTextContent('No-show');
+  expect(recent.querySelectorAll('.badge')).toHaveLength(1);
 });
 
 test('cancelling in time confirms first, and Keep lesson keeps it', async () => {

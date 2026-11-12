@@ -81,7 +81,8 @@ public final class BookingService {
     }
 
     /** One of the family's lessons on My bookings, priced from its lesson time; {@code null} price if it can't be read. */
-    public record MyLesson(FamilyLesson lesson, Integer priceMinor, String currency, int requiredNoticeHours) {
+    /** {@code attendance}: {@code CHECKED_IN} or {@code NO_SHOW} once the coach records it, else {@code null}. */
+    public record MyLesson(FamilyLesson lesson, Integer priceMinor, String currency, int requiredNoticeHours, String attendance) {
     }
 
     /** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
@@ -210,7 +211,8 @@ public final class BookingService {
         for (Seat s : seats) {
             AvailableTime t = times.getOrDefault(s.coachId(), Map.of()).get(LessonTime.key(s.lessonDate(), s.startTime()));
             out.add(new MyLesson(lesson(s, account), t == null ? null : t.shareFor(s.studentId()), t == null ? null : t.currency(),
-                    t == null ? 0 : t.requiredNoticeHours()));
+                    t == null ? 0 : t.requiredNoticeHours(),
+                    s.seatStatus() == Seat.Status.CHECKED_IN || s.seatStatus() == Seat.Status.NO_SHOW ? s.seatStatus().name() : null));
         }
         return out;
     }
