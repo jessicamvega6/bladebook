@@ -2,6 +2,8 @@ package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.config.LocalEventDispatcher;
 import com.bladebook.api.coach.dto.ScheduleDtos.CalendarResponse;
+import com.bladebook.api.coach.dto.ScheduleDtos.CancelRequest;
+import com.bladebook.api.coach.dto.ScheduleDtos.CancelResponse;
 import com.bladebook.api.coach.dto.ScheduleDtos.SaveRequest;
 import com.bladebook.api.coach.dto.ScheduleDtos.ScheduleResponse;
 import com.bladebook.api.coach.security.CurrentCoach;
@@ -9,11 +11,13 @@ import com.bladebook.api.coach.security.RecentSignIn;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.ScheduleService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,13 +34,15 @@ public class ScheduleController {
 
     private final ScheduleService schedules;
     private final CalendarService calendar;
+    private final CoachCancelService cancels;
     private final RecentSignIn recentSignIn;
     private final ObjectProvider<LocalEventDispatcher> localEvents;
 
-    public ScheduleController(ScheduleService schedules, CalendarService calendar, RecentSignIn recentSignIn,
-                              ObjectProvider<LocalEventDispatcher> localEvents) {
+    public ScheduleController(ScheduleService schedules, CalendarService calendar, CoachCancelService cancels,
+                              RecentSignIn recentSignIn, ObjectProvider<LocalEventDispatcher> localEvents) {
         this.schedules = schedules;
         this.calendar = calendar;
+        this.cancels = cancels;
         this.recentSignIn = recentSignIn;
         this.localEvents = localEvents;
     }
@@ -63,6 +69,15 @@ public class ScheduleController {
     @GetMapping("/calendar")
     public CalendarResponse calendar(@AuthenticationPrincipal Jwt jwt, @RequestParam String from, @RequestParam String to) {
         return CalendarResponse.of(calendar.range(CurrentCoach.of(jwt), date("from", from), date("to", to)));
+    }
+
+    /**
+     * Cancels one lesson, a day, or the rest of the week (ADR-MASTER section 10). Lessons that have started or gone
+     * since the preview are left alone and counted as skipped. Never changes the schedule.
+     */
+    @PostMapping("/calendar/cancel")
+    public CancelResponse cancel(@AuthenticationPrincipal Jwt jwt, @RequestBody CancelRequest body) {
+        return CancelResponse.of(cancels.cancel(CurrentCoach.of(jwt), body.toRequest()));
     }
 
     private static LocalDate date(String field, String s) {

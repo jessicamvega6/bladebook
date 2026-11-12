@@ -14,7 +14,7 @@ class AvailableTimeTest {
 
     private static AvailableTime at(boolean free, int price, int shareCount, List<String> order) {
         return new AvailableTime(LocalDate.of(2026, 11, 16), LocalTime.of(6, 0), Instant.parse("2026-11-16T12:00:00Z"),
-                "America/Chicago", 30, price, "USD", free, shareCount, order, 1);
+                "America/Chicago", 30, price, "USD", free, shareCount, order, 1, 24);
     }
 
     @Test

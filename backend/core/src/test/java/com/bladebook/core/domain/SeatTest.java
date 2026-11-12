@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SeatTest {
 
     private static final AvailableTime SIX = new AvailableTime(LocalDate.of(2026, 11, 16), LocalTime.of(6, 0),
-            Instant.parse("2026-11-16T12:00:00Z"), "America/Chicago", 30, 5000, "USD", true, 0, List.of(), 1);
+            Instant.parse("2026-11-16T12:00:00Z"), "America/Chicago", 30, 5000, "USD", true, 0, List.of(), 1, 24);
 
     @Test
     void theKeyIsDateStartAndSkater() {

@@ -102,8 +102,16 @@ export interface LessonDto {
   maxSkaters: number;
   seatsTaken: number;
   /** Who is booked: the seat's "Ava P." for the week view, the full name and family for the day view. */
-  skaters: Array<{ studentId: string; shortName: string; fullName: string; familyName: string | null }>;
+  skaters: Array<{ studentId: string; shortName: string; fullName: string; familyName: string | null; familyId?: string | null }>;
 }
+
+/** Cancelling from the calendar (Batch 5). A lesson or a day asks each lesson; the week names only its Sunday. */
+export type CancelBody =
+  | { scope: 'LESSON' | 'DAY'; picks: Array<{ date: string; startTime: string; after: 'RELEASE' | 'HOLD' }> }
+  | { scope: 'WEEK'; weekStart: string };
+
+/** What was done. {@code skipped}: lessons that started or were cancelled since the preview, left alone. */
+export interface CancelResult { cancelled: number; held: number; openHeld: number; families: number; skipped: number }
 
 export interface CalendarDto {
   coachTimezone: string;
@@ -115,9 +123,11 @@ export interface CalendarDto {
 }
 
 export function scheduleApi(token: string) {
-  const call = <T>(path: string, method: 'GET' | 'PUT' = 'GET', body?: unknown) =>
+  const call = <T>(path: string, method: 'GET' | 'PUT' | 'POST' = 'GET', body?: unknown) =>
     apiFetch<T>(`/api/coach${path}`, { method, body, token });
   return {
+    /** Never retried: a second cancel after a lost reply finds nothing left and says so. */
+    cancel: (body: CancelBody) => call<CancelResult>('/calendar/cancel', 'POST', body),
     schedule: () => call<ScheduleDto>('/schedule'),
     /** Needs a sign-in from the last 15 minutes, or fails with SIGN_IN_TO_SAVE. */
     saveSchedule: (scheduleVersion: number, templates: TemplateDto[]) =>

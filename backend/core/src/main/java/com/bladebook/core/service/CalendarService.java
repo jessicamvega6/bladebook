@@ -34,9 +34,10 @@ public final class CalendarService {
 
     /**
      * A skater booked in one of the day's times: the seat's display name for the week view ("Ava P."), and the
-     * full name and family contact from the coach's own {@code STUDENT#} record for the day view.
+     * full name and family contact from the coach's own {@code STUDENT#} record for the day view. {@code familyId}
+     * lets the cancel preview count the families it will email.
      */
-    public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName) {
+    public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName, String familyId) {
     }
 
     public record CalendarDay(LocalDate date, boolean override, List<LessonTime> lessons, List<Booked> booked) {
@@ -95,7 +96,7 @@ public final class CalendarService {
                 if (s.lessonDate().equals(d)) {
                     StudentRecord r = records.get(s.studentId());
                     booked.add(new Booked(s.startTime(), s.studentId(), s.studentName(),
-                            r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName()));
+                            r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName(), s.clientId()));
                 }
             }
             days.add(new CalendarDay(d, overrides.containsKey(d), on, booked));

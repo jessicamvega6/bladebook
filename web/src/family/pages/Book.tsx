@@ -604,7 +604,7 @@ function ResultPage({ result, sending, onRetry, onPickAnother }: {
       )}
       <div className="actions">
         <div><a className="btn btn--secondary" href="#/book"><span>Book more</span></a></div>
-        <div className="actions__r"><a className="btn btn--primary" href="#/home"><span>Back to home</span></a></div>
+        <div className="actions__r"><a className="btn btn--primary" href="#/bookings"><span>View my bookings</span></a></div>
       </div>
     </>
   );

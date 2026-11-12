@@ -1,15 +1,16 @@
 /**
  * The family website. Batch 3: sign-up with coach codes (steps 1, 2, 4 and 5), the local log-in stand-in, and
  * the waiting family's Home and Profile. Batch 4: once a coach approves, Book a lesson (#/book…) and Home's
- * Today and Coming up.
+ * Today and Coming up. Batch 5: My bookings (#/bookings), with Cancel on each lesson.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { familySession } from '../shared/auth/localAuth';
 import { Banner } from '../shared/components/harbor';
-import { familyApi, type Family, type FamilyLesson } from './api';
+import { familyApi, type Family, type MyLesson } from './api';
 import { FamilyShell } from './components/Shells';
 import { Book } from './pages/Book';
+import { Bookings } from './pages/Bookings';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
@@ -52,7 +53,7 @@ export function App() {
   const [signingUp, setSigningUp] = useState(false);
   const route = useHashRoute();
   const api = useMemo(() => (token ? familyApi(token) : null), [token]);
-  const [lessons, setLessons] = useState<FamilyLesson[] | null>(null);
+  const [lessons, setLessons] = useState<MyLesson[] | null>(null);
 
   const signOut = useCallback((message = '') => {
     familySession.signOut();
@@ -88,7 +89,7 @@ export function App() {
 
   // Home's Today and Coming up, read again each time Home opens so a new booking shows. A waiting family has none.
   const approved = load.state === 'ready' && !load.family.waiting;
-  const onHome = route !== '#/profile' && !route.startsWith('#/book');
+  const onHome = route !== '#/profile' && !route.startsWith('#/book');  // #/bookings too
   useEffect(() => {
     if (!api || !approved || !onHome) return;
     let live = true;
@@ -122,6 +123,11 @@ export function App() {
           onSignOut={() => signOut()} onError={handleError} />
       </FamilyShell>
     );
+  } else if (route === '#/bookings') {
+    // A waiting family has no bookings page (ADR-022 d6): Home says who they're waiting for.
+    page = load.family.waiting
+      ? <FamilyShell family={load.family} section="Home"><Home family={load.family} /></FamilyShell>
+      : <FamilyShell family={load.family} section="My bookings"><Bookings family={load.family} api={api} onError={handleError} /></FamilyShell>;
   } else if (route.startsWith('#/book')) {
     page = (
       <FamilyShell family={load.family} section="Book a lesson" wide>

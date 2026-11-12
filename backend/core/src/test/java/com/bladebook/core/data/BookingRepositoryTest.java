@@ -142,7 +142,7 @@ class BookingRepositoryTest {
     void aTimeThatChangedLengthSinceItWasReadIsUnavailable() {
         AvailableTime read = time(SIX);
         AvailableTime stale = new AvailableTime(read.lessonDate(), read.startTime(), read.startsAtUtc(), read.coachTz(), 45,
-                read.priceMinor(), read.currency(), true, 0, List.of(), read.blockSeq());
+                read.priceMinor(), read.currency(), true, 0, List.of(), read.blockSeq(), read.requiredNoticeHours());
         assertThat(bookings.book(park, avaWithDana, stale, UUID.randomUUID().toString(), NOW)).isEqualTo(BookingOutcome.UNAVAILABLE);
         assertThat(schedules.seats(dana, MONDAY, MONDAY)).isEmpty();
     }
@@ -150,7 +150,7 @@ class BookingRepositoryTest {
     @Test
     void aTimeThatNoLongerExistsIsUnavailable() {
         AvailableTime gone = new AvailableTime(MONDAY, LocalTime.of(9, 0), Instant.parse("2026-11-16T15:00:00Z"),
-                "America/Chicago", 30, 5000, "USD", true, 0, List.of(), 1);
+                "America/Chicago", 30, 5000, "USD", true, 0, List.of(), 1, 24);
         assertThat(bookings.book(park, avaWithDana, gone, UUID.randomUUID().toString(), NOW)).isEqualTo(BookingOutcome.UNAVAILABLE);
         assertThat(bookings.attribute(park, avaWithDana, MONDAY, LocalTime.of(9, 0), "any-key-123")).isEqualTo(BookingOutcome.UNAVAILABLE);
     }
@@ -192,6 +192,15 @@ class BookingRepositoryTest {
         assertThat(mine).extracting(Seat::studentId).containsExactly(ava.studentId());
         assertThat(mine.get(0).coachId()).isEqualTo(dana.coachId());
         assertThat(bookings.familySeats(park, MONDAY.plusDays(1), MONDAY.plusDays(2))).isEmpty();
+    }
+
+    @Test
+    void timesAtReadsJustTheKeysAskedForWithTheLessonsNoticePeriod() {
+        var got = bookings.timesAt(park, avaWithDana.coach(), List.of(LessonTime.key(MONDAY, SIX), LessonTime.key(MONDAY, LocalTime.of(9, 0))));
+        assertThat(got).containsOnlyKeys(LessonTime.key(MONDAY, SIX));
+        assertThat(got.get(LessonTime.key(MONDAY, SIX)).priceMinor()).isEqualTo(5000);
+        assertThat(got.get(LessonTime.key(MONDAY, SIX)).requiredNoticeHours()).isEqualTo(24);
+        assertThat(bookings.timesAt(park, avaWithDana.coach(), List.of())).isEmpty();
     }
 
     @Test

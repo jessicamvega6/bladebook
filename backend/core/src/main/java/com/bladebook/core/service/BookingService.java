@@ -5,6 +5,7 @@ import com.bladebook.core.data.BookingRepository.CoachClock;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.FamilyRepository;
+import com.bladebook.core.data.LinkedCoach;
 import com.bladebook.core.data.LinkedSkater;
 import com.bladebook.core.domain.AvailableTime;
 import com.bladebook.core.domain.BookingOutcome;
@@ -76,6 +77,23 @@ public final class BookingService {
             picks = List.copyOf(picks);
         }
     }
+
+    /** One of the family's lessons on My bookings, priced from its lesson time; {@code null} price if it can't be read. */
+    public record MyLesson(FamilyLesson lesson, Integer priceMinor, String currency, int requiredNoticeHours) {
+    }
+
+    /** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
+    public record MyBookings(List<MyLesson> upcoming, List<MyLesson> recent) {
+
+        public MyBookings {
+            upcoming = List.copyOf(upcoming);
+            recent = List.copyOf(recent);
+        }
+    }
+
+    /** How far back My bookings looks for Recent. Older lessons are archived (ADR-017). */
+    static final int RECENT_DAYS = 366;
+    static final int RECENT_SHOWN = 4;
 
     private final ClientLinks links;
     private final BookingRepository bookings;
@@ -150,16 +168,49 @@ public final class BookingService {
         return new BookingResult(coach.firstName(), skater.studentName(), out);
     }
 
-    /** The family's lessons with every coach from today on, soonest first: Home's Today and Coming up. */
-    public List<FamilyLesson> upcoming(ClientContext ctx) {
+    /** The family's lessons with every coach from today on, soonest first and priced: Home's Today and Coming up. */
+    public List<MyLesson> upcoming(ClientContext ctx) {
         Instant now = clock.instant();
         // A day either side of UTC's today covers every coach's today; each seat is then held to its coach's.
         LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
-        FamilyAccount account = account(ctx);
-        return bookings.familySeats(ctx, from, Weeks.storeUntil(from)).stream()
+        List<Seat> seats = bookings.familySeats(ctx, from, Weeks.storeUntil(from)).stream()
                 .filter(s -> !s.lessonDate().isBefore(LocalDate.ofInstant(now, ZoneId.of(s.coachTz()))))
-                .sorted(Comparator.comparing(Seat::startsAtUtc))
-                .map(s -> lesson(s, account)).toList();
+                .sorted(Comparator.comparing(Seat::startsAtUtc)).toList();
+        return priced(ctx, seats, account(ctx));
+    }
+
+    /** My bookings (FeatureDecriptions/C_Client My Bookings.md), with every coach the family is approved with. */
+    public MyBookings myBookings(ClientContext ctx) {
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
+        List<Seat> seats = bookings.familySeats(ctx, today.minusDays(RECENT_DAYS), Weeks.storeUntil(today));
+        List<MyLesson> upcoming = new ArrayList<>();
+        List<MyLesson> recent = new ArrayList<>();
+        for (MyLesson l : priced(ctx, seats, account(ctx))) {
+            (l.lesson().startsAtUtc().isAfter(now) ? upcoming : recent).add(l);
+        }
+        upcoming.sort(Comparator.comparing(l -> l.lesson().startsAtUtc()));
+        recent.sort(Comparator.comparing((MyLesson l) -> l.lesson().startsAtUtc()).reversed());
+        return new MyBookings(upcoming, recent.subList(0, Math.min(RECENT_SHOWN, recent.size())));
+    }
+
+    /** Each seat as a lesson, at the family's share of its lesson time's price, read for the coaches it's approved with. */
+    private List<MyLesson> priced(ClientContext ctx, List<Seat> seats, FamilyAccount account) {
+        Map<String, Map<String, AvailableTime>> times = new HashMap<>();
+        for (LinkedCoach coach : families.linkedCoaches(ctx)) {
+            List<String> keys = seats.stream().filter(s -> s.coachId().equals(coach.coachId()))
+                    .map(s -> LessonTime.key(s.lessonDate(), s.startTime())).toList();
+            if (coach.active() && !keys.isEmpty()) {
+                times.put(coach.coachId(), bookings.timesAt(ctx, coach, keys));
+            }
+        }
+        List<MyLesson> out = new ArrayList<>();
+        for (Seat s : seats) {
+            AvailableTime t = times.getOrDefault(s.coachId(), Map.of()).get(LessonTime.key(s.lessonDate(), s.startTime()));
+            out.add(new MyLesson(lesson(s, account), t == null ? null : t.shareFor(s.studentId()), t == null ? null : t.currency(),
+                    t == null ? 0 : t.requiredNoticeHours()));
+        }
+        return out;
     }
 
     private CoachClock coachOf(ClientContext ctx, LinkedSkater skater) {

@@ -9,10 +9,11 @@ import java.util.List;
  * A lesson time as a family's read returns it (ADR-031 decision 1; ADR-MASTER section 7): free ({@code OPEN})
  * or taken ({@code BOOKED} or {@code HELD}), its price and stamps, and nothing about who holds it. {@code shareCount}
  * and {@code joinOrder} are readable so a family can work out its own share; they show only random skater IDs.
+ * {@code requiredNoticeHours} is the lesson's own notice period, which says whether a cancel is late (B6).
  */
 public record AvailableTime(LocalDate lessonDate, LocalTime startTime, Instant startsAtUtc, String coachTz,
                             int durationMinutes, int priceMinor, String currency, boolean free, int shareCount,
-                            List<String> joinOrder, int blockSeq) {
+                            List<String> joinOrder, int blockSeq, int requiredNoticeHours) {
 
     public AvailableTime {
         joinOrder = List.copyOf(joinOrder);

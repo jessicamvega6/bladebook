@@ -1,5 +1,6 @@
 package com.bladebook.api.coach.config;
 
+import com.bladebook.core.data.CancellationRepository;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.LocalTable;
 import com.bladebook.core.data.ScheduleRepository;
@@ -7,6 +8,7 @@ import com.bladebook.core.data.StudentRepository;
 import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.CoachProfileService;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.ScheduleService;
@@ -66,6 +68,13 @@ public class CoreConfig {
     @Bean
     CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
         return new CalendarService(schedules, coaches, students, clock);
+    }
+
+    /** Cancelling from the calendar (Batch 5). */
+    @Bean
+    CoachCancelService coachCancelService(ScheduleRepository schedules, TenantClients clients, @Value("${bladebook.table}") String table,
+                                          Clock clock) {
+        return new CoachCancelService(schedules, new CancellationRepository(clients, table), clock);
     }
 
     @Bean

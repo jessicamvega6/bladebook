@@ -4,7 +4,9 @@ import com.bladebook.core.domain.BlockTemplate;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.IceType;
 import com.bladebook.core.domain.LessonTime;
+import com.bladebook.core.domain.CoachCancelRequest;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.ScheduleService;
 
 import java.time.DayOfWeek;
@@ -92,7 +94,7 @@ public final class ScheduleDtos {
 
     /** One lesson time as the coach's calendar shows it. */
     /** A skater in a booked time: "Ava P." for the week view; the full name and family for the day view. */
-    public record SkaterDto(String studentId, String shortName, String fullName, String familyName) {
+    public record SkaterDto(String studentId, String shortName, String fullName, String familyName, String familyId) {
     }
 
     public record LessonDto(String startTime, int durationMinutes, int priceMinor, String currency, String lessonStatus,
@@ -100,7 +102,7 @@ public final class ScheduleDtos {
 
         static LessonDto of(LessonTime t, List<CalendarService.Booked> booked) {
             List<SkaterDto> in = booked.stream().filter(b -> b.startTime().equals(t.startTime()))
-                    .map(b -> new SkaterDto(b.studentId(), b.shortName(), b.fullName(), b.familyName())).toList();
+                    .map(b -> new SkaterDto(b.studentId(), b.shortName(), b.fullName(), b.familyName(), b.familyId())).toList();
             return new LessonDto(t.startTime().toString(), t.durationMinutes(), t.priceMinor(), t.currency(),
                     t.lessonStatus().name(), t.maxSkaters(), t.seatsTaken(), in);
         }
@@ -151,5 +153,24 @@ public final class ScheduleDtos {
 
     private static String str(LocalTime t) {
         return t == null ? null : t.toString();
+    }
+
+    /** One lesson to cancel, with its own release-or-hold choice ({@code RELEASE} or {@code HOLD}). */
+    public record CancelPickDto(String date, String startTime, String after) {
+    }
+
+    /** {@code scope}: {@code LESSON}, {@code DAY} or {@code WEEK}. The week names only its Sunday. */
+    public record CancelRequest(String scope, List<CancelPickDto> picks, String weekStart) {
+        public CoachCancelRequest toRequest() {
+            return CoachCancelRequest.parse(scope, picks == null ? null
+                    : picks.stream().map(p -> p == null ? null : new CoachCancelRequest.PickInput(p.date(), p.startTime(), p.after())).toList(),
+                    weekStart);
+        }
+    }
+
+    public record CancelResponse(int cancelled, int held, int openHeld, int families, int skipped) {
+        public static CancelResponse of(CoachCancelService.Result r) {
+            return new CancelResponse(r.cancelled(), r.held(), r.openHeld(), r.families(), r.skipped());
+        }
     }
 }

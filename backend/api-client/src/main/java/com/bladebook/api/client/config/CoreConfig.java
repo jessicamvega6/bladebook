@@ -1,6 +1,7 @@
 package com.bladebook.api.client.config;
 
 import com.bladebook.core.data.BookingRepository;
+import com.bladebook.core.data.CancellationRepository;
 import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.FamilyRepository;
@@ -10,6 +11,7 @@ import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.domain.RegistrationNumbers;
 import com.bladebook.core.domain.RegistrationRules;
 import com.bladebook.core.service.BookingService;
+import com.bladebook.core.service.CancellationService;
 import com.bladebook.core.service.CodeLookupService;
 import com.bladebook.core.service.FamilySyncService;
 import com.bladebook.core.service.FamilyService;
@@ -79,6 +81,13 @@ public class CoreConfig {
     BookingService bookingService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
                                   Clock clock) {
         return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, clock);
+    }
+
+    /** Cancelling one lesson from My bookings (Batch 5). */
+    @Bean
+    CancellationService cancellationService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock) {
+        return new CancellationService(new ClientLinks(clients, table), new BookingRepository(clients, table),
+                new CancellationRepository(clients, table), clock);
     }
 
     /** What consumer-family-sync will run on AWS; locally {@code LocalEventDispatcher} calls it. */

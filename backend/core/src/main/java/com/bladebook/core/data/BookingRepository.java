@@ -8,6 +8,9 @@ import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -23,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +51,7 @@ public final class BookingRepository {
     private static final String LESSON = "LESSON#";
     /** What a family's lesson-time read may name (ADR-MASTER section 16): never {@code pendingLeave}. */
     private static final List<String> TIME_FIELDS = List.of("lessonDate", "startTime", "startsAtUtc", "coachTz",
-            "durationMinutes", "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq");
+            "durationMinutes", "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq", "requiredNoticeHours");
 
     private final TenantClients clients;
     private final String table;
@@ -80,6 +84,36 @@ public final class BookingRepository {
         List<AvailableTime> out = new ArrayList<>();
         for (Map<String, AttributeValue> m : range(ctx, coach, LESSON + from, LESSON + to + "#~", TIME_FIELDS)) {
             out.add(time(m));
+        }
+        return out;
+    }
+
+    /**
+     * The lesson times at these keys ({@code LESSON#<date>#<startTime>}), by key: for pricing the family's own
+     * lessons on My bookings. Read with the same named attributes as {@link #times}.
+     */
+    public Map<String, AvailableTime> timesAt(ClientContext ctx, LinkedCoach coach, Collection<String> keys) {
+        Map<String, AvailableTime> out = new HashMap<>();
+        if (!coach.active() || keys.isEmpty()) {
+            return out;
+        }
+        Map<String, String> names = names(TIME_FIELDS);
+        List<String> all = new ArrayList<>(new java.util.LinkedHashSet<>(keys));
+        for (int i = 0; i < all.size(); i += 100) {
+            List<Map<String, AttributeValue>> want = new ArrayList<>();
+            for (String k : all.subList(i, Math.min(all.size(), i + 100))) {
+                want.add(FamilyItems.key("COACH#" + coach.coachId(), k));
+            }
+            Map<String, KeysAndAttributes> request = Map.of(table, KeysAndAttributes.builder().keys(want).consistentRead(true)
+                    .projectionExpression(String.join(", ", names.keySet())).expressionAttributeNames(names).build());
+            while (request != null && !request.isEmpty()) {
+                BatchGetItemResponse r = db(ctx, coach).batchGetItem(BatchGetItemRequest.builder().requestItems(request).build());
+                r.responses().getOrDefault(table, List.of()).forEach(m -> {
+                    AvailableTime t = time(m);
+                    out.put(t.key(), t);
+                });
+                request = r.hasUnprocessedKeys() && !r.unprocessedKeys().isEmpty() ? r.unprocessedKeys() : null;
+            }
         }
         return out;
     }
@@ -223,7 +257,7 @@ public final class BookingRepository {
                 Instant.parse(FamilyItems.str(m, "startsAtUtc")), FamilyItems.str(m, "coachTz"), n(m, "durationMinutes"),
                 n(m, "priceMinor"), FamilyItems.str(m, "currency"),
                 LessonTime.Status.OPEN.name().equals(FamilyItems.str(m, "lessonStatus")),
-                m.containsKey("shareCount") ? n(m, "shareCount") : 0, order, n(m, "blockSeq"));
+                m.containsKey("shareCount") ? n(m, "shareCount") : 0, order, n(m, "blockSeq"), n(m, "requiredNoticeHours"));
     }
 
     private static int n(Map<String, AttributeValue> m, String k) {
