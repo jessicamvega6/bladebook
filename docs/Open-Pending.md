@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** ~~2026-10-24~~ 2026-11-12
+**As of:** ~~2026-10-24~~ ~~2026-11-12~~ 2026-11-13
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -839,6 +839,15 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   schedule?** (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: How long to keep CI run logs, and whether to copy them anywhere.**
   (ADR-032 Open) *Added 2026-10-15.*
+- **To-do: Find out what's still running on Node.js 20, which GitHub Actions has deprecated.**
+  The warning shows on the mutation-testing workflow's runs in GitHub Actions. The likely cause
+  is the `@v4` actions, which run on Node 20: `actions/checkout`, `actions/setup-java` and
+  `actions/upload-artifact` in `mutation.yml` (branch `ci/mutation-testing`), and
+  `actions/checkout`, `actions/setup-java` and `actions/setup-node` in `ci.yml`. Bump each to
+  a release that runs on Node 24, pinned to a full commit hash (§1 lock-down). *Added 2026-11-13.*
+- **To-do: Move off `actions/setup-java@v4`, which is deprecated.** Used in `ci.yml` and in
+  `mutation.yml` (branch `ci/mutation-testing`). Likely the same fix as the Node 20 item above.
+  *Added 2026-11-13.*
 
 ## 12. Feature descriptions — gaps to fill
 
