@@ -94,7 +94,9 @@ A lesson from that year marked paid afterwards doesn't change them~~, and under 
 doesn't count in the new year either~~. *Amended 2026-11-13 by the owner: it counts in the year
 and month it was marked paid, flagged as for an earlier year.* A year closes at midnight starting
 January 1 in the coach's time zone; nothing is stored when it closes, since the figures are
-worked out from the seats each time (open: implementation plan G-36).
+worked out from the seats each time. *Ruled 2026-11-13 by the owner: each year's figures will be
+saved when it closes, so neither undoing a payment nor old records being deleted changes them
+(implementation plan Batch 26; this decision is amended when it's built).*
 
 ### 5. The page says what the figures are based on
 

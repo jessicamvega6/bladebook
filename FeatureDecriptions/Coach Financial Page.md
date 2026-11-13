@@ -62,6 +62,11 @@ What counts as gross (decided by the owner, 2026-10-12):
     counts in January's gross. The page says so under the month and the year's total ("Includes $30 for 2025
     lessons"), and the download has a column "Of which for lessons in earlier years". A year closes at midnight
     starting January 1 in the coach's time zone.
+  *Decided 2026-11-13 by the owner (planned, Batch 26):* a closed year's figures are saved once it closes, and the
+    page and the download use the saved figures from then on. Until then the figures are added up from the lessons
+    each time, so undoing a payment on a closed year's lesson still lowers that year, and once old records are
+    deleted (about 16 months after a lesson is paid) they would drop out too. After Batch 26 neither changes a closed
+    year: undoing or correcting a closed year's lesson counts in the year it's done, as a late payment does.
   *(from ADR-030 §2 and §4, moved 2026-11-08)*
 
 The note above the figures (decided by the owner, 2026-10-12):

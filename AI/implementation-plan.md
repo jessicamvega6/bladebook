@@ -3,7 +3,7 @@
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
 #27–#31). Batch 12 is done (PR #37); Batch 11 is in progress on its own branch.
-Build order from there: 11, 12, 13, 14, 22, 23, 17, 18, 19, 20, 21, 24, 25 (§5).
+Build order from there: 11, 12, 13, 14, 22, 23, 26, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -252,7 +252,8 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 
 ### Later batches (planned after Batch 8, in this order)
 
-The rows are in build order; the numbers are names, so 22 and 23 come straight after 14 (owner, 2026-11-13).
+The rows are in build order; the numbers are names, so 22 and 23 come straight after 14 (owner, 2026-11-13), and 26
+comes after 23, before the infrastructure.
 
 | # | Batch | Holding it back |
 |---|---|---|
@@ -264,6 +265,7 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
+| 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
 | 16 | ~~Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3)~~ **Done** (PR #31) | The *Text me on late cancellations* switch still waits on ADR-007 d8 (§3) |
 | 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 23 (owner, 2026-11-12: after 16; 2026-11-13: Batches 22 and 23 go first) |
@@ -317,8 +319,10 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
 - ~~**When a finished year closes.**~~ *Ruled 2026-11-13 by the owner: a lesson from a closed year marked paid later
   counts in the year and month it was marked paid, flagged as for an earlier year. Built on the Batch 12 branch;
   ADR-030 amended, ADR-MASTER §12 and `FeatureDecriptions/Coach Financial Page.md` updated.*
-- **G-36: a closed year can still drop** when one of its paid lessons is undone on Payments. Refuse *Undo* on a closed
-  year's lessons, store each year's figures when it closes, or leave it?
+- ~~**G-36: a closed year can still drop**~~ when one of its paid lessons is undone on Payments, and (from Batch 17)
+  when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
+  figures when it closes (option c). Planned as Batch 26, after 23 and before 17. Nothing closes a year today: it's
+  only a date rule, and the figures are added up from the seats on every visit.*
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
