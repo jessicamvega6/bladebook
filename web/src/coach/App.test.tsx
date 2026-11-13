@@ -122,9 +122,7 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   expect(await nav.findByLabelText('2 waiting')).toBeInTheDocument();
   expect(nav.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile');
   expect(nav.getByRole('link', { name: 'Lessons' })).toHaveAttribute('href', '#/lessons');
-  for (const later of ['Payments']) {
-    expect(nav.getByText(later).parentElement).toHaveAttribute('aria-disabled', 'true');
-  }
+  expect(nav.getByRole('link', { name: 'Payments' })).toHaveAttribute('href', '#/payments');
   expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();
 
   // The code works, so there is no "not working yet" banner.

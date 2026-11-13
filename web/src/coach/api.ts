@@ -229,3 +229,40 @@ export function lessonsApi(token: string) {
 }
 
 export type LessonsApi = ReturnType<typeof lessonsApi>;
+
+// ------------------------------------------------------------- Batch 8
+
+export type PayStatus = 'UNPAID' | 'PAID' | 'WAIVED';
+export type PaidVia = 'CASH' | 'CASHAPP' | 'VENMO' | 'PAYPAL' | 'OTHER';
+
+/** One skater's lesson that happened, at their share of the price. */
+export interface PaymentRowDto {
+  date: string; startTime: string; durationMinutes: number; studentId: string; fullName: string; familyName: string | null;
+  relationship: 'SELF' | 'GUARDIAN' | null; attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
+  amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
+}
+
+/** Totals per currency, never across. */
+export interface PaymentsDto {
+  rows: PaymentRowDto[];
+  totals: { unpaid: Record<string, number>; unpaidCount: number; paid: Record<string, number>; paidCount: number; noShows: number;
+    noShowsUnpaid: Record<string, number>; notRecorded: number };
+  /** The Mark paid dialog's choices: the coach's payment types, then Other. */
+  choices: PaidVia[];
+  currency: string;
+}
+
+export function paymentsApi(token: string) {
+  const seat = (r: PaymentRowDto, paidVia?: PaidVia | null) => ({ date: r.date, startTime: r.startTime, studentId: r.studentId, paidVia: paidVia ?? null });
+  const post = (path: string, body: unknown) => apiFetch<PaymentRowDto>(`/api/coach/payments/${path}`, { method: 'POST', body, token, idempotent: true });
+  return {
+    list: (from: string, to: string) => apiFetch<PaymentsDto>(`/api/coach/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
+    /** Marks paid, or changes how a paid lesson was paid ({@code null} for none). */
+    markPaid: (r: PaymentRowDto, paidVia: PaidVia | null) => post('paid', seat(r, paidVia)),
+    /** Final (R7). */
+    waive: (r: PaymentRowDto) => post('waive', seat(r)),
+    undo: (r: PaymentRowDto) => post('undo', seat(r)),
+  };
+}
+
+export type PaymentsApi = ReturnType<typeof paymentsApi>;

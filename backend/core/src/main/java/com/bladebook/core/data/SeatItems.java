@@ -12,8 +12,8 @@ import java.util.Map;
 /**
  * A seat as DynamoDB attributes (ADR-031 decision 2): {@code COACH#<coachId> / SEAT#<date>#<startTime>#<studentId>},
  * with GSI1 by client ({@code GSI1PK = CLIENT#<clientId>}, {@code GSI1SK = SEAT#<date>#<startTime>}) for the
- * family's own seats. GSI2 (by date, for the 7am and 9pm jobs) and GSI3 (unpaid) are added by the batches that
- * read them.
+ * family's own seats. A new seat is {@code paymentStatus = UNPAID} (Batch 8). GSI2 (by date, for the 7am and 9pm
+ * jobs) and GSI3 (unpaid, for the weekly reminder) are added by the batch that reads them.
  */
 final class SeatItems {
 
@@ -37,6 +37,7 @@ final class SeatItems {
         m.put("durationMinutes", AttributeValue.fromN(Integer.toString(s.durationMinutes())));
         m.put("joinedAt", FamilyItems.s(s.joinedAt().toString()));
         m.put("idempotencyKey", FamilyItems.s(s.idempotencyKey()));
+        m.put("paymentStatus", FamilyItems.s("UNPAID"));
         return m;
     }
 

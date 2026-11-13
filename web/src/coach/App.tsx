@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { getToken, signOut } from '../shared/auth/localAuth';
 import { Banner } from '../shared/components/harbor';
-import { coachApi, lessonsApi, scheduleApi, studentApi, type Profile, type StudentsDto } from './api';
+import { coachApi, lessonsApi, paymentsApi, scheduleApi, studentApi, type Profile, type StudentsDto } from './api';
 import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
@@ -19,6 +19,7 @@ import { ProfileDetails, ProfilePayments } from './pages/Profile';
 import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { Lessons } from './pages/Lessons';
+import { Payments } from './pages/Payments';
 import { SignupBusiness } from './pages/SignupBusiness';
 import { SignupConfirm } from './pages/SignupConfirm';
 import { SignupDone } from './pages/SignupDone';
@@ -87,6 +88,7 @@ export function App() {
   const api = useMemo(() => (token ? coachApi(token) : null), [token]);
   const schedules = useMemo(() => (token ? scheduleApi(token) : null), [token]);
   const lessons = useMemo(() => (token ? lessonsApi(token) : null), [token]);
+  const payments = useMemo(() => (token ? paymentsApi(token) : null), [token]);
   const studentsApi = useMemo(() => (token ? studentApi(token) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
@@ -136,7 +138,7 @@ export function App() {
   const setProfile = (profile: Profile) => setLoad({ state: 'ready', profile });
 
   let page;
-  if (!token || !api || !schedules || !studentsApi || !lessons) {
+  if (!token || !api || !schedules || !studentsApi || !lessons || !payments) {
     page = <LocalSignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); go('#/today'); }} />;
   } else if (load.state === 'loading') {
     page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
@@ -203,6 +205,8 @@ export function App() {
               : <p className="muted" aria-busy="true">Loading…</p>}
         </CoachShell>
       );
+    } else if (route === '#/payments') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Payments" wide><Payments api={payments} onError={handleError} /></CoachShell>;
     } else if (route === '#/lessons') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Lessons" wide><Lessons api={lessons} onError={handleError} /></CoachShell>;
     } else if (route === '#/profile') {
