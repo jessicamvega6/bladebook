@@ -57,7 +57,9 @@ which decision 4 already verifies). The sign-up and profile screens for this are
 "Business email").
 - **BladeBook sends the link**, not Cognito, because Cognito verifies only the login email.
   It is a new email template (`FeatureDecriptions/Email templates Needed:`).
-- *Open:* how the link is built and how long it lasts. Like ADR-026's invitation link, opening
+- ~~*Open:* how the link is built and how long it lasts.~~ *Settled 2026-11-12 by the owner: a
+  random token that works **once** and lasts **3 days**; Resend sends a new link and the old one
+  stops working.* Like ADR-026's invitation link, opening
   it should lead to a page the coach confirms on, so a mail scanner that follows links can't
   confirm the address by itself.
 
@@ -71,6 +73,28 @@ and a family's changed email. Cognito fills in only the code, so that email name
 family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). Its
 wording is product (see `FeatureDecriptions/Email templates Needed:`). BladeBook stays at seventeen functions. The user
 pool sends through SES, from the same domain as BladeBook's other email.
+
+**Amended — 2026-11-12.** *Decided by the owner (implementation plan, Batch 14).* The
+business-email confirmation link carries a random token that works **once** and lasts **3 days**
+(the proposal was 24 hours; the longer window suits coaches who don't check that inbox daily).
+*Resend* issues a new token and the previous one stops working. Opening the link leads to a page
+where the coach chooses Confirm, as decided above.
+*Also decided 2026-11-12 by the owner:*
+- **Kept on the coach profile.** Each address waiting for confirmation is stored on the coach's
+  own profile item with its token and expiry (`pendingBusinessEmails`: address → `tokenHash`,
+  `expiresAt`). Resend overwrites that address's entry; confirming or removing the address
+  deletes it. No separate item type.
+- **Only a hash is stored.** The token in the link is random; the profile keeps its Secure Hash Algorithm (SHA-256) hash,
+  and the page hashes the token it receives and compares. Reading the table can't produce a
+  working link.
+- ~~**No sign-in needed to confirm.** Holding the inbox is the proof: the coach opens the link and
+  chooses Confirm. This keeps the step simple for coaches who open the email on another device.
+  The accepted cost: someone the email is forwarded to could confirm it within the 3 days.~~
+  *Changed the same day by the owner: **the coach signs in to confirm.** The confirm page asks
+  for sign-in if needed, then shows Confirm; the request goes to `api-coach` with the Coach group
+  like every other coach route (ADR-023 d7), and is checked against the signed-in coach's own
+  profile. No route runs without sign-in, and a forwarded email can't be confirmed by anyone
+  else. The cost is one sign-in step when the email is opened on another device.*
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
 (`design/harbor/coach/app.js`, sign-up step 4).* **At sign-up, families can't reach the coach

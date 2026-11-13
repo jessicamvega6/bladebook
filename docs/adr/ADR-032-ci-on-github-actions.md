@@ -121,7 +121,7 @@ on request** (ADR-028 decision 2).
    privilege").
 
 The tool that checks infrastructure for least privilege (`cdk-nag`, or `checkov`/`tfsec`)
-runs in this pipeline as a build gate once ADR-001 A4 is settled.
+runs in this pipeline as a build gate once ADR-001 A4 is settled. *A4 settled 2026-11-12: CDK, so `cdk-nag`.*
 
 ---
 
@@ -160,7 +160,7 @@ runs in this pipeline as a build gate once ADR-001 A4 is settled.
   ([ADR-012](ADR-012-pii-access-logging.md) lets only the owner's operator role read the
   personal-data access log). Deploy roles must not read the table's data or that log. If CDK is
   chosen (ADR-001 A4), narrow its default bootstrap execution role, which has full administrator
-  access unless changed. *Added 2026-10-15.*
+  access unless changed. *Added 2026-10-15.* *CDK was chosen 2026-11-12, so this applies.*
 - ~~**How a passing dev run is recorded on the commit**, given that dev may be built by hand:
   for example, the dev flows run from a workflow against the dev stack the owner built, and
   set a commit status; or the owner's run sets it. *Added 2026-10-15.*~~ *Gone 2026-10-15: the

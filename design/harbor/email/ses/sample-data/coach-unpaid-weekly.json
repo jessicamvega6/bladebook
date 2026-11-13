@@ -6,26 +6,35 @@
   "paymentsUrl": "https://bladebook.app/coach/payments",
   "lessonCount": "4",
   "total": "$175",
+  "threshold": "7 days",
   "lessons": [
     {
-      "skater": "Leo M.",
       "date": "Fri, Sep 4",
-      "amount": "$50"
+      "time": "6:30 AM",
+      "skater": "Leo M.",
+      "amount": "$50",
+      "note": "No-show"
     },
     {
-      "skater": "Ella A.",
       "date": "Fri, Oct 2",
-      "amount": "$25"
-    },
-    {
+      "time": "6:00 AM",
       "skater": "Ella A.",
-      "date": "Fri, Oct 9",
-      "amount": "$50"
+      "amount": "$25",
+      "note": "Shared lesson · their share"
     },
     {
-      "skater": "Owen B.",
       "date": "Mon, Oct 5",
-      "amount": "$50"
+      "time": "8:30 AM",
+      "skater": "Owen B.",
+      "amount": "$50",
+      "note": "Attendance not recorded"
+    },
+    {
+      "date": "Fri, Oct 9",
+      "time": "6:30 AM",
+      "skater": "Ella A.",
+      "amount": "$50",
+      "note": ""
     }
   ]
 }

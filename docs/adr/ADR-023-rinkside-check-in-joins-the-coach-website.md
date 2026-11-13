@@ -365,7 +365,7 @@ Decision 7 refuses a token without a group, so the group must be on the account 
   event, never from anything the person typed.
 - **The website then refreshes its tokens**, so the first signed-in request carries the group.
 - **One small function with one permission:** `cognito-idp:AdminAddUserToGroup` on this user
-  pool. It brings BladeBook to seventeen functions.
+  pool. It brings BladeBook to seventeen functions. *Sixteen in MVP since 2026-11-11 (ADR-001).*
 - **A coach who is also a parent:** adding `Client` to an existing coach account is a separate
   step, after the person proves they own it (`FeatureDecriptions/Coach Who Is Also a Parent.md`).
 

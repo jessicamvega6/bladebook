@@ -104,7 +104,7 @@ bladebook/
 *Sources: ADR-001 (A5, A6, A8, A9 and later amendments), ADR-010, ADR-017, ADR-018, ADR-021,
 ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 
-**Seventeen functions.**
+**Sixteen functions.** The end-of-day report, `sched-daily-report`, is Phase 2 (owner, 2026-11-11; §24).
 
 | Function | Trigger | Job |
 |---|---|---|
@@ -119,7 +119,6 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `consumer-invite` | Seat changes and lesson-time `pendingLeave` changes | Writes read-only copies on seats; sends shared-lesson emails (§8). |
 | `consumer-ttl-archiver` | DynamoDB Stream, Time to Live (TTL) removals only | Copies expired items to the archive bucket. |
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
-| `sched-daily-report` | Scheduler, ~9:00pm | End-of-day report to the coach; archive to S3. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
 | `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
@@ -149,7 +148,6 @@ held by code and tests.
 | `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`. **No `PutItem` or `DeleteItem.`** | as needed for reads | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
-| `sched-daily-report` | `GetItem`, `Query` on GSI2 | **GSI2** | `ses:SendEmail`; `s3:PutObject` on `coach=*/date=*/` in the reports bucket |
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` | *Role not yet written* | — | — |
@@ -216,7 +214,7 @@ the skater is. The coach's `STUDENT#` record holds copies.
 | Index | Keys | Holds | Read by |
 |---|---|---|---|
 | **GSI1** | `GSI1PK = CLIENT#<clientId>`, `GSI1SK = SEAT#<date>#<startTime>` | A family's seats, across every coach | `api-client` |
-| **GSI2** | `GSI2PK = DATE#<date>`, `GSI2SK = COACH#<coachId>#<startTime>` | Every `BOOKED`, `CHECKED_IN` or `NO_SHOW` seat by local date | `sched-day-reminder`, `sched-daily-report`, `sched-drift-check` |
+| **GSI2** | `GSI2PK = DATE#<date>`, `GSI2SK = COACH#<coachId>#<startTime>` | Every `BOOKED`, `CHECKED_IN` or `NO_SHOW` seat by local date | `sched-day-reminder`, `sched-drift-check` (and `sched-daily-report` from Phase 2) |
 | **GSI3** (sparse) | `GSI3PK = COACH#<coachId>`, `GSI3SK = UNPAID#<date>#<studentId>` | Seats (and, from Phase 2, chargeable cancellation lines) while `UNPAID` | `api-coach`, `sched-unpaid-reminder` |
 | **GSI4** (sparse) | `GSI4PK = DUE`, `GSI4SK = <dueAtUtc>#<coachId>#<itemKey>` | Records with a pending deadline | `sched-deadline-sweep` only |
 
@@ -259,7 +257,7 @@ number had opted out, so no SMS was attempted.
 | `StudentChanged` | `STUDENT#` modified (`studentStatus`, `studentName`) or removed | `consumer-student-link` |
 | `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` modified | `consumer-family-sync` |
 | *(name to be set)* | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
-| `DailyReminderDue`, `DailyReportDue`, `UnpaidReminderDue`, `DriftCheckDue`, and the roller's and sweep's (names to be set) | Scheduler | The matching `sched-*` function |
+| `DailyReminderDue`, `UnpaidReminderDue`, `DriftCheckDue`, and the roller's and sweep's (names to be set) | Scheduler | The matching `sched-*` function |
 
 The Pipe **drops TTL removals** (removals whose identity is the DynamoDB service); only the
 archiver reads them.
@@ -292,7 +290,7 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used; the link opens a page the coach confirms on, so a mail scanner can't confirm it. **The `CODE#` item is written only once the coach has a confirmed business email**, or at once if the coach uses the login email, so no family email is sent without a confirmed `Reply-To` (ADR-016, 2026-11-06). On a change, the current confirmed address stays in use until the new one is confirmed. The address list and what the coach is told are product (`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md`, "Business email"). |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used; the link opens a page the coach confirms on, so a mail scanner can't confirm it. The link carries a random token that works once and lasts 3 days; Resend issues a new one and the old one stops working (owner, 2026-11-12). Each pending address is held on the profile in `pendingBusinessEmails` (address → `tokenHash`, the token's SHA-256 hash, and `expiresAt`); the coach signs in to confirm, through `api-coach` like every coach route (ADR-016, 2026-11-12). **The `CODE#` item is written only once the coach has a confirmed business email**, or at once if the coach uses the login email, so no family email is sent without a confirmed `Reply-To` (ADR-016, 2026-11-06). On a change, the current confirmed address stays in use until the new one is confirmed. The address list and what the coach is told are product (`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md`, "Business email"). |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
@@ -1071,23 +1069,26 @@ happens (§18).
 
 - `sched-unpaid-reminder` runs **weekly, Monday morning** in the launch timezone.
 - It scans GSI3 for **past** seats still `UNPAID` and older than a **threshold held in Parameter
-  Store**. **No threshold set means it sends nothing.**
+  Store**: **7 days** (owner, 2026-11-12). **No threshold set means it sends nothing.**
 - **One email per coach**, to the **login email**, listing each such lesson (wording and content:
   `FeatureDecriptions/Email templates Needed:`, "Unpaid lessons").
-- Each listed seat is stamped **`settleReminderSentOn`**, so a lesson is listed once.
+- **A lesson is listed every Monday until it is marked paid or waived** (owner, 2026-11-12,
+  replacing "listed once"). Each listed seat is stamped **`settleReminderSentOn`** with that
+  Monday's date, so a re-run for the same Monday doesn't list it twice.
 
 ### Financial page
 
-- **Year-to-date gross** and **year-to-date rink fees** for the **calendar year**, in the coach's
-  currency.
+- **Year-to-date gross** for the **calendar year**, in the coach's currency. **Rink fees are
+  Phase 2** (owner, 2026-11-12): working them out needs answers from outside BladeBook
+  (`docs/Q_Rink-Fees.md`). Until then the page says rink fee calculation is coming.
 - **Gross is money received:** seats marked paid, at their share, plus missed-lesson fees actually
   collected (in MVP, a no-show marked paid). Waived and unpaid are left out. **A lesson counts in
   the year and month of its lesson date.**
 - **A finished year is closed**; a lesson from it marked paid later counts in no year.
-- **Rink fees are calculated by BladeBook** from the rink's terms, which the developer sets. The
-  coach can't edit terms, override a month or type in what they paid. **How the fee is calculated
-  is undecided** (§25).
-- **Download:** a CSV of monthly figures for this year or last. **No names or personal data.**
+- **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
+  developer sets. The coach can't edit terms, override a month or type in what they paid. How the
+  fee is calculated is undecided (§25).
+- **Download:** a CSV of monthly gross and paid-lesson counts for this year or last. **No names or personal data.**
   Reads live data only, filtered on `expiresAt`.
 - Year figures are a range query on the coach's `SEAT#<date>` items.
 
@@ -1107,8 +1108,8 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 - **Every family gets email.** In MVP there is **no SMS to families**.
 - **Every client-facing email sets `Reply-To: businessEmail`.** The sender stays the app's verified
   domain.
-- **Emails to the coach about their own account and lessons go to `loginEmail`**: the daily report,
-  the morning email and the weekly unpaid reminder.
+- **Emails to the coach about their own account and lessons go to `loginEmail`**: the morning email
+  and the weekly unpaid reminder (and, from Phase 2, the daily report).
 - Coach-authored free text (`paymentInstructions`, block names) is HTML-escaped.
 
 ### Per message
@@ -1125,7 +1126,6 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 | Shared-lesson emails | Families | §8 | |
 | Weekly unpaid reminder | Coach | §12 | |
 | Business-email confirmation link | Coach | New business email | |
-| End-of-day report | Coach | ~9:00pm | §14 |
 
 **Routing by actor:** `COACH` and `SCHEDULE_CHANGE` batches go to each affected family; `CLIENT`
 batches go to the coach (late ones only); `NO_ANSWER` batches go to the staying family.
@@ -1161,16 +1161,16 @@ notified.
 | Job | When | What it does |
 |---|---|---|
 | `sched-day-reminder` | ~7:00am | Query `DATE#today` on GSI2; email each seat's family; email each coach with lessons their morning list. |
-| `sched-daily-report` | ~9:00pm | Query `DATE#today` on GSI2; split seats into **checked in, no-show, pending** (pending = no outcome recorded; not a stored state); email the coach; archive to S3 at `coach=*/date=*/`. **Writes nothing to the table.** |
-| `sched-unpaid-reminder` | Weekly, Monday morning | §12. Off until its threshold is set. |
+| `sched-unpaid-reminder` | Weekly, Monday morning | §12. Threshold 7 days; lists every Monday until settled. |
 | `sched-drift-check` | Nightly | §19. Read-only. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
 
-- **The end-of-day report names each pending skater and lesson** (wording:
-  `FeatureDecriptions/Email templates Needed:`, "Daily report"). It is a snapshot and isn't
-  regenerated when a late check-in arrives.
-- **Reminders and the report include only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.**
+- **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no
+  recorded outcome shows as *Not recorded* on Payments and the lesson list, and as "attendance
+  not recorded" in the weekly unpaid reminder (§12). It is never shown as a no-show. No job
+  reminds the coach about it each evening.
+- **Reminders include only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.**
 - **Each Scheduler trigger carries the date it is for**; jobs never read the clock for it, so a
   replay or re-run works on that date.
 - Jobs read the seat's `coachTz` and filter on it.
@@ -1399,7 +1399,6 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | Day-of reminder (7am) | Within the hour | Yes |
 | Booking, schedule editing | Hours | No |
 | Check-in | A day | No |
-| End-of-day report | A day | No |
 
 ### Every event consumer
 
@@ -1413,7 +1412,6 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | `consumer-payment-reminder` | `paymentReminderSent` | Replay |
 | `consumer-student-link`, `consumer-family-sync`, `consumer-invite` | Idempotent by construction | Replay |
 | `sched-day-reminder` | `remindedOn`, `morningEmailSentOn` | **Discard** once the date has passed |
-| `sched-daily-report` | S3 key per (coach, date); email guard to build | **Re-run for that date** |
 | `sched-unpaid-reminder` | `settleReminderSentOn` | Discard |
 | `sched-drift-check` | Read-only | Discard |
 | `sched-lesson-roller`, `sched-deadline-sweep` | Re-check / create-if-missing | No queue |
@@ -1630,7 +1628,7 @@ database-gate tests; reproducing an incident (masked build).
 
 - **No feature ships without automated tests.** Integration tests against DynamoDB Local count.
 - **Tooling:** JUnit with DynamoDB Local (`backend/`); **Vitest + React Testing Library**
-  (`web/`); infrastructure tests in whichever IaC tool is chosen; **Playwright** for two flows.
+  (`web/`); infrastructure tests with Jest and CDK `assertions`; **Playwright** for two flows.
 - **Build gates:** an ArchUnit rule that **every public class in `core/` has a test class**;
   **mutation testing (PIT) on `core/` only**. **No coverage threshold.**
 - **Logic in both Java and TypeScript** (slot expansion, price totals, week and date arithmetic) is
@@ -1658,8 +1656,8 @@ database-gate tests; reproducing an incident (masked build).
   ArchUnit rule, the security event's content; each session limit and that a refreshed token
   keeps `auth_time`; every `api-coach` route, rinkside included, refuses no token and a `Client`
   token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); the rinkside queue (survives reload, duplicate dropped, failed stays
-  visible, future time rejected, both outcomes); the report's three-way split (no outcome is
-  never a no-show); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
+  visible, future time rejected, both outcomes); no recorded outcome is never a no-show (Payments, the lesson list and the
+  unpaid reminder); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's
   availability, a family can't change another family's accepted seat, a share-code lookup
   returns only the name (to the family), a coach cancel covers every seat and notifies each family once, a
@@ -1682,7 +1680,7 @@ database-gate tests; reproducing an incident (masked build).
 - **Production deploys only a tagged build** — the exact package from `main`, never a rebuild —
   **after the owner's approval**, then runs the post-deploy check. A failed check means the owner
   rolls back.
-- The least-privilege infrastructure check runs as a build gate once the IaC tool is chosen.
+- The least-privilege infrastructure check (`cdk-nag`) runs as a build gate.
 - **Before any workflow deploys to either account, all of these are in place:**
   1. every action pinned to a **full commit hash** (version in a comment); as few third-party
      actions as possible;
@@ -1732,7 +1730,8 @@ technical.*
 - Coach profile photos (upload, bucket, resize, display before sign-in) → `FeatureDecriptions/C_Coach Profile.md`.
 - Skate Canada and Hockey Canada numbers → `FeatureDecriptions/Client Sign Up`.
 - The rink-number download (owner, 2026-11-09) → `FeatureDecriptions/Coach Dashboard on website.md`, Student List.
-- Financial page: past years on screen and a per-lesson export with names → `FeatureDecriptions/Coach Financial Page.md`.
+- Financial page: rink fees (owner, 2026-11-12; the calculation is undecided, `docs/Q_Rink-Fees.md`),
+  past years on screen and a per-lesson export with names → `FeatureDecriptions/Coach Financial Page.md`.
 - Rink selection in the schedule builder → `FeatureDecriptions/Schedule Creater.md`.
 - A coach booking for a family → `FeatureDecriptions/Bookings:`.
 - Recurrence extension.
@@ -1742,6 +1741,11 @@ technical.*
 - The **approval email** to a family when a coach approves their skater, sent by
   `consumer-student-link` (ADR-002, 2026-11-06) → `FeatureDecriptions/Client Sign Up`, "Coach approval".
 - Distinct cancellation email templates by reason → `FeatureDecriptions/Email templates Needed:`.
+- The **end-of-day report** (`sched-daily-report`, ~9 PM): the day's checked-in, no-show and
+  not-recorded lessons, emailed to the coach's login email and archived to the reports bucket at
+  `coach=*/date=*/`. Writes nothing to the table; a snapshot (ADR-014 d7). Its seventeenth
+  function, IAM row, GSI2 use and re-run-for-that-date rule return with it (owner, 2026-11-11)
+  → `FeatureDecriptions/Email templates Needed:`, "Daily report".
 - A switch to turn off the coach's morning email → `FeatureDecriptions/Email templates Needed:`.
 - A scheduled production canary.
 - Real delivery confirmation (SES event destinations, bounces and complaints).
@@ -1772,7 +1776,6 @@ technical.*
 
 - ~~**Infrastructure as Code: CDK or Terraform**, against ADR-001 A4's criteria.~~ **Settled 2026-11-12:**
   CDK (TypeScript), decided by the owner (ADR-001 A4 resolved).
-- **The rink-fee calculation** (`docs/Q_Rink-Fees.md`).
 - **The family read allowlist** for `LESSON#` and the family's own `SEAT#`, and the **gate-test
   rows** for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4, and ADR-033's rows (the booking's
   `ConditionCheckItem` refused whole for a non-`ACTIVE` invitee; the `studentStatus`-only
@@ -1785,13 +1788,11 @@ technical.*
 
 **Settings and details**
 
-- The unpaid-reminder threshold; its weekly Monday cadence; whether an unsettled lesson is listed
-  again (product side → `FeatureDecriptions/Email templates Needed:`, "Unpaid lessons").
+- The rink-fee calculation, for Phase 2 (`docs/Q_Rink-Fees.md`).
 - The date-override window (30 days proposed).
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
-- How the business-email confirmation link is built and how long it lasts.
 - Which browser library does the SRP sign-in for BladeBook's own forms (ADR-023 d11, Open).
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
 - Whether the 7-day answer-by should be checked with Kim → `FeatureDecriptions/Schedule lesson split`.

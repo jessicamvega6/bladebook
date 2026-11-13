@@ -1,5 +1,9 @@
 Coach Financial Page (from talking with Kim, 2026-10-07)
-*Design: coach/static/finances.html (added 2026-10-12). The fee calculation shown is one reading of docs/Q_Rink-Fees.md.*
+*Design: coach/static/finances.html (added 2026-10-12; rink fees taken off 2026-11-12).*
+*Decided 2026-11-12 by the owner: **rink fees are Phase 2.** Working them out needs answers from outside BladeBook
+    (docs/Q_Rink-Fees.md) that aren't available yet. In MVP the page shows year-to-date gross only, the download
+    holds monthly gross and paid-lesson counts, and the page says rink fee calculation is coming. Everything below about rink fees
+    applies from Phase 2.*
 *Decided 2026-10-12 by the owner:* each rink's terms are added by the developer when BladeBook reaches a new rink.
     The coach can't edit them, and can't enter what they actually paid; the page shows the calculated fee only.
 
@@ -35,6 +39,7 @@ Decided 2026-10-12 by the owner:
   Before the figures, the page says they are calculated from the lessons the coach has marked as paid.
   Summary export is MVP: a Download button saves a CSV for a chosen calendar year (this year or last),
     one row per month with gross received, rink fees and net, plus year totals. No skater names.
+    *(Rink fees and net: Phase 2, 2026-11-12.)*
     A detailed per-lesson export with skater names is Phase 2 (privacy rules, PII access logging).
   BladeBook calculates rink fees; the coach doesn't enter them. How it calculates is open:
     every question is in docs/Q_Rink-Fees.md.
@@ -68,11 +73,14 @@ Rink fees until the calculation is decided:
     lesson counted in the month it was taught.
   The figure is used for a tax deduction, so a wrong calculation costs the coach. Until the model is confirmed
     with Kim, the page says it is an estimate to check against what was paid.
+  *2026-11-12: superseded for MVP. Rink fees are Phase 2, so MVP shows no reading and no estimate; the page
+    says only that rink fee calculation is coming.*
   *(from ADR-030 §8 and Consequences, moved 2026-11-08)*
 
 Export (decided by the owner, 2026-10-12):
   MVP: a summary export. A Download button saves a comma-separated values (CSV) file for a chosen calendar
-    year, this year or last: one row per month with gross received, rink fees and net, plus year totals. It has
+    year, this year or last: one row per month with gross received ~~, rink fees and net~~ and the number of paid
+    lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. It has
     no skater names and no personal data. It covers what a tax preparer needs and lets the coach keep their own
     copy before records age out.
   Phase 2: past years on screen.
@@ -87,5 +95,5 @@ Options the owner rejected (2026-10-12):
     may never be paid.
   *(from ADR-030 Alternatives considered, moved 2026-11-08)*
 
-Recorded in ADR-030 (accepted in part; the rink-fee calculation is open).
+Recorded in ADR-030 (accepted in part; the rink-fee calculation is open and is Phase 2 since 2026-11-12).
 Other open questions are tracked in docs/Open-Pending.md §3.
