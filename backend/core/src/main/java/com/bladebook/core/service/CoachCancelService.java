@@ -10,7 +10,6 @@ import com.bladebook.core.domain.CoachCancelPlan;
 import com.bladebook.core.domain.CoachCancelRequest;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
-import com.bladebook.core.domain.PriceShare;
 import com.bladebook.core.domain.Seat;
 
 import java.time.Clock;
@@ -134,7 +133,7 @@ public final class CoachCancelService {
         List<String> order = booked.stream().map(Seat::studentId).toList();
         List<CancellationLine> out = new ArrayList<>();
         for (Seat s : booked) {
-            out.add(CancellationLine.of(batch, s, PriceShare.of(c.time().priceMinor(), booked.size(), order, s.studentId()),
+            out.add(CancellationLine.of(batch, s, c.time().shareFor(c.time().priceMinor(), s.studentId(), order),
                     c.time().currency(), now));
         }
         return out;

@@ -7,6 +7,7 @@ import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.FamilyRepository;
 import com.bladebook.core.data.LinkedCoach;
 import com.bladebook.core.data.LinkedSkater;
+import com.bladebook.core.data.ShareRepository;
 import com.bladebook.core.domain.AvailableTime;
 import com.bladebook.core.domain.BookingOutcome;
 import com.bladebook.core.domain.BookingRequest;
@@ -47,9 +48,12 @@ import java.util.Map;
  */
 public final class BookingService {
 
-    /** One lesson time on the booking page. {@code free}: nobody holds it; who does is never shown. */
+    /**
+     * One lesson time on the booking page. {@code free}: nobody holds it; who does is never shown. {@code shareable}: its
+     * block takes 2 or more skaters, so the confirm pop-up offers the share box (never how many).
+     */
     public record Time(LocalDate date, LocalTime startTime, LocalTime endTime, int durationMinutes, int priceMinor,
-                       String currency, int blockSeq, String blockName, boolean free, boolean started) {
+                       String currency, int blockSeq, String blockName, boolean free, boolean started, boolean shareable) {
     }
 
     /** One of the family's own lessons: any skater, with this coach (the booking page) or any coach (Home). */
@@ -79,21 +83,52 @@ public final class BookingService {
     public record Series(String recurrenceId, DayOfWeek weekday, LocalTime startTime, int intervalWeeks, LocalDate first, LocalDate until) {
     }
 
-    public record BookingResult(String coachFirstName, String studentName, List<PickResult> picks, List<Series> series) {
+    public record BookingResult(String coachFirstName, String studentName, List<PickResult> picks, List<Series> series, Shared shared) {
 
         public BookingResult {
             picks = List.copyOf(picks);
             series = List.copyOf(series);
         }
+
+        public BookingResult(String coachFirstName, String studentName, List<PickResult> picks, List<Series> series) {
+            this(coachFirstName, studentName, picks, series, null);
+        }
     }
 
-    /** One of the family's lessons on My bookings, priced from its lesson time; {@code null} price if it can't be read. */
     /**
-     * {@code attendance}: {@code CHECKED_IN} or {@code NO_SHOW} once the coach records it, else {@code null}.
+     * What a share code did (design {@code bkShareResult}): an invitation to another family's skater, or a sibling added.
+     * {@code lessons}: how many booked dates it shares.
+     */
+    public record Shared(String displayName, boolean sibling, int lessons) {
+    }
+
+    /**
+     * One of the family's lessons on My bookings, priced at the family's share of its lesson time; {@code null} price if it
+     * can't be read. {@code attendance}: {@code CHECKED_IN} or {@code NO_SHOW} once the coach records it, else {@code null}.
      * {@code recurrenceId} and {@code intervalWeeks}: the series it belongs to and how often that repeats now, or null and 0.
+     * {@code share}: who it's shared with, as far as the family may know (Batch 11).
      */
     public record MyLesson(FamilyLesson lesson, Integer priceMinor, String currency, int requiredNoticeHours, String attendance,
-                           String recurrenceId, int intervalWeeks) {
+                           String recurrenceId, int intervalWeeks, ShareView share) {
+
+        public MyLesson(FamilyLesson lesson, Integer priceMinor, String currency, int requiredNoticeHours, String attendance,
+                        String recurrenceId, int intervalWeeks) {
+            this(lesson, priceMinor, currency, requiredNoticeHours, attendance, recurrenceId, intervalWeeks, ShareView.NONE);
+        }
+    }
+
+    /**
+     * A lesson's sharing, from the family's own seat and the lesson time (ADR-MASTER section 8): the other skater's display
+     * name and status ({@code INVITED}, {@code BOOKED}, {@code CHECKED_IN}, {@code NO_SHOW}, {@code LEFT}, or how an
+     * invitation ended: {@code DECLINED}, {@code WITHDRAWN}, {@code EXPIRED}); {@code inviteId} when this family invited
+     * them; {@code answerBy} while the staying family's answer is waiting; {@code fullPriceMinor}, the lesson's whole price;
+     * {@code freedPlace}, kept at the full price and open to a one-lesson invitation; {@code joined}, the family's skater joined
+     * another family's lesson by invitation.
+     */
+    public record ShareView(String partnerName, String partnerStatus, String inviteId, Instant answerBy, Integer fullPriceMinor,
+                            boolean shareable, boolean freedPlace, boolean joined) {
+
+        public static final ShareView NONE = new ShareView(null, null, null, null, null, false, false, false);
     }
 
     /** A series still running: its header, whose it is, and how many lessons are left. */
@@ -117,12 +152,22 @@ public final class BookingService {
     private final ClientLinks links;
     private final BookingRepository bookings;
     private final FamilyRepository families;
+    private final Partners partners;
+    private final SeatEvents events;
     private final Clock clock;
 
     public BookingService(ClientLinks links, BookingRepository bookings, FamilyRepository families, Clock clock) {
+        this(links, bookings, families, null, clock, SeatEvents.NONE);
+    }
+
+    /** With sharing (Batch 11): share codes resolved through {@code shares}, and {@code events} told of every shared lesson. */
+    public BookingService(ClientLinks links, BookingRepository bookings, FamilyRepository families, ShareRepository shares, Clock clock,
+                          SeatEvents events) {
         this.links = links;
         this.bookings = bookings;
         this.families = families;
+        this.partners = shares == null ? null : new Partners(links, families, shares);
+        this.events = events;
         this.clock = clock;
     }
 
@@ -140,12 +185,12 @@ public final class BookingService {
         List<Time> times = new ArrayList<>();
         for (AvailableTime t : stored) {
             times.add(new Time(t.lessonDate(), t.startTime(), t.endTime(), t.durationMinutes(), t.shareFor(studentId),
-                    t.currency(), t.blockSeq(), blockName(t, weekly, overrides), t.free(), !t.startsAtUtc().isAfter(now)));
+                    t.currency(), t.blockSeq(), blockName(t, weekly, overrides), t.free(), !t.startsAtUtc().isAfter(now), t.shareable()));
         }
         boolean hasSchedule = !times.isEmpty() || (weekly != null && !weekly.isEmpty());
 
         FamilyAccount account = account(ctx);
-        List<FamilyLesson> mine = bookings.familySeats(ctx, window.first(), window.last()).stream()
+        List<FamilyLesson> mine = lessonsOnly(bookings.familySeats(ctx, window.first(), window.last())).stream()
                 .filter(s -> s.coachId().equals(coachId)).map(s -> lesson(s, account)).toList();
 
         return new BookingPage(coach.firstName(), coach.lastName(), coach.coachTimezone(), coach.requiredNoticeHours(),
@@ -158,11 +203,28 @@ public final class BookingService {
      * outside the window refuses the whole request before anything is written.
      */
     public BookingResult book(ClientContext ctx, BookingRequest request) {
+        return book(ctx, request, null);
+    }
+
+    /**
+     * As above, sharing every date that can be shared with the skater whose share code is {@code shareCode} (ADR-MASTER
+     * section 8, "Inviting"): another family's skater is invited, one invitation for every date; one of the family's own is
+     * added directly. A code that doesn't check out refuses the whole request, before anything is written. Times whose
+     * block takes one skater are booked private.
+     */
+    public BookingResult book(ClientContext ctx, BookingRequest request, String shareCode) {
         LinkedSkater skater = links.requireActive(ctx, request.coachId(), request.studentId(), "book");
         CoachClock coach = coachOf(ctx, skater);
         Instant now = clock.instant();
         // The picks must be inside the window; a series' later dates may run past it, up to 12 months (ADR-031 d3).
         BookingWindow.at(now, ZoneId.of(coach.coachTimezone())).requireAll(request.dates());
+        Partners.Resolved share = null;
+        if (shareCode != null && !shareCode.isBlank()) {
+            if (partners == null) {
+                throw DomainException.invalid("shareCode", "Sharing isn’t available here.");
+            }
+            share = partners.resolve(ctx, skater, shareCode, Partners.inviteIdFor(request.idempotencyKey()));
+        }
 
         List<BookingRequest.Occurrence> dates = request.occurrences();
         Map<String, AvailableTime> byKey = new HashMap<>();
@@ -170,6 +232,7 @@ public final class BookingService {
             byKey.put(t.key(), t);
         }
         List<PickResult> out = new ArrayList<>();
+        int sharedDates = 0;
         for (BookingRequest.Occurrence o : dates) {
             AvailableTime t = byKey.get(LessonTime.key(o.date(), o.startTime()));
             BookingOutcome outcome;
@@ -177,7 +240,12 @@ public final class BookingService {
                 // Gone, or taken already: skip the write, and say whose by the family's own seat.
                 outcome = bookings.attribute(ctx, skater, o.date(), o.startTime(), request.idempotencyKey());
             } else {
-                outcome = bookings.book(ctx, skater, t, request.idempotencyKey(), now, o.recurrenceId(), o.intervalWeeks());
+                BookingRepository.Partner partner = share != null && t.shareable() ? share.partner() : null;
+                outcome = bookings.book(ctx, skater, t, request.idempotencyKey(), now, o.recurrenceId(), o.intervalWeeks(), partner);
+                if (outcome == BookingOutcome.BOOKED && partner != null) {
+                    sharedDates++;
+                    events.seatsChanged(skater.coachId(), o.date(), o.startTime());
+                }
             }
             out.add(t == null
                     ? new PickResult(o.date(), o.startTime(), outcome, null, null, null, o.recurrenceId())
@@ -200,7 +268,8 @@ public final class BookingService {
                 }
             });
         }
-        return new BookingResult(coach.firstName(), skater.studentName(), out, series);
+        return new BookingResult(coach.firstName(), skater.studentName(), out, series,
+                share == null || sharedDates == 0 ? null : new Shared(share.displayName(), share.sibling(), sharedDates));
     }
 
     /** The family's lessons with every coach from today on, soonest first and priced: Home's Today and Coming up. */
@@ -208,7 +277,7 @@ public final class BookingService {
         Instant now = clock.instant();
         // A day either side of UTC's today covers every coach's today; each seat is then held to its coach's.
         LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
-        List<Seat> seats = bookings.familySeats(ctx, from, Weeks.storeUntil(from)).stream()
+        List<Seat> seats = lessonsOnly(bookings.familySeats(ctx, from, Weeks.storeUntil(from))).stream()
                 .filter(s -> !s.lessonDate().isBefore(LocalDate.ofInstant(now, ZoneId.of(s.coachTz()))))
                 .sorted(Comparator.comparing(Seat::startsAtUtc)).toList();
         return priced(ctx, seats, account(ctx), headers(ctx));
@@ -218,7 +287,7 @@ public final class BookingService {
     public MyBookings myBookings(ClientContext ctx) {
         Instant now = clock.instant();
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
-        List<Seat> seats = bookings.familySeats(ctx, today.minusDays(RECENT_DAYS), Weeks.storeUntil(today));
+        List<Seat> seats = lessonsOnly(bookings.familySeats(ctx, today.minusDays(RECENT_DAYS), Weeks.storeUntil(today)));
         FamilyAccount account = account(ctx);
         Map<String, Recurrence> headers = repairHeaders(ctx, seats, now);
         List<MyLesson> upcoming = new ArrayList<>();
@@ -288,9 +357,23 @@ public final class BookingService {
                     t == null ? 0 : t.requiredNoticeHours(),
                     s.seatStatus() == Seat.Status.CHECKED_IN || s.seatStatus() == Seat.Status.NO_SHOW ? s.seatStatus().name() : null,
                     s.recurrenceId(), s.recurrenceId() == null ? 0
-                            : headers.containsKey(s.recurrenceId()) ? headers.get(s.recurrenceId()).intervalWeeks() : Math.max(1, s.bookedIntervalWeeks())));
+                            : headers.containsKey(s.recurrenceId()) ? headers.get(s.recurrenceId()).intervalWeeks() : Math.max(1, s.bookedIntervalWeeks()),
+                    shareView(s, t, ctx.clientId())));
         }
         return out;
+    }
+
+    /** The family's own sharing fields on a seat, with the lesson's whole price. */
+    private static ShareView shareView(Seat s, AvailableTime t, String clientId) {
+        Seat.Share sh = s.share();
+        boolean joined = sh.invitedByClientId() != null && !sh.invitedByClientId().equals(clientId);
+        return new ShareView(sh.partnerName(), sh.partnerStatus(), joined ? null : sh.inviteId(), sh.choiceAnswerBy(),
+                t == null ? null : t.priceMinor(), t != null && t.shareable(), sh.freedPlace(), joined);
+    }
+
+    /** The family's seats that are lessons: an invitation it hasn't answered is shown as an invitation, not a lesson. */
+    private static List<Seat> lessonsOnly(List<Seat> seats) {
+        return seats.stream().filter(s -> s.seatStatus() != Seat.Status.INVITED).toList();
     }
 
     private CoachClock coachOf(ClientContext ctx, LinkedSkater skater) {

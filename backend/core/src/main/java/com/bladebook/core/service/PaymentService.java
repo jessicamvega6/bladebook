@@ -12,7 +12,6 @@ import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Payment;
-import com.bladebook.core.domain.PriceShare;
 import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.StudentRecord;
 
@@ -155,7 +154,7 @@ public final class PaymentService {
     private static Row row(PaidSeat s, LessonTime t, List<PaidSeat> in, List<String> order, Map<String, StudentRecord> records,
                            Instant now, CoachProfile coach) {
         StudentRecord r = records.get(s.seat().studentId());
-        int amount = t == null ? 0 : PriceShare.of(t.priceMinor(), in.size(), order, s.seat().studentId());
+        int amount = t == null ? 0 : t.shareFor(t.priceMinor(), s.seat().studentId(), order);
         List<String> others = in.stream().filter(o -> o != s).map(o -> o.seat().studentName()).toList();
         return new Row(s.seat().lessonDate(), s.seat().startTime(), s.seat().durationMinutes(), s.seat().studentId(),
                 r == null ? s.seat().studentName() : r.studentName(), r == null ? null : r.clientName(),

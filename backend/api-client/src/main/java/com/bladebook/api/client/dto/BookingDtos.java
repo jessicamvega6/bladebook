@@ -17,7 +17,7 @@ public final class BookingDtos {
     }
 
     public record TimeDto(String date, String startTime, String endTime, int durationMinutes, int priceMinor, String currency,
-                          int blockSeq, String blockName, boolean free, boolean started) {
+                          int blockSeq, String blockName, boolean free, boolean started, boolean shareable) {
     }
 
     public record LessonDto(String coachId, String coachFirstName, String studentId, String studentName, String date,
@@ -28,16 +28,32 @@ public final class BookingDtos {
         }
     }
 
-    /** A lesson on My bookings: the family's share of the price, and the lesson's own notice period. */
+    /**
+     * A lesson on My bookings: the family's share of the price, and the lesson's own notice period. {@code share}: who it's
+     * shared with (Batch 11), as far as the family may know.
+     */
     public record MyLessonDto(String coachId, String coachFirstName, String studentId, String studentName, String date,
                               String startTime, int durationMinutes, String startsAtUtc, String coachTz, Integer priceMinor,
-                              String currency, int requiredNoticeHours, String attendance, String recurrenceId, int intervalWeeks) {
+                              String currency, int requiredNoticeHours, String attendance, String recurrenceId, int intervalWeeks,
+                              ShareDto share) {
         public static MyLessonDto of(BookingService.MyLesson m) {
             BookingService.FamilyLesson l = m.lesson();
+            BookingService.ShareView s = m.share();
             return new MyLessonDto(l.coachId(), l.coachFirstName(), l.studentId(), l.studentName(), l.date().toString(),
                     l.startTime().toString(), l.durationMinutes(), l.startsAtUtc().toString(), l.coachTz(), m.priceMinor(),
-                    m.currency(), m.requiredNoticeHours(), m.attendance(), m.recurrenceId(), m.intervalWeeks());
+                    m.currency(), m.requiredNoticeHours(), m.attendance(), m.recurrenceId(), m.intervalWeeks(),
+                    new ShareDto(s.partnerName(), s.partnerStatus(), s.inviteId(), s.answerBy() == null ? null : s.answerBy().toString(),
+                            s.fullPriceMinor(), s.shareable(), s.freedPlace(), s.joined()));
         }
+    }
+
+    /**
+     * {@code partnerStatus}: INVITED, BOOKED, CHECKED_IN, NO_SHOW, LEFT (left in time, waiting for this family's answer by
+     * {@code answerBy}), or how an invitation ended: DECLINED, WITHDRAWN, EXPIRED. {@code inviteId}: this family's own
+     * invitation, to withdraw it.
+     */
+    public record ShareDto(String partnerName, String partnerStatus, String inviteId, String answerBy, Integer fullPriceMinor,
+                           boolean shareable, boolean freedPlace, boolean joined) {
     }
 
     public record MyBookingsResponse(List<MyLessonDto> upcoming, List<MyLessonDto> recent, List<MySeriesDto> series) {
@@ -50,11 +66,15 @@ public final class BookingDtos {
     public record CancelBody(String coachId, String studentId, String date, String startTime) {
     }
 
-    /** {@code late}: inside the notice period, so the coach is told. */
-    public record CancelResponse(String outcome, boolean late, String coachFirstName, String studentName, String date, String startTime) {
+    /**
+     * {@code late}: inside the notice period, so the coach is told. {@code leave}: RELEASE, WITHDRAW (an unanswered invitation
+     * ended with it), IN_TIME (the other family is asked) or LATE (the other skater keeps their share).
+     */
+    public record CancelResponse(String outcome, boolean late, String coachFirstName, String studentName, String date, String startTime,
+                                 String leave) {
         public static CancelResponse of(CancellationService.FamilyCancel c) {
             return new CancelResponse(c.outcome().name(), c.late(), c.coachFirstName(), c.studentName(), c.date().toString(),
-                    c.startTime().toString());
+                    c.startTime().toString(), c.leave().name());
         }
     }
 
@@ -65,7 +85,7 @@ public final class BookingDtos {
             return new PageResponse(p.coachFirstName(), p.coachLastName(), p.coachTimezone(), p.requiredNoticeHours(),
                     p.today().toString(), p.now().toString(), p.windowFirst().toString(), p.windowLast().toString(), p.hasSchedule(),
                     p.times().stream().map(t -> new TimeDto(t.date().toString(), t.startTime().toString(), t.endTime().toString(),
-                            t.durationMinutes(), t.priceMinor(), t.currency(), t.blockSeq(), t.blockName(), t.free(), t.started())).toList(),
+                            t.durationMinutes(), t.priceMinor(), t.currency(), t.blockSeq(), t.blockName(), t.free(), t.started(), t.shareable())).toList(),
                     p.familyLessons().stream().map(LessonDto::of).toList(),
                     p.specials().stream().map(x -> new SpecialDto(x.kind(), x.name(), x.startDate().toString(), x.endDate().toString())).toList());
         }
@@ -80,8 +100,9 @@ public final class BookingDtos {
 
     /** One request per coach (ADR-025 d3). The website makes {@code idempotencyKey} and resends it on a retry. */
     /** {@code repeat}: each pick repeats every {@code everyWeeks} weeks up to {@code until} (Batch 9). */
+    /** {@code shareCode}: share every pick that can be shared with that skater (Batch 11); blank books them private. */
     public record BookBody(String coachId, String studentId, String idempotencyKey, List<PickBody> picks, Boolean repeat,
-                           Integer everyWeeks, String until) {
+                           Integer everyWeeks, String until, String shareCode) {
         public BookingRequest toRequest() {
             List<BookingRequest.PickInput> in = picks == null ? null
                     : picks.stream().map(p -> p == null ? null : new BookingRequest.PickInput(p.date(), p.startTime())).toList();
@@ -124,13 +145,20 @@ public final class BookingDtos {
                                 Integer priceMinor, String currency, String recurrenceId) {
     }
 
-    public record BookResponse(String coachFirstName, String studentName, List<PickResultDto> picks, List<SeriesDto> series) {
+    /** {@code shared}: what the share code did, or null. */
+    public record BookResponse(String coachFirstName, String studentName, List<PickResultDto> picks, List<SeriesDto> series,
+                               SharedDto shared) {
         public static BookResponse of(BookingService.BookingResult r) {
             return new BookResponse(r.coachFirstName(), r.studentName(), r.picks().stream().map(p -> new PickResultDto(
                     p.date().toString(), p.startTime().toString(), p.outcome().name(),
                     p.outcome() == BookingOutcome.UNAVAILABLE ? BookingOutcome.UNAVAILABLE_MESSAGE : null,
                     p.durationMinutes(), p.priceMinor(), p.currency(), p.recurrenceId())).toList(),
-                    r.series().stream().map(SeriesDto::of).toList());
+                    r.series().stream().map(SeriesDto::of).toList(),
+                    r.shared() == null ? null : new SharedDto(r.shared().displayName(), r.shared().sibling(), r.shared().lessons()));
         }
+    }
+
+    /** An invitation sent to another family's skater ({@code sibling} false), or a sibling added directly. */
+    public record SharedDto(String displayName, boolean sibling, int lessons) {
     }
 }

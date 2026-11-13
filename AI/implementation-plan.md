@@ -2,7 +2,8 @@
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
-#27–#31). Next is Batch 11. Build order from there: 11, 12, 13, 14, 22, 23, 17, 18, 19, 20, 21, 24, 25 (§5).
+#27–#31). Batch 11 is built on `feature/batch-11-shared-lessons` (its PR is open). Build order from there: 12, 13, 14, 22,
+23, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -257,7 +258,7 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
 |---|---|---|
 | 9 | ~~Recurring bookings and recurrence changes~~ **Done** (PR #28). B4 (a shared series) moved to Batch 11; what's left of G-20 is Batch 24 | — |
 | 10 | ~~Rinkside offline queue and service worker~~ **Done** (PR #29). What's left of G-32 is Batch 25 | — |
-| 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
+| 11 | ~~Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5)~~ **Done** (2026-11-13; §7). Its emails are SC-18 (Batch 13) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
 | 12 | Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35) | — |
 | 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
@@ -750,4 +751,61 @@ The full list, with what closes each one, is in the root `README.md`.
   - **Payment types** are listed read-only, with their handles, linking to the Payments tab, as the design does.
 - **Checked in the running app (APIs; table `bladebook-b9check`):** an approved family saw no phone or email; the
   coach switched both on; the family then saw both.
+
+### Batch 11 (2026-11-13)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** B2 (answer by whichever comes first, the start of the notice period or 7 days after the leave); B3
+  (one card per series, *Keep all remaining dates*, *Cancel all remaining dates* with its confirmation, and a choice per
+  date); B4 (while any lesson still to come is shared, joined or invited, the change page offers only *Cancel all future
+  lessons*, and the server refuses the other two); B7 (the invitation page lists every clash); B8 (*expired* and
+  *Cancelled, no answer* come from the clock, before the sweep runs); B10 (a share is the price divided by the skaters,
+  odd cents to the earliest; no page says "half"); B11 (*Go ahead* / *Decline*); S11 (the coach's cancel deletes an
+  unanswered invited seat with no record, and a later answer gets "no longer available").
+- **Closed:** G-17 (share codes, issued by `consumer-family-sync` and shown on Profile with *Copy*); G-21 (sharing at
+  booking: the share box, the share-check, invitations and siblings).
+- **Shortcuts:** SC-16 `consumer-invite`'s copies written in-process; SC-17 the hourly sweep on a local timer, with a
+  local-only button; SC-18 no shared-lesson emails (Batch 13); SC-19 the share-check's access-log line goes to the
+  application log. SC-8 widened (share codes); G-26 widened (the shared-lesson attributes and writes).
+- **Settled while building (owner may override):**
+  - **A name with fewer than 3 letters A–Z** gets its share code's prefix padded with `X` (`JOX-…`).
+  - **The invited seat isn't part of the inviting family's series** (no `recurrenceId`), nor is a sibling's: the invited
+    family cancels its dates one by one, and only the booking family can change or stop the series. Stopping a shared
+    series cancels each date by the shared rules, so the other family is asked about each.
+  - **The inviting family's seat records `invitedStudentId`**, so its cancel can end an unanswered invitation without
+    reading the other family's seat; the invited seat records `invitedByName`, the inviting family's name for the invitation
+    page. Neither is in ADR-MASTER §7's list.
+  - **A kept lesson is marked `freedPlace`** on the staying family's seat, which is how My bookings knows to offer *Invite
+    a skater* (the family can't read the lesson time's history). A freed place takes another family's skater or a sibling.
+  - **`seatsTaken` counts every place held, an invitation included; `shareCount` counts only skaters splitting the
+    price.** The family's lesson-time read now names `maxSkaters` (only to say *shareable*) and `seatsTaken` (G-26).
+  - **The coach's lines and Payments use the lesson time's `shareCount` and `joinOrder`**, as the family's pages do, so a
+    late leaver's partner is still charged their share on both sides. Lesson times from before Batch 11 fall back to the
+    booked seats.
+  - **The coach's calendar names only skaters who have joined**: an invitation still unanswered isn't shown, as the design
+    draws it. Every booked skater is named, *"Ava P. & Mia C."*.
+  - **An invitation's ID is derived from the booking request's key**, so a retry makes the same invitation; a freed place's
+    invitation gets a new one.
+  - **The share-check answers `{ displayName, onCoachRoster }` only**; the page knows its own skaters' codes, so adding a
+    sibling makes no call. A sibling not yet accepted, the skater's own code, and a code of the wrong shape are refused on
+    the page and again by the server.
+  - **Declining and answering need the skater still `ACTIVE` with the coach** (`requireActive`, ADR-MASTER §8); otherwise
+    the page says *"This lesson is no longer available."*
+  - **The invitation page lives at `#/invite/<inviteId>`**, the link the invitation email will carry (Batch 13). Home lists
+    open invitations with *See the invitation*. After the sweep ends one, the link says it's no longer available.
+  - **The staying family's "Cancel, no charge"** is one change batch for all the dates answered, each date its own
+    transaction, re-checked first; dates that had gone are reported.
+  - **A leave's line records the leaver's share of the price**; the missed-lesson fee is still Phase 2.
+- **Found while building:** the shared `Dialog` moved focus back to its first control whenever its parent re-rendered with a
+  new close handler, so typing in a field inside a pop-up (the share box) jumped away. It now focuses once, when it opens.
+- **Checked in the running app (APIs on :8094 and :8095; table `bladebook-b11check`):** a coach saves a week that takes 2
+  skaters → two families sign up and are approved → each skater has a share code → the share-check answers *"Mia C."*, on
+  the roster, with no ID; an unknown code is a 404 → the booking page marks the time shareable → booking Ava with Mia's
+  code sends the invitation; Ava's lesson is $50 and *waiting for their family*; the coach's calendar names Ava only →
+  the Chens see the invitation, $25 of $50, from Sarah Park for Ava P. → *Go ahead*: both pay $25 and the calendar names
+  both → Mia's family cancels in time: the Parks are asked, answer by the start of the notice period, still $25 → *Keep*:
+  $50 and a freed place; a lesson tomorrow cancelled the same way is a late leave and the Parks keep $25 unasked → the
+  local sweep runs. The flows the clock decides (expiry, no answer) are in `ShareServiceTest`. **Not checked in a browser**;
+  the pages are covered by their tests.
 
