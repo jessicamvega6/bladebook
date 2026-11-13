@@ -117,6 +117,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-34 | **No morning email.** Today's *"Heading to the rink?"* card says *"The link is in your morning email too"*, as designed, but nothing sends it; Today's card is the only way to the rinkside page. | Batch 13 |
 | G-32 | **Two parts of the rinkside page's offline behaviour aren't built.** The page doesn't say when Safari has cleared its offline copy (ADR-014 amendment of 2026-10-13; the design has no screen for it, and a cleared page can't tell a first visit from a cleared one). Nothing has been tried on a real iPhone at a rink: the copy of the page was checked in headless Chrome with the network cut, and the queue, *Not sent* and the family-cancelled card in tests. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 25 (owner, 2026-11-13); the iPhone check after Batch 17 |
 | G-33 | **`CheckInRecorded` and `NoShowRecorded` aren't raised**, so no payment reminder follows a check-in. | Batch 13 |
+| G-36 | **A closed year's figures can still drop.** The financial page adds the year up from the seats each time, so undoing a paid lesson from a closed year on Payments takes it out of that year's gross; marking one paid later doesn't add it (the year is closed). Nothing stores a year's figures when it closes. | Owner's call: refuse *Undo* on a closed year's lessons, or store each year's figures when it closes |
 
 ## Repository
 

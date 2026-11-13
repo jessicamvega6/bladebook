@@ -35,10 +35,10 @@ import java.util.Map;
  */
 public final class PaymentService {
 
-    /** One skater's lesson. {@code amountMinor}: the skater's share of the lesson time's price. */
+    /** One skater's lesson. {@code amountMinor}: the skater's share of the lesson time's price. {@code paidAt} only when paid. */
     public record Row(LocalDate date, LocalTime startTime, int durationMinutes, String studentId, String fullName, String familyName,
                       ClientRelationship relationship, Attendance.Shown attendance, int amountMinor, String currency,
-                      Payment.Status status, Payment.Via paidVia, List<String> sharedWith) {
+                      Payment.Status status, Payment.Via paidVia, List<String> sharedWith, Instant paidAt) {
     }
 
     /** Totals per currency: unpaid, paid, and unpaid no-shows; with the counts the page's figures show. */
@@ -161,7 +161,7 @@ public final class PaymentService {
                 r == null ? s.seat().studentName() : r.studentName(), r == null ? null : r.clientName(),
                 r == null ? null : r.relationship(),
                 Attendance.statusOf(s.seat().seatStatus(), s.seat().startsAtUtc(), s.seat().durationMinutes(), now),
-                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), others);
+                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), others, s.paidAt());
     }
 
     private static Totals totals(List<Row> rows) {
