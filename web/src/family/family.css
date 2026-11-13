@@ -44,6 +44,8 @@
 }
 
 /* Client account screens (sign-up, home, profile, payments). Harbor tokens only. */
+.bb .ac-group + .ac-group { margin-top: 14px; }
+.bb .ac-group .eyebrow { margin-bottom: 6px; }
 .bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
 .bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .bb .ac-when { width: 64px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }

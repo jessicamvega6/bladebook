@@ -48,11 +48,13 @@ function Skaters({ family }: { family: Family }) {
 function CoachCard({ coach, multi }: { coach: Coach; multi: boolean }) {
   const ok = coach.status === 'ACTIVE';
   const d = coach.details;
-  const lines = d ? [
+  const contact = d ? [
     ...(d.phone ? [<span key="p"><Icon name="phone" size={14} />{d.phone}</span>] : []),
     ...(d.email ? [<span key="e"><Icon name="mail" size={14} />{d.email}</span>] : []),
-    ...d.payments.map((p) => <span key={p.type}><Icon name="card" size={14} />{PAYMENT_LABEL[p.type]}{p.handle ? ` ${p.handle}` : ''}</span>),
   ] : [];
+  const payment = d ? d.payments.map((p) => <span key={p.type}><Icon name="card" size={14} />{PAYMENT_LABEL[p.type]}{p.handle ? ` ${p.handle}` : ''}</span>) : [];
+  // Each group has its own title, and a group with nothing in it isn't shown.
+  const groups = ([['Contact', contact], ['Payment', payment]] as const).filter(([, items]) => items.length);
   const full = `${coach.firstName} ${coach.lastName}`;
   return (
     <Card title={multi ? undefined : 'Your coach'} className="ac-coachcard">
@@ -63,7 +65,9 @@ function CoachCard({ coach, multi }: { coach: Coach; multi: boolean }) {
       </div>
       {!ok
         ? <p className="fine">Waiting for Coach {coach.firstName} to approve {names(coach.waitingNames)}. Contact details and booking show once they do.</p>
-        : lines.length ? <div className="ac-contact">{lines}</div> : <p className="fine">Reply to any lesson email to reach Coach {coach.firstName}.</p>}
+        : groups.length ? groups.map(([title, items]) => (
+          <div key={title} className="ac-group"><div className="eyebrow">{title}</div><div className="ac-contact">{items}</div></div>
+        )) : <p className="fine">Reply to any lesson email to reach Coach {coach.firstName}.</p>}
     </Card>
   );
 }

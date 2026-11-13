@@ -32,6 +32,8 @@ test('once a coach approves, their chosen contact details and payment types show
   render(<Home family={APPROVED} />);
 
   expect(screen.getByText('Jack is waiting for Coach Dana’s approval')).toBeInTheDocument();
+  expect(screen.getByText('Contact')).toBeInTheDocument();
+  expect(screen.getByText('Payment')).toBeInTheDocument();
   expect(screen.getByText('(205) 555-0142')).toBeInTheDocument();
   expect(screen.getByText('Venmo @dana-skates')).toBeInTheDocument();
   expect(screen.getByText('Cash')).toBeInTheDocument();
