@@ -5,8 +5,9 @@
 # - main, nightly and by hand: PIT runs on all of core.
 # PIT 1.30 has no free incremental history (it moved to the paid Arcmutate add-on), so every run
 # re-tests what it targets; speed comes from 4 threads (backend/core/pom.xml) and PR scoping.
-# Both fail below the threshold in backend/core/pom.xml (pit.mutationThreshold) and keep the
-# HTML report as a download on the run's page.
+# Both fail below the threshold in backend/core/pom.xml (pit.mutationThreshold), show the
+# classes with the most missed mutations on the run's page (.github/scripts/pit-summary.py) and
+# keep the HTML report as a download.
 
 name: Mutation testing
 
@@ -15,11 +16,13 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/mutation.yml'
+      - '.github/scripts/pit-summary.py'
   push:
     branches: [main]
     paths:
       - 'backend/**'
       - '.github/workflows/mutation.yml'
+      - '.github/scripts/pit-summary.py'
   schedule:
     - cron: '0 8 * * *'   # 08:00 UTC, the middle of the night in the US
   workflow_dispatch:
@@ -77,6 +80,10 @@ jobs:
           CLASSES: ${{ steps.changed.outputs.classes }}
         run: ./mvnw -B -pl core test-compile pitest:mutationCoverage "-DtargetClasses=${CLASSES}"
 
+      - name: Show the top offenders on the run page
+        if: always() && steps.changed.outputs.classes != ''
+        run: python3 ../.github/scripts/pit-summary.py core/target/pit-reports/mutations.xml >> "$GITHUB_STEP_SUMMARY"
+
       - name: Keep the report
         if: always() && steps.changed.outputs.classes != ''
         uses: actions/upload-artifact@v4
@@ -107,6 +114,10 @@ jobs:
 
       - name: Run PIT on all of core
         run: ./mvnw -B -pl core test-compile pitest:mutationCoverage
+
+      - name: Show the top offenders on the run page
+        if: always()
+        run: python3 ../.github/scripts/pit-summary.py core/target/pit-reports/mutations.xml >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the report
         if: always()
