@@ -1369,7 +1369,7 @@ sequenceDiagram
                 API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
             else seat gone - the family cancelled while the phone was offline
                 API--&gt;&gt;P: condition failed
-                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, before your check-in reached BladeBook&quot; -&lt;br/&gt;entry cleared (d4)
             else any other failure
                 P--&gt;&gt;C: stays queued and visible (d4)
             end
@@ -1414,7 +1414,7 @@ sequenceDiagram
                 API--&gt;&gt;P: treated as success - dropped silently (d3, d8)
             else seat gone - the family cancelled while the phone was offline
                 API--&gt;&gt;P: condition failed
-                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, after you recorded it&quot; -&lt;br/&gt;entry cleared (d4)
+                P--&gt;&gt;C: &quot;cancelled by the family at 3:50pm, before your check-in reached BladeBook&quot; -&lt;br/&gt;entry cleared (d4)
             else any other failure
                 P--&gt;&gt;C: stays queued and visible (d4)
             end

@@ -197,14 +197,14 @@ test('sending later: a family’s cancel shows the lesson cancelled; a wrong clo
   server({ '/api/coach/rinkside/attendance': (init) => {
     const b = JSON.parse(init!.body as string) as { studentId: string };
     return b.studentId === 'mia'
-      ? new Response(JSON.stringify({ error: 'CONFLICT', message: 'This lesson was cancelled by the family at 6:20 AM, after you recorded it.' }), { status: 409 })
+      ? new Response(JSON.stringify({ error: 'CONFLICT', message: 'This lesson was cancelled by the family at 6:20 AM, before your check-in reached BladeBook.' }), { status: 409 })
       : new Response(JSON.stringify({ error: 'INVALID', message: 'The phone’s time didn’t match the lesson, so it couldn’t be recorded.' }), { status: 400 });
   } });
   render(<App />);
   expect(await screen.findByText('Back online. Everything is up to date. A family had cancelled; see Today.')).toBeInTheDocument();
   const cancelled = screen.getByText('Mia C.').closest('.rl')!;
   expect(cancelled).toHaveClass('rl--cancelled');
-  expect(cancelled).toHaveTextContent('This lesson was cancelled by the family at 6:20 AM, after you recorded it. Nothing more to do.');
+  expect(cancelled).toHaveTextContent('This lesson was cancelled by the family at 6:20 AM, before your check-in reached BladeBook. Nothing more to do.');
   // Another coach's check-in waits for that coach (R2).
   expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toMatchObject([{ coach: 'ben@gmail.com' }]);
 
