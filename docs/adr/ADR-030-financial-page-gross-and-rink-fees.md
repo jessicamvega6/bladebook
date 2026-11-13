@@ -14,6 +14,15 @@ fee calculation is coming. Decisions 3, 6 and 8 apply from Phase 2. The page's n
 figures keeps the screen's line, *"Gross is money you've received,"* with the banner saying the
 figures come from lessons marked paid (implementation plan R10d).
 
+**Amended — 2026-11-13.** *Decided by the owner.* **A lesson from a closed year that is marked
+paid later counts in the year, and month, it was marked paid, flagged as for an earlier year.**
+Until then it counted in no year. The closed year itself is unchanged by a late payment (decision
+4). Every other paid lesson still counts by its lesson date (decision 2). The page labels the
+amount (*"Includes $30 for 2025 lessons"*), and the summary download gives it a column of its own
+(*"Of which for lessons in earlier years"*), so a tax preparer can see it. The page reads this
+year's lessons and last year's; a lesson from further back marked paid now isn't counted
+(implementation plan, Batch 12).
+
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
 **Relies on** [ADR-003](ADR-003-lesson-pricing-and-payment.md) (price stamped on the booking,
@@ -69,7 +78,9 @@ missed-lesson fees, bucketed by lesson date (product rule — see
   fees are `PAID` `CANCELLED#` lines;
 - `WAIVED` and `UNPAID` items are excluded, so undoing a paid mark removes the item from gross
   with no extra bookkeeping;
-- the figure is computed from current state, keyed by the **lesson date**, not `paidAt`.
+- the figure is computed from current state, keyed by the **lesson date**, not `paidAt`;
+  *except (2026-11-13) a lesson from a closed year marked paid later, which is keyed by `paidAt`
+  in the coach's time zone and flagged as for an earlier year (decision 4).*
 
 ### 3. BladeBook calculates rink fees
 
@@ -79,8 +90,11 @@ out from the rink's terms and the coach's lessons. **How is open** (decision 8).
 ### 4. A finished year is closed
 
 *Decided by the owner, 2026-10-12, for now.* Once a calendar year ends, its figures are fixed.
-A lesson from that year marked paid afterwards doesn't change them, and under decision 2 it
-doesn't count in the new year either.
+A lesson from that year marked paid afterwards doesn't change them~~, and under decision 2 it
+doesn't count in the new year either~~. *Amended 2026-11-13 by the owner: it counts in the year
+and month it was marked paid, flagged as for an earlier year.* A year closes at midnight starting
+January 1 in the coach's time zone; nothing is stored when it closes, since the figures are
+worked out from the seats each time (open: implementation plan G-36).
 
 ### 5. The page says what the figures are based on
 
@@ -136,10 +150,11 @@ Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach F
   coach's ~~`BOOKING#<date>`~~ range for that year, keeping those marked paid. No new index is needed.
   *Replaced by ADR-031 decision 2 (2026-10-13): the range is the coach's `SEAT#<date>` items,
   one per skater. Phase 2's collected late-cancellation fees are on `CANCELLED#` lines.*
-- **A lesson paid after its year has closed is in no year's gross** (decision 4). A December
-  lesson marked paid in January is the usual case. Decision 5's statement is what tells the coach
-  to mark lessons paid before the year ends. Last year's summary export (decision 7) shows the
-  closed figures; revisit this when past years come on screen (Phase 2).
+- ~~**A lesson paid after its year has closed is in no year's gross** (decision 4).~~ *Amended
+  2026-11-13: it is in the gross of the year it was marked paid, flagged as for an earlier year.*
+  A December lesson marked paid in January is the usual case. Last year's summary export
+  (decision 7) shows the closed figures, and this year's shows the flagged amount in its own
+  column; revisit this when past years come on screen (Phase 2).
 - **Retention keeps a year's paid lessons.** *Settled 2026-10-12:* every ADR-017 window holding
   lesson or payment records is at least **16 months**, so a calendar year's records stay live
   until the US and most Canadian filing deadlines (`Open-Pending.md` §8). Phase 2's past years

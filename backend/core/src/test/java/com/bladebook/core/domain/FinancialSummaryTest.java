@@ -73,8 +73,40 @@ class FinancialSummaryTest {
         assertThat(s.months()).hasSize(12);
         assertThat(s.months().get(11).paidLessons()).isEqualTo(1);
         assertThat(s.gross()).containsExactly(Map.entry("USD", 5000L));
-        // A lesson from the closed year counts in no year: it isn't in 2026 either.
-        assertThat(FinancialSummary.of(2026, List.of(paid("2025-12-15", 3000, "2026-01-05T15:00:00Z")), CHICAGO, TODAY).gross()).isEmpty();
+        assertThat(s.earlierGross()).isEmpty();
+    }
+
+    @Test
+    void aLessonFromAClosedYearPaidLaterCountsInTheMonthItWasPaidMarkedAsForAnEarlierYear() {
+        // Owner, 2026-11-13: it counts in the year it was paid, flagged as for a previous year.
+        FinancialSummary.Summary s = FinancialSummary.of(2026, List.of(
+                paid("2025-12-31", 4000, "2026-01-01T06:00:00Z"),   // midnight Jan 1 in Chicago: January 2026
+                paid("2025-12-15", 3000, "2026-02-05T15:00:00Z"),   // February 2026
+                paid("2025-12-20", 2000, "2025-12-21T15:00:00Z"),   // paid before 2025 closed: 2025's, not here
+                of("2025-12-22", 1000, Payment.Status.UNPAID),       // last year's unpaid lesson: not this year's
+                paid("2026-01-10", 5000, "2026-01-10T15:00:00Z")), CHICAGO, TODAY);
+        FinancialSummary.Month jan = s.months().get(0);
+        assertThat(jan.paidLessons()).isEqualTo(2);
+        assertThat(jan.gross()).containsExactly(Map.entry("USD", 9000L));
+        assertThat(jan.earlierLessons()).isEqualTo(1);
+        assertThat(jan.earlierGross()).containsExactly(Map.entry("USD", 4000L));
+        FinancialSummary.Month feb = s.months().get(1);
+        assertThat(feb.hasLessons()).isFalse();
+        assertThat(feb.paidLessons()).isEqualTo(1);
+        assertThat(feb.earlierGross()).containsExactly(Map.entry("USD", 3000L));
+        assertThat(s.paidLessons()).isEqualTo(3);
+        assertThat(s.gross()).containsExactly(Map.entry("USD", 12000L));
+        assertThat(s.earlierLessons()).isEqualTo(2);
+        assertThat(s.earlierGross()).containsExactly(Map.entry("USD", 7000L));
+        assertThat(s.unpaid()).isEmpty();
+    }
+
+    @Test
+    void aLessonFromAClosedYearPaidAfterThisYearAlsoClosedIsNotInThisYear() {
+        FinancialSummary.Summary s = FinancialSummary.of(2025, List.of(
+                paid("2024-12-15", 3000, "2026-01-05T15:00:00Z")), CHICAGO, TODAY);
+        assertThat(s.gross()).isEmpty();
+        assertThat(s.earlierGross()).isEmpty();
     }
 
     @Test
@@ -110,12 +142,22 @@ class FinancialSummaryTest {
         String csv = FinancialSummary.csv(s, "USD");
         String[] lines = csv.split("\r\n");
         assertThat(lines).hasSize(14);
-        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (USD)");
-        assertThat(lines[1]).isEqualTo("January 2025,0,0.00");
-        assertThat(lines[2]).isEqualTo("February 2025,2,75.01");
-        assertThat(lines[12]).isEqualTo("December 2025,0,0.00");
-        assertThat(lines[13]).isEqualTo("2025 total,2,75.01");
+        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (USD),Of which for lessons in earlier years (USD)");
+        assertThat(lines[1]).isEqualTo("January 2025,0,0.00,0.00");
+        assertThat(lines[2]).isEqualTo("February 2025,2,75.01,0.00");
+        assertThat(lines[12]).isEqualTo("December 2025,0,0.00,0.00");
+        assertThat(lines[13]).isEqualTo("2025 total,2,75.01,0.00");
         assertThat(csv).endsWith("\r\n");
+    }
+
+    @Test
+    void theCsvShowsWhatWasPaidForEarlierYearsLessons() {
+        FinancialSummary.Summary s = FinancialSummary.of(2026, List.of(
+                paid("2025-12-15", 3000, "2026-01-05T15:00:00Z"),
+                paid("2026-01-12", 5000, "2026-01-12T15:00:00Z")), CHICAGO, TODAY);
+        String[] lines = FinancialSummary.csv(s, "USD").split("\r\n");
+        assertThat(lines[1]).isEqualTo("January 2026,2,80.00,30.00");
+        assertThat(lines[12]).isEqualTo("2026 to date,2,80.00,30.00");
     }
 
     @Test
@@ -123,9 +165,9 @@ class FinancialSummaryTest {
         FinancialSummary.Summary s = FinancialSummary.of(2026, List.of(), CHICAGO, TODAY);
         String[] lines = FinancialSummary.csv(s, "CAD").split("\r\n");
         assertThat(lines).hasSize(13);
-        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (CAD)");
-        assertThat(lines[11]).isEqualTo("November 2026 (to Nov 13),0,0.00");
-        assertThat(lines[12]).isEqualTo("2026 to date,0,0.00");
+        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (CAD),Of which for lessons in earlier years (CAD)");
+        assertThat(lines[11]).isEqualTo("November 2026 (to Nov 13),0,0.00,0.00");
+        assertThat(lines[12]).isEqualTo("2026 to date,0,0.00,0.00");
         assertThat(FinancialSummary.fileName(2026)).isEqualTo("bladebook-summary-2026.csv");
     }
 }

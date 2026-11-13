@@ -271,15 +271,20 @@ export function paymentsApi(token: string) {
 
 export type PaymentsApi = ReturnType<typeof paymentsApi>;
 
-/** One month of the financial page. Amounts per currency, never across. {@code month}: yyyy-MM. */
+/**
+ * One month of the financial page. Amounts per currency, never across. {@code month}: yyyy-MM. {@code earlierGross}:
+ * the part of {@code gross} paid this month for lessons in an earlier year (owner, 2026-11-13).
+ */
 export interface FinanceMonthDto {
   month: string; hasLessons: boolean; paidLessons: number; gross: Record<string, number>; unpaid: Record<string, number>;
+  earlierLessons: number; earlierGross: Record<string, number>;
 }
 
 /** A year's figures (Batch 12): gross only; rink fees are Phase 2. {@code today}: the coach's date. */
 export interface FinanceYearDto {
   year: number; closed: boolean; today: string; months: FinanceMonthDto[]; paidLessons: number;
-  gross: Record<string, number>; unpaid: Record<string, number>; currency: string;
+  gross: Record<string, number>; unpaid: Record<string, number>; earlierLessons: number; earlierGross: Record<string, number>;
+  currency: string;
 }
 
 export function financesApi(token: string) {

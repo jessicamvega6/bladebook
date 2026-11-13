@@ -3,7 +3,9 @@
  * FeatureDecriptions/Coach Financial Page.md; ADR-MASTER section 12 "Financial page"; ADR-030). Batch 12.
  *
  * This year's gross so far, month by month: money received, meaning lessons marked paid (a no-show marked paid
- * included), counted in the month the lesson was taught. Rink fees are Phase 2, so the page says they're coming.
+ * included), counted in the month the lesson was taught. A lesson from last year marked paid this year counts in the
+ * month it was marked paid, labelled with its year (owner, 2026-11-13). Rink fees are Phase 2, so the page says
+ * they're coming.
  * Download saves the summary CSV for this year or last; past years on screen are Phase 2.
  */
 import { useEffect, useId, useState } from 'react';
@@ -60,7 +62,9 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
   const cur = data.currency;
   const money = (m: Record<string, number>) => formatMoney(m[cur] ?? 0);
   const thisMonth = data.today.slice(0, 7);
-  const first = data.months.findIndex((m) => m.hasLessons);
+  const first = data.months.findIndex((m) => m.hasLessons || m.earlierLessons > 0);
+  /** Only last year's lessons are read, so "earlier" is always the year before (FinancialService). */
+  const earlier = (m: Record<string, number>) => `${formatMoney(m[cur] ?? 0)} for ${data.year - 1} lessons`;
   const monthName = (ym: string) => MONTHS_LONG[Number(ym.slice(5, 7)) - 1];
   const upTo = MONTHS_LONG[data.months.length - 1];
   const rows = data.months.slice(Math.max(first, 0)).map((m) => {
@@ -69,7 +73,7 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
       <tr key={m.month}>
         <td><b>{monthName(m.month)}</b>{m.month === thisMonth && <small className="mp-sub">To {MONTHS[Number(data.today.slice(5, 7)) - 1]} {Number(data.today.slice(8))}</small>}</td>
         <td className="num">{plural(m.paidLessons, 'lesson')}{unpaid > 0 && <small className="mp-sub">{formatMoney(unpaid)} still unpaid</small>}</td>
-        <td className="r money">{money(m.gross)}</td>
+        <td className="r money">{money(m.gross)}{m.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(m.earlierGross)}</small>}</td>
       </tr>
     );
   });
@@ -78,9 +82,9 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
     <>
       {flash && <Banner tone="success">{flash}</Banner>}
       {head}
-      <Banner tone="info" title="Based on lessons you’ve marked as paid">These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: marking one of its lessons paid later doesn’t change it.</Banner>
+      <Banner tone="info" title="Based on lessons you’ve marked as paid">These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: a lesson from it marked paid later counts in the month you mark it, labelled with its year.</Banner>
       <div className="stats">
-        <Stat label={`Gross, ${data.year} to date`} value={money(data.gross)} sub={`${plural(data.paidLessons, 'lesson')} marked paid`} icon="card" />
+        <Stat label={`Gross, ${data.year} to date`} value={money(data.gross)} sub={`${plural(data.paidLessons, 'lesson')} marked paid${data.earlierLessons > 0 ? ` · ${earlier(data.earlierGross)}` : ''}`} icon="card" />
         <Stat label="Still unpaid" value={money(data.unpaid)} sub="Not in gross until marked paid" icon="alert" />
       </div>
       <div className="split fin-split">
@@ -92,9 +96,9 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
               {first < 0 && <tr className="fin-none"><td>{data.months.length > 1 ? `${MONTHS_LONG[0]} – ${upTo}` : upTo}</td><td colSpan={2} className="muted">No lessons in BladeBook</td></tr>}
               {first >= 0 && rows}
             </tbody>
-            <tfoot><tr><td><b>{data.year} to date</b></td><td className="num">{plural(data.paidLessons, 'lesson')}</td><td className="r money">{money(data.gross)}</td></tr></tfoot>
+            <tfoot><tr><td><b>{data.year} to date</b></td><td className="num">{plural(data.paidLessons, 'lesson')}</td><td className="r money">{money(data.gross)}{data.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(data.earlierGross)}</small>}</td></tr></tfoot>
           </table></div>
-          <div className="card__note"><Icon name="info" size={14} /> Gross counts lessons marked paid, including a missed-lesson fee once you’ve collected it (mark the no-show paid). Unpaid and waived lessons aren’t counted. A lesson counts in the month it was taught. Amounts are in {cur}.</div>
+          <div className="card__note"><Icon name="info" size={14} /> Gross counts lessons marked paid, including a missed-lesson fee once you’ve collected it (mark the no-show paid). Unpaid and waived lessons aren’t counted. A lesson counts in the month it was taught; one from last year marked paid this year counts in the month you marked it. Amounts are in {cur}.</div>
         </Card>
         <div className="stack">
           <Card title="Rink fees">

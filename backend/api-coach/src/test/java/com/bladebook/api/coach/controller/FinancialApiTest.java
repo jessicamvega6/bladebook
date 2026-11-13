@@ -87,8 +87,8 @@ class FinancialApiTest {
         Res last = call("/api/coach/finances/download?year=" + (thisYear - 1), token);
         assertThat(last.status()).isEqualTo(200);
         assertThat(last.s("fileName")).isEqualTo("bladebook-summary-" + (thisYear - 1) + ".csv");
-        assertThat(last.s("csv")).startsWith("Month,Paid lessons,Gross received (USD)\r\nJanuary " + (thisYear - 1) + ",0,0.00\r\n")
-                .endsWith((thisYear - 1) + " total,0,0.00\r\n");
+        assertThat(last.s("csv")).startsWith("Month,Paid lessons,Gross received (USD),Of which for lessons in earlier years (USD)\r\nJanuary " + (thisYear - 1) + ",0,0.00,0.00\r\n")
+                .endsWith((thisYear - 1) + " total,0,0.00,0.00\r\n");
     }
 
     @Test

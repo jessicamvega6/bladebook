@@ -7,11 +7,11 @@ import { Finances } from './Finances';
 afterEach(() => vi.unstubAllGlobals());
 
 const month = (m: number, o: Partial<FinanceMonthDto> = {}): FinanceMonthDto => ({
-  month: `2026-${String(m).padStart(2, '0')}`, hasLessons: false, paidLessons: 0, gross: {}, unpaid: {}, ...o,
+  month: `2026-${String(m).padStart(2, '0')}`, hasLessons: false, paidLessons: 0, gross: {}, unpaid: {}, earlierLessons: 0, earlierGross: {}, ...o,
 });
 
 const YEAR: FinanceYearDto = {
-  year: 2026, closed: false, today: '2026-11-13', paidLessons: 3, gross: { USD: 12500 }, unpaid: { USD: 5000 }, currency: 'USD',
+  year: 2026, closed: false, today: '2026-11-13', paidLessons: 3, gross: { USD: 12500 }, unpaid: { USD: 5000 }, earlierLessons: 0, earlierGross: {}, currency: 'USD',
   months: [...Array.from({ length: 8 }, (_, i) => month(i + 1)),
     month(9, { hasLessons: true, paidLessons: 2, gross: { USD: 7500 } }),
     month(10, { hasLessons: true, paidLessons: 1, gross: { USD: 5000 }, unpaid: { USD: 5000 } }),
@@ -72,4 +72,23 @@ test('Download summary saves last year’s CSV', async () => {
   expect(urls).toContain('/api/coach/finances/download?year=2025');
   expect(click).toHaveBeenCalled();
   spy.mockRestore();
+});
+
+test('a lesson from last year paid this year counts in the month it was paid, labelled with its year', async () => {
+  const year: FinanceYearDto = {
+    ...YEAR, paidLessons: 4, gross: { USD: 15500 }, earlierLessons: 1, earlierGross: { USD: 3000 },
+    months: [month(1, { paidLessons: 1, gross: { USD: 3000 }, earlierLessons: 1, earlierGross: { USD: 3000 } }),
+      ...YEAR.months.slice(1)],
+  };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(year), { status: 200 }))));
+  render(<Finances api={financesApi('t')} year={2026} onError={vi.fn()} />);
+  const rows = await screen.findAllByRole('row');
+  // January has no lessons of its own but is listed, since a 2025 lesson was paid in it.
+  expect(rows[1]).toHaveTextContent('January');
+  expect(rows[1]).toHaveTextContent('$30');
+  expect(rows[1]).toHaveTextContent('Includes $30 for 2025 lessons');
+  expect(rows[2]).toHaveTextContent('February');
+  expect(rows[2]).not.toHaveTextContent('Includes');
+  expect(screen.getByText('4 lessons marked paid · $30 for 2025 lessons')).toBeInTheDocument();
+  expect(rows[rows.length - 1]).toHaveTextContent('Includes $30 for 2025 lessons');
 });

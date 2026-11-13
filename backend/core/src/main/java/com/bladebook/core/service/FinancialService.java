@@ -5,10 +5,12 @@ import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.FinancialSummary;
+import com.bladebook.core.domain.Payment;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,11 +43,16 @@ public final class FinancialService {
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         LocalDate today = LocalDate.ofInstant(clock.instant(), zone);
         FinancialSummary.checkYear(year, today);
-        LocalDate from = LocalDate.of(year, 1, 1);
-        LocalDate to = LocalDate.of(year, 12, 31);
-        List<FinancialSummary.Entry> entries = payments.list(ctx, from, to).rows().stream()
-                .map(r -> new FinancialSummary.Entry(r.date(), r.amountMinor(), r.currency(), r.status(), r.paidAt())).toList();
+        // The year's own lessons, and last year's, any of which may have been marked paid during this year (owner,
+        // 2026-11-13). Lessons from further back aren't read (settled 2026-11-13; the owner may override).
+        List<FinancialSummary.Entry> entries = new ArrayList<>(entries(ctx, year));
+        entries.addAll(entries(ctx, year - 1).stream().filter(e -> e.status() == Payment.Status.PAID).toList());
         return new Page(FinancialSummary.of(year, entries, zone, today), coach.currency().name());
+    }
+
+    private List<FinancialSummary.Entry> entries(AccessContext ctx, int year) {
+        return payments.list(ctx, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)).rows().stream()
+                .map(r -> new FinancialSummary.Entry(r.date(), r.amountMinor(), r.currency(), r.status(), r.paidAt())).toList();
     }
 
     public Download download(AccessContext ctx, int year) {

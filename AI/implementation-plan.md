@@ -312,11 +312,11 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
   lists every coach) so that a waiting family is never given a coach's ID. The root `README.md`
   marks it *"Owner's call"*: keep it as built, or redraw the design to match.
 
-**Open, found in Batch 12 (2026-11-13):**
+**Found in Batch 12 (2026-11-13):**
 
-- **When a finished year closes.** ADR-MASTER §12 and the design close a year when it ends, so a lesson from it
-  marked paid afterwards counts in no year; Batch 12 builds that. `FeatureDecriptions/Coach Financial Page.md` also
-  says a December lesson paid in January counts in December's gross, which needs a later closing date. Which wins?
+- ~~**When a finished year closes.**~~ *Ruled 2026-11-13 by the owner: a lesson from a closed year marked paid later
+  counts in the year and month it was marked paid, flagged as for an earlier year. Built on the Batch 12 branch;
+  ADR-030 amended, ADR-MASTER §12 and `FeatureDecriptions/Coach Financial Page.md` updated.*
 - **G-36: a closed year can still drop** when one of its paid lessons is undone on Payments. Refuse *Undo* on a closed
   year's lessons, store each year's figures when it closes, or leave it?
 
@@ -769,8 +769,12 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Closed:** G-35's financial half (Payments' *Financial summary* opens the new page). *Send reminders* stays Phase 2.
 - **Gaps:** G-36 a closed year's figures can still drop when one of its paid lessons is undone.
 - **Settled while building (owner may override):**
-  - **A finished year closes at midnight starting January 1 in the coach's time zone.** A lesson from it marked paid
-    after that counts in no year, as ADR-MASTER §12 and the design's banner say. *`FeatureDecriptions/Coach Financial
+  - **A finished year closes at midnight starting January 1 in the coach's time zone.** ~~A lesson from it marked paid
+    after that counts in no year, as ADR-MASTER §12 and the design's banner say.~~ *Owner, 2026-11-13: it counts in
+    the year and month it was marked paid, labelled "Includes $30 for 2025 lessons" under the month and the year's
+    total, and in the download's new column "Of which for lessons in earlier years". Only last year's lessons are
+    read for it; one from further back marked paid now isn't counted (settled; the owner may override). The design's
+    banner was reworded to match.* *`FeatureDecriptions/Coach Financial
     Page.md` also says "A December lesson paid in January counts in December's gross", which can't hold alongside a
     year that closes when it ends; this build follows ADR-MASTER. If December's late payments should count, the year
     needs a later closing date (for example the end of January).*

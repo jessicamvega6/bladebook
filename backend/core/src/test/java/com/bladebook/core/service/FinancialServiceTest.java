@@ -106,10 +106,10 @@ class FinancialServiceTest {
         service.markPaid(dana, MONDAY, SIX, ava, "");
         FinancialService.Download d = finances.download(dana, 2026);
         assertThat(d.fileName()).isEqualTo("bladebook-summary-2026.csv");
-        assertThat(d.csv()).contains("November 2026 (to Nov 16),1,50.00\r\n2026 to date,1,50.00\r\n");
+        assertThat(d.csv()).contains("November 2026 (to Nov 16),1,50.00,0.00\r\n2026 to date,1,50.00,0.00\r\n");
         assertThat(d.csv()).doesNotContain("Ava");
         FinancialService.Download last = finances.download(dana, 2025);
-        assertThat(last.csv()).contains("December 2025,0,0.00\r\n2025 total,0,0.00\r\n");
+        assertThat(last.csv()).contains("December 2025,0,0.00,0.00\r\n2025 total,0,0.00,0.00\r\n");
         assertThatThrownBy(() -> finances.download(dana, 2024)).hasMessage("Pick this year or last year.");
         assertThatThrownBy(() -> finances.year(dana, 2027)).hasMessage("Pick this year or last year.");
     }
