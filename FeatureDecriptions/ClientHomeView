@@ -10,6 +10,8 @@ Shows their lesson(s) for that day.
     *More than one coach (2026-10-13, ADR-025 i):* one banner per waiting coach, naming the coach and the skaters.
   Your coach: the coach's name and initials, and only the contact details the coach has switched on (phone, email,
     each payment type the coach has switched on, ADR-016 d7). With none switched on: "Reply to any lesson email to reach Coach <name>."
+    *Decided by the owner 2026-11-12:* the details are in two groups, each under a small title: "Contact" (phone,
+      email) and "Payment" (each payment type and its handle). A group with nothing in it isn't shown.
     *More than one coach (2026-10-13, ADR-025 j):* "Your coaches", one card per coach with their sport and skaters.
     A coach who hasn't approved any of the family's skaters shows "Waiting" and no contact details.
   Lessons show which coach they're with when the family has more than one coach.

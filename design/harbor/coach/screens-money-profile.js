@@ -266,7 +266,7 @@ SCREENS['profile-visibility'] = () => {
     ${card(`
       ${TOG('Phone number', p.showPhone, esc(p.phone), 'mpToggle', ['showPhone'])}
       ${TOG('Email address', p.showEmail, esc(p.businessEmail), 'mpToggle', ['showEmail'])}
-      <div class="toggle-row"><div class="toggle-row__text"><div class="toggle-row__label">Payment types</div><div class="toggle-row__sub">${esc(payShown(p).map(([l, v]) => v ? `${l} ${v}` : l).join(' · ') || 'None switched on.')} Each has its own switch under <a class="link" href="${href('profile-payments')}">Payments</a>.</div></div></div>
+      <div class="toggle-row"><div class="toggle-row__text"><div class="toggle-row__label">Payment types</div><div class="toggle-row__sub">${esc(payShown(p).length ? `${payShown(p).map(([l, v]) => v ? `${l} ${v}` : l).join(' · ')}.` : 'None switched on.')} Each has its own switch under <a class="link" href="${href('profile-payments')}">Payments</a>.</div></div></div>
       <div class="card__note">${ic('info', 14)} Your payment instructions always appear in payment-reminder emails. Replies always reach your business email, whichever of these are on.</div>`,
       { title: 'What families can see', sub: 'Only families you’ve approved. Never someone who has only entered your coach code.', pad: false })}
     ${card(`
@@ -295,6 +295,7 @@ SCREENS['profile-payments'] = () => {
   ${card(`<div class="mp-chips">${types.map(t => `<span class="badge badge--neutral">${t}</span>`).join('')}</div>
     <div class="hint">When you mark a lesson paid you can note how the family paid. The choices are the payment types you’ve switched on, plus Other. Lessons you’ve already marked keep what you chose.</div>`,
     { title: 'How families paid', sub: 'Only you see this.' })}
+  ${banner('warning', 'Check your handles before you save', 'BladeBook doesn’t verify payment handles and isn’t responsible for payments sent to an incorrect one.')}
   ${saveBar()}`);
 };
 SCREENS['profile-account'] = () => {

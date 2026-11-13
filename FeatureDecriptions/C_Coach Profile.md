@@ -40,6 +40,8 @@ Visibility & texts:
     *(from ADR-016 decision 7a, decided by the owner 2026-09-30, moved 2026-11-08)*
   Payment instructions always appear in payment reminder emails, and replies always reach the business
     email, whichever switches are on.
+  *2026-11-12 (owner):* the Payment types line lists each type switched on with its handle exactly as saved
+    (prefix shown once, e.g. "PayPal paypal.me/dana"), then a full stop, then "Each has its own switch under Payments."
   "Text me when a family cancels late": an SMS to the coach's phone, with an example message. The coach gets an
     email when a family cancels inside the notice period (ADR-009 d9); the text is extra.
 
@@ -64,6 +66,9 @@ Payments:
     it back on needs no retyping. Switching Cash App, Venmo or PayPal back on asks the coach to verify that the kept
     handle is still correct before it takes effect. Cash has no handle, so it switches straight back on.
     *(from ADR-016, amendment 2026-10-12, later, moved 2026-11-08)*
+  *Decided by the owner 2026-11-12:* a warning sits above Save: "Check your handles before you save. BladeBook
+    doesn't verify payment handles and isn't responsible for payments sent to an incorrect one." The same warning is
+    at sign-up (see Coach Sign Up). (Harbor profile-payments.html)
 
 Account:
   Login email: read-only, marked verified. The coach signs in with it and gets the daily report and the morning email there.

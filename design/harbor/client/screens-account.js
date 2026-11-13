@@ -175,14 +175,16 @@ SCREENS.signup = () => {
 /** One card per coach (owner, 2026-10-13). A coach who hasn't approved any of the family's skaters shows no contact
     details or payment handles: a waiting family reads nothing of that coach (ADR-022 d6, ADR-025 d3). */
 const acCoachCard = cid => {
-  const p = coachById(cid), lines = [], kids = myKids().filter(k => linkOf(k, cid)), ok = kids.some(k => linkOf(k, cid) === 'ACTIVE');
-  if (ok && p.showPhone && p.phone) lines.push(`<span>${ic('phone', 14)}${esc(p.phone)}</span>`);
-  if (ok && p.showEmail && p.businessEmail) lines.push(`<span>${ic('mail', 14)}${esc(p.businessEmail)}</span>`);
-  if (ok) lines.push(...payShown(p).map(([k, v]) => `<span>${ic('card', 14)}${k}${v ? ' ' + esc(v) : ''}</span>`));   // one switch per type (ADR-016 d7)
+  const p = coachById(cid), contact = [], payment = [], kids = myKids().filter(k => linkOf(k, cid)), ok = kids.some(k => linkOf(k, cid) === 'ACTIVE');
+  if (ok && p.showPhone && p.phone) contact.push(`<span>${ic('phone', 14)}${esc(p.phone)}</span>`);
+  if (ok && p.showEmail && p.businessEmail) contact.push(`<span>${ic('mail', 14)}${esc(p.businessEmail)}</span>`);
+  if (ok) payment.push(...payShown(p).map(([k, v]) => `<span>${ic('card', 14)}${k}${v ? ' ' + esc(v) : ''}</span>`));   // one switch per type (ADR-016 d7)
+  // Contact and Payment each get a title; an empty group isn't shown (owner, 2026-11-12).
+  const groups = [['Contact', contact], ['Payment', payment]].filter(([, l]) => l.length);
   const multi = multiCoach();
   return card(`<div class="found found--plain">${avatar(initials(cName(p)), '')}<div><div class="found__name">Coach ${esc(cName(p))}</div>${multi ? `<div class="found__sub">${kids.map(k => esc(firstName(k.name))).join(', ')}</div>` : ''}</div>${multi && !ok ? badge('Waiting', 'warning', 'clock') : ''}</div>
     ${!ok ? `<p class="fine">Waiting for Coach ${esc(p.first)} to approve ${kids.map(k => esc(firstName(k.name))).join(' and ')}. Contact details and booking show once they do.</p>`
-      : lines.length ? `<div class="ac-contact">${lines.join('')}</div>` : `<p class="fine">Reply to any lesson email to reach Coach ${esc(p.first)}.</p>`}`, { title: multi ? '' : 'Your coach', cls: 'ac-coachcard' });
+      : groups.length ? groups.map(([t, l]) => `<div class="ac-group"><div class="eyebrow">${t}</div><div class="ac-contact">${l.join('')}</div></div>`).join('') : `<p class="fine">Reply to any lesson email to reach Coach ${esc(p.first)}.</p>`}`, { title: multi ? '' : 'Your coach', cls: 'ac-coachcard' });
 };
 const acCoachCards = () => `${multiCoach() ? `<div class="ac-cardshead">Your coaches</div>` : ''}${myCoachIds().map(acCoachCard).join('')}`;
 const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtShortT(l.t)}</b><small>${l.iso === TODAY ? 'Today' : dDow(l.iso)}</small></span>${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${coachTag(l).replace(/^ · /, '')}${coachTag(l) ? ' · ' : ''}${l.len} min · ${money(l.price)}${bkRepeatsLabel(l) ? ' · ' + bkRepeatsLabel(l) : ''}${l.with ? ' · shared' : l.invited ? ' · invited to share' : ''}`)}`,

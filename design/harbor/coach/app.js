@@ -140,6 +140,7 @@ SCREENS.signup = () => {
     <div class="fieldset"><div class="label">Currency</div>${SEG(['USD', 'CAD'], p.currency === 'USD' ? 0 : 1, 'signupCurrency', [], { block: true })}<div class="hint">Chosen once. Every lesson is priced in it.</div></div>
     ${TXT('su-instr', 'How families pay you', 'profile.instructions', { hint: 'Included in payment reminders. BladeBook doesn’t take payments itself.' })}
     <div class="fieldset"><div class="label">Payment types <span class="label__opt">Optional</span></div>${payTypeRows('su')}<div class="hint">Switch on each way families can pay you. You can change these any time from your profile.</div></div>
+    ${banner('warning', 'Check your handles before you save', 'BladeBook doesn’t verify payment handles and isn’t responsible for payments sent to an incorrect one.')}
     ${B(a.bizSame ? 'Finish setup' : 'Save and continue', 'primary', 'signupNext', { block: true, lg: true })}`),
     help('Why a business email?', 'It’s the only address families see. Emails go out as “Dana Whitfield via BladeBook” and replies come to you. Your login email stays private unless you choose it here.'),
     { steps: 2, ctx: 'Coach sign up', right: '' });

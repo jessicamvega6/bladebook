@@ -38,6 +38,10 @@ Coach Sign Up:
         PayPal need their handle to be switched on.
     *Decided 2026-10-12:* Cash comes back as an "I accept cash" switch (`acceptsCash`), at sign-up and on the profile.
         When it's on, Cash is one of the how-paid options. (ADR-016 d7, ADR-003 d4)
+    *Decided by the owner 2026-11-12:* a warning sits above the step 3 button ("Save and continue" / "Finish setup"):
+        "Check your handles before you save. BladeBook doesn't verify payment handles and isn't responsible for
+        payments sent to an incorrect one." It shows whether or not any type is switched on. The profile's Payments
+        tab has the same warning (see C_Coach Profile.md).
 
     Step 5, all set: where families will reach the coach, the coach code with a Copy button, and "Build your teaching
     week" (opens the weekly schedule editor) or "go to your dashboard".
