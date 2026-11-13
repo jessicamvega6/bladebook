@@ -366,14 +366,14 @@ const coachSteps = (i) => i;
 add('Coach · Sign up', 'CoachAccount', '1 · Account', 1280, () => wizard('Coach sign up', COACH_STEPS, 0, card(`
   <h1 class="h1">Start coaching on BladeBook</h1><p class="lede">Scheduling, lessons and payment reminders in one place.</p>
   ${field('Your name, as families will see it', 'Dana Whitfield', { hint: 'Shown on your booking page and in every email families get.' })}
-  ${field('Login email', 'dana.whitfield@gmail.com', { hint: 'You’ll log in with this. Your daily report comes here.' })}
+  ${field('Login email', 'dana.whitfield@gmail.com', { hint: 'You’ll log in with this. Your morning email comes here.' })}
   ${field('Password', '•••••••••••', { focus: true })}
   ${pwRules()}
   ${btn('Create account', 'primary', { block: true, lg: true })}`),
   `<aside class="help"><div class="help__title">${ic('info', 16)}Setup takes four steps</div><ol class="numlist"><li>Create your account</li><li>Verify your login email with a code</li><li>How families reach and pay you</li><li>Confirm your business email <small>— skipped if it’s your login email</small></li></ol><div class="help__body">Then build your teaching week and share your coach code.</div></aside>`), 'Same wizard frame as family sign-up, so both sides of the product feel like one app.');
 
 add('Coach · Sign up', 'CoachVerify', '2 · Verify login email', 1280, () => verify('Coach sign up', COACH_STEPS, 1, 'dana.whitfield@gmail.com', '',
-  `<aside class="help"><div class="help__title">${ic('info', 16)}Two emails, maybe one</div><div class="help__body"><p><b>Login email</b> — private. You sign in with it; your daily report goes there. Verified now, with a code.</p><p><b>Business email</b> — the reply address families see. Same as login? Already verified. Different? It gets its own link.</p></div></aside>`), 'Identical verify pattern to families; the two-email explainer is structured rather than a wall of text.');
+  `<aside class="help"><div class="help__title">${ic('info', 16)}Two emails, maybe one</div><div class="help__body"><p><b>Login email</b> — private. You sign in with it; your morning email goes there. Verified now, with a code.</p><p><b>Business email</b> — the reply address families see. Same as login? Already verified. Different? It gets its own link.</p></div></aside>`), 'Identical verify pattern to families; the two-email explainer is structured rather than a wall of text.');
 
 const bizForm = (same) => card(`
   <h1 class="h1">How families reach you</h1><p class="lede">You can change any of this later from your profile.</p>
@@ -549,7 +549,7 @@ add('Coach · Week, payments & lessons', 'CoachPayments', '3 · Payments', 1280,
     <table class="table"><thead><tr><th>Skater</th><th>Lesson</th><th>Attendance</th><th class="r">Amount</th><th class="r"></th></tr></thead><tbody>
     ${[['MC', 'Mia C.', 'Wed, Sep 2 · 6:30 AM', ['Attended', 'success'], 50], ['LM', 'Leo M.', 'Fri, Sep 4 · 10:00 AM', ['No-show', 'danger'], 50], ['EA', 'Ella A.', 'Mon, Sep 7 · 7:00 AM', ['Not recorded', 'warning'], 50], ['PR', 'Priya R.', 'Mon, Sep 7 · 3:00 PM', ['Attended', 'success'], 80]].map(([a, n, t, [s, v], p]) => `<tr><td><span class="cellname">${avatar(a, 'sm')}${n}</span></td><td>${t}</td><td>${badge(s, v)}</td><td class="r money">$${p}</td><td class="r"><span class="cellbtns">${btn('Waive', 'ghost', { sm: true })}${btn('Mark paid', 'secondary', { sm: true, icon: 'check' })}</span></td></tr>`).join('')}
     </tbody></table>
-    <div class="card__note">${ic('info', 14)} No-shows show the full lesson price until you mark them paid or waived. Lessons in another currency are listed separately and never added together.</div>`, { pad: false })}`, { width: 'wide' }), 'A real table with a totals row up top; the date range is pre-filled to the current month instead of an empty list.');
+    <div class="card__note">${ic('info', 14)} A no-show shows what that skater owes for the lesson until you mark it paid or waived. Lessons in another currency are listed separately and never added together.</div>`, { pad: false })}`, { width: 'wide' }), 'A real table with a totals row up top; the date range is pre-filled to the current month instead of an empty list.');
 
 add('Coach · Week, payments & lessons', 'CoachLessonList', '4 · Lesson list — attendance', 1280, () => coachApp('Lessons', `
   ${pageHead('Lessons', 'Correct anything recorded at the rink. Corrections happen here, never in the rinkside app.')}

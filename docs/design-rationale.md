@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** ~~2026-10-12~~ ~~2026-10-13~~ ~~2026-10-20~~ 2026-10-24 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
+**As of:** ~~2026-10-12~~ ~~2026-10-13~~ ~~2026-10-20~~ ~~2026-10-24~~ 2026-11-12 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -10,7 +10,7 @@ Where this document and an ADR disagree, the ADR wins.
 
 ## The shape of the system
 
-BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; seventeen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
+BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it in MVP; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
 
 ## What drives the choices
 
@@ -49,9 +49,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 1; A1, A2
 
-### Seventeen functions, split by who calls and what they may touch
+### Sixteen functions, split by who calls and what they may touch
 
-**What it is.** Two APIs (coach and client), seven event consumers, six scheduled jobs, one archiver and one sign-up trigger that gives a new account its group (ADR-023 d10) — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
+**What it is.** Two APIs (coach and client), seven event consumers, five scheduled jobs (a sixth, the end-of-day report, is Phase 2 since 2026-11-11), one archiver and one sign-up trigger that gives a new account its group (ADR-023 d10) — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
 
 **Why.** One role per function is the security model's core: a defect in one function can only do what that function's role allows. The APIs split on trust boundaries — coach and family — not on routes. The per-request roles go further: DynamoDB itself refuses a read or write outside the caller's own records, so a bug in the application's own checks can't expose another coach's or family's data. The rinkside page runs in the coach API; a phone left signed in at the rink is guarded by requiring a recent sign-in before a schedule save, not by a function of its own.
 
@@ -359,7 +359,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Tolerance set per path
 
-**What it is.** Cancellation notices and the 7am reminder page the owner; booking, check-in and the report are morning reads.
+**What it is.** Cancellation notices and the 7am reminder page the owner; booking and check-in are morning reads (the end-of-day report is Phase 2).
 
 **Why.** The paths that page are the ones where the person harmed isn't the person who sees the failure.
 

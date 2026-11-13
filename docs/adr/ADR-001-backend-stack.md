@@ -134,6 +134,10 @@ fails and the person tries again. **Seventeen functions.**
 **Java 17** on the **`java17.al2023`** managed runtime (Amazon Linux 2023), not Java 25 on
 `java25`. Decision 1's framework, arm64 and plain-handler consumers are unchanged.
 
+**Amended — 2026-11-11.** *Decided by the owner:* the end-of-day report is Phase 2, so
+`sched-daily-report` and its role aren't built in MVP. **Sixteen functions** in MVP; seventeen
+once the report ships. The reports bucket stays: the cancellation archive uses it.
+
 **Amended — 2026-11-12.** *Decided by the owner.* **A4 is resolved: CDK (TypeScript).** Decision 2
 stands as written; Terraform is not used. See *A4 resolved* below.
 
@@ -721,7 +725,7 @@ Deploy one throwaway `api-client`-shaped endpoint: Spring Boot 4, `java25`, arm6
 - Sustained traffic exceeds ~9 req/s, at which point Lambda Managed Instances becomes cheaper than the entire cold-start mitigation stack and eliminates the problem outright. Re-run the budget math.
 - A coach signs up outside the launch timezone → add Scheduler rules (config change; the data model already handles it, and this is *not* a reopening of decision #4).
 - ~~The Phase-2 check-in app becomes a third frontend surface~~ → **this trigger has fired.** The check-in app was moved into MVP scope on 2026-08-30, so `web/` carries three surfaces from day one rather than two. See the amendment below.
-- **The IaC choice in amendment A4 is made** → decision 2 is either confirmed or replaced. Until then neither CDK nor Terraform is settled.
+- **The IaC choice in amendment A4 is made** → decision 2 is either confirmed or replaced. Until then neither CDK nor Terraform is settled. *Fired 2026-11-12: CDK (TypeScript); decision 2 confirmed.*
 - Phase-2 payments (Stripe) land → real third-party secrets enter the system for the first time, so re-verify the secrets/SnapStart interaction end to end before that code ships. This is currently untested because MVP has nothing to test it with.
 
 **Cost**

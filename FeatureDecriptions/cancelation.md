@@ -292,7 +292,7 @@ No-shows on the coach's payment page *(from ADR-015 decision 4, decided by the o
     owed, but nothing settles it automatically either: it stays on the payment dashboard and is picked up by the weekly
     unpaid-lessons reminder to the coach (ADR-018). An automatic settle for a zero fee was considered and deferred;
     revisit with the Phase 2 charge.
-  For now, the dashboard shows a no-show at its full lesson price, labelled as a no-show. It is the amount the booking
+  For now, the dashboard shows a no-show at what that skater owes (their share; the full price unless the lesson is shared) *(owner, 2026-11-12)*, labelled as a no-show. It is the amount the booking
     already carries, and the no-show label tells the coach what they are looking at before they decide to mark it paid
     or waive it. The weekly reminder lists it the same way. *Note 2026-10-13 (ADR-031):* the amount is the skater's
     share, which for a private lesson is the full price. Showing the missed-lesson fee instead is part of the open
@@ -306,7 +306,7 @@ Open and revisit *(from ADR-015 Open and Revisit if)*:
   What the fee is charged against when it differs from the lesson price. If the fee is lower than the price, the
     outstanding view shows an amount that is not the lesson price, and the payment reminder must state which it is.
     Cosmetic, but it is client-facing money and should be written down before it is built. *Narrowed 2026-09-30:* for
-    MVP a no-show shows its full lesson price; this question now applies to the Phase 2 charge only.
+    MVP a no-show shows what that skater owes (their share; the full price unless the lesson is shared) *(owner, 2026-11-12)*; this question now applies to the Phase 2 charge only.
   ~~Whether a coach can waive a charge.~~ Settled 2026-08-30: yes. The coach payment dashboard gets a "mark as waived"
     action (Coach Payment Section on Dashboard.md). It is available from MVP rather than Phase 2, because it applies to
     any unpaid lesson and not only to a late-cancellation fee.
