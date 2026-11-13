@@ -41,6 +41,8 @@ public class CoreConfig {
                                      @Value("${bladebook.table}") String table) {
         TenantClients clients = TenantClients.local(endpoint);
         LocalTable.ensure(clients.forSetup(), table);
+        LocalTable.backfillSeatIndexes(clients.forSetup(), table); // seats from before Batch 13
+        clients.localStream().switchOn(); // SC-20: each request's writes go to the consumers afterwards
         return clients;
     }
 

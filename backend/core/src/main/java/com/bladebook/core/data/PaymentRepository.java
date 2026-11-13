@@ -62,7 +62,7 @@ public final class PaymentRepository {
             set += ", paidAt = :at";
             v.put(":at", FamilyItems.s(now.toString()));
         }
-        String update = via == null ? set + " REMOVE paidVia" : set + ", paidVia = :via";
+        String update = via == null ? set + " REMOVE paidVia, GSI3PK, GSI3SK" : set + ", paidVia = :via REMOVE GSI3PK, GSI3SK";
         if (via != null) {
             v.put(":via", FamilyItems.s(via.name()));
         }
@@ -71,14 +71,17 @@ public final class PaymentRepository {
 
     /** Waives an unpaid lesson: final, with no amount. */
     public boolean waive(AccessContext ctx, String seatKey, Instant now) {
-        return update(ctx, seatKey, Payment.Status.UNPAID, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia",
+        return update(ctx, seatKey, Payment.Status.UNPAID, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia, GSI3PK, GSI3SK",
                 new HashMap<>(Map.of(":w", FamilyItems.s("WAIVED"), ":at", FamilyItems.s(now.toString()), ":by", FamilyItems.s(ctx.coachId()))));
     }
 
     /** A paid lesson back to unpaid. */
     public boolean undo(AccessContext ctx, String seatKey) {
-        return update(ctx, seatKey, Payment.Status.PAID, "SET paymentStatus = :u REMOVE paidAt, markedPaidBy, paidVia",
-                new HashMap<>(Map.of(":u", FamilyItems.s("UNPAID"))));
+        String[] k = seatKey.split("#"); // SEAT#<date>#<startTime>#<studentId>
+        Map<String, AttributeValue> v = new HashMap<>(Map.of(":u", FamilyItems.s("UNPAID")));
+        SeatItems.unpaidIndex(ctx.coachId(), java.time.LocalDate.parse(k[1]), k[3]).forEach((n, val) -> v.put(":" + n, val));
+        return update(ctx, seatKey, Payment.Status.PAID,
+                "SET paymentStatus = :u, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK REMOVE paidAt, markedPaidBy, paidVia", v);
     }
 
     /** One conditional update: the seat must exist and still have the status the coach saw. */

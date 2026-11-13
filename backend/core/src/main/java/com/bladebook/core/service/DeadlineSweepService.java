@@ -86,7 +86,8 @@ public final class DeadlineSweepService {
         }
         Seat s = staying.get();
         ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), at, ChangeBatch.Source.LESSON, ChangeBatch.By.NO_ANSWER,
-                "SWEEP", date, date, 1, 1, ChangeBatch.Execution.EXECUTED);
+                "SWEEP", date, date, 1, 1, ChangeBatch.Execution.EXECUTED)
+                .withNotes(java.util.Map.of("otherSkater", pending.leftStudentName(), "answerBy", pending.answerBy().toString()));
         LessonTime t = time.get();
         int share = t.shareFor(t.priceMinor(), s.studentId(), List.of(s.studentId()));
         CancellationLine line = CancellationLine.of(batch, s, share, t.currency(), at);

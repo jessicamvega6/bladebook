@@ -109,6 +109,29 @@ public final class ScheduleChangeService {
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
     }
 
+    /**
+     * {@code sched-lesson-roller} for one coach: the lesson times the schedule makes from {@code date} to the end of what's
+     * stored ({@link Weeks#storeUntil}) that don't exist yet. Only adds; a time that exists is left as it is, booked or not.
+     * Takes the date it's for, as the Scheduler gives it (ADR-MASTER section 14), and works from the start of that day in
+     * the coach's zone.
+     *
+     * @return lesson times added
+     */
+    public int roll(AccessContext ctx, LocalDate date) {
+        CoachProfile coach = coach(ctx);
+        ZoneId zone = ZoneId.of(coach.coachTimezone());
+        Instant from = date.atStartOfDay(zone).toInstant();
+        LocalDate until = Weeks.storeUntil(date);
+        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, date, until), date, until, zone,
+                coach.currency().name(), coach.requiredNoticeHours(), from);
+        ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
+        if (plan.add().isEmpty()) {
+            return 0;
+        }
+        return schedules.apply(ctx, new ScheduleChange(plan.add(), List.of(), List.of())).added();
+    }
+
     /** Header, planned lines, then each lesson in its own transaction, then the header {@code EXECUTED}. */
     private int[] runBatch(AccessContext ctx, ChangeBatch.Source source, ScheduleChange plan, Map<String, List<Seat>> seats, Instant now) {
         List<LocalDate> dates = new ArrayList<>();

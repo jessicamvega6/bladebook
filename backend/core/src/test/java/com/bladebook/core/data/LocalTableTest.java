@@ -32,7 +32,7 @@ class LocalTableTest {
         DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
         var gsis = f.clients.forSetup().describeTable(DescribeTableRequest.builder().tableName(f.table).build())
                 .table().globalSecondaryIndexes();
-        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI4");
+        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI2", "GSI3", "GSI4");
         var gsi4 = gsis.stream().filter(g -> g.indexName().equals("GSI4")).findFirst().orElseThrow();
         assertThat(gsi4.keySchema()).extracting(KeySchemaElement::attributeName).containsExactly("GSI4PK", "GSI4SK");
     }
@@ -52,6 +52,6 @@ class LocalTableTest {
         LocalTable.ensure(db, old);
 
         var gsis = db.describeTable(DescribeTableRequest.builder().tableName(old).build()).table().globalSecondaryIndexes();
-        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI4");
+        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI2", "GSI3", "GSI4");
     }
 }
