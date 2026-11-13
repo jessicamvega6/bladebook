@@ -87,6 +87,25 @@ separation rests on the API checks. **Amends** [ADR-016](ADR-016-coach-signup.md
 [ADR-011](ADR-011-staging-environment.md) decision 7a and
 [ADR-027](ADR-027-on-demand-dev-environment.md).
 
+**Amended — 2026-11-12.** *Decided by the owner.* **Decision 11's sign-in library is AWS Amplify's
+Auth module** (`aws-amplify` version 6, the sign-in part only), keeping SRP. It handles every Cognito
+call the forms make, the MFA and new-password challenges, and token refresh. It is the free,
+open-source library only: Amplify Hosting and the Amplify build tooling are not used; the sites stay
+on S3 and CloudFront, deployed with CDK. Its drawbacks are mitigated as follows:
+- **Behind BladeBook's own sign-in interface** in `web/src/shared/auth`, the one the local stand-in
+  already implements. Only one file imports Amplify, so an upgrade, or a switch to another library or
+  to plain password sign-in, touches that file alone, and tests mock the interface, not Amplify.
+- **Pinned to an exact version** and upgraded on purpose, like the CI actions (ADR-032).
+- **Tokens in tab storage** (`sessionStorage`), set explicitly, never Amplify's default `localStorage`.
+  A test fails if a token lands in `localStorage`. They survive a reload and clear when the tab closes.
+- **Page size measured** in the first build that uses it and recorded here, with the rinkside page
+  checked on a slow connection.
+- **Decision 11's tests stay the assurance** that matters: no request to `api-coach` or `api-client`
+  carries a password or a code, and both app clients allow only SRP and refresh.
+Alternatives weighed: `amazon-cognito-identity-js` (little active development), AWS's plain Cognito
+client with hand-written SRP (custom cryptography on the most sensitive path), and plain password
+sign-in, `USER_PASSWORD_AUTH` (the password would leave the browser, reversing decision 11's SRP).
+
 ---
 
 ## Context
@@ -365,7 +384,7 @@ Decision 7 refuses a token without a group, so the group must be on the account 
   event, never from anything the person typed.
 - **The website then refreshes its tokens**, so the first signed-in request carries the group.
 - **One small function with one permission:** `cognito-idp:AdminAddUserToGroup` on this user
-  pool. It brings BladeBook to seventeen functions.
+  pool. It brings BladeBook to seventeen functions. *Sixteen in MVP since 2026-11-11 (ADR-001).*
 - **A coach who is also a parent:** adding `Client` to an existing coach account is a separate
   step, after the person proves they own it (`FeatureDecriptions/Coach Who Is Also a Parent.md`).
 
@@ -415,7 +434,7 @@ older users. It also matches the Harbor designs as drawn.
 - The domains in [ADR-011](ADR-011-staging-environment.md) decision 7a and
   [ADR-027](ADR-027-on-demand-dev-environment.md) are no longer needed for Cognito's sign-in
   redirects; the cross-origin (CORS) rule and the custom domain still need them.
-- The websites need a browser library that does SRP (Open).
+- The websites need a browser library that does SRP ~~(Open)~~ *: AWS Amplify's Auth module (2026-11-12, amendment above).*
 - Until the user pool exists, the local build's token stub stands in for these calls (the root
   `README.md`, shortcuts SC-1 and SC-10).
 
@@ -489,10 +508,11 @@ OAuth; a wrong password and an unknown email get the same answer.
   the family website is served: `<domain>/`, `<domain>/family`, or a domain of its own. The
   answer sets its CloudFront path~~, its sign-in redirect addresses,~~ and the links in family
   emails. *(No sign-in redirects since decision 11, 2026-11-09.)*
-- **Which browser library does the Secure Remote Password (SRP) sign-in** for decision 11's
+- ~~**Which browser library does the Secure Remote Password (SRP) sign-in** for decision 11's
   forms, for example AWS Amplify's Auth module or `amazon-cognito-identity-js`. *Added
   2026-11-09.* It runs on both websites and the rinkside page, so its size and how it stores the
-  tokens matter (the local build keeps them for one browser tab).
+  tokens matter (the local build keeps them for one browser tab).~~ *Settled 2026-11-12 by the
+  owner: Amplify's Auth module, wrapped, pinned, tokens in tab storage (amendment above).*
 - ~~**Whether the family website has its own Cognito app client.** *Added 2026-10-22.* The
   Consequences above and [ADR-011](ADR-011-staging-environment.md)'s amendment of 2026-10-05
   both say "the family website's, if it has its own." With one shared app client, the sign-in

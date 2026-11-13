@@ -1,11 +1,11 @@
 # BladeBook — Blockers Before Coding
 
-**As of:** 2026-10-20
+**As of:** ~~2026-10-20~~ 2026-11-12
 **Purpose:** What stops code from being written, sorted by how much it blocks. Drawn from
 `Open-Pending.md`, the ADRs' Open sections, `Items to ask Kim About.md` and the designs.
 `Open-Pending.md` remains the full list; this is the subset that gates code.
 
-There is no application code yet: no `backend/`, `web/` or `infra/` folder.
+~~There is no application code yet: no `backend/`, `web/` or `infra/` folder.~~ *Since 2026-11-08, `backend/` and `web/` exist (Batches 1–7).*
 
 ---
 
@@ -16,9 +16,9 @@ These shape the repository and the first commit. Settle them first.
 | # | Blocker | Why it blocks | Source |
 |---|---|---|---|
 | 1 | **Commit the work that isn't in git.** ~~Commit `terraform/` and~~ Commit the uncommitted edits. *(2026-10-20: the owner removed the contents of `terraform/`; the seed script returns under `infra/`.)* A root-level `redesign/` folder duplicates `design/redesign/`. | Code built on top of an uncommitted design has no record to point back to, and one bad command loses weeks of decisions. | `git status`, Open-Pending §13 |
-| 2 | **Choose the infrastructure tool: CDK or Terraform.** ADR-001 A4 re-opened it and lists the criteria; it hasn't been decided. | It decides the `infra/` folder, the language it's written in, how least-privilege is checked in CI (`cdk-nag` or `checkov`/`tfsec`), and how ADR-021/022's tenant roles are written. Switching gets expensive once anything is deployed. | ADR-001 A4, Open-Pending §1 |
+| ~~2~~ | **Done 2026-11-12: CDK (TypeScript), decided by the owner.** ~~Choose the infrastructure tool: CDK or Terraform.~~ ADR-001 A4 re-opened it and lists the criteria. | It decides the `infra/` folder, the language it's written in, how least-privilege is checked in CI (`cdk-nag` or `checkov`/`tfsec`), and how ADR-021/022's tenant roles are written. Switching gets expensive once anything is deployed. | ADR-001 A4, Open-Pending §1 |
 | 3 | **Set up the first CI pipeline** on GitHub Actions (chosen 2026-10-15, ADR-032). **Its security setup (ADR-032 decision 2) must be complete before the first deployment** to either account. Production deploys only a tagged build (ADR-032, amended 2026-10-15). | ADR-013's test rule (every public class in `core/` has a test, mutation testing on `core/`) only switches on with CI. Code written before it exists isn't held to the rule. A deploy pipeline that isn't locked down is a way into production. | ADR-013 decision 2, ADR-032 |
-| 22 | **Set up the AWS Organization** — production and dev accounts, IAM Identity Center, `dev.<domain>` delegated — which needs **a BladeBook domain bought first** (moved here 2026-10-09 from *Before launch*). Before any infrastructure: tables and Cognito users can't move accounts later. | Anything deployed into the wrong account has to be rebuilt. | ADR-027 d8 |
+| ~~22~~ | **Done: the accounts, Identity Center and `dev.bladebook.org` (delegated from Cloudflare) exist. ADR-027 decision 8 still owes an amendment for the Cloudflare DNS and the management account.** ~~Set up the AWS Organization~~ — production and dev accounts, IAM Identity Center, `dev.<domain>` delegated — which needs **a BladeBook domain bought first** (moved here 2026-10-09 from *Before launch*). Before any infrastructure: tables and Cognito users can't move accounts later. | Anything deployed into the wrong account has to be rebuilt. | ADR-027 d8 |
 
 ## 2. Before the data layer (`core.data`)
 
@@ -56,7 +56,7 @@ Other work can go ahead while these wait. Each blocks only the feature named.
 | ~~17~~ | ~~*Since ADR-025 (2026-10-06) this is per coach: one coach removing a skater who stays with another. 2026-10-13: the skater's lessons with other coaches aren't affected.* **What "remove a student" means:** going forward or retroactive, whether the family can still book, what they see. The designs show one reading.~~ *Phase 2 since 2026-10-13 (owner): every way of removing a student is Phase 2; no longer blocks MVP.* | Nothing in MVP (neither website has a Remove button) | Owner | Open-Pending §8, ADR-025 n |
 | ~~18~~ | **Settled 2026-10-08 from Kim (§6): the coach approves each family; the pending step stays.** ~~Whether the coach approves new families at all (Kim §6). If approval goes, the pending flow and ADR-022's "pending sees nothing" rule go with it.~~ | The pending queue, approve/decline, the pending family's home | Kim, §6 | ADR-002 d2, ADR-022 d6 |
 | 19 | *Phase 2 (2026-10-12): all client SMS deferred.* **Text-message templates for price changes**, each length-tested. | Re-pricing notifications by text | Owner | ADR-007, ADR-020 |
-| 20 | **Unpaid-lesson reminder:** threshold, cadence, repeat. The job is built switched off until set, so this blocks turning it on, not building it. | The weekly unpaid email to the coach | Coach | ADR-018 |
+| 20 | ~~**Unpaid-lesson reminder:** threshold, cadence, repeat. The job is built switched off until set, so this blocks turning it on, not building it.~~ *Done 2026-11-12: 7 days, every Monday until settled.* | The weekly unpaid email to the coach | Coach | ADR-018 |
 | ~~21~~ | **Done 2026-10-13 (owner):** no cutoff before the lesson; an invitation the family hasn't accepted expires when the lesson starts (ADR-026 P5, ADR-031 d12). ~~**Shared lessons (ADR-026):** when unaccepted invitations lapse.~~ Pricing and the booking family cancelling were settled the same day. | Lapsing unaccepted invitations | Kim, §8 | ADR-026, ADR-031 |
 
 ## 5. Before launch, not before coding

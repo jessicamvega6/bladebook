@@ -82,6 +82,10 @@ A client will book by clicking on one or more open time block slot and hitting ~
 After selecting the slot(s) they want want they will hit ~~submit~~ *Continue*. A pop up will display the selected slot(s) and have a reoccuring checkbox ("Repeat these lessons") next to it, a disabled frequency dropdown, and a disabled endDate date field. If the checkbox is selected then the dropdown is enabled and shows ~~1 week, 2 week, 3 week, or 4 week~~ *Every week, Every 2 weeks, Every 3 weeks, Every 4 weeks*. defaulted to 1 week.  The endDate ("Until") date field is enabled and defaults to 3 months from ~~that date~~ *the first picked date*.
 *Design additions to the pop-up:*
   A repeating booking can run up to 12 months. An end date before the first lesson, or more than 12 months out, shows an error.
+    ~~Hint under Until: "Starts three months out. Up to 12 months."~~ *Removed by the owner 2026-11-12. Only the errors show there.*
+  *Decided by the owner 2026-11-12:* when the end date is past the three months the family can see, a warning shows
+    under Repeats and Until: **This goes past the next three months.** "Changes to Coach Dana’s schedule may affect some
+    or all of these lessons." ("your coaches’ schedules" when more than one coach). It's a warning only; Book stays on.
   Every picked time repeats on the same day of the week.
   A summary: how many lessons in all (and until when), the first week's total, and the total for all lessons.
   Note: you pay the coach directly; BladeBook only sends reminders.
@@ -91,6 +95,9 @@ A confirmation page will display afterwards showing the successful and unsuccess
 *Design:*
   A headline: how many lessons were booked for the skater, and that a confirmation email is on its way.
   One card per picked time (or repeating series) with a bar showing how many dates were booked, already theirs, or unavailable.
+    *Decided by the owner 2026-11-12:* the unavailable count shows on the right under the bar only when some dates
+      couldn't be booked ("2 unavailable"). When every date went through, nothing shows there: the old "All dates"
+      label looked like a link and added nothing the full bar and the booked count don't already say.
   Each date that couldn't be booked is listed ~~with the reason (e.g. another family took it, time off, no times of that
   length that week)~~ *with one message whatever the cause: "That time was taken or no longer exists." (wording, owner 2026-11-09), so
   no family learns about another's booking (owner, 2026-11-08)* and a "Pick another time" button. The family can also leave them; the rest are confirmed.

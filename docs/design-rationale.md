@@ -1,6 +1,6 @@
 # BladeBook Design Rationale
 
-**As of:** ~~2026-10-12~~ ~~2026-10-13~~ ~~2026-10-20~~ 2026-10-24 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
+**As of:** ~~2026-10-12~~ ~~2026-10-13~~ ~~2026-10-20~~ ~~2026-10-24~~ 2026-11-12 · **Current through:** ~~ADR-030~~ ~~ADR-031~~ ADR-033 *(booking entries only)*
 
 Every part of BladeBook, what it does, why it was chosen, and what was turned down. This is the *why* in one place. `architecture.md` describes the *what* in full, and each entry ends with the ADR that holds the complete reasoning.
 
@@ -10,7 +10,7 @@ Where this document and an ADR disagree, the ADR wins.
 
 ## The shape of the system
 
-BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; seventeen Lambda functions run it; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
+BladeBook is a **modular monolith in code**, **deployed as serverless functions** on AWS, wired together **by events**, with **one API per frontend** split for security. One codebase and one shared domain module (`core/`) hold the business logic; sixteen Lambda functions run it in MVP; a single DynamoDB table stores everything; changes to that table drive notifications, cancellations and archiving. Idle cost is about **$22–34 a month** for production, the only long-running environment; a dev environment costs only for the hours it is up.
 
 ## What drives the choices
 
@@ -40,7 +40,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 **What it is.** The two API functions use Spring Boot 4. The background consumers and scheduled jobs are plain Lambda handlers. All business logic lives in `core/`, which has no framework code at all.
 
-**Why.** Spring has the deepest ecosystem and the best AI-assistance support, which matters most when the framework is new to you. Keeping `core/` framework-free makes a framework swap a change to thin controllers, not a rewrite. An ArchUnit rule enforces the boundary.
+**Why.** Spring has the deepest ecosystem and the best AI-assistance support, which matters most when the framework is new to you. `core/` is framework-free because both kinds of entry point share it: the Spring APIs and the plain handlers. Neither has to start a Spring context or keep its own copy to use a business rule, so each rule (the schedule-change conflict test, price resolution, the personal-data logging invariants) is written once. It also keeps `core/` tests in plain Java with no framework to start. An ArchUnit rule enforces the boundary.
 
 **Turned down:**
 - *Quarkus* — Close on performance, but a much smaller ecosystem.
@@ -49,9 +49,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 1; A1, A2
 
-### Seventeen functions, split by who calls and what they may touch
+### Sixteen functions, split by who calls and what they may touch
 
-**What it is.** Two APIs (coach and client), seven event consumers, six scheduled jobs, one archiver and one sign-up trigger that gives a new account its group (ADR-023 d10) — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
+**What it is.** Two APIs (coach and client), seven event consumers, five scheduled jobs (a sixth, the end-of-day report, is Phase 2 since 2026-11-11), one archiver and one sign-up trigger that gives a new account its group (ADR-023 d10) — each with its own narrow Identity and Access Management (IAM) role. The two APIs hold no database permissions of their own: on each request they take on a role limited to the signed-in coach's or family's own records.
 
 **Why.** One role per function is the security model's core: a defect in one function can only do what that function's role allows. The APIs split on trust boundaries — coach and family — not on routes. The per-request roles go further: DynamoDB itself refuses a read or write outside the caller's own records, so a bug in the application's own checks can't expose another coach's or family's data. The rinkside page runs in the coach API; a phone left signed in at the rink is guarded by requiring a recent sign-in before a schedule save, not by a function of its own.
 
@@ -73,9 +73,9 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 *Full reasoning:* ADR-001 decision 3; A3
 
-### Infrastructure as code — undecided
+### Infrastructure as code — AWS CDK in TypeScript
 
-**What it is.** AWS CDK in TypeScript or Terraform. The choice is open, to be made against criteria written in advance (ADR-001 A4).
+**What it is.** AWS CDK in TypeScript, chosen by the owner on 2026-11-12 against criteria written in advance (ADR-001 A4).
 
 **Why.** The original decision never actually compared Terraform, and switching is free only until infrastructure exists. The deciding gate is whether least-privilege rules can be enforced as a build check.
 
@@ -359,7 +359,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### Tolerance set per path
 
-**What it is.** Cancellation notices and the 7am reminder page the owner; booking, check-in and the report are morning reads.
+**What it is.** Cancellation notices and the 7am reminder page the owner; booking and check-in are morning reads (the end-of-day report is Phase 2).
 
 **Why.** The paths that page are the ones where the person harmed isn't the person who sees the failure.
 
@@ -473,4 +473,4 @@ The architecture itself is close to free when idle. Most of the bill is fixed fe
 
 ## Still open
 
-Still undecided: CDK or Terraform; how deletion requests work (Phase 2, owner 2026-10-20); the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.
+Still undecided: how deletion requests work (Phase 2, owner 2026-10-20); the SMS number type; the product's final name; several questions waiting on a coach or the legal review. All are tracked in `Open-Pending.md`.

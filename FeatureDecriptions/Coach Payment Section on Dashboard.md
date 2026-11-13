@@ -53,7 +53,7 @@ Currency:
   and paid total.
   Table: skater and family, lesson day and time, attendance, amount, payment status, and Waive and Mark paid (or Undo).
   A lesson with no attendance recorded is highlighted.
-  A no-show shows the full lesson price until it's marked paid or waived. Upcoming lessons aren't listed until they've
+  A no-show shows what that skater owes (their share; the full price unless the lesson is shared) *(owner, 2026-11-12)* until it's marked paid or waived. Upcoming lessons aren't listed until they've
   happened. Amounts are in the coach's currency.
   "Send reminders" button, disabled and tagged Phase 2.
   *Added 2026-10-13 (ADR-031 decisions 7 and 14):* in a shared lesson each skater has their own row, with their own

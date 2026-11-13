@@ -210,7 +210,9 @@ test('sending later: a family’s cancel shows the lesson cancelled; a wrong clo
 
   await userEvent.click(screen.getByRole('link', { name: /1 check-in couldn’t be sent/ }));
   const card = (await screen.findByText('Owen B.')).closest('.rl')!;
-  expect(card).toHaveTextContent('Recorded Present at 9:12 PM, by the phone’s clock');
+  // Shown in the phone's own time zone, so the expected time follows the machine running the test (9:12 PM in Chicago, 3:12 AM on CI).
+  const phoneTime = new Date('2026-11-17T03:12:00Z').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  expect(card).toHaveTextContent(`Recorded Present at ${phoneTime}, by the phone’s clock`);
   expect(card).toHaveTextContent('The phone’s time didn’t match the lesson, so it couldn’t be recorded.');
   expect(within(card as HTMLElement).getByRole('link', { name: 'Record on the website' })).toHaveAttribute('href', '/coach/#/lessons');
   await userEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Done' }));

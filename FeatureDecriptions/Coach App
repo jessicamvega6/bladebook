@@ -58,14 +58,14 @@ A lesson that has started can't be cancelled, and cancelling needs signal.
 
 Present and No-show:
   The app offers two outcomes per lesson, present or absent, rather than check-in alone (owner, 2026-08-30;
-  ADR-014 d6). A recorded no-show is what lets the end-of-day report tell "didn't come" apart from "not recorded yet".
+  ADR-014 d6). A recorded no-show is what lets ~~the end-of-day report~~ *Payments, the lesson list and the unpaid reminder (the end-of-day report is Phase 2, owner 2026-11-11)* tell "didn't come" apart from "not recorded yet".
   When this was decided, what a no-show costs was still open: the payment reminder followed a check-in only, so a
   student who reserved ice and didn't appear was billed nothing while one who attended was billed. That is very likely
   backwards from a coach's point of view, since the ice was held either way, but it is a business decision, and until it
   was made the app would show the coach a button whose consequence was nothing.
   *Settled the same day by ADR-015 decision 5: a no-show is charged under the same rule as a late cancellation.*
   A coach can record a no-show that costs nothing until Phase 2: ADR-015 decided the charge but scheduled it for
-  Phase 2. The button records a real outcome and feeds the end-of-day report from day one, and starts carrying money
+  Phase 2. The button records a real outcome and feeds ~~the end-of-day report~~ *Payments and the lesson list* from day one, and starts carrying money
   later.
   *(from ADR-014 §6 and Consequences, moved 2026-11-08)*
 
