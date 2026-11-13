@@ -192,7 +192,7 @@ export function Book({ family, api, route, onError }: {
   return (
     <>
       {body}
-      {confirming && <ConfirmDialog kid={kid} picks={picks} repeat={repeat} onRepeat={setRepeat} sending={sending} onBack={() => setConfirming(false)} onBook={book} />}
+      {confirming && <ConfirmDialog kid={kid} picks={picks} repeat={repeat} onRepeat={setRepeat} sending={sending} windowLast={page.windowLast} onBack={() => setConfirming(false)} onBook={book} />}
     </>
   );
 }
@@ -489,8 +489,8 @@ function PicksPanel({ picks, onRemove, onContinue }: { picks: Pick[]; onRemove: 
 
 // ------------------------------------------------------------ 3 · Confirm
 
-function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, onBack, onBook }: {
-  kid: Skater; picks: Pick[]; repeat: Repeat; onRepeat: (r: Repeat) => void; sending: boolean; onBack: () => void; onBook: () => void;
+function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBack, onBook }: {
+  kid: Skater; picks: Pick[]; repeat: Repeat; onRepeat: (r: Repeat) => void; sending: boolean; windowLast: string; onBack: () => void; onBook: () => void;
 }) {
   const titleId = useId();
   const groups = byCoach(picks), multi = groups.length > 1, kf = firstName(kid.name);
@@ -525,8 +525,13 @@ function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, onBack, onBook }
         <div className={`field${err ? ' field--error' : ''}`}><label className="label" htmlFor="bk-until">Until</label>
           <input id="bk-until" className={`ctl${err ? ' is-error' : ''}`} type="date" value={repeat.until} max={maxUntil(picks)} disabled={!repeat.on}
             onChange={(e) => onRepeat({ ...repeat, until: e.target.value })} />
-          <div className={`hint${err ? ' hint--error' : ''}`}>{err ? <><Icon name="alert" size={14} />{err}</> : 'Starts three months out. Up to 12 months.'}</div></div>
+          {err && <div className="hint hint--error"><Icon name="alert" size={14} />{err}</div>}</div>
       </div>
+      {repeat.on && !err && repeat.until > windowLast && (
+        <Banner tone="warning" title="This goes past the next three months">
+          Changes to {multi ? 'your coaches’ schedules' : `Coach ${groups[0]!.coachFirstName}’s schedule`} may affect some or all of these lessons.
+        </Banner>
+      )}
       <div className="summary">
         <div>
           <div className="kv"><span className="kv__k">Lessons</span><span className="kv__v">{repeat.on && !err ? `${plural(occ.length, 'lesson')} until ${shortDate(repeat.until)}` : plural(occ.length || picks.length, 'lesson')}</span></div>

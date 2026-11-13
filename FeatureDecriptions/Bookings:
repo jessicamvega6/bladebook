@@ -82,6 +82,10 @@ A client will book by clicking on one or more open time block slot and hitting ~
 After selecting the slot(s) they want want they will hit ~~submit~~ *Continue*. A pop up will display the selected slot(s) and have a reoccuring checkbox ("Repeat these lessons") next to it, a disabled frequency dropdown, and a disabled endDate date field. If the checkbox is selected then the dropdown is enabled and shows ~~1 week, 2 week, 3 week, or 4 week~~ *Every week, Every 2 weeks, Every 3 weeks, Every 4 weeks*. defaulted to 1 week.  The endDate ("Until") date field is enabled and defaults to 3 months from ~~that date~~ *the first picked date*.
 *Design additions to the pop-up:*
   A repeating booking can run up to 12 months. An end date before the first lesson, or more than 12 months out, shows an error.
+    ~~Hint under Until: "Starts three months out. Up to 12 months."~~ *Removed by the owner 2026-11-12. Only the errors show there.*
+  *Decided by the owner 2026-11-12:* when the end date is past the three months the family can see, a warning shows
+    under Repeats and Until: **This goes past the next three months.** "Changes to Coach Dana’s schedule may affect some
+    or all of these lessons." ("your coaches’ schedules" when more than one coach). It's a warning only; Book stays on.
   Every picked time repeats on the same day of the week.
   A summary: how many lessons in all (and until when), the first week's total, and the total for all lessons.
   Note: you pay the coach directly; BladeBook only sends reminders.
