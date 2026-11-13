@@ -684,3 +684,30 @@ The full list, with what closes each one, is in the root `README.md`.
   page from its copy (*"Today’s lessons haven’t loaded"*, since the sandbox kept the preview server from reaching the
   API). The rest is in tests.
 
+### Batch 15 (2026-11-12)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** A9 option (b): *Add a skater* always asks which coaches and allows *None of my coaches yet*;
+  a skater with no coach has only the `SKATER#` item, no link and no `STUDENT#` record, so no coach is asked about
+  them; *Add a coach* links each chosen skater, each waiting for that coach alone (ADR-025 d2, item k).
+- **Closed:** G-18, narrowed to the one place the website differs from the design (below).
+- **Settled while building (owner may override):**
+  - **Which coaches? lists approved coaches only.** The family is given a coach's ID only once that coach has approved
+    one of its skaters (ADR-MASTER §16), and the server accepts only those IDs, so a made-up or guessed ID is refused.
+    A coach still waiting is reached through *None of my coaches yet*, then *Add a coach* with their code; the form
+    says so. The design lists every coach.
+  - **An added skater is under 18** (the design's hint: an adult signs up for their own account), and someone who
+    skates themselves isn't offered *Add a skater*.
+  - **A name already on the account is refused** (*"Ava Park is already on your account."*, any capitals), so a
+    double tap doesn't make two skaters.
+  - **Limits:** 20 skaters on an account, 10 coaches (sign-up's limit).
+  - **Add a coach** resolves the code on the server, skips skaters already with that coach (waiting or approved), and
+    refuses only when none are left (*"Those skaters are already with Coach Dana."*). The website marks those skaters
+    by matching the coach's name, as the code lookup gives no ID.
+  - **Wording:** the profile's wrong-code message is the design's *"Check it with the coach who gave it to you"*, not
+    sign-up's *"Check it with your coach"*.
+- **Checked in the running app (APIs; table `bladebook-b9check`):** Lily added for an approved coach waits for her;
+  Max added with no coach has none and no coach sees him; *Add a coach* with Coach Ben's code puts Max on Ben's
+  Students page alone, the family isn't marked waiting, and Ben's ID isn't given out.
+

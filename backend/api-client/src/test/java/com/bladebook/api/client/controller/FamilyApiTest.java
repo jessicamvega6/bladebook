@@ -200,4 +200,36 @@ class FamilyApiTest {
         assertThat(r.status()).isEqualTo(401);
         assertThat(r.s("error")).isEqualTo("SIGN_IN_AGAIN");
     }
+
+    @Test
+    void theProfileAddsASkaterWithNoCoachThenAddsTheCoachForThemByCode() throws Exception {
+        assertThat(call("POST", "/api/client/registration", token, guardianSignUp("2027KQ4815MX3T")).status()).isEqualTo(201);
+
+        Res added = call("POST", "/api/client/me/skaters", token,
+                "{\"name\":\"Lily Park\",\"skatingOrg\":\"USFS\",\"registrationNumber\":\"3407715\",\"coachIds\":[],\"noCoach\":true}");
+        assertThat(added.status()).isEqualTo(200);
+        JsonNode lily = null;
+        for (JsonNode k : added.body().get("skaters")) {
+            if (k.get("name").asString().equals("Lily Park")) {
+                lily = k;
+            }
+        }
+        assertThat(lily).isNotNull();
+        assertThat(lily.get("coaches")).isEmpty();
+        assertThat(new StudentRepository(clients, table).list(dana)).hasSize(2);
+
+        // A waiting coach's ID was never given out, so a made-up one is refused, not trusted.
+        Res guessed = call("POST", "/api/client/me/skaters", token,
+                "{\"name\":\"Max Park\",\"skatingOrg\":\"USFS\",\"registrationNumber\":\"3407716\",\"coachIds\":[\"" + dana.coachId() + "\"],\"noCoach\":false}");
+        assertThat(guessed.status()).isEqualTo(400);
+
+        Res wrong = call("POST", "/api/client/me/coaches", token, "{\"coachCode\":\"AAAA-AAAA\",\"studentIds\":[\"" + lily.get("studentId").asString() + "\"]}");
+        assertThat(wrong.status()).isEqualTo(400);
+        assertThat(wrong.s("field")).isEqualTo("coachCode");
+
+        Res coach = call("POST", "/api/client/me/coaches", token, "{\"coachCode\":\"" + code.toLowerCase() + "\",\"studentIds\":[\"" + lily.get("studentId").asString() + "\"]}");
+        assertThat(coach.status()).isEqualTo(200);
+        assertThat(coach.raw()).doesNotContain(dana.coachId());
+        assertThat(new StudentRepository(clients, table).list(dana)).extracting(r -> r.studentName()).contains("Lily Park");
+    }
 }

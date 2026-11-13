@@ -34,6 +34,11 @@ public final class RegistrationRules {
         this.numbers = numbers;
     }
 
+    /** A skater's number, checked for its organisation. */
+    public String number(SkatingOrg org, String typed) {
+        return numbers.clean(org, typed);
+    }
+
     public Registration check(RegistrationRequest req) {
         ClientRelationship rel = ClientRelationship.parse(req.relationship());
         String first = ProfileRules.name("firstName", req.firstName());
@@ -98,7 +103,7 @@ public final class RegistrationRules {
     }
 
     /** A code that can't be a coach code matches no coach: the same answer as an unknown one. */
-    static CoachCode code(String typed) {
+    public static CoachCode code(String typed) {
         try {
             return CoachCode.parse(typed);
         } catch (DomainException e) {
@@ -107,8 +112,12 @@ public final class RegistrationRules {
     }
 
     private static String skaterName(int i, String typed) {
+        return skaterName("skaters." + i + ".name", typed);
+    }
+
+    /** A skater's full name: trimmed, present, at most 80 characters, no control characters. */
+    public static String skaterName(String field, String typed) {
         String v = typed == null ? "" : typed.trim();
-        String field = "skaters." + i + ".name";
         if (v.isEmpty()) {
             throw DomainException.invalid(field, "Enter the skater’s full name.");
         }

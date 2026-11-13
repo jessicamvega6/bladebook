@@ -1,5 +1,6 @@
 package com.bladebook.core.data;
 
+import com.bladebook.core.domain.ClientRelationship;
 import com.bladebook.core.domain.CoachName;
 import com.bladebook.core.domain.CoachPublicProfile;
 import com.bladebook.core.domain.DomainException;
@@ -82,6 +83,45 @@ public final class FamilyRepository {
         } catch (TransactionCanceledException e) {
             if (e.hasCancellationReasons() && e.cancellationReasons().stream().anyMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
                 throw DomainException.conflict(ALREADY);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Profile → Add a skater (A9; ADR-025 item k): the {@code SKATER#} item, and a link and a {@code PENDING} record per coach
+     * picked, in one transaction. With no coach, only the skater: no coach is asked about someone they won't teach.
+     */
+    public void addSkater(ClientContext ctx, ClientRelationship rel, Skater k, List<StudentRecord> students, Map<String, CoachName> coachNames) {
+        List<TransactWriteItem> writes = new ArrayList<>();
+        writes.add(put(FamilyItems.skaterItem(ctx.clientId(), rel, k)));
+        writes.addAll(pending(ctx, students, coachNames));
+        write(ctx, writes, "That skater was just added. Reload the page.");
+    }
+
+    /** Profile → Add a coach (ADR-025 d2): a link and a {@code PENDING} record per skater, each waiting for that coach alone. */
+    public void addCoach(ClientContext ctx, List<StudentRecord> students, Map<String, CoachName> coachNames) {
+        write(ctx, pending(ctx, students, coachNames), "One of those skaters was just sent to that coach. Reload the page.");
+    }
+
+    private List<TransactWriteItem> pending(ClientContext ctx, List<StudentRecord> students, Map<String, CoachName> coachNames) {
+        List<TransactWriteItem> writes = new ArrayList<>();
+        for (StudentRecord r : students) {
+            if (!r.clientId().equals(ctx.clientId()) || r.status() != StudentStatus.PENDING) {
+                throw new IllegalArgumentException("a family writes only its own PENDING records");
+            }
+            writes.add(put(FamilyItems.linkItem(r, coachNames.get(r.coachId()))));
+            writes.add(put(FamilyItems.studentItem(r)));
+        }
+        return writes;
+    }
+
+    private void write(ClientContext ctx, List<TransactWriteItem> writes, String conflict) {
+        try {
+            clients.clientFor(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(writes).build());
+        } catch (TransactionCanceledException e) {
+            if (e.hasCancellationReasons() && e.cancellationReasons().stream().anyMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
+                throw DomainException.conflict(conflict);
             }
             throw e;
         }

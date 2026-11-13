@@ -17,7 +17,8 @@ before every schedule save: what it cancels and re-prices, a big price change to
 Batch 7 — the rinkside page online (today's lessons, Present / No-show, contact details on a tap, cancelling one
 lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the coach's Payments page: mark paid with how they paid, waive (final), undo paid. Batch 9 — repeating bookings: book a series, see it on My bookings and Home, and end it earlier, make it less frequent or
 stop it. Batch 10 — the rinkside page with no signal: today kept on the phone, check-ins saved and sent when signal
-returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Everything runs on this computer only; nothing is
+returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Batch 15 — the family's Profile:
+*Add a skater* (with *None of my coaches yet*) and *Add a coach*. Everything runs on this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -102,7 +103,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-14 | Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done. | The Cognito user pool existing |
 | G-15 | A family can't change its login email; Profile shows it read-only. | The Cognito user pool existing |
 | G-17 | Share codes aren't issued, so Profile shows none (`consumer-family-sync` issues them when a skater is created). | The shared-lessons batch |
-| G-18 | Profile → *Add a skater* (with “None of my coaches yet”) and *Add a coach* (A9). | Batch 15 |
+| G-18 | **Profile → *Add a skater*'s *Which coaches?* lists only coaches who've approved one of the family's skaters**; the design lists every coach. A waiting family is never given a coach's ID (ADR-MASTER §16), so a coach still waiting is reached with *None of my coaches yet* and then *Add a coach* with their code, and the form says so. *Add a coach* matches who's already with the coach by name, as the code lookup gives no ID; the server skips them either way. The new skater has no share code yet (G-17). | Owner's call |
 | G-19 | The coach's download of skater numbers for the rink. | Phase 2 (owner, 2026-11-09); the name is split when the file is made |
 | G-20 | **Two parts of repeating bookings aren't built.** A key seen again with a different request isn't refused, and nothing asks about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b). The coach's day view says how often a series repeats as it was booked; a family's later *Make it less frequent* isn't reflected there, as the coach can't read the family's header. | Not yet placed |
 | G-21 | **No sharing at booking.** The confirm pop-up has no share-code box, and no lesson takes a second skater. | Batch 11 |

@@ -6,6 +6,7 @@ import com.bladebook.core.domain.PaymentTypes;
 import com.bladebook.core.domain.RegistrationRequest;
 import com.bladebook.core.domain.StudentStatus;
 import com.bladebook.core.service.FamilyService;
+import com.bladebook.core.service.RegistrationService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,17 @@ public final class FamilyDtos {
     }
 
     public record ContactBody(String firstName, String lastName, String phone) {
+    }
+
+    /** Profile → Add a skater. {@code coachIds}: approved coaches only, the IDs this API gave the family. */
+    public record AddSkaterBody(String name, String skatingOrg, String registrationNumber, List<String> coachIds, boolean noCoach) {
+        public RegistrationService.AddSkater toRequest() {
+            return new RegistrationService.AddSkater(name, skatingOrg, registrationNumber, coachIds, noCoach);
+        }
+    }
+
+    /** Profile → Add a coach: the coach's code, resolved on the server, and the family's skaters who'll join them. */
+    public record AddCoachBody(String coachCode, List<String> studentIds) {
     }
 
     public record PaymentDto(PaymentTypes.Type type, String handle) {

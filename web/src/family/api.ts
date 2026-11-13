@@ -108,6 +108,11 @@ export function familyApi(token: string) {
   return {
     me: () => apiFetch<Family>('/api/client/me', { token }),
     register: (body: RegistrationBody) => apiFetch<Family>('/api/client/registration', { method: 'POST', body, token }),
+    /** Profile → Add a skater: {@code coachIds} are approved coaches' IDs (a waiting coach's is never given out). */
+    addSkater: (body: { name: string; skatingOrg: SkatingOrg; registrationNumber: string; coachIds: string[]; noCoach: boolean }) =>
+      apiFetch<Family>('/api/client/me/skaters', { method: 'POST', body, token }),
+    /** Profile → Add a coach: the code is resolved on the server. */
+    addCoach: (body: { coachCode: string; studentIds: string[] }) => apiFetch<Family>('/api/client/me/coaches', { method: 'POST', body, token }),
     updateContact: (body: { firstName: string; lastName: string; phone: string }) =>
       apiFetch<Family>('/api/client/me/contact', { method: 'PUT', body, token }),
     bookingPage: (coachId: string, studentId: string) =>
