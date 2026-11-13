@@ -9,8 +9,10 @@ Settles the pending decision *"Which continuous integration (CI) system?"* in
 decision 2 (the test gates run in CI) and Blockers-Before-Coding #3 (set up the first CI
 pipeline).
 
-**Leaves open** the infrastructure tool, AWS Cloud Development Kit (CDK) or Terraform
-([ADR-001](ADR-001-backend-stack.md) amendment A4). Either one runs from this pipeline.
+~~**Leaves open** the infrastructure tool, AWS Cloud Development Kit (CDK) or Terraform
+([ADR-001](ADR-001-backend-stack.md) amendment A4). Either one runs from this pipeline.~~
+*2026-11-12: A4 is resolved: the infrastructure tool is AWS Cloud Development Kit (CDK) in
+TypeScript, run from this pipeline through each account's CDK bootstrap and OIDC deploy role.*
 
 **Amended — 2026-10-15.** [ADR-027](ADR-027-on-demand-dev-environment.md): the production deploy
 job ends with the post-deploy check (ADR-013 decision 3c's second flow, once, against

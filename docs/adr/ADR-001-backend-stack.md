@@ -134,6 +134,9 @@ fails and the person tries again. **Seventeen functions.**
 **Java 17** on the **`java17.al2023`** managed runtime (Amazon Linux 2023), not Java 25 on
 `java25`. Decision 1's framework, arm64 and plain-handler consumers are unchanged.
 
+**Amended — 2026-11-12.** *Decided by the owner.* **A4 is resolved: CDK (TypeScript).** Decision 2
+stands as written; Terraform is not used. See *A4 resolved* below.
+
 ---
 
 ## Amendments
@@ -293,6 +296,19 @@ most weight, because they are the two that recur daily on a solo project.
 Java Lambda packaging is hand-rolled regardless — decision 2 already established there is no
 CDK Java L2 construct. Terraform is arguably more honest here, since it simply points
 `filename` at the built JAR rather than appearing to abstract something it does not.
+
+#### A4 resolved — CDK (TypeScript) (2026-11-12)
+
+*Decided by the owner.* **Decision 2 stands: the infrastructure is AWS CDK in TypeScript**, in
+`infra/` as an npm workspace beside `web/`. Criterion 1, the gate, is met as written: `cdk-nag`
+fails the CI build on §7's least-privilege violations. Criterion 2 is met by decision 2's two lines
+of `cdk.json`, which run the Maven build as part of the app command. Criterion 4: no HCL is added;
+`infra/` stays in TypeScript, like `web/`. Criterion 5's two
+accounts are handled by bootstrapping each account and deploying through its OIDC deploy role
+(ADR-032), or from the owner's machine against the dev account.
+
+*What changes if Terraform is chosen* (above) no longer applies: no `checkov`/`tfsec`, no remote
+state bucket, and ADR-013's Jest-with-CDK-`assertions` testing line for `infra/` stands.
 
 ### A5 — The function list, corrected and extended to nine (2026-09-22)
 
