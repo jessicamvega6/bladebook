@@ -91,6 +91,9 @@ A confirmation page will display afterwards showing the successful and unsuccess
 *Design:*
   A headline: how many lessons were booked for the skater, and that a confirmation email is on its way.
   One card per picked time (or repeating series) with a bar showing how many dates were booked, already theirs, or unavailable.
+    *Decided by the owner 2026-11-12:* the unavailable count shows on the right under the bar only when some dates
+      couldn't be booked ("2 unavailable"). When every date went through, nothing shows there: the old "All dates"
+      label looked like a link and added nothing the full bar and the booked count don't already say.
   Each date that couldn't be booked is listed ~~with the reason (e.g. another family took it, time off, no times of that
   length that week)~~ *with one message whatever the cause: "That time was taken or no longer exists." (wording, owner 2026-11-09), so
   no family learns about another's booking (owner, 2026-11-08)* and a "Pick another time" button. The family can also leave them; the rest are confirmed.

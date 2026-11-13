@@ -578,7 +578,7 @@ function ResultPage({ result, sending, onRetry, onPickAnother }: {
           <div className="series__title"><Icon name="repeat" size={16} />{DAYS_LONG[dayOfWeek(sr.first)]}s · {formatTime(sr.startTime)}</div>
           <div className="series__sub">{any ? `${any.durationMinutes} min · ${formatMoney(any.priceMinor ?? 0)} · ` : ''}{everyLabel(sr.intervalWeeks)}, {shortDate(sr.first)} – {shortDate(sr.until)}</div>
           <div className="meter meter--ok"><span style={{ width: `${its.length ? Math.round(((b + mn) / its.length) * 100) : 0}%` }} /></div>
-          <div className="series__foot"><b>{b ? `${b} booked` : 'None new'}{mn ? ` · ${mn} already yours` : ''}</b><span>{sk ? `${sk} unavailable` : 'All dates'}</span></div>
+          <div className="series__foot"><b>{b ? `${b} booked` : 'None new'}{mn ? ` · ${mn} already yours` : ''}</b>{sk > 0 && <span>{sk} unavailable</span>}</div>
         </div></div></section>
       );
     });
@@ -593,7 +593,7 @@ function ResultPage({ result, sending, onRetry, onPickAnother }: {
           <div className="series__title"><Icon name="calendar" size={16} />{dDow(p.date)} · {formatTime(p.startTime)}</div>
           <div className="series__sub">{p.durationMinutes != null && p.priceMinor != null ? `${p.durationMinutes} min · ${formatMoney(p.priceMinor)}` : 'No longer on the schedule'}</div>
           <div className="meter meter--ok"><span style={{ width: done ? '100%' : '0%' }} /></div>
-          <div className="series__foot"><b>{p.outcome === 'BOOKED' ? '1 booked' : p.outcome === 'ALREADY_BOOKED' ? 'Already yours' : 'None new'}</b><span>{done ? 'All dates' : '1 unavailable'}</span></div>
+          <div className="series__foot"><b>{p.outcome === 'BOOKED' ? '1 booked' : p.outcome === 'ALREADY_BOOKED' ? 'Already yours' : 'None new'}</b>{!done && <span>1 unavailable</span>}</div>
         </div></div></section>
       );
     })}</div>
