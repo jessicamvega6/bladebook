@@ -74,6 +74,9 @@ An always-on up-check (home page and an API `/health` route) pages through decis
 reach into the archive, the monthly backups and point-in-time recovery, and the erased-ID list,
 is Phase 2. Until it ships, the restore runbook has no erased-ID list to re-apply.
 
+**Amended — 2026-11-11.** *Decided by the owner:* the end-of-day report is Phase 2. Its row in
+decision 1's tolerance table and its re-run-for-that-date rule apply once it ships.
+
 ---
 
 ## Context

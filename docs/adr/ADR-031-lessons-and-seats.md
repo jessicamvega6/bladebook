@@ -151,7 +151,7 @@ not a seat status: it comes from the `choiceAnswerBy` copy on the family's own s
 **Indexes**, the same roles as before, now on seats:
 - **GSI1, by client** — `GSI1PK = CLIENT#<clientId>`, `GSI1SK = SEAT#<date>#<startTime>`: My
   bookings and Home.
-- **GSI2, by date** — the 7am reminder and the 9pm report, one entry per seat.
+- **GSI2, by date** — the 7am reminder and the 9pm report, one entry per seat. *The end-of-day report is Phase 2 (2026-11-11).*
 - **GSI3, unpaid (sparse)** — while a seat is `UNPAID`.
 - **GSI4, deadlines (sparse)** — new, decision 12.
 
@@ -446,7 +446,7 @@ content, not an architecture decision.*
 
 - **`LessonBooked` fires per seat**, when a seat becomes `BOOKED`, so each skater's family gets
   its own confirmation (as each booking did).
-- **Reminders and the report count only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.** A seat
+- **Reminders and the report count only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.** *The end-of-day report is Phase 2 (2026-11-11).* A seat
   gets its GSI2 keys only when it becomes `BOOKED`; `INVITED` and `AWAITING_COACH` seats have
   none. *Since ADR-033 (2026-10-20): `INVITED` seats only.* (A pending leave is always settled before the lesson day, because its answer-by is no
   later than the start of the notice period.)

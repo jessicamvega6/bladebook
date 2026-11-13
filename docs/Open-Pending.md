@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** 2026-10-24
+**As of:** ~~2026-10-24~~ 2026-11-12
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -13,9 +13,10 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 
 ## 1. Blocking — settle before the code it touches
 
-- **Pending decision: Infrastructure as Code (IaC) — AWS Cloud Development Kit (CDK) or
+- ~~**Pending decision: Infrastructure as Code (IaC) — AWS Cloud Development Kit (CDK) or
   Terraform?** Undecided; ADR-001 amendment A4 lists the criteria. Switching gets expensive
-  once anything is deployed. (ADR-001 A4)
+  once anything is deployed.~~ **Settled 2026-11-12 (owner):** CDK (TypeScript); decision 2
+  stands. (ADR-001 A4)
 - ~~**Pending decision: Which continuous integration (CI) system?** No ADR names one. The repo
   is on GitHub, so GitHub Actions is the obvious candidate; AWS CodePipeline/CodeBuild is the
   AWS-native alternative. It must build the JARs before every deploy (no stale-JAR deploys),
@@ -215,7 +216,7 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
 - **To-do: Include ~~participants~~ every seat everywhere a lesson is walked** (participants are
   seats since ADR-031) — the schedule-change consumer's
   cancel and re-price, the change notifier (one message per family), the drift check, the
-  end-of-day report, coach cancellation, and (Phase 2 since 2026-10-20) erasure on request. (ADR-026 Consequences)
+  end-of-day report (Phase 2 since 2026-11-11), coach cancellation, and (Phase 2 since 2026-10-20) erasure on request. (ADR-026 Consequences)
   *2026-10-13 (ADR-031 decision 2): each skater now has their own seat in the lesson, so this
   means walking every seat, not participants hanging off a booking. The to-do stands.*
 - **Note:** share-code length and alphabet follow the coach-code decision (blocker #7)~~, and
@@ -317,7 +318,7 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   paid?**~~ **Settled 2026-10-12 by the owner: BladeBook calculates them.** How it calculates
   is open and complex, so every question about it is kept in its own document,
   **`Q_Rink-Fees.md`**, with Part A for Kim and Part B for the owner. Recorded in ADR-030, which
-  is accepted in part until those are answered. Background as first
+  is accepted in part until those are answered. *2026-11-12: rink fees moved to Phase 2.* Background as first
   recorded: *Added 2026-10-07 from talking with Kim.* The financial page shows year-to-date (YTD)
   gross and fees paid to the rink. Calculating means modelling each rink's terms: a percentage of
   gross or a flat monthly fee (Pelham Civic Center (PCC) figure skating: 15% or $500 a month), an hourly rate (PCC
@@ -333,7 +334,8 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   `FeatureDecriptions/Coach Financial Page.md`)
 - **Decided 2026-10-12 by the owner: a summary export is in MVP.** A **Download** button on the
   financial page saves a CSV for a chosen calendar year (this year or last): one row per month
-  with gross received, rink fees and net, plus year totals. It has no skater names and no
+  with gross received, rink fees and net, plus year totals. *2026-11-12: MVP's download is monthly gross and
+  paid-lesson counts; rink fees and net are Phase 2.* It has no skater names and no
   personal data, so it isn't a PII read under ADR-012. It covers what the coach's tax preparer
   needs, and lets the coach keep their own copy before records pass the 16-month floor (§8).
   Rows read live data only, filtered on `expiresAt` (ADR-017 decision 1).
@@ -439,7 +441,7 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   ice type is required on every tab and never shown to families. The values are each rink's own
   names for its sessions, kept in a per-rink list that the owner adds to as BladeBook reaches new
   rinks; coaches pick from it and don't create their own. The rink is also per tab, fixed to
-  PCC in Phase 1 (below). BladeBook calculates rink fees (§3, settled 2026-10-12), so also
+  PCC in Phase 1 (below). BladeBook calculates rink fees (§3, settled 2026-10-12; *Phase 2 since 2026-11-12*), so also
   stamp the ice type onto each booking, the way price and currency are, so a later
   schedule change doesn't change last month's fees. (ADR-008, ADR-003,
   `FeatureDecriptions/Schedule Creater.md`) *2026-10-13 (ADR-031 decision 1): the ice type now
@@ -543,9 +545,10 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   months after its end date**, so a coach can reopen last year's camp and move its dates
   (ADR-008 decision 7a) until Phase 2's saved schedules exist. *Deferred by the owner,
   2026-09-30.* (ADR-017)
-- **Pending decision — needs coach input: The unpaid-lesson reminder** — the threshold (the
+- ~~**Pending decision — needs coach input: The unpaid-lesson reminder** — the threshold (the
   job is off until it is set), the cadence (weekly on Monday morning is proposed), and whether
-  an unsettled lesson is listed again. *Left open by the owner, 2026-09-30, pending a
+  an unsettled lesson is listed again.~~ *Settled 2026-11-12 by the owner: 7 days; weekly on
+  Monday; listed every Monday until paid or waived (ADR-018).* *Left open by the owner, 2026-09-30, pending a
   conversation with a coach.* (ADR-018)
 - ~~**Open question: Does a coach see anything when their history ages out?**~~ **Settled
   2026-10-12 by the owner:** yes. History screens carry a note such as "Lessons settled more
@@ -705,7 +708,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
     infrastructure code.
 - *Deferred (Phase 2, 2026-10-12): client SMS is Phase 2, so MVP has only the coach's text.* **To-do: Separate alert SMS from client SMS** (own topic and configuration set). (ADR-010)
 - **To-do: Pass each scheduled job's target date in its trigger**, so a replayed or re-run job
-  works on that date — this is what makes the end-of-day report re-runnable for a past date.
+  works on that date — this is what makes the end-of-day report (Phase 2 since 2026-11-11) re-runnable for a past date, and lets a replayed day-of reminder see its date has passed.
   (ADR-010 decision 2a)
 - ~~**Pending decision: Backups beyond PITR's 35 days?**~~ Ties to the retention questions.
   **Settled 2026-10-12 by the owner:** yes, a **monthly export to S3**. EventBridge Scheduler
@@ -777,10 +780,13 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   access-log bucket live in their own small stack in the production account.
 - ~~**Open question: What runs the dev masking job?**~~ **Settled 2026-10-09:** an AWS Step
   Functions workflow in the data-loading stack (ADR-027 decision 9, amended).
-- **To-do: Set up the AWS Organization** — production and dev accounts, IAM Identity Center
+- ~~**To-do: Set up the AWS Organization** — production and dev accounts, IAM Identity Center
   sign-in with multi-factor authentication, and `dev.<domain>` delegated to a hosted zone in the
   dev account. Before any infrastructure is built: tables and Cognito users can't move between
-  accounts later. (ADR-027 decision 8)
+  accounts later.~~ **Done:** the accounts and Identity Center exist, and `dev.bladebook.org` is
+  delegated from Cloudflare to Route 53 in `bladebook-dev`. ADR-027 decision 8 still owes an
+  amendment: the domain's DNS stays in Cloudflare, and 307202557124 is the management account.
+  (ADR-027 decision 8)
 - **To-do: Write the data-loading stack's cross-account permissions** — dev's table import reading
   the masked bucket, and dev's CloudTrail writing to the log bucket in production. (ADR-027
   decision 9, ADR-028)
@@ -790,7 +796,7 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   transform also replaces each `registrationNumber` with a fake that passes ADR-029's shape check,
   on `SKATER#` and every `STUDENT#` copy.*
 - **To-do: Write a seed script that writes an import file**, taking each test account's `sub`
-  by email. It goes under `infra/` once the IaC tool is chosen (§1). *Changed 2026-10-20: the
+  by email. It goes under `infra/` once the IaC tool is chosen (§1) *(CDK, chosen 2026-11-12)*. *Changed 2026-10-20: the
   old `terraform/bladebook_seed.py` was removed by the owner.* (ADR-028 decision 4) *Its registration numbers are shape-valid fakes
   too (ADR-028, 2026-10-20).*
 - **To-do: Split dev into an account stack and an application stack.** (ADR-028 decision 4)
@@ -828,7 +834,7 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   production deploys only a tagged build; the pipeline doesn't build dev (ADR-032, amended
   2026-10-15). (ADR-013)
 - **To-do: Keep deploy roles away from personal data** — no reading the table's data or the
-  access log; narrow CDK's bootstrap role if CDK is chosen. (ADR-032 Open) *Added 2026-10-15.*
+  access log; narrow CDK's bootstrap role if CDK is chosen *(chosen 2026-11-12)*. (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: Keep pinned GitHub Actions current with Dependabot, or check by hand on a
   schedule?** (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: How long to keep CI run logs, and whether to copy them anywhere.**
@@ -855,7 +861,7 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   scalability, performance) and reconcile the rest with ADR-010 — e.g. 95% uptime and CPU
   autoscaling alarms don't map onto Lambda. (`FeatureDecriptions/Non Functional Requirements.md`)
 - **Open question: "Storing daily schedules in long-term storage"** — is the S3 end-of-day
-  report enough, or is something else meant? (`FeatureDecriptions/Non UI Functional Requirements`)
+  report enough, or is something else meant? *The report is Phase 2 since 2026-11-11, so MVP stores no daily schedule.* (`FeatureDecriptions/Non UI Functional Requirements`)
 
 ## 13. Documentation housekeeping
 

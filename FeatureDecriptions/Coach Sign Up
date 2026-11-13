@@ -10,7 +10,7 @@ Coach Sign Up:
         sign-up page, so sign-up stays one flow. The browser sends the email, password and code straight to Cognito,
         which creates the account, sends the code and enforces the password rules; BladeBook's servers never see them.
     <!-- business EIN / tbd Canada's version -->
-    login email (step 1): private; the coach logs in with it and gets the daily report and the morning email there.
+    login email (step 1): private; the coach logs in with it and gets ~~the daily report and~~ the morning email *and the weekly unpaid reminder* there *(daily report Phase 2, owner 2026-11-11)*.
                     Step 2 verifies it with a 6-digit emailed code, with Resend code and Change email links.
     business email ~~(optional and will be login email if left blank)~~ *(step 3: "Use my login email" or "Use a different email". A different address gets a confirmation link, not a code, on step 4, with Resend link, Change address and "Use my login email instead". Families can't reach the coach until it's confirmed.)*
                     (will be what a client responds to if they click reply within an automated email)
@@ -48,6 +48,8 @@ Business email (from ADR-016, moved 2026-11-08):
   At sign-up, step 3 offers "Use my login email" or "Use a different email". A different address gets a link on
     step 4, with "Resend link", "Change address" and "Use my login email instead".
     *(from ADR-016, amendment 2026-10-13)*
+  *Decided by the owner 2026-11-12:* the link works once and lasts 3 days. Resend sends a new link and the old one stops
+    working. The coach signs in to confirm. (ADR-016, amendment 2026-11-12)
   *Decided by the owner 2026-11-06, settling a conflict with the Harbor design (design/harbor/coach/app.js, sign-up
     step 4):* at sign-up, families can't reach the coach until a different business email is confirmed. Until the link
     is clicked, the login email is not used as the address families reply to. Step 4's banner stands as drawn:

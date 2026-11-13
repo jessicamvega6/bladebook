@@ -48,7 +48,9 @@ Payment reminder — to the family, after a lesson is checked in. Includes the c
   *(from ADR-003 §7, moved 2026-11-08)* The Phase 2 text-message version only states the amount and points at
   this email (see SMS Messages.md).
 Schedule change — to the family, when a schedule save cancels or re-prices their lessons. Always sent.
-Daily report — to the coach, every evening at 9 PM.
+Daily report — to the coach, every evening at 9 PM. *Phase 2 (owner, 2026-11-11)*: not sent in MVP. The wording below
+  stands for when it ships. Until then, an unrecorded lesson shows as *Not recorded* on Payments and the lesson
+  list, and as "attendance not recorded" in the weekly unpaid reminder.
   The report names the pending students and says what to do. *Added 2026-09-30, in place of a push notification
   the owner declined:* the email lists each pending student and lesson, with "No attendance recorded. If you
   recorded these on the rinkside app, open it with signal to send them; otherwise record them on the lesson list."
@@ -56,16 +58,18 @@ Daily report — to the coach, every evening at 9 PM.
   *(from ADR-014 §7, moved 2026-11-08)*
 Unpaid lessons — to the coach, weekly on Monday morning.
   *Accepted 2026-09-30 (ADR-018).* One email per coach, not one per lesson, listing every past lesson still
-  unpaid that is older than the threshold (not yet set by the owner; until it is, nothing is sent). Wording:
+  unpaid that is older than the threshold: 7 days (owner, 2026-11-12). Wording (owner, 2026-11-12, R10a):
   "You have unpaid lessons from more than [threshold] ago. Please mark each one as paid or waived." — followed
   by the list (date, time, skater, amount), and a link to the payment dashboard.
   A lesson with no recorded outcome says so in the list — "attendance not recorded" — because the coach may need
   to correct attendance on the lesson list before deciding whether it is owed.
-  It covers every unpaid past lesson, whatever its attendance, including no-shows. A no-show is listed at its
-  full lesson price, labelled as a no-show, matching the dashboard. *(Corrected 2026-09-30: this first said a
-  no-show "is not charged" in MVP, which misstated the rule.)*
+  It covers every unpaid past lesson, whatever its attendance, including no-shows. A no-show is listed at
+  ~~its full lesson price~~ what that skater owes (their share; the full price unless the lesson is shared;
+  owner, 2026-11-12, R10c), labelled as a no-show, matching the dashboard. *(Corrected 2026-09-30: this first
+  said a no-show "is not charged" in MVP, which misstated the rule.)*
   Phase 2: chargeable late cancellations are listed too, labelled as late fees.
-  Each lesson is listed once, when it crosses the threshold. Whether it should be listed again is open (ADR-018).
+  ~~Each lesson is listed once, when it crosses the threshold. Whether it should be listed again is open (ADR-018).~~
+  A lesson is listed every Monday until it is marked paid or waived (owner, 2026-11-12; ADR-018 amendment).
   *(from ADR-018 §1 and §4, moved 2026-11-08)*
 *Confirmed by the owner 2026-10-12: the coach's "A family cancelled" email is sent only inside the notice period. The design matches.*
 
@@ -104,7 +108,7 @@ Shared lesson no longer available — ~~to Family B, when the coach accepts thei
 
 To the coach:
 Morning email — to the coach, around 7 AM on days with lessons: the rinkside link first, then today's lessons. Sent by the
-  day-of reminder job; the on/off switch is Phase 2. Sent to the coach's login email, like the daily report. (ADR-023,
+  day-of reminder job; the on/off switch is Phase 2. Sent to the coach's login email, like the ~~daily report~~ *weekly unpaid reminder*. (ADR-023,
   2026-10-13; address decided 2026-10-15)
   Owner, 2026-10-13: a link at the top of this email is one of the two ways the coach reaches the rinkside page (the
   other is the large link on the coach website's Today page), so neither a home-screen icon nor a bookmark is needed.
@@ -192,7 +196,8 @@ Alerts to the owner (alarms, failed jobs, email bounce rates) go by text message
 Reminder to the coach about skaters waiting for approval — decided against 2026-10-09; the Students tab shows the
   count instead. (ADR-002)
 Evening push to coaches with unrecorded lessons — declined by the owner, 2026-09-30. The 9:00pm daily report
-  already tells the coach which students are pending, and names what to do about them. (ADR-014, Open; moved 2026-11-08)
+  already tells the coach which students are pending, and names what to do about them. *Since the daily report
+  moved to Phase 2 (2026-11-11), MVP has no evening prompt of either kind; the push stays declined.* (ADR-014, Open; moved 2026-11-08)
 "Email me when times appear" — removed 2026-10-13. (Bookings:)
 Rebooking email, and a weekly digest of auto-booked repeating lessons — replaced by the cancellation email when
   ADR-006 superseded ADR-004 and ADR-005.
