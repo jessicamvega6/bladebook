@@ -5,11 +5,13 @@ import com.bladebook.core.domain.BookingOutcome;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.Seat;
+import com.bladebook.core.domain.StudentStatus;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.Put;
@@ -49,9 +51,13 @@ public final class BookingRepository {
     }
 
     private static final String LESSON = "LESSON#";
-    /** What a family's lesson-time read may name (ADR-MASTER section 16): never {@code pendingLeave}. */
+    /**
+     * What a family's lesson-time read may name (ADR-MASTER section 16): never {@code pendingLeave}. Batch 11 adds
+     * {@code maxSkaters} (read only to say whether a time can be shared) and {@code seatsTaken} (G-26).
+     */
     private static final List<String> TIME_FIELDS = List.of("lessonDate", "startTime", "startsAtUtc", "coachTz",
-            "durationMinutes", "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq", "requiredNoticeHours");
+            "durationMinutes", "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq", "requiredNoticeHours",
+            "maxSkaters", "seatsTaken");
 
     private final TenantClients clients;
     private final String table;
@@ -185,8 +191,52 @@ public final class BookingRepository {
     /** As above, as one date of a series: the seat carries {@code recurrenceId} and the interval it was booked with. */
     public BookingOutcome book(ClientContext ctx, LinkedSkater skater, AvailableTime time, String idempotencyKey, Instant now,
                                String recurrenceId, int intervalWeeks) {
+        return book(ctx, skater, time, idempotencyKey, now, recurrenceId, intervalWeeks, null);
+    }
+
+    /**
+     * Who else a booking puts in the lesson (ADR-MASTER section 8, "Inviting"): another family's skater, invited
+     * ({@code sibling} null), or one of the booking family's own skaters, added directly ({@code sibling} set). Either must be
+     * {@code ACTIVE} with the coach; the transaction checks it ({@code ConditionCheckItem}, ADR-033).
+     */
+    public record Partner(String studentId, String fullName, LinkedSkater sibling, String inviteId, String invitedByName) {
+
+        public static Partner invited(String studentId, String fullName, String inviteId, String invitedByName) {
+            return new Partner(studentId, fullName, null, inviteId, invitedByName);
+        }
+
+        public static Partner sibling(LinkedSkater sibling) {
+            return new Partner(sibling.studentId(), sibling.studentName(), sibling, null, null);
+        }
+    }
+
+    /**
+     * As above, with a second skater on a time that can be shared: the invited seat ({@code INVITED}, no family, holding the
+     * place at once) or the sibling's ({@code BOOKED}). {@code partner} null books the time private.
+     */
+    public BookingOutcome book(ClientContext ctx, LinkedSkater skater, AvailableTime time, String idempotencyKey, Instant now,
+                               String recurrenceId, int intervalWeeks, Partner partner) {
         Seat seat = Seat.booked(skater.coachId(), time, skater.studentId(), skater.clientId(), skater.studentName(), now, idempotencyKey,
                 recurrenceId, intervalWeeks);
+        List<String> order = new ArrayList<>(List.of(skater.studentId()));
+        List<TransactWriteItem> items = new ArrayList<>();
+        int places = 1;
+        if (partner != null) {
+            places = 2;
+            Seat second;
+            if (partner.sibling() != null) {
+                // Like an invited skater's, a sibling's seat isn't part of the booking skater's series (settled in Batch 11).
+                second = Seat.booked(skater.coachId(), time, partner.studentId(), skater.clientId(), partner.fullName(), now, idempotencyKey,
+                        null, 0);
+                order.add(partner.studentId());
+            } else {
+                seat = seat.withShare(new Seat.Share(partner.inviteId(), null, null, partner.studentId(), null, null, null, null, false));
+                second = Seat.invited(seat, partner.studentId(), partner.fullName(), partner.inviteId(), partner.invitedByName());
+            }
+            items.add(TransactWriteItem.builder().put(Put.builder().tableName(table).item(SeatItems.item(second))
+                    .conditionExpression("attribute_not_exists(SK)").build()).build());
+            items.add(rosterCheck(skater.coachId(), partner.studentId()));
+        }
         Map<String, AttributeValue> v = new HashMap<>();
         v.put(":open", FamilyItems.s(LessonTime.Status.OPEN.name()));
         v.put(":booked", FamilyItems.s(LessonTime.Status.BOOKED.name()));
@@ -194,20 +244,20 @@ public final class BookingRepository {
         v.put(":len", AttributeValue.fromN(Integer.toString(time.durationMinutes())));
         // Whole seconds: Instant text sorts by time only at the same precision as startsAtUtc's.
         v.put(":now", FamilyItems.s(now.truncatedTo(ChronoUnit.SECONDS).toString()));
-        v.put(":one", AttributeValue.fromN("1"));
-        v.put(":me", AttributeValue.fromL(List.of(FamilyItems.s(skater.studentId()))));
-        v.put(":none", AttributeValue.fromL(List.of()));
-        TransactWriteItem lesson = TransactWriteItem.builder().update(Update.builder().tableName(table)
+        v.put(":places", AttributeValue.fromN(Integer.toString(places)));
+        v.put(":paying", AttributeValue.fromN(Integer.toString(order.size())));
+        v.put(":order", AttributeValue.fromL(order.stream().map(FamilyItems::s).toList()));
+        // An open time holds nobody, so it has room for these places exactly when maxSkaters allows them.
+        items.add(0, TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(FamilyItems.key("COACH#" + skater.coachId(), time.key()))
                 .conditionExpression("lessonStatus = :open AND startsAtUtc = :start AND durationMinutes = :len"
-                        + " AND startsAtUtc > :now AND seatsTaken < maxSkaters")
-                .updateExpression("SET lessonStatus = :booked, seatsTaken = seatsTaken + :one,"
-                        + " shareCount = :one, joinOrder = list_append(if_not_exists(joinOrder, :none), :me)")
-                .expressionAttributeValues(v).build()).build();
-        TransactWriteItem put = TransactWriteItem.builder().put(Put.builder().tableName(table).item(SeatItems.item(seat))
-                .conditionExpression("attribute_not_exists(SK)").build()).build();
+                        + " AND startsAtUtc > :now AND maxSkaters >= :places")
+                .updateExpression("SET lessonStatus = :booked, seatsTaken = :places, shareCount = :paying, joinOrder = :order")
+                .expressionAttributeValues(v).build()).build());
+        items.add(1, TransactWriteItem.builder().put(Put.builder().tableName(table).item(SeatItems.item(seat))
+                .conditionExpression("attribute_not_exists(SK)").build()).build());
         try {
-            db(ctx, skater.coach()).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(lesson, put).build());
+            db(ctx, skater.coach()).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(items).build());
             return BookingOutcome.BOOKED;
         } catch (TransactionCanceledException e) {
             if (!e.hasCancellationReasons() || e.cancellationReasons().stream().noneMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
@@ -248,6 +298,18 @@ public final class BookingRepository {
     }
 
     // --------------------------------------------------------------------- helpers
+
+    /** ADR-033: the skater added to a lesson is {@code ACTIVE} with the coach, checked in the same transaction. */
+    static TransactWriteItem rosterCheck(String table, String coachId, String studentId) {
+        return TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table)
+                .key(FamilyItems.studentKey(coachId, studentId))
+                .conditionExpression("studentStatus = :active")
+                .expressionAttributeValues(Map.of(":active", FamilyItems.s(StudentStatus.ACTIVE.name()))).build()).build();
+    }
+
+    private TransactWriteItem rosterCheck(String coachId, String studentId) {
+        return rosterCheck(table, coachId, studentId);
+    }
 
     private List<Map<String, AttributeValue>> range(ClientContext ctx, LinkedCoach coach, String from, String to, List<String> fields) {
         Map<String, String> names = names(fields);
@@ -292,7 +354,8 @@ public final class BookingRepository {
                 Instant.parse(FamilyItems.str(m, "startsAtUtc")), FamilyItems.str(m, "coachTz"), n(m, "durationMinutes"),
                 n(m, "priceMinor"), FamilyItems.str(m, "currency"),
                 LessonTime.Status.OPEN.name().equals(FamilyItems.str(m, "lessonStatus")),
-                m.containsKey("shareCount") ? n(m, "shareCount") : 0, order, n(m, "blockSeq"), n(m, "requiredNoticeHours"));
+                m.containsKey("shareCount") ? n(m, "shareCount") : 0, order, n(m, "blockSeq"), n(m, "requiredNoticeHours"),
+                m.containsKey("maxSkaters") && n(m, "maxSkaters") >= 2, m.containsKey("seatsTaken") ? n(m, "seatsTaken") : 0);
     }
 
     private static int n(Map<String, AttributeValue> m, String k) {

@@ -238,13 +238,16 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
 /** Modal dialog over a scrim. Escape or the scrim closes it; focus moves into it. */
 export function Dialog({ children, onClose, labelledBy }: { children: ReactNode; onClose: () => void; labelledBy: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The latest onClose, so a parent's new function each render doesn't move focus back while someone types (Batch 11).
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const first = ref.current?.querySelector<HTMLElement>('input, button');
     first?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close.current(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
   return (
     <>
       <div className="scrim" onClick={onClose} />
