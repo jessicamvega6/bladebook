@@ -1,6 +1,8 @@
 # BladeBook — Implementation Plan
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
+**Progress (2026-11-12):** Batches 1–7 are merged (the last by PR #25). Batches 8, 9, 10, 15 and 16
+are in progress on their own `feature/batch-*` branches.
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -23,11 +25,15 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 
 ## 2. Where the code stands today
 
+*Updated 2026-11-12. The original text described the skeleton before Batch 1.*
+
 - `backend/` is a Maven multi-module build: `core`, `api-coach`, `api-client` and `consumers`.
-  Each module is only a skeleton: entry points, empty packages, a context-load test and ArchUnit
-  layering rules. The skeletons and CI were committed in `0aac88b`.
-- `web/` has three Vite entry points (coach, rinkside and family), each showing a placeholder
-  `App.tsx`. `shared/api`, `shared/auth` and `shared/logic` are empty.
+  Batches 1–7 built the coach profile and code, the schedule and its views, family sign-up and
+  approval, booking one lesson, cancelling, time off and special schedules, and rinkside
+  attendance, all running locally against DynamoDB Local (§7 has each batch's log).
+- `web/` has three Vite entry points (coach, rinkside and family) with those pages built.
+  `shared/auth` holds the local sign-in stand-in (SC-1).
+- `infra/` doesn't exist yet. The CDK (TypeScript) stacks are Batch 17 (proposed, below).
 - **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml` and CI are on
   Java 17, and the ADRs were amended (see §6). The skeleton builds and starts on Java 17.0.10.
 
@@ -36,7 +42,7 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 | Blocker | Effect on this plan |
 |---|---|
 | Infrastructure as Code (IaC) chosen (CDK, TypeScript, 2026-11-12) but not written yet; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | Nothing is deployed. "End to end" means **running locally**. |
-| Amazon Cognito user pool doesn't exist yet | Signing in locally needs a stand-in. See Question 3. |
+| Amazon Cognito user pool doesn't exist yet | Signing in locally needs a stand-in. See Question 3. The sign-in library is chosen: AWS Amplify's Auth module with Secure Remote Password (SRP) (ADR-023, 2026-11-12). The real sign-in forms are Batch 18 (proposed). |
 | Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | The consumers (emails, family-sync, link sync, deadline sweep, roller) are built later, or called in-process as a listed shortcut. Scheduled jobs are triggered by hand or by a local timer, also a listed shortcut (owner, 2026-11-12). See Question 4. |
 | Rink-fee calculation undecided (`docs/Q_Rink-Fees.md`) | **Phase 2** (owner, 2026-11-12): it needs outside answers that aren't available yet. The financial page shows gross only and says rink fee calculation is coming. |
 | The family read allowlist and the gate-test rows for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4 (Blockers 23, 24) | Booking can run on DynamoDB Local, which ignores Identity and Access Management (IAM) rules. The per-tenant credential rules are listed as a shortcut until the gate tests pass on real AWS. |
@@ -244,12 +250,17 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 |---|---|---|
 | 9 | Recurring bookings and recurrence changes | — (B4, B9 and B12 ruled 2026-11-09) |
 | 10 | Rinkside offline queue and service worker | — (R2, R3, R4 and R5 ruled 2026-11-09) |
-| 11 | Shared lessons: share code, invite, accept, leave | — (B2, B3, B7, B8, B10 and B11 ruled 2026-11-11). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
+| 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`) | — (B2, B3, B7, B8, B10 and B11 ruled 2026-11-11). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
 | 12 | Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12) | — |
-| 13 | Emails and scheduled jobs (confirmations, day-of, morning, unpaid reminder; the end-of-day report is Phase 2 since 2026-11-11) | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
-| 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2). Replaces Batch 1's local stand-in | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
+| 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (G-33), the day-of reminder and the coach's morning email (G-34), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018) and the nightly lesson roller (G-9). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
+| 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 15 | Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k) | — |
 | 16 | Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3). Families see each only once the coach has approved one of their skaters, which Batch 3 already enforces. Added by the owner 2026-11-09, moved out of Batch 3 | The *Text me on late cancellations* switch waits on ADR-007 d8 (§3); the two contact switches don't |
+| 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 16 (owner, 2026-11-12) |
+| 18 | **Proposed 2026-11-12:** real sign-in with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15 | Batch 17's user pool; after Batch 17 (owner, 2026-11-12) |
+| 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). Added by the owner 2026-11-12: every unplaced gap gets its own batch | — |
+| 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in | Batch 18's real sign-in |
+| 21 | **Editing time off** (G-30): *Edit* on each time off in the schedule hub's list, like a special schedule's. Change the dates, review only the dates added or removed, save. Families hear only about lessons that actually change | The Harbor design needs the *Edit* button and the time-off form opened with its saved dates (owner, 2026-11-12) |
 | — | Coach late-cancellation SMS; coach who is also a parent | Blocked (§3) |
 
 ## 6. Decisions and open questions
@@ -265,6 +276,16 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 - **Scheduled jobs locally:** the same as events. Each job is triggered by hand or by a local timer, and listed as a shortcut.
 - **Shared lessons (Batch 11):** built locally, with the family read allowlist and gate-test rows listed as a shortcut until they pass on real AWS.
 - **Rink fees:** Phase 2. They need answers from outside BladeBook that aren't available yet. MVP's financial page shows gross only and says rink fee calculation is coming.
+- **Sign-in library:** AWS Amplify's Auth module with SRP, wrapped behind `web/src/shared/auth`, pinned, tokens in tab storage (ADR-023 amendment).
+
+**Open, found in the plan review of 2026-11-12:**
+
+- ~~**Where Batches 17 and 18 go.**~~ *Ruled 2026-11-12 by the owner: after Batch 16, 17 then 18.*
+- ~~**Where the unplaced gaps go.**~~ *Ruled 2026-11-12 by the owner: each gets its own batch after 18: G-22 is Batch 19, G-7 Batch 20, G-30 Batch 21. G-29 and G-31 aren't built in MVP (below).*
+- ~~**G-13, changing the time zone after lesson times exist.**~~ *Ruled 2026-11-12 by the owner: changing a coach's time zone is a **Phase 3** feature; how it treats lesson times already made is decided then. In MVP the time zone is set at sign-up.*
+- ~~**G-29: what the coach sees of cancellations afterwards.**~~ *Ruled 2026-11-12 by the owner: Phase 2, with the family's cancellation history. In MVP the emails at the time are the only record people see.*
+- ~~**G-30: editing time off.**~~ *Ruled 2026-11-12 by the owner: add Edit to time off (Batch 21).*
+- ~~**G-31: reporting a skaters-per-lesson change on the review page.**~~ *Ruled 2026-11-12 by the owner: left as it is. The review page doesn't report it in MVP; booked lessons keep their setting, as already ruled.*
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 

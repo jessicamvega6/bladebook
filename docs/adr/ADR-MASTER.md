@@ -1722,6 +1722,7 @@ technical.*
 - Personal prices (`priceMinorOverride`) and discounts.
 - A manual *send payment reminder* action, with `paymentReminderCount` and `lastPaymentReminderAt`
   and a rate limit → `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
+- The coach's view of cancellations after the fact (owner, 2026-11-12; gap G-29), alongside the family's below.
 - Families seeing their own unpaid history and cancellation history → `FeatureDecriptions/C_Client Payments.md`,
   `FeatureDecriptions/cancelation.md`.
 - "Also coached by" for coaches (`otherCoaches`, with a one-off backfill) and the disclosure line
@@ -1762,6 +1763,7 @@ technical.*
 
 **Phase 3**
 
+- Changing a coach's time zone (owner, 2026-11-12; gap G-13): how it treats lesson times already made is decided then.
 - A reminder to renew a skating membership or update the number → `FeatureDecriptions/Client Sign Up`.
 - Travel time between rinks in the clash check → `FeatureDecriptions/Bookings:`.
 
