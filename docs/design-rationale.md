@@ -40,7 +40,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 **What it is.** The two API functions use Spring Boot 4. The background consumers and scheduled jobs are plain Lambda handlers. All business logic lives in `core/`, which has no framework code at all.
 
-**Why.** Spring has the deepest ecosystem and the best AI-assistance support, which matters most when the framework is new to you. Keeping `core/` framework-free makes a framework swap a change to thin controllers, not a rewrite. An ArchUnit rule enforces the boundary.
+**Why.** Spring has the deepest ecosystem and the best AI-assistance support, which matters most when the framework is new to you. `core/` is framework-free because both kinds of entry point share it: the Spring APIs and the plain handlers. Neither has to start a Spring context or keep its own copy to use a business rule, so each rule (the schedule-change conflict test, price resolution, the personal-data logging invariants) is written once. It also keeps `core/` tests in plain Java with no framework to start. An ArchUnit rule enforces the boundary.
 
 **Turned down:**
 - *Quarkus* — Close on performance, but a much smaller ecosystem.
