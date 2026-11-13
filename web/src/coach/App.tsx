@@ -15,7 +15,7 @@ import { coachApi, lessonsApi, paymentsApi, scheduleApi, studentApi, type Profil
 import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
-import { ProfileDetails, ProfilePayments } from './pages/Profile';
+import { ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
 import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { Lessons } from './pages/Lessons';
@@ -211,6 +211,8 @@ export function App() {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Lessons" wide><Lessons api={lessons} onError={handleError} /></CoachShell>;
     } else if (route === '#/profile') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+    } else if (route === '#/profile/visibility') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else if (route === '#/profile/payments') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else {

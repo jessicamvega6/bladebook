@@ -27,6 +27,9 @@ export interface Profile {
   codeWorks: boolean;
   paymentInstructions: string | null;
   paymentTypes: PaymentType[];
+  /** Profile → Visibility & texts: shown to approved families only. Both start off. */
+  showPhone: boolean;
+  showEmail: boolean;
 }
 
 export interface SignupBody {
@@ -61,6 +64,7 @@ export function coachApi(token: string) {
     signup: (body: SignupBody) => call<Profile>('/signup', 'POST', body),
     saveDetails: (body: DetailsBody) => call<Profile>('/profile/details', 'PUT', body),
     savePayments: (body: PaymentsBody) => call<Profile>('/profile/payments', 'PUT', body),
+    saveVisibility: (body: { showPhone: boolean; showEmail: boolean }) => call<Profile>('/profile/visibility', 'PUT', body),
     rotateCode: () => call<Profile>('/profile/code/rotate', 'POST'),
     useLoginEmail: () => call<Profile>('/profile/business-email/use-login', 'POST'),
     /** LOCAL STAND-IN for clicking the business-email link (until batch 14). */

@@ -259,6 +259,20 @@ class ProfileApiTest {
     }
 
     @Test
+    void visibilitySwitchesStartOffAndAreSaved() throws Exception {
+        String token = stub.coachToken(newEmail());
+        Res start = call("POST", "/api/coach/signup", token, signup(true, null));
+        assertThat(start.body().get("showPhone").asBoolean()).isFalse();
+        assertThat(start.body().get("showEmail").asBoolean()).isFalse();
+
+        Res r = call("PUT", "/api/coach/profile/visibility", token, "{\"showPhone\":true,\"showEmail\":true}");
+
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("showPhone").asBoolean()).isTrue();
+        assertThat(call("GET", "/api/coach/profile", token, null).body().get("showEmail").asBoolean()).isTrue();
+    }
+
+    @Test
     void rotatingGivesANewCode() throws Exception {
         String token = stub.coachToken(newEmail());
         String before = call("POST", "/api/coach/signup", token, signup(true, null)).s("coachCode");
