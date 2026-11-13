@@ -181,6 +181,9 @@ export function ProfilePayments({ api, profile, onChange }: PageProps) {
           <div className="mp-chips">{chips.map((c) => <span key={c} className="badge badge--neutral">{c}</span>)}</div>
           <div className="hint">When you mark a lesson paid you can note how the family paid. The choices are the payment types you’ve switched on, plus Other. Lessons you’ve already marked keep what you chose.</div>
         </Card>
+        <Banner tone="warning" title="Check your handles before you save">
+          BladeBook doesn’t verify payment handles and isn’t responsible for payments sent to an incorrect one.
+        </Banner>
         <SaveBar busy={busy} saved={saved} />
       </form>
     </>
@@ -200,7 +203,7 @@ export function ProfileVisibility({ api, profile, onChange }: PageProps) {
   const [saved, setSaved] = useState(false);
   const shown = PAY_TYPES.flatMap((t) => {
     const p = profile.paymentTypes.find((x) => x.type === t.type);
-    return p?.on ? [p.handle ? `${t.label} ${t.prefix}${p.handle}` : t.label] : [];
+    return p?.on ? [p.handle ? `${t.label} ${p.handle}` : t.label] : [];
   });
 
   const save = async (e: FormEvent) => {
@@ -233,7 +236,7 @@ export function ProfileVisibility({ api, profile, onChange }: PageProps) {
             onToggle={() => { setShowEmail(!showEmail); setSaved(false); }} />
           {errors.showEmail && <div className="hint hint--error mp-toggle-err"><Icon name="alert" size={14} />{errors.showEmail}</div>}
           <div className="toggle-row"><div className="toggle-row__text"><div className="toggle-row__label">Payment types</div>
-            <div className="toggle-row__sub">{shown.join(' · ') || 'None switched on.'} Each has its own switch under <a className="link" href="#/profile/payments">Payments</a>.</div></div></div>
+            <div className="toggle-row__sub">{shown.length ? `${shown.join(' · ')}.` : 'None switched on.'} Each has its own switch under <a className="link" href="#/profile/payments">Payments</a>.</div></div></div>
           <div className="card__note"><Icon name="info" size={14} /> Your payment instructions always appear in payment-reminder emails. Replies always reach your business email, whichever of these are on.</div>
         </Card>
         <Card title="Texts to you" flush

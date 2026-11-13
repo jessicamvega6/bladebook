@@ -101,6 +101,9 @@ export function SignupBusiness({ api, loginEmail, onDone }: { api: CoachApi; log
             <PaymentTypeRows value={types} onChange={setTypes} kept={new Set()} errors={payErrors(errors)} />
             <div className="hint">Switch on each way families can pay you. You can change these any time from your profile.</div>
           </div>
+          <Banner tone="warning" title="Check your handles before you save">
+            BladeBook doesn’t verify payment handles and isn’t responsible for payments sent to an incorrect one.
+          </Banner>
           <Button type="submit" block lg disabled={busy}>{useLogin ? 'Finish setup' : 'Save and continue'}</Button>
         </form>
       </Card>

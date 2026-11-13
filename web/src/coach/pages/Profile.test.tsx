@@ -12,7 +12,7 @@ const DANA: Profile = {
   paymentTypes: [], showPhone: false, showEmail: false,
 };
 const WITH: Profile = { ...DANA, phone: '(205) 555-0142', businessEmail: 'lessons@dana.com',
-  paymentTypes: [{ type: 'CASH', on: true, handle: null }, { type: 'VENMO', on: true, handle: 'dana-skates' }, { type: 'PAYPAL', on: false, handle: 'dana' }] };
+  paymentTypes: [{ type: 'CASH', on: true, handle: null }, { type: 'VENMO', on: true, handle: '@dana-skates' }, { type: 'PAYPAL', on: false, handle: 'paypal.me/dana' }] };
 
 test('Visibility & texts shows what families can see, both switches off to start, and saves them', async () => {
   const saveVisibility = vi.fn((b: { showPhone: boolean; showEmail: boolean }) => Promise.resolve({ ...WITH, ...b }));
@@ -25,7 +25,7 @@ test('Visibility & texts shows what families can see, both switches off to start
   expect(phone).toHaveAttribute('aria-checked', 'false');
   expect(email).toHaveAttribute('aria-checked', 'false');
   expect(screen.getByText('(205) 555-0142')).toBeInTheDocument();
-  expect(screen.getByText('Payment types').closest('.toggle-row')).toHaveTextContent('Cash · Venmo @dana-skates Each has its own switch under Payments.');
+  expect(screen.getByText('Payment types').closest('.toggle-row')).toHaveTextContent('Cash · Venmo @dana-skates. Each has its own switch under Payments.');
   expect(screen.getByRole('switch', { name: 'Text me when a family cancels late' })).toBeDisabled();
 
   await userEvent.click(phone);
