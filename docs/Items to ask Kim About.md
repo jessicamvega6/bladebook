@@ -392,7 +392,7 @@ added as needed, so the multi-coach screens are designed for about 10.
 
 ## 11. Rink fees
 
-- [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). It's complex
+- [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). *Phase 2 (owner, 2026-11-12); not needed for MVP.* It's complex
   enough to need its own session, so it's kept in its own document. Record her answers there.
 
 ---
@@ -519,3 +519,4 @@ live system and move to the archive. (ADR-006, ADR-009, ADR-017)
 
 **Decides:** the threshold, cadence and repeat of the weekly unpaid-lesson email to the coach.
 The job is switched off until the threshold is set. (ADR-018)
+*Answered by the owner 2026-11-12: 7 days, listed every Monday until settled.*

@@ -18,7 +18,7 @@ Emails families get:
 
 Emails the coach gets:
   Morning email: around 7 AM on days with lessons. The rinkside link first, then the day's lessons. Sent to your login email. (ADR-023, 2026-10-13; address 2026-10-15)
-  Daily report: every evening at 9 PM.
+  ~~Daily report: every evening at 9 PM.~~ *Phase 2 (owner, 2026-11-11)*: the daily report isn't in MVP; on this page it carries a Phase 2 tag.
   A family cancelled late: when a family cancels inside your notice period. (ADR-009, settled 2026-10-08)
   Unpaid lessons: weekly, on Monday morning.
 

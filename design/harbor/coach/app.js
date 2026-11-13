@@ -115,7 +115,7 @@ SCREENS.signup = () => {
     <h1 class="h1">Start coaching on BladeBook</h1><p class="lede">Scheduling, lessons and payment reminders in one place.</p>
     <div class="grid2">${INP('su-first', 'First name', 'profile.first')}${INP('su-last', 'Last name', 'profile.last')}</div>
     <div class="hint">Shown on your booking page and in every email families get.</div>
-    ${INP('su-email', 'Login email', 'profile.loginEmail', { type: 'email', hint: 'You’ll log in with this. Your daily report comes here.' })}
+    ${INP('su-email', 'Login email', 'profile.loginEmail', { type: 'email', hint: 'You’ll log in with this. Your morning email comes here.' })}
     ${INP('su-pw', 'Password', 'auth.pw', { type: 'password', placeholder: 'At least 8 characters' })}
     ${pwRules()}
     ${B('Create account', 'primary', 'signupNext', { block: true, lg: true })}`),
@@ -127,7 +127,7 @@ SCREENS.signup = () => {
     ${codeBoxes(['3', '0', '7', '5', '', ''])}
     ${B('Verify email', 'primary', 'signupNext', { block: true, lg: true })}
     <p class="fine center"><a class="link" data-act="noop">Resend code</a> · <a class="link" data-act="signupBack">Change email</a></p>`, { cls: 'card--center' }),
-    help('Two emails, maybe one', '<p><b>Login email</b>: private. You sign in with it; your daily report goes there. Verified now, with a code.</p><p><b>Business email</b>: the reply address families see. Same as login? Already verified. Different? It gets its own link.</p>'),
+    help('Two emails, maybe one', '<p><b>Login email</b>: private. You sign in with it; your morning email goes there. Verified now, with a code.</p><p><b>Business email</b>: the reply address families see. Same as login? Already verified. Different? It gets its own link.</p>'),
     { steps: 1, ctx: 'Coach sign up', right: '' });
   if (step === 2) return authShell(card(`
     <h1 class="h1">How families reach you</h1><p class="lede">You can change any of this later from your profile.</p>
