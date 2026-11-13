@@ -2,7 +2,7 @@
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
-#27–#31). Batch 12 is done on `feature/batch-12-financial-page`; Batch 11 is in progress on its own branch.
+#27–#31). Batch 12 is done (PR #37); Batch 11 is in progress on its own branch.
 Build order from there: 11, 12, 13, 14, 22, 23, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
@@ -259,7 +259,7 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
 | 9 | ~~Recurring bookings and recurrence changes~~ **Done** (PR #28). B4 (a shared series) moved to Batch 11; what's left of G-20 is Batch 24 | — |
 | 10 | ~~Rinkside offline queue and service worker~~ **Done** (PR #29). What's left of G-32 is Batch 25 | — |
 | 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
-| 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (`feature/batch-12-financial-page`). G-36 (a closed year can still drop) waits on the owner | — |
+| 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) waits on the owner | — |
 | 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
