@@ -165,6 +165,6 @@ class AttendanceServiceTest {
         familyCancels.cancel(park, dana.coachId(), ava, MONDAY, LocalTime.of(7, 30));
         now.set(Instant.parse("2026-11-16T14:00:00Z"));
         assertThatThrownBy(() -> record(ava, "07:30", "NO_SHOW", "2026-11-16T13:45:00Z"))
-                .hasMessage("This lesson was cancelled by the family at 7:20 AM, after you recorded it.");
+                .hasMessage("This lesson was cancelled by the family at 7:20 AM, before your check-in reached BladeBook.");
     }
 }

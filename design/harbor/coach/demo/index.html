@@ -1507,7 +1507,7 @@ add('Rinkside app', 'RinkCouldntSend', '5 · Couldn’t be sent', 390, () => pho
   <article class="rl rl--issue"><div class="rl__head"><span class="rl__name">Ella A.</span>${badge('Removed tomorrow', 'warning')}</div><div class="rl__meta">Fri, Oct 9 · 6:00 AM<br>Recorded <b>No-show</b> at 11:48 PM</div><div class="rl__btns">${btn('Record on website', 'secondary', { sm: true })}${btn('Dismiss', 'ghost', { sm: true })}</div></article>`), 'Each failed check-in is its own card with the two possible actions; expiry is a badge, not a sentence.');
 
 add('Rinkside app', 'RinkFamilyCancelled', '6 · Family had cancelled', 390, () => phone(`
-  <article class="rl rl--cancelled"><div class="rl__head"><span class="rl__time">7:00</span><span class="rl__name"><s>Noah C.</s></span>${badge('Cancelled', 'neutral')}</div><div class="rl__meta">The family cancelled at 6:50 AM, after you recorded it — your phone had no signal, so it hadn’t reached you. Nothing more to do.</div></article>
+  <article class="rl rl--cancelled"><div class="rl__head"><span class="rl__time">7:00</span><span class="rl__name"><s>Noah C.</s></span>${badge('Cancelled', 'neutral')}</div><div class="rl__meta">This lesson was cancelled by the family at 6:50 AM, before your check-in reached BladeBook. Nothing more to do.</div></article>
   ${rinkLesson('Leo M.', '7:30', 'open', { cls: 'rl--now' })}
   ${rinkLesson('Priya R.', '8:00')}`, { progress: [3, 5, 'Next: Leo M. 7:30'] }), 'The cancelled lesson stays in place (struck through) so the coach’s mental model of the morning isn’t disturbed.');
 

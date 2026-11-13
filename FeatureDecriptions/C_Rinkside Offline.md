@@ -61,7 +61,7 @@ The family had cancelled:
   Why: the likely case is a parent who cancels at 3:50pm for a 4:00pm lesson while the coach is inside the rink with
   no signal; nobody appears, so at 4:15 the coach marks absent. The coach did the right thing with what they knew, so
   this isn't shown as a failure, which would blame them for a notification they couldn't have received. It is
-  reported as what it is: "This lesson was cancelled by the family at 3:50pm, after you recorded it." The entry is
+  reported as what it is: "This lesson was cancelled by the family at 3:50pm, before your check-in reached BladeBook." The entry is
   then cleared rather than left for the coach to sort out.
   *(from ADR-014 §4; moved 2026-11-08)*
 

@@ -187,7 +187,7 @@ public final class AttendanceService {
 
     /**
      * Why there's no seat to record on: a family's cancel names when, in the coach's time (C_Rinkside Offline.md, "The family
-     * had cancelled": "This lesson was cancelled by the family at 3:50 PM, after you recorded it.").
+     * had cancelled": "This lesson was cancelled by the family at 3:50 PM, before your check-in reached BladeBook.").
      */
     private String cancelled(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         if (cancels == null) {
@@ -197,7 +197,7 @@ public final class AttendanceService {
         return cancels.lines(ctx).stream().filter(l -> l.seatKey().equals(key) && l.cancelledBy() == com.bladebook.core.domain.ChangeBatch.By.CLIENT)
                 .max(Comparator.comparing(com.bladebook.core.domain.CancellationLine::cancelledAt))
                 .map(l -> "This lesson was cancelled by the family at " + clockOf(l.cancelledAt(), coach(ctx).coachTimezone())
-                        + ", after you recorded it.")
+                        + ", before your check-in reached BladeBook.")
                 .orElse(CANCELLED);
     }
 

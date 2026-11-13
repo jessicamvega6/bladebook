@@ -1019,7 +1019,7 @@ sequenceDiagram
                 API-->>P: treated as success - dropped silently (d3, d8)
             else seat gone - the family cancelled while the phone was offline
                 API-->>P: condition failed
-                P-->>C: "cancelled by the family at 3:50pm, after you recorded it" -<br/>entry cleared (d4)
+                P-->>C: "cancelled by the family at 3:50pm, before your check-in reached BladeBook" -<br/>entry cleared (d4)
             else any other failure
                 P-->>C: stays queued and visible (d4)
             end

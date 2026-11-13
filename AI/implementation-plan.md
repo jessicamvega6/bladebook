@@ -649,8 +649,8 @@ The full list, with what closes each one, is in the root `README.md`.
   - **Sending:** when signal returns, this coach's queue is sent in order, one at a time; a second tap on the same
     skater and lesson replaces the first in the queue. The row then shows what BladeBook recorded.
   - **The server says when the family cancelled:** a check-in on a lesson the family cancelled is answered *"This
-    lesson was cancelled by the family at 7:20 AM, after you recorded it."* (the feature note's wording; the design's
-    card names the family instead). A lesson the coach cancelled keeps the old message.
+    lesson was cancelled by the family at 7:20 AM, before your check-in reached BladeBook."* (the wording the feature note and the design
+    card both use). A lesson the coach cancelled keeps the old message.
   - **The service worker** (`web/public/coach/rinkside/sw.js`, scope `/coach/rinkside/`) is network first and keeps a
     copy of the page's own files, never `/api/`. It's registered in the built site only.
 - **Checked:** headless Chrome on the built site: the worker took control, and with the network cut a reload opened the
