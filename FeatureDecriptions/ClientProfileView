@@ -21,6 +21,10 @@ Skaters (everyone who takes lessons with the coach):
   *More than one coach (2026-10-13, ADR-025 k):* adding a skater asks "Which coaches?" ~~; at least one must be ticked~~.
     *Changed 2026-11-06:* it always asks, and offers "None of my coaches yet" (see "Add a skater with no coach yet" below).
     The new skater waits for each coach picked.
+    *Changed 2026-11-13 (owner, G-18):* "Which coaches?" lists only coaches who have approved at least one of the
+    family's skaters. A coach who is still waiting isn't listed (the family isn't given that coach's ID until an
+    approval, ADR-MASTER §16); a hint names them and says to choose "None of my coaches yet", then Add a coach
+    with their code.
   An adult who skates themselves can't add skaters: a child needs their own family account.
   Share code: each skater shows their share code with Copy. ~~New code~~ *Removed 2026-10-13: a skater's share
     code never changes and can't be refreshed (ADR-026, amended 2026-10-13).*

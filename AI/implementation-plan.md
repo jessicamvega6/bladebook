@@ -1,8 +1,8 @@
 # BladeBook — Implementation Plan
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
-**Progress (2026-11-12):** Batches 1–7 are merged (the last by PR #25). Batches 8, 9, 10, 15 and 16
-are in progress on their own `feature/batch-*` branches.
+**Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
+#27–#31). Next is Batch 11. Build order from there: 11, 12, 13, 14, 22, 23, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -25,14 +25,19 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 
 ## 2. Where the code stands today
 
-*Updated 2026-11-12. The original text described the skeleton before Batch 1.*
+*Updated 2026-11-13. The original text described the skeleton before Batch 1.*
 
 - `backend/` is a Maven multi-module build: `core`, `api-coach`, `api-client` and `consumers`.
-  Batches 1–7 built the coach profile and code, the schedule and its views, family sign-up and
-  approval, booking one lesson, cancelling, time off and special schedules, and rinkside
-  attendance, all running locally against DynamoDB Local (§7 has each batch's log).
-- `web/` has three Vite entry points (coach, rinkside and family) with those pages built.
-  `shared/auth` holds the local sign-in stand-in (SC-1).
+  Batches 1–10, 15 and 16 built the coach profile and code, the schedule and its views, family
+  sign-up and approval, booking one lesson and repeating bookings, cancelling, time off and
+  special schedules, rinkside attendance online and offline, payments, the family's *Add a
+  skater* and *Add a coach*, and the coach's *Visibility & texts* tab, all running locally
+  against DynamoDB Local (§7 has each batch's log).
+- `web/` has three Vite entry points (coach, rinkside and family) with those pages built, and the
+  rinkside page's service worker. `shared/auth` holds the local sign-in stand-in (SC-1).
+- **Still disabled on screen:** the rinkside Week tab (G-28, Batch 23), the coach Profile's
+  *Business email* (Batch 14) and *Account* (Batch 18) tabs, Payments' *Financial summary*
+  (Batch 12), and Today's lessons list and figures (G-6, Batch 22).
 - `infra/` doesn't exist yet. The CDK (TypeScript) stacks are Batch 17 (proposed, below).
 - **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml` and CI are on
   Java 17, and the ADRs were amended (see §6). The skeleton builds and starts on Java 17.0.10.
@@ -246,21 +251,27 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 
 ### Later batches (planned after Batch 8, in this order)
 
+The rows are in build order; the numbers are names, so 22 and 23 come straight after 14 (owner, 2026-11-13).
+
 | # | Batch | Holding it back |
 |---|---|---|
-| 9 | Recurring bookings and recurrence changes | — (B4, B9 and B12 ruled 2026-11-09) |
-| 10 | Rinkside offline queue and service worker | — (R2, R3, R4 and R5 ruled 2026-11-09) |
-| 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`) | — (B2, B3, B7, B8, B10 and B11 ruled 2026-11-11). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
-| 12 | Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12) | — |
-| 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (G-33), the day-of reminder and the coach's morning email (G-34), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018) and the nightly lesson roller (G-9). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
+| 9 | ~~Recurring bookings and recurrence changes~~ **Done** (PR #28). B4 (a shared series) moved to Batch 11; what's left of G-20 is Batch 24 | — |
+| 10 | ~~Rinkside offline queue and service worker~~ **Done** (PR #29). What's left of G-32 is Batch 25 | — |
+| 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
+| 12 | Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35) | — |
+| 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
-| 15 | Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k) | — |
-| 16 | Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3). Families see each only once the coach has approved one of their skaters, which Batch 3 already enforces. Added by the owner 2026-11-09, moved out of Batch 3 | The *Text me on late cancellations* switch waits on ADR-007 d8 (§3); the two contact switches don't |
-| 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 16 (owner, 2026-11-12) |
+| 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
+| 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
+| 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
+| 16 | ~~Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3)~~ **Done** (PR #31) | The *Text me on late cancellations* switch still waits on ADR-007 d8 (§3) |
+| 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 23 (owner, 2026-11-12: after 16; 2026-11-13: Batches 22 and 23 go first) |
 | 18 | **Proposed 2026-11-12:** real sign-in with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15 | Batch 17's user pool; after Batch 17 (owner, 2026-11-12) |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). Added by the owner 2026-11-12: every unplaced gap gets its own batch | — |
 | 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in | Batch 18's real sign-in |
 | 21 | **Editing time off** (G-30): *Edit* on each time off in the schedule hub's list, like a special schedule's. Change the dates, review only the dates added or removed, save. Families hear only about lessons that actually change | The Harbor design needs the *Edit* button and the time-off form opened with its saved dates (owner, 2026-11-12) |
+| 24 | **Added 2026-11-13: the rest of repeating bookings** (G-20): refuse a key seen again with a different request, and ask about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b); show the series' current interval on the coach's day view after a *Make it less frequent* | The dropped-series question needs a Harbor screen; the day-view interval needs the coach to read the family's series header (or a copy on the seat), an ADR question |
+| 25 | **Added 2026-11-13: the rest of the rinkside page offline** (G-32): a notice when Safari has cleared the page's offline copy (ADR-014 amendment of 2026-10-13), and a check on a real iPhone at a rink | The notice needs a Harbor screen and a way to tell a cleared copy from a first visit; the iPhone check needs Batch 17's deployed site |
 | — | Coach late-cancellation SMS; coach who is also a parent | Blocked (§3) |
 
 ## 6. Decisions and open questions
@@ -286,6 +297,19 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 - ~~**G-29: what the coach sees of cancellations afterwards.**~~ *Ruled 2026-11-12 by the owner: Phase 2, with the family's cancellation history. In MVP the emails at the time are the only record people see.*
 - ~~**G-30: editing time off.**~~ *Ruled 2026-11-12 by the owner: add Edit to time off (Batch 21).*
 - ~~**G-31: reporting a skaters-per-lesson change on the review page.**~~ *Ruled 2026-11-12 by the owner: left as it is. The review page doesn't report it in MVP; booked lessons keep their setting, as already ruled.*
+
+**Found in the plan assessment of 2026-11-13, ruled the same day by the owner:**
+
+- ~~**Where Batches 22–25 go.**~~ *Ruled: 22 and 23 go straight after Batch 14, before the infrastructure; 24 and 25 stay after 21.* Four gaps still said *"Not yet placed"* in the root `README.md`:
+  G-6, G-20, G-28 and G-32. G-28 was marked *"Batch 7"* there, but Batch 7 built only the cancel
+  on each lesson in Today's list; the Week tab was never built. Following the 2026-11-12 ruling
+  (every unplaced gap gets its own batch, after 18), they're proposed as Batches 22–25.
+  **Recommendation:** move 22 (Today's lessons) and 23 (rinkside Week tab) up to just after
+  Batch 14. Both are MVP features a coach uses every day, both have Harbor screens, and neither
+  needs AWS. 24 and 25 stay after 21, since each waits on a screen or on Batch 17.
+- ~~**G-18, *Which coaches?* on *Add a skater*.**~~ *Ruled: redraw the design to list only coaches who have approved one of the family's skaters. Redrawn 2026-11-13: `client/screens-account.js` (the list, and a hint naming each waiting coach); feature note `FeatureDecriptions/ClientProfileView`.* Batch 15 lists approved coaches only (the design
+  lists every coach) so that a waiting family is never given a coach's ID. The root `README.md`
+  marks it *"Owner's call"*: keep it as built, or redraw the design to match.
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
@@ -696,7 +720,7 @@ The full list, with what closes each one, is in the root `README.md`.
   - **Which coaches? lists approved coaches only.** The family is given a coach's ID only once that coach has approved
     one of its skaters (ADR-MASTER §16), and the server accepts only those IDs, so a made-up or guessed ID is refused.
     A coach still waiting is reached through *None of my coaches yet*, then *Add a coach* with their code; the form
-    says so. The design lists every coach.
+    says so. The design listed every coach; it was redrawn to match on 2026-11-13 (owner).
   - **An added skater is under 18** (the design's hint: an adult signs up for their own account), and someone who
     skates themselves isn't offered *Add a skater*.
   - **A name already on the account is refused** (*"Ava Park is already on your account."*, any capitals), so a
