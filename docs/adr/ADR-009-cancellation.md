@@ -290,7 +290,7 @@ seats, and only seats carry index keys.)*
 | Index | Effect of omission |
 |---|---|
 | GSI1 (by student) | Invisible — it has no student |
-| GSI2 (by date) | The 7am reminder and 9pm report never see it, so nothing tries to email a client who does not exist |
+| GSI2 (by date) | The 7am reminder and 9pm report never see it, so nothing tries to email a client who does not exist. *The end-of-day report is Phase 2 (2026-11-11).* |
 | GSI3 (unpaid, sparse) | Never appears as a debt |
 
 This is the same sparse-index behaviour ADR-003 decision 5 relies on, applied to a

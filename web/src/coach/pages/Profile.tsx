@@ -93,7 +93,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
             <Field label="Phone" type="tel" value={phone} onChange={setPhone} error={errors.phone}
               hint="Families see it only if you switch it on under Visibility." />
             <Select label="Time zone" value={timezone} onChange={setTimezone} options={TIMEZONES} error={errors.coachTimezone}
-              hint="Lesson times and your daily report use it." />
+              hint="Lesson times and your emails use it." />
           </div>
           <div className="fieldset">
             <div className="label">Profile photo <Badge>Phase 2</Badge></div>
