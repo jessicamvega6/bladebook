@@ -70,6 +70,7 @@ class NotificationServiceTest {
     private BookingService booking;
     private CancellationService cancels;
     private ShareService shares;
+    private RecurrenceService series;
     private DeadlineSweepService sweep;
     private CoachCancelService coachCancels;
     private AttendanceService attendance;
@@ -114,6 +115,7 @@ class NotificationServiceTest {
         booking = new BookingService(links, bookingRepo, t.families, shareRepo, clock, invite);
         cancels = new CancellationService(links, bookingRepo, cancelRepo, clock, invite);
         shares = new ShareService(links, bookingRepo, t.families, shareRepo, cancelRepo, clock, invite);
+        series = new RecurrenceService(links, bookingRepo, cancelRepo, clock, invite);
         sweep = new DeadlineSweepService(shareRepo, invite);
         coachCancels = new CoachCancelService(scheduleRepo, cancelRepo, clock);
         attendance = new AttendanceService(new AttendanceRepository(t.f.clients, t.f.table), scheduleRepo, t.studentRepo, t.coaches,
@@ -150,6 +152,12 @@ class NotificationServiceTest {
 
     private String id(ClientContext family, String name) {
         return t.familyService.view(family).skaters().stream().filter(s -> s.name().equals(name)).findFirst().orElseThrow().studentId();
+    }
+
+    /** A weekly series of {@code weeks} Mondays at 6:00 from MON, shared with {@code shareCode} if given. */
+    private void bookSeries(ClientContext family, String studentId, String shareCode, int weeks) {
+        booking.book(family, BookingRequest.parse(dana.coachId(), studentId, UUID.randomUUID().toString(),
+                List.of(new BookingRequest.PickInput(MON.toString(), "06:00")), true, 1, MON.plusWeeks(weeks - 1).toString()), shareCode);
     }
 
     private void book(ClientContext family, String studentId, String shareCode, LocalTime at, LocalDate... dates) {
@@ -224,7 +232,10 @@ class NotificationServiceTest {
         assertThat(e.fromName()).isEqualTo("BladeBook");
         assertThat(e.replyTo()).isNull();
         assertThat(e.data()).containsEntry("skater", "Ava P.").containsEntry("familyName", "Sarah Park").containsEntry("date", "Mon, Nov 16")
-                .containsEntry("cancelledAt", "Sun, Nov 15 at 8:00 PM").containsEntry("noticeHours", "24").containsEntry("sharedWith", "");
+                .containsEntry("cancelledAt", "Sun, Nov 15 at 8:00 PM").containsEntry("noticeHours", "24").containsEntry("sharedWith", "")
+                .containsEntry("oneLesson", true).containsEntry("lessonCount", "1");
+        assertThat(list(e, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("date", "Mon, Nov 16")
+                .containsEntry("time", "6:00 AM").containsEntry("skater", "Ava P."));
     }
 
     @Test
@@ -300,20 +311,42 @@ class NotificationServiceTest {
     // ------------------------------------------------------------ scheduled jobs
 
     @Test
-    void theMorningJobRemindsEachSkaterAndEmailsTheCoachOnce() {
+    void theMorningJobRemindsEachFamilyOnceAndEmailsTheCoachOnce() {
+        // G-37 (owner, 2026-11-13): one reminder per family per day, listing each of that day's lessons.
         book(park, ava, null, SIX, MON);
         book(park, jack, null, HALF_SIX, MON);
+        book(chen, mia, null, LocalTime.of(7, 0), MON);
         drain();
         assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(2, 1));
         List<Email> sent = drain();
-        assertThat(sent).filteredOn(e -> e.template().equals("day-of-reminder")).extracting(e -> e.data().get("skaterNames"))
-                .containsExactlyInAnyOrder("Ava", "Jack");
+        List<Email> reminders = sent.stream().filter(e -> e.template().equals("day-of-reminder")).toList();
+        assertThat(reminders).extracting(Email::to).containsExactlyInAnyOrder("sarah@example.com", "grace@example.com");
+        Email toPark = reminders.stream().filter(e -> e.to().equals("sarah@example.com")).findFirst().orElseThrow();
+        assertThat(toPark.data()).containsEntry("skaterNames", "Ava and Jack").containsEntry("plural", true).containsEntry("firstTime", "6:00 AM")
+                .containsEntry("noticeHours", "24");
+        assertThat(list(toPark, "lessons")).extracting(l -> l.get("time") + " " + l.get("skater")).containsExactly("6:00 AM Ava", "6:30 AM Jack");
+        Email toChen = reminders.stream().filter(e -> e.to().equals("grace@example.com")).findFirst().orElseThrow();
+        assertThat(toChen.data()).containsEntry("skaterNames", "Mia").containsEntry("plural", false);
+        assertThat(list(toChen, "lessons")).hasSize(1);
         Email morning = only(sent, "coach-morning");
         assertThat(morning.to()).isEqualTo("dana@gmail.com");
-        assertThat(morning.data()).containsEntry("lessonCount", "2").containsEntry("firstTime", "6:00 AM").containsEntry("today", "Mon, Nov 16")
+        assertThat(morning.data()).containsEntry("lessonCount", "3").containsEntry("firstTime", "6:00 AM").containsEntry("today", "Mon, Nov 16")
                 .containsEntry("rinksideUrl", "https://bladebook.test/coach/rinkside/");
         assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // a re-run for the same date
         assertThat(jobs.dayOf(MON.plusDays(1))).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // no lessons: no morning email
+    }
+
+    @Test
+    void aRefusedReminderIsSentWholeOnTheNextRun() {
+        book(park, ava, null, SIX, MON);
+        book(park, jack, null, HALF_SIX, MON);
+        drain();
+        refuse.set(true);
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0));
+        refuse.set(false);
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(1, 1));
+        Email e = only(drain(), "day-of-reminder");
+        assertThat(list(e, "lessons")).hasSize(2);
     }
 
     @Test
@@ -376,6 +409,65 @@ class NotificationServiceTest {
     }
 
     @Test
+    void aSharedSeriesSendsOneInvitationAndOneJoinedEmailEachListingEveryDate() {
+        // G-38 (owner, 2026-11-13): one email per invitation and per answer, listing the dates.
+        bookSeries(park, ava, miaCode, 3);
+        List<Email> sent = drain();
+        Email inv = only(sent, "share-invitation");
+        assertThat(inv.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3").containsEntry("date", "Mon, Nov 16")
+                .containsEntry("share", "$25");
+        assertThat(list(inv, "lessons")).extracting(l -> l.get("date")).containsExactly("Mon, Nov 16", "Mon, Nov 23", "Mon, Nov 30");
+        assertThat(list(inv, "lessons")).allSatisfy(l -> assertThat(l).containsEntry("time", "6:00 AM").containsEntry("share", "$25"));
+
+        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        sent = drain();
+        assertThat(sent).extracting(Email::template).containsOnly("share-joined");
+        assertThat(sent).extracting(Email::to).containsExactlyInAnyOrder("grace@example.com", "sarah@example.com");
+        assertThat(sent).allSatisfy(e -> {
+            assertThat(e.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3");
+            assertThat(list(e, "lessons")).hasSize(3);
+        });
+        assertThat(drain()).isEmpty();
+    }
+
+    @Test
+    void aDeclinedSeriesInvitationIsOneEmail() {
+        bookSeries(park, ava, miaCode, 2);
+        drain();
+        shares.decline(chen, shares.invitations(chen).get(0).inviteId());
+        Email e = only(drain(), "share-invitation-declined");
+        assertThat(e.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "2");
+        assertThat(list(e, "lessons")).extracting(l -> l.get("date")).containsExactly("Mon, Nov 16", "Mon, Nov 23");
+    }
+
+    @Test
+    void aWithdrawnSeriesInvitationIsOneEmail() {
+        bookSeries(park, ava, miaCode, 2);
+        drain();
+        shares.withdraw(park, shares.invitations(chen).get(0).inviteId());
+        Email e = only(drain(), "share-invitation-withdrawn");
+        assertThat(e.to()).isEqualTo("grace@example.com");
+        assertThat(list(e, "lessons")).hasSize(2);
+    }
+
+    @Test
+    void stoppingASharedSeriesAsksTheStayingFamilyOnceForEveryDate() {
+        bookSeries(park, ava, miaCode, 3);
+        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        drain();
+        String rid = booking.myBookings(park).series().get(0).recurrence().recurrenceId();
+        series.change(park, dana.coachId(), rid, "STOP", null, null);
+        Email ask = only(drain(), "share-other-cant-make-it");
+        assertThat(ask.to()).isEqualTo("grace@example.com");
+        assertThat(ask.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3").containsEntry("skater", "Mia")
+                .containsEntry("otherSkater", "Ava P.").containsEntry("date", "Mon, Nov 16");
+        assertThat(list(ask, "lessons")).extracting(l -> l.get("date")).containsExactly("Mon, Nov 16", "Mon, Nov 23", "Mon, Nov 30");
+        assertThat(list(ask, "lessons")).allSatisfy(l -> assertThat((String) l.get("answerBy")).isNotEmpty());
+        assertThat(ask.data().get("answerBy")).isEqualTo(list(ask, "lessons").get(0).get("answerBy"));
+        assertThat(drain()).isEmpty();
+    }
+
+    @Test
     void aDeclineTellsTheInvitingFamily() {
         book(park, ava, miaCode, SIX, MON);
         drain();
@@ -416,7 +508,9 @@ class NotificationServiceTest {
         Email ask = only(drain(), "share-other-cant-make-it");
         assertThat(ask.to()).isEqualTo("sarah@example.com");
         assertThat(ask.data()).containsEntry("skater", "Ava").containsEntry("otherSkater", "Mia C.").containsEntry("fullPrice", "$50")
-                .containsEntry("share", "$25").containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM");
+                .containsEntry("share", "$25").containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM").containsEntry("oneLesson", true)
+                .containsEntry("date", "Mon, Nov 16");
+        assertThat(list(ask, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM"));
         assertThat(drain()).isEmpty();
 
         now.set(Instant.parse("2026-11-15T13:00:00Z")); // past the answer-by time

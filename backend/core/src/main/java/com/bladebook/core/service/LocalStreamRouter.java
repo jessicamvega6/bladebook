@@ -21,9 +21,10 @@ import java.util.logging.Logger;
  *   <li>{@code CHANGEBATCH#…}: the change notifier;</li>
  *   <li>{@code SEAT#…}: the booking confirmation, the payment reminder ({@code CheckInRecorded}) and {@code consumer-invite}'s
  *       emails for that lesson;</li>
- *   <li>{@code SEATEND#…}: {@code consumer-invite}'s emails for that lesson;</li>
- *   <li>{@code LESSON#…}: the "keep or cancel" email, when the lesson time has a pending leave.</li>
+ *   <li>{@code SEATEND#…}: {@code consumer-invite}'s emails for that lesson.</li>
  * </ul>
+ * The "keep or cancel" email goes with the leaving family's {@code CHANGEBATCH#} header (G-38, 2026-11-13), so a series
+ * stopped in one go is one email.
  * Each consumer re-reads the item and checks its guard, so a key seen twice, or a consumer's own guard write coming back,
  * does nothing. {@link #drain} repeats until no new keys appear (a few rounds at most).
  */
@@ -54,7 +55,6 @@ public final class LocalStreamRouter {
         Map<String, List<String>> batches = new LinkedHashMap<>();
         Map<String, List<String>> seats = new LinkedHashMap<>();
         Set<List<String>> lessons = new LinkedHashSet<>();
-        Set<List<String>> leaves = new LinkedHashSet<>();
         for (LocalStream.Key k : keys) {
             if (!k.pk().startsWith("COACH#")) {
                 continue;
@@ -68,8 +68,6 @@ public final class LocalStreamRouter {
                 lessons.add(List.of(coachId, p[1], p[2]));
             } else if (k.sk().startsWith("SEATEND#") && p.length >= 3) {
                 lessons.add(List.of(coachId, p[1], p[2]));
-            } else if (k.sk().startsWith("LESSON#") && p.length >= 3) {
-                leaves.add(List.of(coachId, p[1], p[2]));
             }
         }
         batches.forEach((coachId, sks) -> sks.forEach(sk -> safely("change notifier", () -> notifications.changeBatch(coachId, sk))));
@@ -79,10 +77,6 @@ public final class LocalStreamRouter {
         });
         for (List<String> l : lessons) {
             safely("consumer-invite", () -> notifications.sharedLesson(l.get(0), LocalDate.parse(l.get(1)), LocalTime.parse(l.get(2))));
-            leaves.remove(l);
-        }
-        for (List<String> l : leaves) {
-            safely("consumer-invite", () -> notifications.leaveEmail(l.get(0), LocalDate.parse(l.get(1)), LocalTime.parse(l.get(2))));
         }
     }
 

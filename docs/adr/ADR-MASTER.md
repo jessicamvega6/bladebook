@@ -792,8 +792,16 @@ sweep.
 ### Who sends what
 
 - `consumer-invite`: the invitation, and every outcome email — joined, declined, withdrawn,
-  expired ("no longer available"), and "the other skater can't make it — keep or cancel".
-- `consumer-change-notifier`: every cancellation email, including *cancel all* and *no answer*.
+  expired ("no longer available")~~, and "the other skater can't make it — keep or cancel"~~.
+- `consumer-change-notifier`: every cancellation email, including *cancel all* and *no answer*,
+  *and (2026-11-13) "the other skater can't make it — keep or cancel", from the leaving family's
+  `CLIENT` batch, so a series stopped in one go is one email.*
+- **One email per invitation or answer, not per date** (owner, 2026-11-13, G-38). The invitation,
+  joined, declined, withdrawn and no-longer-available emails each list every date of the
+  invitation they cover, found by its `inviteId`; "keep or cancel" lists every date of one batch,
+  each with its own answer-by time. Each date keeps its own guard, claimed before sending, so a
+  date is never in two emails; dates that reach the consumer later (the stream may split a
+  request) go in an email of their own.
 
 ### Coaches see every skater
 
@@ -1117,13 +1125,13 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 | Message | To | When | Rule |
 |---|---|---|---|
 | Booking confirmation | Family | Each seat becoming `BOOKED` | Guard `confirmationSent` on the seat |
-| Day-of reminder | Family | ~7:00am | **One per lesson per skater**, no digest. Guard `remindedOn` on the seat, keyed on (seat, date) |
+| Day-of reminder | Family | ~7:00am | ~~**One per lesson per skater**, no digest.~~ **One per family per coach per day**, listing each of that family's lessons with that coach (owner, 2026-11-13, G-37; per coach because each family email carries its coach's `Reply-To`). Guard `remindedOn` on every seat in it, keyed on (seat, date): all are claimed before sending and given back if it isn't accepted |
 | Coach's morning email | Coach | ~7:00am, only if the coach has lessons that day | Lists the day's lessons and links to the rinkside page (a plain link, no sign-in token). Same job as the day-of reminder. Guard `morningEmailSentOn` keyed on (coach, date). No off switch in MVP |
 | Payment reminder | Family | `CheckInRecorded` | The seat's amount and the coach's `paymentInstructions`. One per lesson |
 | Cancellation or re-price | Family | Batch header `EXECUTED` | **One per family per batch**, listing every cancelled and re-priced lesson |
-| Family cancelled | Coach | A family's cancellation **inside `requiredNoticeHours`** | One email per batch; and one SMS if `smsCancellationAlerts` is on |
+| Family cancelled | Coach | A family's cancellation **inside `requiredNoticeHours`** | One email per batch, listing every late lesson in it (G-38); and one SMS if `smsCancellationAlerts` is on |
 | Decline | Family | Coach declines a `PENDING` skater | From `consumer-student-link` |
-| Shared-lesson emails | Families | §8 | |
+| Shared-lesson emails | Families | §8 | **One per invitation or answer, listing every date it covers**, not one per date (owner, 2026-11-13, G-38) |
 | Weekly unpaid reminder | Coach | §12 | |
 | Business-email confirmation link | Coach | New business email | |
 

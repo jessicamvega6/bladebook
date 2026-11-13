@@ -42,8 +42,8 @@ import java.util.stream.Collectors;
  * Every email an event sends (ADR-MASTER section 13), each from its stored template (design/harbor/email/templates.mjs)
  * and each behind its guard, so a replay or a second run sends nothing twice. On AWS each method is its own consumer of the
  * table's stream: {@code consumer-booking-confirmation} ({@link #confirmBookings}), {@code consumer-payment-reminder}
- * ({@link #paymentReminder}), {@code consumer-change-notifier} ({@link #changeBatch}), {@code consumer-invite}'s emails
- * ({@link #sharedLesson}, {@link #leaveEmail}) and {@code consumer-student-link}'s decline ({@link #declined}). Locally
+ * ({@link #paymentReminder}), {@code consumer-change-notifier} ({@link #changeBatch}, which also sends "keep or cancel"),
+ * {@code consumer-invite}'s emails ({@link #sharedLesson}) and {@code consumer-student-link}'s decline ({@link #declined}). Locally
  * {@link LocalStreamRouter} calls them after each request (a listed shortcut, SC-20).
  *
  * <p>Guards are claimed before sending and given back if the email isn't accepted, so a failure is tried again on the next
@@ -213,8 +213,9 @@ public final class NotificationService {
      *   <li>{@code COACH}: each family, "lesson cancelled by the coach";</li>
      *   <li>{@code SCHEDULE_CHANGE}: each family, "schedule change" with its cancelled and re-priced lessons; and the coach,
      *       for lines skipped because the lesson passed first;</li>
-     *   <li>{@code CLIENT}: the coach, for each lesson cancelled inside the notice period; the staying family's "Cancel, no
-     *       charge" instead emails that family the dates, and not the coach;</li>
+     *   <li>{@code CLIENT}: the coach, one email listing every lesson of the batch cancelled inside the notice period; and
+     *       each staying family, one "keep or cancel" listing every date the other skater left in time (G-38); the
+     *       staying family's "Cancel, no charge" instead emails that family the dates, and not the coach;</li>
      *   <li>{@code NO_ANSWER}: the staying family, "cancelled, no answer".</li>
      * </ul>
      * Lines are stamped {@code SENT} (or {@code FAILED}) per recipient; a recipient whose lines are all {@code SENT} is
@@ -267,11 +268,13 @@ public final class NotificationService {
                                 "share-dates-cancelled");
                     }
                 } else {
-                    for (LineRow late : done.stream().filter(l -> l.line().noticeHours() < coach.requiredNoticeHours()).toList()) {
-                        if (!allSent(List.of(late), List.of())) {
-                            sent += toCoach(coachId, coach, List.of(late), "coach-late-cancellation", d -> lateCancel(d, coach, late.line()));
-                        }
+                    // G-38 (owner, 2026-11-13): one email to the coach per batch, listing every late lesson in it.
+                    List<LineRow> late = done.stream().filter(l -> l.line().noticeHours() < coach.requiredNoticeHours()).toList();
+                    if (!late.isEmpty() && !allSent(late, List.of())) {
+                        sent += toCoach(coachId, coach, late, "coach-late-cancellation", d -> lateCancel(d, coach, late));
                     }
+                    List<LineRow> inTime = done.stream().filter(l -> l.line().noticeHours() >= coach.requiredNoticeHours()).toList();
+                    sent += keepOrCancel(coachId, coach, inTime);
                 }
                 break;
             case NO_ANSWER:
@@ -376,7 +379,10 @@ public final class NotificationService {
                 "rink", RINK)).toList());
     }
 
-    private void lateCancel(Map<String, Object> d, CoachProfile coach, CancellationLine l) {
+    /** Every late lesson of one batch (G-38); the single-lesson fields name the first, for the one-lesson wording. */
+    private void lateCancel(Map<String, Object> d, CoachProfile coach, List<LineRow> lines) {
+        List<CancellationLine> ls = sorted(lines);
+        CancellationLine l = ls.get(0);
         FamilyProfile family = repo.family(l.clientId()).orElse(null);
         d.put("familyName", family == null ? "A family" : family.fullName());
         d.put("skater", l.studentName());
@@ -385,11 +391,26 @@ public final class NotificationService {
         d.put("rink", RINK);
         d.put("cancelledAt", EmailFormat.dateTime(l.cancelledAt(), coach.coachTimezone()));
         d.put("noticeHours", Integer.toString(coach.requiredNoticeHours()));
-        // Who keeps the lesson: the other skater still in it, if any (a late leave keeps their share, ADR-MASTER section 8).
-        String other = repo.seatsAt(coach.coachId(), l.lessonDate(), l.startTime()).stream()
+        d.put("oneLesson", ls.size() == 1);
+        d.put("lessonCount", Integer.toString(ls.size()));
+        List<Object> lessons = new ArrayList<>();
+        for (CancellationLine x : ls) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date", EmailFormat.date(x.lessonDate()));
+            m.put("time", EmailFormat.time(x.startTime()));
+            m.put("skater", x.studentName());
+            m.put("sharedWith", stillIn(coach, x));
+            lessons.add(m);
+        }
+        d.put("lessons", lessons);
+        d.put("sharedWith", stillIn(coach, l));
+    }
+
+    /** Who keeps the lesson: the other skater still in it, if any (a late leave keeps their share, ADR-MASTER section 8). */
+    private String stillIn(CoachProfile coach, CancellationLine l) {
+        return repo.seatsAt(coach.coachId(), l.lessonDate(), l.startTime()).stream()
                 .filter(r -> r.seat().seatStatus() != Seat.Status.INVITED && !r.seat().studentId().equals(l.studentId()))
                 .map(r -> r.seat().studentName()).findFirst().orElse("");
-        d.put("sharedWith", other);
     }
 
     private void noAnswer(Map<String, Object> d, CoachProfile coach, CancellationLine l, Map<String, String> notes) {
@@ -408,11 +429,13 @@ public final class NotificationService {
     // ------------------------------------------------------------- shared lessons
 
     /**
-     * {@code consumer-invite}'s emails for one lesson time (ADR-MASTER section 8, "Who sends what"): the invitation, once the
-     * invited family is known; "joined" to both families; "declined" to the inviting family; "withdrawn" and "no longer
-     * available" to the invited family; and "the other skater can't make it" to the staying family ({@link #leaveEmail}).
-     * Each has its guard on the record it's about. An invitation ended by the coach's cancel has no record and no email
-     * (S11).
+     * {@code consumer-invite}'s emails, run for one lesson time that changed (ADR-MASTER section 8, "Who sends what"): the
+     * invitation, once the invited family is known; "joined" to both families; "declined" to the inviting family; and
+     * "withdrawn" and "no longer available" to the invited family. Each covers the whole invitation, every date of it, in
+     * one email (G-38, owner 2026-11-13): it reads the invitation's other seats or endings by its {@code inviteId} and claims
+     * each one's guard, so whichever lesson time runs first sends for all of them and the rest find nothing left to send.
+     * An invitation ended by the coach's cancel has no record and no email (S11). "Keep or cancel" goes with the leaving
+     * family's change batch instead ({@link #changeBatch}).
      *
      * @return emails sent
      */
@@ -421,27 +444,27 @@ public final class NotificationService {
         List<EndRow> endings = repo.endings(coachId, date, start).stream().filter(e -> !e.emailed()).toList();
         boolean invites = seats.stream().anyMatch(r -> r.seat().seatStatus() == Seat.Status.INVITED && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
         boolean joins = seats.stream().anyMatch(r -> joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT));
+        if (!invites && !joins && endings.isEmpty()) {
+            return 0;
+        }
+        CoachProfile coach = repo.coach(coachId).orElse(null);
+        if (coach == null) {
+            return 0;
+        }
         int sent = 0;
-        if (invites || joins || !endings.isEmpty()) {
-            CoachProfile coach = repo.coach(coachId).orElse(null);
-            Optional<LessonTime> t = repo.lesson(coachId, date, start);
-            if (coach == null) {
-                return 0;
+        for (SeatRow r : seats) {
+            if (r.seat().seatStatus() == Seat.Status.INVITED && r.seat().share().invitedClientId() != null
+                    && !r.has(NotifyRepository.INVITE_EMAIL_SENT)) {
+                sent += invitation(coach, r) ? 1 : 0;
             }
-            for (SeatRow r : seats) {
-                if (r.seat().seatStatus() == Seat.Status.INVITED && r.seat().share().invitedClientId() != null
-                        && !r.has(NotifyRepository.INVITE_EMAIL_SENT) && t.isPresent() && t.get().startsAtUtc().isAfter(clock.instant())) {
-                    sent += invitation(coach, t.get(), r.seat(), seats) ? 1 : 0;
-                }
-                if (joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT) && t.isPresent()) {
-                    sent += joinedEmails(coach, t.get(), r.seat(), seats);
-                }
-            }
-            for (EndRow e : endings) {
-                sent += ended(coach, t.orElse(null), e, seats, date, start) ? 1 : 0;
+            if (joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT)) {
+                sent += joinedEmails(coach, r);
             }
         }
-        return sent + (leaveEmail(coachId, date, start) ? 1 : 0);
+        for (EndRow e : endings) {
+            sent += ended(coach, e) ? 1 : 0;
+        }
+        return sent;
     }
 
     /** A seat that came from an invitation and has since joined. */
@@ -449,143 +472,274 @@ public final class NotificationService {
         return r.seat().seatStatus() != Seat.Status.INVITED && r.seat().share().invitedByClientId() != null;
     }
 
-    private boolean invitation(CoachProfile coach, LessonTime t, Seat invited, List<SeatRow> seats) {
-        FamilyProfile family = repo.family(invited.share().invitedClientId()).orElse(null);
+    /** One date of an invitation, with what its email says about it. */
+    private record Dated(Seat seat, LessonTime time, List<SeatRow> seats) {
+    }
+
+    /**
+     * The seats of the same invitation as {@code trigger} that {@code keep} accepts, the trigger included, by date and
+     * time. Read through GSI1 (see {@link NotifyRepository#inviteSeats}); the trigger is added in case the index lags.
+     */
+    private List<SeatRow> sameInvitation(SeatRow trigger, String clientId, java.util.function.Predicate<SeatRow> keep) {
+        Map<String, SeatRow> byKey = new LinkedHashMap<>();
+        byKey.put(trigger.seat().key(), trigger);
+        String inviteId = trigger.seat().share().inviteId();
+        if (inviteId != null && clientId != null) {
+            repo.inviteSeats(clientId, trigger.seat().coachId(), inviteId).forEach(r -> byKey.putIfAbsent(r.seat().key(), r));
+        }
+        return byKey.values().stream().filter(keep)
+                .sorted(Comparator.comparing((SeatRow r) -> r.seat().lessonDate()).thenComparing(r -> r.seat().startTime())).toList();
+    }
+
+    /** Claims {@code guard} on each seat whose lesson time is still there; what was claimed, with its lesson. */
+    private List<Dated> claimEach(CoachProfile coach, List<SeatRow> rows, String guard, String stamp, java.util.function.Predicate<LessonTime> ok) {
+        List<Dated> claimed = new ArrayList<>();
+        for (SeatRow r : rows) {
+            Seat s = r.seat();
+            Optional<LessonTime> t = repo.lesson(coach.coachId(), s.lessonDate(), s.startTime());
+            if (t.isPresent() && ok.test(t.get()) && repo.claim("COACH#" + coach.coachId(), s.key(), guard, stamp)) {
+                claimed.add(new Dated(s, t.get(), repo.seatsAt(coach.coachId(), s.lessonDate(), s.startTime())));
+            }
+        }
+        return claimed;
+    }
+
+    private boolean invitation(CoachProfile coach, SeatRow trigger) {
+        String invitedClient = trigger.seat().share().invitedClientId();
+        FamilyProfile family = repo.family(invitedClient).orElse(null);
         if (family == null) {
             return false;
         }
         String stamp = clock.instant().toString();
-        if (!repo.claim("COACH#" + coach.coachId(), invited.key(), NotifyRepository.INVITE_EMAIL_SENT, stamp)) {
+        List<SeatRow> rows = sameInvitation(trigger, invitedClient, r -> r.seat().seatStatus() == Seat.Status.INVITED
+                && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
+        List<Dated> claimed = claimEach(coach, rows, NotifyRepository.INVITE_EMAIL_SENT, stamp, t -> t.startsAtUtc().isAfter(clock.instant()));
+        if (claimed.isEmpty()) {
             return false;
         }
-        Seat host = host(invited, seats);
-        List<String> order = new ArrayList<>(booked(seats));
-        order.add(invited.studentId());
+        Dated first = claimed.get(0);
+        Seat host = host(first.seat(), first.seats());
+        List<Map<String, Object>> lessons = new ArrayList<>();
+        for (Dated x : claimed) {
+            Map<String, Object> l = dateLine(x.seat().lessonDate(), x.seat().startTime());
+            l.put("share", EmailFormat.money(invitedShare(x), x.time().currency()));
+            lessons.add(l);
+        }
         Map<String, Object> d = familyData(coach, family);
-        d.put("inviterName", Objects.requireNonNullElse(invited.share().invitedByName(), "Another family"));
+        d.put("inviterName", Objects.requireNonNullElse(first.seat().share().invitedByName(), "Another family"));
         d.put("inviterSkater", host == null ? "their skater" : EmailFormat.first(host.studentName()));
-        d.put("skater", EmailFormat.first(invited.studentName()));
-        d.put("date", EmailFormat.date(t.lessonDate()));
-        d.put("time", EmailFormat.time(t.startTime()));
+        d.put("skater", EmailFormat.first(first.seat().studentName()));
+        putDates(d, lessons);
         d.put("rink", RINK);
-        d.put("length", EmailFormat.length(t.durationMinutes()));
-        d.put("share", EmailFormat.money(PriceShare.of(t.priceMinor(), order.size(), order, invited.studentId()), t.currency()));
-        d.put("fullPrice", EmailFormat.money(t.priceMinor(), t.currency()));
-        d.put("invitationUrl", links.invite(invited.share().inviteId()));
+        d.put("length", EmailFormat.length(first.time().durationMinutes()));
+        d.put("share", lessons.get(0).get("share"));
+        d.put("fullPrice", EmailFormat.money(first.time().priceMinor(), first.time().currency()));
+        d.put("invitationUrl", links.invite(first.seat().share().inviteId()));
         return send(Email.toFamily("share-invitation", family.email(), coach, d),
-                () -> repo.release("COACH#" + coach.coachId(), invited.key(), NotifyRepository.INVITE_EMAIL_SENT, stamp));
+                () -> claimed.forEach(x -> repo.release("COACH#" + coach.coachId(), x.seat().key(), NotifyRepository.INVITE_EMAIL_SENT, stamp)));
     }
 
-    /** "Joined": the same template to each family, worded by {@code isInviter}. */
-    private int joinedEmails(CoachProfile coach, LessonTime t, Seat joiner, List<SeatRow> seats) {
+    /** The invited skater's share if they join: the price split with the skaters already in, in the order they joined. */
+    private static int invitedShare(Dated x) {
+        List<String> order = new ArrayList<>(booked(x.seats()));
+        order.add(x.seat().studentId());
+        return PriceShare.of(x.time().priceMinor(), order.size(), order, x.seat().studentId());
+    }
+
+    /** "Joined": one email to each family per answer, every date joined in it, worded by {@code isInviter}. */
+    private int joinedEmails(CoachProfile coach, SeatRow trigger) {
         String stamp = clock.instant().toString();
-        if (!repo.claim("COACH#" + coach.coachId(), joiner.key(), NotifyRepository.JOINED_EMAIL_SENT, stamp)) {
+        List<SeatRow> rows = sameInvitation(trigger, trigger.seat().clientId(), r -> joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT));
+        List<Dated> claimed = claimEach(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, stamp, t -> true);
+        if (claimed.isEmpty()) {
             return 0;
         }
-        Seat host = host(joiner, seats);
-        int sent = 0;
-        FamilyProfile joinerFamily = repo.family(joiner.clientId()).orElse(null);
+        Dated first = claimed.get(0);
+        Seat host = claimed.stream().map(x -> host(x.seat(), x.seats())).filter(Objects::nonNull).findFirst().orElse(null);
+        FamilyProfile joinerFamily = repo.family(first.seat().clientId()).orElse(null);
         FamilyProfile hostFamily = host == null || host.clientId() == null ? null : repo.family(host.clientId()).orElse(null);
+        int sent = 0;
         if (joinerFamily != null && host != null) {
             sent += send(Email.toFamily("share-joined", joinerFamily.email(), coach,
-                    joinedData(coach, joinerFamily, t, joiner, host, false, hostFamily, seats)), () -> { }) ? 1 : 0;
+                    joinedData(coach, joinerFamily, claimed, first.seat(), host, false, hostFamily)), () -> { }) ? 1 : 0;
         }
         if (hostFamily != null) {
             sent += send(Email.toFamily("share-joined", hostFamily.email(), coach,
-                    joinedData(coach, hostFamily, t, host, joiner, true, joinerFamily, seats)), () -> { }) ? 1 : 0;
+                    joinedData(coach, hostFamily, claimed, host, first.seat(), true, joinerFamily)), () -> { }) ? 1 : 0;
         }
         return sent;
     }
 
-    private Map<String, Object> joinedData(CoachProfile coach, FamilyProfile to, LessonTime t, Seat mine, Seat other, boolean isInviter,
-                                           FamilyProfile otherFamily, List<SeatRow> seats) {
+    private Map<String, Object> joinedData(CoachProfile coach, FamilyProfile to, List<Dated> dates, Seat mine, Seat other, boolean isInviter,
+                                           FamilyProfile otherFamily) {
+        List<Map<String, Object>> lessons = new ArrayList<>();
+        for (Dated x : dates) {
+            Map<String, Object> l = dateLine(x.seat().lessonDate(), x.seat().startTime());
+            l.put("share", EmailFormat.money(share(x.time(), mine.studentId(), x.seats()), x.time().currency()));
+            lessons.add(l);
+        }
+        LessonTime t = dates.get(0).time();
         Map<String, Object> d = familyData(coach, to);
         d.put("isInviter", isInviter);
         d.put("otherFamily", otherFamily == null ? "The other family" : otherFamily.fullName());
         d.put("skater", EmailFormat.first(mine.studentName()));
         d.put("otherSkater", EmailFormat.first(other.studentName()));
-        d.put("date", EmailFormat.date(t.lessonDate()));
-        d.put("time", EmailFormat.time(t.startTime()));
+        putDates(d, lessons);
         d.put("rink", RINK);
-        d.put("share", EmailFormat.money(share(t, mine.studentId(), seats), t.currency()));
+        d.put("share", lessons.get(0).get("share"));
         d.put("fullPrice", EmailFormat.money(t.priceMinor(), t.currency()));
         d.put("noticeHours", Integer.toString(t.requiredNoticeHours()));
         return d;
     }
 
-    private boolean ended(CoachProfile coach, LessonTime t, EndRow e, List<SeatRow> seats, LocalDate date, LocalTime start) {
+    /**
+     * Declined, withdrawn or no longer available: one email per invitation and outcome, every date it ended on that hasn't
+     * been emailed (G-38). Each ended date's guard is claimed first and all are given back if the email isn't accepted.
+     */
+    private boolean ended(CoachProfile coach, EndRow trigger) {
+        Map<String, EndRow> bySk = new LinkedHashMap<>();
+        bySk.put(trigger.sk(), trigger);
+        if (trigger.inviteId() != null) {
+            repo.endingsOf(coach.coachId(), trigger.inviteId(), trigger.outcome()).stream().filter(e -> !e.emailed())
+                    .forEach(e -> bySk.putIfAbsent(e.sk(), e));
+        }
+        List<EndRow> group = bySk.values().stream().sorted(Comparator.comparing(EndRow::sk)).toList();
         // The invited family, when the ending doesn't name them (the inviting family's withdrawal can't read the invited
         // seat): from the coach's record of the skater, as consumer-invite finds them.
-        String invited = e.clientId() != null ? e.clientId()
-                : repo.student(coach.coachId(), e.studentId()).map(StudentRecord::clientId).orElse(null);
-        String to = switch (e.outcome()) {
-            case DECLINED -> e.invitedByClientId();
+        String invited = trigger.clientId() != null ? trigger.clientId()
+                : repo.student(coach.coachId(), trigger.studentId()).map(StudentRecord::clientId).orElse(null);
+        String to = switch (trigger.outcome()) {
+            case DECLINED -> trigger.invitedByClientId();
             case WITHDRAWN, EXPIRED -> invited;
         };
         String pk = "COACH#" + coach.coachId();
-        if (!repo.claim(pk, e.sk(), "emailSent", "true")) {
+        List<EndRow> claimed = group.stream().filter(e -> repo.claim(pk, e.sk(), "emailSent", "true")).toList();
+        if (claimed.isEmpty()) {
             return false;
         }
         FamilyProfile family = to == null ? null : repo.family(to).orElse(null);
         if (family == null) {
             return false; // nobody to tell: the invited family never saw it, or the inviter is gone
         }
-        Seat host = seats.stream().map(SeatRow::seat).filter(s -> e.studentId().equals(s.share().invitedStudentId()))
-                .findFirst().orElse(seats.stream().map(SeatRow::seat).filter(s -> s.seatStatus() != Seat.Status.INVITED).findFirst().orElse(null));
+        EndRow first = claimed.get(0);
+        LocalDate date = endedDate(first);
+        LocalTime start = endedTime(first);
+        List<Map<String, Object>> lessons = claimed.stream().map(e -> dateLine(endedDate(e), endedTime(e))).toList();
         Map<String, Object> d = familyData(coach, family);
-        d.put("date", EmailFormat.date(date));
-        d.put("time", EmailFormat.time(start));
+        putDates(d, lessons);
         String template;
-        if (e.outcome() == ShareRepository.Ended.DECLINED) {
+        if (trigger.outcome() == ShareRepository.Ended.DECLINED) {
+            List<SeatRow> seats = repo.seatsAt(coach.coachId(), date, start);
+            Seat host = seats.stream().map(SeatRow::seat).filter(s -> first.studentId().equals(s.share().invitedStudentId())).findFirst()
+                    .orElse(seats.stream().map(SeatRow::seat).filter(s -> s.seatStatus() != Seat.Status.INVITED).findFirst().orElse(null));
+            Optional<LessonTime> t = repo.lesson(coach.coachId(), date, start);
             template = "share-invitation-declined";
-            d.put("inviteeName", e.clientId() == null ? "The other family" : repo.family(e.clientId()).map(FamilyProfile::fullName).orElse("The other family"));
-            d.put("inviteeSkater", EmailFormat.first(e.studentName()));
+            d.put("inviteeName", trigger.clientId() == null ? "The other family"
+                    : repo.family(trigger.clientId()).map(FamilyProfile::fullName).orElse("The other family"));
+            d.put("inviteeSkater", EmailFormat.first(trigger.studentName()));
             d.put("skater", host == null ? "your skater" : EmailFormat.first(host.studentName()));
             d.put("rink", RINK);
-            d.put("price", t == null ? "" : EmailFormat.money(t.priceMinor(), t.currency()));
+            d.put("price", t.map(x -> EmailFormat.money(x.priceMinor(), x.currency())).orElse(""));
         } else {
-            template = e.outcome() == ShareRepository.Ended.WITHDRAWN ? "share-invitation-withdrawn" : "share-no-longer-available";
-            d.put("inviterName", e.invitedByClientId() == null ? "The other family"
-                    : repo.family(e.invitedByClientId()).map(FamilyProfile::fullName).orElse("The other family"));
-            d.put("skater", EmailFormat.first(e.studentName()));
+            template = trigger.outcome() == ShareRepository.Ended.WITHDRAWN ? "share-invitation-withdrawn" : "share-no-longer-available";
+            d.put("inviterName", trigger.invitedByClientId() == null ? "The other family"
+                    : repo.family(trigger.invitedByClientId()).map(FamilyProfile::fullName).orElse("The other family"));
+            d.put("skater", EmailFormat.first(trigger.studentName()));
         }
-        return send(Email.toFamily(template, family.email(), coach, d), () -> repo.release(pk, e.sk(), "emailSent", "true"));
+        return send(Email.toFamily(template, family.email(), coach, d), () -> claimed.forEach(e -> repo.release(pk, e.sk(), "emailSent", "true")));
+    }
+
+    /** {@code SEATEND#<date>#<startTime>#…} */
+    private static LocalDate endedDate(EndRow e) {
+        return LocalDate.parse(e.sk().split("#")[1]);
+    }
+
+    private static LocalTime endedTime(EndRow e) {
+        return LocalTime.parse(e.sk().split("#")[2]);
     }
 
     /**
-     * "The other skater can't make it — keep or cancel", to the staying family, once per pending leave (its guard is on the
-     * leave itself). Always sent (ADR-MASTER section 8).
+     * "The other skater can't make it — keep or cancel", to each staying family, once per leaving family's change batch,
+     * listing every date the other skater left in time with its own answer-by time (G-38, owner 2026-11-13). Run by the
+     * change notifier on the {@code CLIENT} batch, whose header is {@code EXECUTED} only once every date of it is written,
+     * so a series stopped in one go is one email. Each date's guard is on its pending leave; all are claimed before sending
+     * and given back if the email isn't accepted. Always sent (ADR-MASTER section 8).
      */
-    public boolean leaveEmail(String coachId, LocalDate date, LocalTime start) {
-        Optional<LeaveRow> pending = repo.pendingLeave(coachId, date, start);
-        if (pending.isEmpty() || pending.get().emailed()) {
-            return false;
+    private int keepOrCancel(String coachId, CoachProfile coach, List<LineRow> lines) {
+        record Ask(CancellationLine line, ShareRepository.PendingLeave leave, Seat staying, LessonTime time) {
         }
-        ShareRepository.PendingLeave p = pending.get().leave();
-        Optional<SeatRow> staying = repo.seat(coachId, Seat.key(date, start, p.stayingStudentId()));
-        Optional<LessonTime> t = repo.lesson(coachId, date, start);
-        CoachProfile coach = repo.coach(coachId).orElse(null);
-        if (staying.isEmpty() || staying.get().seat().clientId() == null || t.isEmpty() || coach == null) {
-            return false;
+        Map<String, List<Ask>> byFamily = new LinkedHashMap<>();
+        for (CancellationLine l : sorted(lines)) {
+            Optional<LeaveRow> pending = repo.pendingLeave(coachId, l.lessonDate(), l.startTime());
+            if (pending.isEmpty() || pending.get().emailed() || !l.studentId().equals(pending.get().leave().leftStudentId())) {
+                continue;
+            }
+            ShareRepository.PendingLeave p = pending.get().leave();
+            Optional<SeatRow> staying = repo.seat(coachId, Seat.key(l.lessonDate(), l.startTime(), p.stayingStudentId()));
+            Optional<LessonTime> t = repo.lesson(coachId, l.lessonDate(), l.startTime());
+            if (staying.isEmpty() || staying.get().seat().clientId() == null || t.isEmpty()) {
+                continue;
+            }
+            byFamily.computeIfAbsent(staying.get().seat().clientId(), k -> new ArrayList<>()).add(new Ask(l, p, staying.get().seat(), t.get()));
         }
-        FamilyProfile family = repo.family(staying.get().seat().clientId()).orElse(null);
-        if (family == null || !repo.claimLeaveEmail(coachId, date, start, p.leaveId(), true)) {
-            return false;
+        int sent = 0;
+        for (Map.Entry<String, List<Ask>> e : byFamily.entrySet()) {
+            FamilyProfile family = repo.family(e.getKey()).orElse(null);
+            if (family == null) {
+                continue;
+            }
+            List<Ask> claimed = e.getValue().stream().filter(a -> repo.claimLeaveEmail(coachId, a.line().lessonDate(), a.line().startTime(),
+                    a.leave().leaveId(), true)).toList();
+            if (claimed.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> lessons = new ArrayList<>();
+            for (Ask a : claimed) {
+                Map<String, Object> l = dateLine(a.line().lessonDate(), a.line().startTime());
+                l.put("answerBy", EmailFormat.dateTime(a.leave().answerBy(), coach.coachTimezone()));
+                l.put("fullPrice", EmailFormat.money(a.time().priceMinor(), a.time().currency()));
+                l.put("share", EmailFormat.money(stayingShare(a.time(), a.staying(), a.leave()), a.time().currency()));
+                lessons.add(l);
+            }
+            Ask first = claimed.get(0);
+            Instant soonest = claimed.stream().map(a -> a.leave().answerBy()).min(Comparator.naturalOrder()).orElseThrow();
+            Map<String, Object> d = familyData(coach, family);
+            d.put("skater", EmailFormat.first(first.staying().studentName()));
+            d.put("otherSkater", first.leave().leftStudentName());
+            putDates(d, lessons);
+            d.put("rink", RINK);
+            d.put("fullPrice", lessons.get(0).get("fullPrice"));
+            d.put("share", lessons.get(0).get("share"));
+            d.put("answerBy", EmailFormat.dateTime(soonest, coach.coachTimezone()));
+            if (send(Email.toFamily("share-other-cant-make-it", family.email(), coach, d), () -> claimed.forEach(a ->
+                    repo.claimLeaveEmail(coachId, a.line().lessonDate(), a.line().startTime(), a.leave().leaveId(), false)))) {
+                sent++;
+            }
         }
-        Seat s = staying.get().seat();
-        List<String> order = t.get().joinOrder().isEmpty() ? List.of(s.studentId(), p.leftStudentId()) : t.get().joinOrder();
-        Map<String, Object> d = familyData(coach, family);
-        d.put("skater", EmailFormat.first(s.studentName()));
-        d.put("otherSkater", p.leftStudentName());
-        d.put("date", EmailFormat.date(date));
-        d.put("time", EmailFormat.time(start));
-        d.put("rink", RINK);
-        d.put("fullPrice", EmailFormat.money(t.get().priceMinor(), t.get().currency()));
-        d.put("share", EmailFormat.money(PriceShare.of(t.get().priceMinor(), Math.max(t.get().shareCount(), order.size()), order,
-                s.studentId()), t.get().currency()));
-        d.put("answerBy", EmailFormat.dateTime(p.answerBy(), coach.coachTimezone()));
-        return send(Email.toFamily("share-other-cant-make-it", family.email(), coach, d),
-                () -> repo.claimLeaveEmail(coachId, date, start, p.leaveId(), false));
+        return sent;
+    }
+
+    /** What the staying skater paid while the lesson was shared. */
+    private static int stayingShare(LessonTime t, Seat staying, ShareRepository.PendingLeave p) {
+        List<String> order = t.joinOrder().isEmpty() ? List.of(staying.studentId(), p.leftStudentId()) : t.joinOrder();
+        return PriceShare.of(t.priceMinor(), Math.max(t.shareCount(), order.size()), order, staying.studentId());
+    }
+
+    /** One date in a list (G-38). */
+    private static Map<String, Object> dateLine(LocalDate date, LocalTime start) {
+        Map<String, Object> l = new LinkedHashMap<>();
+        l.put("date", EmailFormat.date(date));
+        l.put("time", EmailFormat.time(start));
+        return l;
+    }
+
+    /** The list, how many, and the first date and time, for the subject and the one-date wording (G-38). */
+    private static void putDates(Map<String, Object> d, List<Map<String, Object>> lessons) {
+        d.put("lessons", lessons);
+        d.put("oneLesson", lessons.size() == 1);
+        d.put("lessonCount", Integer.toString(lessons.size()));
+        d.put("date", lessons.get(0).get("date"));
+        d.put("time", lessons.get(0).get("time"));
     }
 
     // ------------------------------------------------------------------- decline

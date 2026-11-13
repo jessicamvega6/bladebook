@@ -56,6 +56,9 @@ Coach acceptance:
 
 Invitation (changed 2026-10-07):
   When a family splits a lesson, an email is sent to family B straight away.
+  *Decided 2026-11-13 by the owner (G-38):* a shared series is one invitation email listing every date, not one per
+    date. Answering, declining, withdrawing and the "keep or cancel" question are each one email listing the dates
+    they cover.
   *Decided by the owner 2026-10-13 (ADR-025 item l):* shared-lesson invitations name their coach on every family page
     (home banner, invitations card, invitation page). The invitation emails already did.
     *(from ADR-025, amendment 2026-10-13, item l, moved 2026-11-08; also in ClientHomeView, "Across coaches")*

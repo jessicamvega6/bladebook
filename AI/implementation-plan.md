@@ -831,8 +831,19 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Shortcuts:** SC-20 the table's stream is stood in for by a wrapper on the local client and a router after each request;
   SC-21 emails go to an in-memory outbox per API, readable at `/api/*/local/outbox`; SC-22 the 7am, Monday and nightly jobs
   run on a local timer, with local routes to run them for any date, and the unpaid threshold is a local setting.
-- **Gaps:** G-37 the day-of reminder's design says one per family per day, the ADR one per lesson (built as the ADR says);
-  G-38 a shared series, and a series change with several late dates, send one email per date.
+- **Gaps:** ~~G-37 the day-of reminder's design says one per family per day, the ADR one per lesson (built as the ADR says);
+  G-38 a shared series, and a series change with several late dates, send one email per date.~~ *Both ruled 2026-11-13 by
+  the owner and built on this branch (below).*
+- **Rulings applied after review (owner, 2026-11-13):**
+  - **G-37: the day-of reminder is one email per family per day**, listing each of that day's lessons (skater, time, length,
+    rink, who it's shared with). ADR-002 decision 7 reversed; ADR-MASTER §13, ADR-006 d6's note, the email feature notes and
+    the template's note updated.
+  - **G-38: shared-lesson emails list every date they cover.** One invitation per invitation, one *joined* to each family per
+    answer, one *declined*, *withdrawn* or *no longer available* per invitation, one *keep or cancel* per leaving family's
+    change (each date with its own answer-by time), and one late-cancellation email to the coach per change batch. Each
+    template is worded for one date or several (`oneLesson`, `lessonCount`, `lessons`). ADR-031 amended; ADR-MASTER §8 and
+    §13, ADR-006's note, `FeatureDecriptions/Email templates Needed:`, `Schedule lesson split` and the email design's
+    README updated; the SES templates and gallery rebuilt.
 - **Settled while building (owner may override):**
   - **Emails are the SES template's name plus its data**, formatted in the coach's zone and currency (`Mon, Nov 16`, `6:00 AM`,
     `$50`, `$25.01`), as `design/harbor/email/README.md` asks; nothing is HTML-escaped by the sender, because SES escapes each
@@ -855,6 +866,18 @@ The full list, with what closes each one, is in the root `README.md`.
     names `CheckInRecorded` only). `NoShowRecorded` has no consumer in MVP.
   - **The day-of reminder takes every seat on the date**, whatever its time, as the 7am run would; the morning email groups
     the day's seats by start time (*"Sam R. & Leo M."*). A coach with no lessons that day gets none.
+  - **One day-of reminder per family per coach per day** (G-37 says per family per day): every family email comes from its
+    coach and replies go to that coach, so a family with lessons from two coaches that day gets one from each. The guard stays
+    `remindedOn` on each seat: every seat in the email is claimed before sending and all are given back if it isn't accepted,
+    so a re-run sends nothing twice and a failed reminder is sent whole the next time.
+  - **How several dates become one email (G-38):** the invitation, *joined* and ended-invitation emails are grouped by the
+    invitation's `inviteId`. Whichever lesson time the consumer runs for first reads the invitation's other seats (through
+    GSI1, the family's own index) or ended records (`SEATEND#` with that `inviteId`), claims each date's own guard, and sends
+    one email for every date it claimed; the other lesson times then find nothing left. *Keep or cancel* moves to the change
+    notifier and is grouped by the leaving family's `CLIENT` batch, whose header is `EXECUTED` only after every date of it is
+    written, with each date's guard still on its pending leave. On AWS the stream can deliver one request's dates in separate
+    batches: a date written after the first email went is sent in an email of its own, but no date is ever in two emails or
+    left out. The *no answer* email stays one per sweep batch (the sweep cancels each lesson on its own).
   - **The unpaid list takes lessons dated more than 7 days before the Monday** (a lesson exactly 7 days before waits a week),
     at each seat's share; the job runs for whatever date it's given, Monday or not.
   - **The roller lists coaches by scanning their profiles**; one coach's failure doesn't stop the rest. It only adds.
@@ -872,3 +895,7 @@ The full list, with what closes each one, is in the root `README.md`.
   keys and its guards. The shared-lesson emails, the late cancel, the schedule change, the payment reminder and the Monday
   list are checked in `NotificationServiceTest` against DynamoDB Local. **Not checked in a browser** (no page changed), and
   **nothing has been rendered by SES**: the template data is checked against the template's fields by hand.
+  G-37 and G-38 (2026-11-13) are checked in `NotificationServiceTest` against DynamoDB Local: two families' reminders, a
+  refused reminder sent whole on the retry, a three-week shared series' one invitation and one *joined* each, a two-date
+  decline and withdrawal, and stopping a shared series asking the staying family once for all three dates. The rebuilt
+  templates were rendered with their samples by the email build's own Handlebars subset.

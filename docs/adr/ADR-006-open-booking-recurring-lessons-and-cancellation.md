@@ -569,7 +569,8 @@ coach see "3 of this client's 24 Mondays" rather than three unrelated losses.
 ### 6. One message per client per batch — not one per lesson
 
 **This is a deliberate departure from ADR-002 decision 7**, which established that
-reminders are per lesson with no digest and no grouping.
+reminders are per lesson with no digest and no grouping. *(2026-11-13: ADR-002 decision 7 is
+reversed for the day-of reminder too, which is now one per family per coach per day, G-37.)*
 
 That rule is right for its own case: a day-of reminder and a payment reminder are each
 *about* one lesson, and the triggering event is one lesson. A cancellation batch is

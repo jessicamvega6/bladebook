@@ -140,10 +140,42 @@ public final class NotifyRepository {
 
     public List<EndRow> endings(String coachId, LocalDate date, LocalTime start) {
         return queryPrefix("COACH#" + coachId, ShareRepository.SEATEND + date + "#" + start + "#").stream()
-                .map(m -> new EndRow(m.get("SK").s(), ShareRepository.Ended.valueOf(FamilyItems.str(m, "seatOutcome")),
-                        FamilyItems.str(m, "studentId"), FamilyItems.str(m, "studentName"), FamilyItems.str(m, "clientId"),
-                        FamilyItems.str(m, "invitedByClientId"), FamilyItems.str(m, "inviteId"), Instant.parse(FamilyItems.str(m, "endedAt")), m.containsKey("emailSent")))
-                .toList();
+                .map(NotifyRepository::endRow).toList();
+    }
+
+    private static EndRow endRow(Map<String, AttributeValue> m) {
+        return new EndRow(m.get("SK").s(), ShareRepository.Ended.valueOf(FamilyItems.str(m, "seatOutcome")),
+                FamilyItems.str(m, "studentId"), FamilyItems.str(m, "studentName"), FamilyItems.str(m, "clientId"),
+                FamilyItems.str(m, "invitedByClientId"), FamilyItems.str(m, "inviteId"), Instant.parse(FamilyItems.str(m, "endedAt")),
+                m.containsKey("emailSent"));
+    }
+
+    /**
+     * One invitation's seats with one coach, every date (G-38: one email per invitation, not per date): the family's seats
+     * through GSI1, kept to {@code coachId} and {@code inviteId}. Invited seats are on GSI1 once {@code consumer-invite} has
+     * named their family, and joined ones always are. The index can lag a write, so each email is still decided by the
+     * conditional guard write on the seat itself, never by what this read says.
+     */
+    public List<SeatRow> inviteSeats(String clientId, String coachId, String inviteId) {
+        List<SeatRow> out = new ArrayList<>();
+        Map<String, AttributeValue> start = null;
+        do {
+            QueryResponse r = db().query(QueryRequest.builder().tableName(table).indexName(LocalTable.GSI1)
+                    .keyConditionExpression("GSI1PK = :pk AND begins_with(GSI1SK, :s)")
+                    .expressionAttributeValues(Map.of(":pk", FamilyItems.s("CLIENT#" + clientId), ":s", FamilyItems.s(SeatItems.SEAT)))
+                    .exclusiveStartKey(start).build());
+            r.items().stream().map(NotifyRepository::seatRow)
+                    .filter(x -> coachId.equals(x.seat().coachId()) && inviteId.equals(x.seat().share().inviteId()))
+                    .forEach(out::add);
+            start = r.hasLastEvaluatedKey() && !r.lastEvaluatedKey().isEmpty() ? r.lastEvaluatedKey() : null;
+        } while (start != null);
+        return out;
+    }
+
+    /** Every ended invitation of one invitation, any date (G-38), with the same outcome. */
+    public List<EndRow> endingsOf(String coachId, String inviteId, ShareRepository.Ended outcome) {
+        return queryPrefix("COACH#" + coachId, ShareRepository.SEATEND).stream().map(NotifyRepository::endRow)
+                .filter(e -> inviteId.equals(e.inviteId()) && e.outcome() == outcome).toList();
     }
 
     /** GSI2: every seat that will happen on {@code date} (the coach's local date), across coaches. */

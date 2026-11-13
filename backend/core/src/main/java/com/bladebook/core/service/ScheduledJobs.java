@@ -63,10 +63,14 @@ public final class ScheduledJobs {
     // ------------------------------------------------------------ sched-day-reminder
 
     /**
-     * ~7:00am: a day-of reminder to the family for each seat on {@code date} (one per lesson per skater, no digest; guard
-     * {@code remindedOn}), and the coach's morning email listing that day's lessons with the rinkside link (guard
-     * {@code morningEmailSentOn} on the profile). Only {@code BOOKED}, {@code CHECKED_IN} and {@code NO_SHOW} seats, which
-     * are the ones on GSI2.
+     * ~7:00am: one day-of reminder per family per coach, listing each of that family's lessons with the coach on
+     * {@code date} (owner, 2026-11-13, G-37: one per family per day, replacing one per lesson per skater; per coach because
+     * each family email carries its own coach's Reply-To), and the coach's morning email listing that day's lessons with
+     * the rinkside link (guard {@code morningEmailSentOn} on the profile). Only {@code BOOKED}, {@code CHECKED_IN} and
+     * {@code NO_SHOW} seats, which are the ones on GSI2.
+     *
+     * <p>The guard stays {@code remindedOn} on each seat: every seat in the email is claimed before it's sent and all are
+     * given back if it isn't accepted, so a re-run sends nothing twice and a failed email is sent whole next time.
      */
     public DayOf dayOf(LocalDate date) {
         List<SeatRow> seats = repo.seatsOn(date).stream()
@@ -82,41 +86,55 @@ public final class ScheduledJobs {
             if (coach == null) {
                 continue;
             }
-            for (SeatRow r : e.getValue()) {
-                reminders += reminder(coach, r, e.getValue(), date) ? 1 : 0;
+            Map<String, List<SeatRow>> byFamily = e.getValue().stream()
+                    .collect(Collectors.groupingBy(r -> r.seat().clientId(), LinkedHashMap::new, Collectors.toList()));
+            for (List<SeatRow> family : byFamily.values()) {
+                reminders += reminder(coach, family, e.getValue(), date) ? 1 : 0;
             }
             mornings += morning(coach, e.getValue(), date) ? 1 : 0;
         }
         return new DayOf(reminders, mornings);
     }
 
-    private boolean reminder(CoachProfile coach, SeatRow r, List<SeatRow> sameDay, LocalDate date) {
-        Seat s = r.seat();
-        if (date.toString().equals(r.guard(NotifyRepository.REMINDED_ON))) {
+    private boolean reminder(CoachProfile coach, List<SeatRow> mine, List<SeatRow> sameDay, LocalDate date) {
+        FamilyProfile family = repo.family(mine.get(0).seat().clientId()).orElse(null);
+        if (family == null) {
             return false;
         }
-        FamilyProfile family = repo.family(s.clientId()).orElse(null);
-        if (family == null || !repo.claim("COACH#" + coach.coachId(), s.key(), NotifyRepository.REMINDED_ON, date.toString())) {
+        String pk = "COACH#" + coach.coachId();
+        List<Seat> claimed = new ArrayList<>();
+        for (SeatRow r : mine) {
+            if (!date.toString().equals(r.guard(NotifyRepository.REMINDED_ON))
+                    && repo.claim(pk, r.seat().key(), NotifyRepository.REMINDED_ON, date.toString())) {
+                claimed.add(r.seat());
+            }
+        }
+        if (claimed.isEmpty()) {
             return false;
         }
+        List<Map<String, Object>> lessons = new ArrayList<>();
+        for (Seat s : claimed) {
+            Map<String, Object> lesson = new LinkedHashMap<>();
+            lesson.put("time", EmailFormat.time(s.startTime()));
+            lesson.put("skater", EmailFormat.first(s.studentName()));
+            lesson.put("length", EmailFormat.length(s.durationMinutes()));
+            lesson.put("rink", NotificationService.RINK);
+            sameDay.stream().map(SeatRow::seat).filter(o -> o.startTime().equals(s.startTime()) && !o.studentId().equals(s.studentId()))
+                    .map(Seat::studentName).findFirst().ifPresent(w -> lesson.put("sharedWith", w));
+            lessons.add(lesson);
+        }
+        List<String> skaters = claimed.stream().map(s -> EmailFormat.first(s.studentName())).distinct().toList();
+        Seat first = claimed.get(0);
         Map<String, Object> d = notifications.familyData(coach, family);
-        String skater = EmailFormat.first(s.studentName());
-        d.put("skaterNames", skater);
-        d.put("plural", false);
-        d.put("firstTime", EmailFormat.time(s.startTime()));
+        d.put("skaterNames", EmailFormat.and(skaters));
+        d.put("plural", skaters.size() > 1);
+        d.put("firstTime", EmailFormat.time(first.startTime()));
         d.put("rink", NotificationService.RINK);
-        Map<String, Object> lesson = new LinkedHashMap<>();
-        lesson.put("time", EmailFormat.time(s.startTime()));
-        lesson.put("skater", skater);
-        lesson.put("length", EmailFormat.length(s.durationMinutes()));
-        lesson.put("rink", NotificationService.RINK);
-        sameDay.stream().map(SeatRow::seat).filter(o -> o.startTime().equals(s.startTime()) && !o.studentId().equals(s.studentId()))
-                .map(Seat::studentName).findFirst().ifPresent(w -> lesson.put("sharedWith", w));
-        d.put("lessons", List.of(lesson));
-        repo.lesson(coach.coachId(), s.lessonDate(), s.startTime())
+        d.put("lessons", lessons);
+        repo.lesson(coach.coachId(), first.lessonDate(), first.startTime())
                 .ifPresent(t -> d.put("noticeHours", Integer.toString(t.requiredNoticeHours())));
         return send(Email.toFamily("day-of-reminder", family.email(), coach, d),
-                () -> repo.release("COACH#" + coach.coachId(), s.key(), NotifyRepository.REMINDED_ON, date.toString()));
+                () -> claimed.forEach(s -> repo.release(pk, s.key(), NotifyRepository.REMINDED_ON, date.toString())));
     }
 
     private boolean morning(CoachProfile coach, List<SeatRow> seats, LocalDate date) {
