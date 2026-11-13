@@ -54,7 +54,7 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
 | Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new |
-| Phase 2 | Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
+| Phase 2 | The coach's daily report (2026-11-11; tagged Phase 2 on Email templates). Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
 
 ### What the demo does not do
 

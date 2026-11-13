@@ -16,7 +16,8 @@ amendments to its decision 8.
   2026-10-12.*
 - **Gross is money received:** lessons marked paid, plus missed-lesson fees actually collected.
   Waived and unpaid lessons are left out. The year is the calendar year. Past years on screen are
-  Phase 2. A summary export (CSV, monthly gross and rink fees) is MVP. *Owner, 2026-10-12.*
+  Phase 2. A summary export (CSV, monthly gross and rink fees) is MVP. *Owner, 2026-10-12.* *2026-11-12: rink fees are
+  Phase 2; MVP's export is monthly gross and paid-lesson counts.*
 - The financial page shows year-to-date (YTD) gross and YTD rink fees. Rink fees are tax
   deductible, so the figure has to be one a coach can rely on.
 

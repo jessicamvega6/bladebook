@@ -73,7 +73,7 @@ export function LocalSignIn({ onSignedIn, notice }: { onSignedIn: (token: string
           </div>
           <div className="hint">Shown on your booking page and in every email families get.</div>
           <Field label="Login email" type="email" value={email} onChange={setEmail} autoComplete="email"
-            hint="You’ll log in with this. Your daily report comes here." />
+            hint="You’ll log in with this. Your morning email comes here." />
           <Button type="submit" block lg disabled={busy}>Continue</Button>
         </form>
       </Card>
