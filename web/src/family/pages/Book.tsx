@@ -16,9 +16,10 @@
  */
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { Avatar, Badge, Banner, Button, Card, Dialog, Help, Icon, Row, Seg } from '../../shared/components/harbor';
+import { Avatar, Badge, Banner, Button, Card, Check, Dialog, Help, Icon, Row, Seg } from '../../shared/components/harbor';
 import {
-  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, inWindow, newKey, plural, samePick,
+  UNAVAILABLE, blockLabel, blockRuns, byCoach, clamp, duration, everyLabel, inWindow, maxUntil, newKey, occurrences, plural, samePick,
+  untilError, type Repeat,
   slotState, sortPicks, windowMonths, type Pick,
 } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
@@ -67,6 +68,7 @@ export function Book({ family, api, route, onError }: {
   const [reload, setReload] = useState(0);
   const [month, setMonth] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [repeat, setRepeat] = useState<Repeat>({ on: false, every: 1, until: '' });
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const r = parseBookRoute(route);
@@ -115,10 +117,12 @@ export function Book({ family, api, route, onError }: {
       const sections: Section[] = [];
       for (const g of byCoach(picks)) {
         sections.push(await send({ coachId: g.coachId, studentId: kid.studentId, idempotencyKey: newKey(),
-          picks: g.picks.map((p) => ({ date: p.date, startTime: p.startTime })) }, g.coachFirstName));
+          picks: g.picks.map((p) => ({ date: p.date, startTime: p.startTime })),
+          ...(repeat.on ? { repeat: true, everyWeeks: repeat.every, until: repeat.until } : {}) }, g.coachFirstName));
       }
       setResult({ studentId: kid.studentId, studentName: kid.name, sections });
       setPicks([]);
+      setRepeat({ on: false, every: 1, until: '' });
       setConfirming(false);
       setPages({});
       setReload((n) => n + 1);
@@ -188,7 +192,7 @@ export function Book({ family, api, route, onError }: {
   return (
     <>
       {body}
-      {confirming && <ConfirmDialog kid={kid} picks={picks} sending={sending} onBack={() => setConfirming(false)} onBook={book} />}
+      {confirming && <ConfirmDialog kid={kid} picks={picks} repeat={repeat} onRepeat={setRepeat} sending={sending} windowLast={page.windowLast} onBack={() => setConfirming(false)} onBook={book} />}
     </>
   );
 }
@@ -485,13 +489,17 @@ function PicksPanel({ picks, onRemove, onContinue }: { picks: Pick[]; onRemove: 
 
 // ------------------------------------------------------------ 3 · Confirm
 
-function ConfirmDialog({ kid, picks, sending, onBack, onBook }: {
-  kid: Skater; picks: Pick[]; sending: boolean; onBack: () => void; onBook: () => void;
+function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBack, onBook }: {
+  kid: Skater; picks: Pick[]; repeat: Repeat; onRepeat: (r: Repeat) => void; sending: boolean; windowLast: string; onBack: () => void; onBook: () => void;
 }) {
   const titleId = useId();
   const groups = byCoach(picks), multi = groups.length > 1, kf = firstName(kid.name);
   const fullName = (cid: string) => { const c = kid.coaches.find((x) => x.coachId === cid); return c ? `${c.firstName} ${c.lastName}` : ''; };
   const total = (ps: Pick[]) => formatMoney(ps.reduce((s, p) => s + p.priceMinor, 0));
+  const err = untilError(picks, repeat);
+  const occ = err ? [] : occurrences(picks, repeat);
+  const first = picks.map((p) => p.date).sort()[0]!;
+  const toggleRepeat = () => onRepeat({ ...repeat, on: !repeat.on, until: repeat.until || addDays(first, 91) });
   return (
     <Dialog onClose={onBack} labelledBy={titleId}>
       <div className="dialog__icon"><Icon name="calendar" size={22} /></div>
@@ -508,18 +516,35 @@ function ConfirmDialog({ kid, picks, sending, onBack, onBook }: {
           ))}</div>
         </div>
       ))}
+      <Check label="Repeat these lessons" sub="Every time you picked repeats on the same day of the week." checked={repeat.on} onChange={toggleRepeat} />
+      <div className="grid2">
+        <div className="field"><label className="label" htmlFor="bk-every">Repeats</label>
+          <select id="bk-every" className="ctl" value={repeat.every} disabled={!repeat.on} onChange={(e) => onRepeat({ ...repeat, every: Number(e.target.value) })}>
+            {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 1 ? 'Every week' : `Every ${n} weeks`}</option>)}
+          </select></div>
+        <div className={`field${err ? ' field--error' : ''}`}><label className="label" htmlFor="bk-until">Until</label>
+          <input id="bk-until" className={`ctl${err ? ' is-error' : ''}`} type="date" value={repeat.until} max={maxUntil(picks)} disabled={!repeat.on}
+            onChange={(e) => onRepeat({ ...repeat, until: e.target.value })} />
+          {err && <div className="hint hint--error"><Icon name="alert" size={14} />{err}</div>}</div>
+      </div>
+      {repeat.on && !err && repeat.until > windowLast && (
+        <Banner tone="warning" title="This goes past the next three months">
+          Changes to {multi ? 'your coaches’ schedules' : `Coach ${groups[0]!.coachFirstName}’s schedule`} may affect some or all of these lessons.
+        </Banner>
+      )}
       <div className="summary">
         <div>
-          <div className="kv"><span className="kv__k">Lessons</span><span className="kv__v">{plural(picks.length, 'lesson')}</span></div>
+          <div className="kv"><span className="kv__k">Lessons</span><span className="kv__v">{repeat.on && !err ? `${plural(occ.length, 'lesson')} until ${shortDate(repeat.until)}` : plural(occ.length || picks.length, 'lesson')}</span></div>
           {multi
-            ? groups.map((g) => <div key={g.coachId} className="kv"><span className="kv__k">Coach {g.coachFirstName}</span><span className="kv__v">{plural(g.picks.length, 'lesson')} · <b>{total(g.picks)}</b></span></div>)
-            : <div className="kv"><span className="kv__k">Total</span><span className="kv__v"><b>{total(picks)}</b></span></div>}
+            ? groups.map((g) => { const o = occ.filter((x) => x.coachId === g.coachId); return <div key={g.coachId} className="kv"><span className="kv__k">Coach {g.coachFirstName}</span><span className="kv__v">{plural(o.length, 'lesson')} · <b>{total(o)}</b></span></div>; })
+            : <><div className="kv"><span className="kv__k">{repeat.on ? 'First week' : 'Total'}</span><span className="kv__v"><b>{total(picks)}</b></span></div>
+                {repeat.on && <div className="kv"><span className="kv__k">All lessons</span><span className="kv__v">{total(occ)}</span></div>}</>}
         </div>
         <div className="summary__note"><Icon name="info" size={14} />{multi ? 'You pay each coach directly' : `You pay ${groups[0]!.coachFirstName} directly`}. BladeBook only sends reminders.</div>
       </div>
       <div className="dialog__actions">
         <Button variant="secondary" onClick={onBack} disabled={sending}>Back</Button>
-        <Button onClick={onBook} disabled={sending}>{sending ? 'Booking…' : `Book ${plural(picks.length, 'lesson')}`}</Button>
+        <Button onClick={onBook} disabled={sending || !!err || !occ.length}>{sending ? 'Booking…' : `Book ${plural(occ.length || picks.length, 'lesson')}`}</Button>
       </div>
     </Dialog>
   );
@@ -545,19 +570,40 @@ function ResultPage({ result, sending, onRetry, onPickAnother }: {
     : `${n ? `A confirmation email is on its way${perCoach ? ' from each coach' : ''}. ` : ''}${skipped.length ? `${plural(skipped.length, 'date')} couldn’t be booked${n ? '. Everything else is confirmed.' : '.'}` : ''}`;
   const ok = (n > 0 || mine.length > 0) && !failed.length;
 
-  const pickCards = (ps: typeof items) => (
-    <div className="grid2 bk-series">{ps.map((p) => {
+  const allSeries = result.sections.flatMap((s) => s.result?.series ?? []);
+  /** A repeating pick's card: how many of its dates booked (design: seriesCard). */
+  const seriesCards = (ps: typeof items) => {
+    const rids = [...new Set(ps.map((p) => p.recurrenceId).filter((x): x is string => !!x))];
+    return rids.map((rid) => {
+      const sr = allSeries.find((x) => x.recurrenceId === rid)!, its = ps.filter((p) => p.recurrenceId === rid);
+      const b = its.filter((x) => x.outcome === 'BOOKED').length, mn = its.filter((x) => x.outcome === 'ALREADY_BOOKED').length;
+      const sk = its.filter((x) => x.outcome === 'UNAVAILABLE').length, any = its.find((x) => x.durationMinutes != null);
+      return (
+        <section key={rid} className="card"><div className="card__body"><div className="series">
+          <div className="series__title"><Icon name="repeat" size={16} />{DAYS_LONG[dayOfWeek(sr.first)]}s · {formatTime(sr.startTime)}</div>
+          <div className="series__sub">{any ? `${any.durationMinutes} min · ${formatMoney(any.priceMinor ?? 0)} · ` : ''}{everyLabel(sr.intervalWeeks)}, {shortDate(sr.first)} – {shortDate(sr.until)}</div>
+          <div className="meter meter--ok"><span style={{ width: `${its.length ? Math.round(((b + mn) / its.length) * 100) : 0}%` }} /></div>
+          <div className="series__foot"><b>{b ? `${b} booked` : 'None new'}{mn ? ` · ${mn} already yours` : ''}</b>{sk > 0 && <span>{sk} unavailable</span>}</div>
+        </div></div></section>
+      );
+    });
+  };
+  const pickCards = (all: typeof items) => {
+    const ps = all.filter((p) => !p.recurrenceId);
+    return (
+    <div className="grid2 bk-series">{seriesCards(all)}{ps.map((p) => {
       const done = p.outcome !== 'UNAVAILABLE';
       return (
         <section key={p.coachId + p.date + p.startTime} className="card"><div className="card__body"><div className="series">
           <div className="series__title"><Icon name="calendar" size={16} />{dDow(p.date)} · {formatTime(p.startTime)}</div>
           <div className="series__sub">{p.durationMinutes != null && p.priceMinor != null ? `${p.durationMinutes} min · ${formatMoney(p.priceMinor)}` : 'No longer on the schedule'}</div>
           <div className="meter meter--ok"><span style={{ width: done ? '100%' : '0%' }} /></div>
-          <div className="series__foot"><b>{p.outcome === 'BOOKED' ? '1 booked' : p.outcome === 'ALREADY_BOOKED' ? 'Already yours' : 'None new'}</b><span>{done ? 'All dates' : '1 unavailable'}</span></div>
+          <div className="series__foot"><b>{p.outcome === 'BOOKED' ? '1 booked' : p.outcome === 'ALREADY_BOOKED' ? 'Already yours' : 'None new'}</b>{!done && <span>1 unavailable</span>}</div>
         </div></div></section>
       );
     })}</div>
-  );
+    );
+  };
   const skippedCard = (ps: typeof items) => ps.length > 0 && (
     <Card flush title={`${plural(ps.length, 'date')} need${ps.length === 1 ? 's' : ''} another time`} sub="Or leave them. The rest of your bookings are confirmed.">
       {ps.map((p) => (

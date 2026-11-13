@@ -79,3 +79,39 @@ export function blockRuns<T extends { blockSeq: number; startTime: string; endTi
 export function newKey(): string {
   return crypto.randomUUID();
 }
+
+// ------------------------------------------------------------- repeating (Batch 9)
+
+export interface Repeat { on: boolean; every: number; until: string }
+
+/** "every week", "every 2 weeks". */
+export const everyLabel = (n: number) => (n === 1 ? 'every week' : `every ${n} weeks`);
+/** "Repeats weekly", "Every 2 weeks": a lesson's badge (B12). */
+export const repeatsBadge = (n: number) => (n === 1 ? 'Repeats weekly' : `Every ${n} weeks`);
+/** "repeats weekly", "repeats every 2 weeks": in a lesson's line (B12). */
+export const repeatsText = (n: number) => (n === 1 ? 'repeats weekly' : `repeats every ${n} weeks`);
+
+const addDaysIso = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+
+/** The last end date a series may have: 12 months after its first pick. */
+export const maxUntil = (picks: Pick[]) => addDaysIso(picks.map((p) => p.date).sort()[0] ?? '', 365);
+
+/** What's wrong with the repeat choice, worded as the server words it; '' when fine. */
+export function untilError(picks: Pick[], r: Repeat): string {
+  if (!r.on) return '';
+  const first = picks.map((p) => p.date).sort()[0] ?? '';
+  if (!r.until) return 'Pick an end date.';
+  if (r.until < first) return 'The end date is before your first lesson.';
+  if (r.until > maxUntil(picks)) return 'A repeating booking can run up to 12 months.';
+  return '';
+}
+
+/** Every date a request books: each pick, or with repeat each pick every N weeks up to the end date. */
+export function occurrences(picks: Pick[], r: Repeat): Array<Pick & { first: string }> {
+  const out: Array<Pick & { first: string }> = [];
+  for (const p of picks) {
+    if (!r.on) { out.push({ ...p, first: p.date }); continue; }
+    for (let d = p.date; d <= r.until; d = addDaysIso(d, 7 * r.every)) out.push({ ...p, date: d, first: p.date });
+  }
+  return out;
+}

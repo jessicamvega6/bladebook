@@ -36,9 +36,11 @@ public final class CalendarService {
     /**
      * A skater booked in one of the day's times: the seat's display name for the week view ("Ava P."), and the
      * full name and family contact from the coach's own {@code STUDENT#} record for the day view. {@code familyId}
-     * lets the cancel preview count the families it will email.
+     * lets the cancel preview count the families it will email. {@code repeatsEveryWeeks}: the interval the seat was booked
+     * with, 0 for a single lesson (B12; the family's own header, which a later change updates, is theirs to read).
      */
-    public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName, String familyId) {
+    public record Booked(LocalTime startTime, String studentId, String shortName, String fullName, String familyName, String familyId,
+                         int repeatsEveryWeeks) {
     }
 
     /** {@code special}: the time off or special schedule on that date, or {@code null}. */
@@ -99,7 +101,8 @@ public final class CalendarService {
                 if (s.lessonDate().equals(d)) {
                     StudentRecord r = records.get(s.studentId());
                     booked.add(new Booked(s.startTime(), s.studentId(), s.studentName(),
-                            r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName(), s.clientId()));
+                            r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName(), s.clientId(),
+                            s.recurrenceId() == null ? 0 : Math.max(1, s.bookedIntervalWeeks())));
                 }
             }
             LocalDate day = d;

@@ -262,4 +262,66 @@ class BookingServiceTest {
         assertThat(p.specials()).extracting(com.bladebook.core.data.BookingRepository.Special::name).containsExactly("Time off");
         assertThat(p.specials().get(0).kind()).isEqualTo("TIME_OFF");
     }
+
+    private BookingResult bookSeries(String studentId, String key, int every, String until, PickInput... picks) {
+        return booking.book(park, BookingRequest.parse(dana.coachId(), studentId, key, List.of(picks), true, every, until));
+    }
+
+    @Test
+    void aRepeatingPickBooksEveryDateWritesItsHeaderAndMyBookingsListsTheSeries() {
+        BookingResult r = bookSeries(ava, "series-key-0001", 1, "2026-12-07", pick(MONDAY, "06:00"));
+        assertThat(r.picks()).extracting(PickResult::outcome).containsOnly(BookingOutcome.BOOKED).hasSize(4);
+        assertThat(r.series()).singleElement().satisfies(sr -> {
+            assertThat(sr.weekday()).isEqualTo(java.time.DayOfWeek.MONDAY);
+            assertThat(sr.intervalWeeks()).isEqualTo(1);
+            assertThat(sr.until()).isEqualTo(LocalDate.of(2026, 12, 7));
+        });
+        BookingService.MyBookings mine = booking.myBookings(park);
+        assertThat(mine.upcoming()).allSatisfy(l -> {
+            assertThat(l.recurrenceId()).isEqualTo(r.series().get(0).recurrenceId());
+            assertThat(l.intervalWeeks()).isEqualTo(1);
+        });
+        assertThat(mine.series()).singleElement().satisfies(v -> {
+            assertThat(v.lessonsLeft()).isEqualTo(4);
+            assertThat(v.lastLesson()).isEqualTo(LocalDate.of(2026, 12, 7));
+            assertThat(v.studentName()).isEqualTo("Ava Park");
+            assertThat(v.recurrence().startedOn()).isEqualTo(MONDAY);
+        });
+    }
+
+    @Test
+    void aSeriesMayRunPastTheWindowButItsFirstPickMayNot() {
+        BookingResult r = bookSeries(ava, "series-key-0002", 4, "2027-05-31", pick(MONDAY, "06:00"));
+        assertThat(r.picks()).extracting(p -> p.date().toString()).contains("2027-05-31");
+        assertThat(r.picks()).extracting(PickResult::outcome).containsOnly(BookingOutcome.BOOKED);
+        assertThatThrownBy(() -> bookSeries(ava, "series-key-0003", 1, "2027-03-01", pick(LocalDate.of(2027, 2, 15), "06:00")))
+                .hasMessage("That date is further ahead than you can book.");
+    }
+
+    @Test
+    void aRetryWithTheSameKeyBooksNothingTwiceAndATakenDateIsReported() {
+        book(park, ava, "single-key-0001", pick(MONDAY.plusDays(7), "06:00"));
+        BookingResult r = bookSeries(ava, "series-key-0004", 1, "2026-11-30", pick(MONDAY, "06:00"));
+        assertThat(r.picks()).extracting(PickResult::outcome)
+                .containsExactly(BookingOutcome.BOOKED, BookingOutcome.ALREADY_BOOKED, BookingOutcome.BOOKED);
+        BookingResult again = bookSeries(ava, "series-key-0004", 1, "2026-11-30", pick(MONDAY, "06:00"));
+        assertThat(again.picks()).extracting(PickResult::outcome)
+                .containsExactly(BookingOutcome.BOOKED, BookingOutcome.ALREADY_BOOKED, BookingOutcome.BOOKED);
+        assertThat(booking.myBookings(park).series()).hasSize(1);
+    }
+
+    @Test
+    void aMissingHeaderIsRebuiltFromTheSeatsWhenBookingsLoad() {
+        BookingResult r = bookSeries(ava, "series-key-0005", 2, "2026-12-14", pick(MONDAY, "06:00"));
+        String rid = r.series().get(0).recurrenceId();
+        t.f.clients.forSetup().deleteItem(b -> b.tableName(t.f.table).key(java.util.Map.of(
+                "PK", software.amazon.awssdk.services.dynamodb.model.AttributeValue.fromS("CLIENT#" + park.clientId()),
+                "SK", software.amazon.awssdk.services.dynamodb.model.AttributeValue.fromS("RECURRENCE#" + dana.coachId() + "#" + rid))));
+        BookingService.MyBookings mine = booking.myBookings(park);
+        assertThat(mine.series()).singleElement().satisfies(v -> {
+            assertThat(v.recurrence().intervalWeeks()).isEqualTo(2);
+            assertThat(v.recurrence().endDate()).isEqualTo(LocalDate.of(2026, 12, 14));
+            assertThat(v.recurrence().startedOn()).isEqualTo(MONDAY);
+        });
+    }
 }

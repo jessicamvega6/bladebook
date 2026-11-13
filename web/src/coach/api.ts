@@ -102,7 +102,7 @@ export interface LessonDto {
   maxSkaters: number;
   seatsTaken: number;
   /** Who is booked: the seat's "Ava P." for the week view, the full name and family for the day view. */
-  skaters: Array<{ studentId: string; shortName: string; fullName: string; familyName: string | null; familyId?: string | null }>;
+  skaters: Array<{ studentId: string; shortName: string; fullName: string; familyName: string | null; familyId?: string | null; repeatsEveryWeeks?: number }>;
 }
 
 /** Cancelling from the calendar (Batch 5). A lesson or a day asks each lesson; the week names only its Sunday. */

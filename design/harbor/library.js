@@ -232,7 +232,7 @@ add('Family · Booking', 'Confirmation', '4 · Result', 1280, () => familyApp('B
   <div class="hero hero--success"><span class="hero__icon">${ic('check', 26)}</span><div><h1 class="h1">30 lessons booked for Mia</h1><p class="lede">A confirmation email is on its way. 2 dates couldn’t be booked — everything else is confirmed.</p></div></div>
   <div class="grid2">
     ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 9:30 AM</div><div class="series__sub">30 min · $50 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:87.5%"></span></div><div class="series__foot"><b>14 booked</b><span>2 unavailable</span></div></div>`)}
-    ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 3:00 PM</div><div class="series__sub">60 min · $80 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:100%"></span></div><div class="series__foot"><b>16 booked</b><span>All dates</span></div></div>`)}
+    ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 3:00 PM</div><div class="series__sub">60 min · $80 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:100%"></span></div><div class="series__foot"><b>16 booked</b></div></div>`)}
   </div>
   ${card(`
     ${row(`<span class="roundicon roundicon--warn">${ic('x', 16)}</span>${rowTitle('Monday, Oct 12 · 9:30 AM', 'That time was taken or no longer exists.')}`, btn('Pick another time', 'secondary', { sm: true }))}

@@ -61,6 +61,11 @@ public final class BookingRepository {
         this.table = table;
     }
 
+    /** The family's repeating-booking headers, on the same table. */
+    public RecurrenceRepository recurrences() {
+        return new RecurrenceRepository(clients, table);
+    }
+
     // ------------------------------------------------------------- the coach's side, read
 
     public Optional<CoachClock> coach(ClientContext ctx, LinkedCoach coach) {
@@ -174,7 +179,14 @@ public final class BookingRepository {
      * @param time the lesson time as the family read it; its start, zone and length are copied onto the seat
      */
     public BookingOutcome book(ClientContext ctx, LinkedSkater skater, AvailableTime time, String idempotencyKey, Instant now) {
-        Seat seat = Seat.booked(skater.coachId(), time, skater.studentId(), skater.clientId(), skater.studentName(), now, idempotencyKey);
+        return book(ctx, skater, time, idempotencyKey, now, null, 0);
+    }
+
+    /** As above, as one date of a series: the seat carries {@code recurrenceId} and the interval it was booked with. */
+    public BookingOutcome book(ClientContext ctx, LinkedSkater skater, AvailableTime time, String idempotencyKey, Instant now,
+                               String recurrenceId, int intervalWeeks) {
+        Seat seat = Seat.booked(skater.coachId(), time, skater.studentId(), skater.clientId(), skater.studentName(), now, idempotencyKey,
+                recurrenceId, intervalWeeks);
         Map<String, AttributeValue> v = new HashMap<>();
         v.put(":open", FamilyItems.s(LessonTime.Status.OPEN.name()));
         v.put(":booked", FamilyItems.s(LessonTime.Status.BOOKED.name()));

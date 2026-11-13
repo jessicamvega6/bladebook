@@ -5,12 +5,15 @@ import com.bladebook.api.client.dto.BookingDtos.BookResponse;
 import com.bladebook.api.client.dto.BookingDtos.CancelBody;
 import com.bladebook.api.client.dto.BookingDtos.CancelResponse;
 import com.bladebook.api.client.dto.BookingDtos.MyBookingsResponse;
+import com.bladebook.api.client.dto.BookingDtos.SeriesChangeBody;
+import com.bladebook.api.client.dto.BookingDtos.SeriesChangedDto;
 import com.bladebook.api.client.dto.BookingDtos.MyLessonDto;
 import com.bladebook.api.client.dto.BookingDtos.PageResponse;
 import com.bladebook.api.client.security.CurrentFamily;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.service.BookingService;
 import com.bladebook.core.service.CancellationService;
+import com.bladebook.core.service.RecurrenceService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,10 +37,19 @@ public class BookingController {
 
     private final BookingService bookings;
     private final CancellationService cancellations;
+    private final RecurrenceService series;
 
-    public BookingController(BookingService bookings, CancellationService cancellations) {
+    public BookingController(BookingService bookings, CancellationService cancellations, RecurrenceService series) {
         this.bookings = bookings;
         this.cancellations = cancellations;
+        this.series = series;
+    }
+
+    /** Changes a repeating booking: end it earlier, make it less frequent, or stop it. Only ever cancels lessons. */
+    @PostMapping("/api/client/series/change")
+    public SeriesChangedDto changeSeries(@AuthenticationPrincipal Jwt jwt, @RequestBody SeriesChangeBody body) {
+        return SeriesChangedDto.of(series.change(CurrentFamily.of(jwt), body.coachId(), body.recurrenceId(), body.change(), body.endDate(),
+                body.intervalWeeks()));
     }
 
     /** One coach's lesson times for one skater, across the whole booking window. */

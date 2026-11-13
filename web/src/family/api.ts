@@ -51,10 +51,12 @@ export interface MyLesson extends FamilyLesson {
   priceMinor: number | null; currency: string | null; requiredNoticeHours: number;
   /** What the coach recorded, once they have (Batch 7). */
   attendance?: 'CHECKED_IN' | 'NO_SHOW' | null;
+  /** Its series and how often that repeats now, or null and 0 (Batch 9). */
+  recurrenceId?: string | null; intervalWeeks?: number;
 }
 
 /** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
-export interface MyBookings { upcoming: MyLesson[]; recent: MyLesson[] }
+export interface MyBookings { upcoming: MyLesson[]; recent: MyLesson[]; series?: MySeries[] }
 
 /** {@code late}: inside the notice period, so the coach is told. */
 export interface CancelResult {
@@ -72,17 +74,31 @@ export interface BookingPage {
 
 export type Outcome = 'BOOKED' | 'ALREADY_BOOKED' | 'UNAVAILABLE';
 
+/** {@code repeat}: each pick repeats every {@code everyWeeks} weeks up to {@code until} (Batch 9). */
 export interface BookBody {
   coachId: string; studentId: string; idempotencyKey: string; picks: Array<{ date: string; startTime: string }>;
+  repeat?: boolean; everyWeeks?: number; until?: string;
 }
+
+export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 export interface BookResult {
   coachFirstName: string; studentName: string;
   picks: Array<{
     date: string; startTime: string; outcome: Outcome; message: string | null;
-    durationMinutes: number | null; priceMinor: number | null; currency: string | null;
+    durationMinutes: number | null; priceMinor: number | null; currency: string | null; recurrenceId?: string | null;
   }>;
+  /** One per repeating pick. */
+  series?: Array<{ recurrenceId: string; weekday: Weekday; startTime: string; intervalWeeks: number; first: string; until: string }>;
 }
+
+/** A series still running, on My bookings. */
+export interface MySeries {
+  coachId: string; recurrenceId: string; studentId: string; studentName: string; coachFirstName: string; weekday: Weekday;
+  startTime: string; intervalWeeks: number; endDate: string; lessonsLeft: number; lastLesson: string;
+}
+
+export interface SeriesChanged { cancelled: number; late: boolean; coachFirstName: string; studentName: string; endDate: string; intervalWeeks: number; status: 'ACTIVE' | 'ENDED' }
 
 /** Step 1, before any account exists: no token. */
 export const lookupCoach = (code: string) =>
@@ -100,6 +116,9 @@ export function familyApi(token: string) {
     book: (body: BookBody) => apiFetch<BookResult>('/api/client/bookings', { method: 'POST', body, token, idempotent: true }),
     lessons: () => apiFetch<MyLesson[]>('/api/client/lessons', { token }),
     myBookings: () => apiFetch<MyBookings>('/api/client/bookings', { token }),
+    /** End a series earlier, make it less frequent, or stop it. */
+    changeSeries: (body: { coachId: string; recurrenceId: string; change: 'END_EARLIER' | 'LESS_OFTEN' | 'STOP'; endDate?: string; intervalWeeks?: number }) =>
+      apiFetch<SeriesChanged>('/api/client/series/change', { method: 'POST', body, token }),
     /** Safe to retry: asking again for a lesson already gone answers ALREADY_CANCELLED. */
     cancel: (l: { coachId: string; studentId: string; date: string; startTime: string }) =>
       apiFetch<CancelResult>('/api/client/bookings/cancel', {

@@ -9,6 +9,7 @@
  * on Coming up. Payments is Phase 2.
  */
 import { Avatar, Badge, Banner, Card, Icon, Row } from '../../shared/components/harbor';
+import { repeatsText } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
 import { DAYS, formatMoney, formatShort, shortDate, todayIn } from '../../shared/logic/schedule';
 import type { Family, MyLesson } from '../api';
@@ -114,7 +115,7 @@ function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDa
   return (
     <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
       title={<>{l.studentName}{showDate && <span className="ac-date">{dateOf(l.date)}</span>}</>}
-      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}`}
+      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}${l.recurrenceId && l.intervalWeeks ? ` · ${repeatsText(l.intervalWeeks)}` : ''}`}
       side={<Badge tone="primary">Booked</Badge>} />
   );
 }

@@ -12,6 +12,7 @@ import com.bladebook.core.domain.RegistrationNumbers;
 import com.bladebook.core.domain.RegistrationRules;
 import com.bladebook.core.service.BookingService;
 import com.bladebook.core.service.CancellationService;
+import com.bladebook.core.service.RecurrenceService;
 import com.bladebook.core.service.CodeLookupService;
 import com.bladebook.core.service.FamilySyncService;
 import com.bladebook.core.service.FamilyService;
@@ -81,6 +82,13 @@ public class CoreConfig {
     BookingService bookingService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
                                   Clock clock) {
         return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, clock);
+    }
+
+    /** Changing a repeating booking (Batch 9). */
+    @Bean
+    RecurrenceService recurrenceService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock) {
+        return new RecurrenceService(new ClientLinks(clients, table), new BookingRepository(clients, table),
+                new CancellationRepository(clients, table), clock);
     }
 
     /** Cancelling one lesson from My bookings (Batch 5). */

@@ -10,7 +10,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Avatar, Banner, Icon } from '../../shared/components/harbor';
-import { plural } from '../../shared/logic/booking';
+import { plural, repeatsText } from '../../shared/logic/booking';
 import {
   DAYS, DAYS_LONG, MONTHS_LONG, addDays, addMonths, dayOfWeek, formatClock, formatMoney, formatTime, longDate,
   monthEnd, shortDate, toMinutes, weekStart,
@@ -269,7 +269,7 @@ function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string
                   : l.lessonStatus === 'HELD'
                     ? <><span className="roundicon roundicon--warn"><Icon name="lock" size={14} /></span><div><div className="row__title">Held</div><div className="row__sub">You kept this time closed</div></div></>
                     : <><Avatar name={whoIn(l, true)} size="sm" /><div><div className="row__title">{whoIn(l, true)}</div>
-                        {l.skaters.some((s) => s.familyName) && <div className="row__sub">{[...new Set(l.skaters.map((s) => s.familyName).filter(Boolean))].join(' · ')}</div>}</div></>}
+                        {(l.skaters.some((s) => s.familyName) || l.skaters.some((s) => s.repeatsEveryWeeks)) && <div className="row__sub">{[...new Set(l.skaters.map((s) => s.familyName).filter(Boolean))].join(' · ')}{l.skaters.find((s) => s.repeatsEveryWeeks) ? ` · ${repeatsText(l.skaters.find((s) => s.repeatsEveryWeeks)!.repeatsEveryWeeks!)}` : ''}</div>}</div></>}
               </div>
               <div className="row__side"><span className="muted num">{l.durationMinutes} min · {formatMoney(l.priceMinor)}</span>
                 {cancellable(data, date, l) && <button type="button" className="btn btn--ghost btn--sm"

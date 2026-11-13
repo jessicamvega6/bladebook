@@ -1,10 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { ApiError } from '../../shared/api/client';
 import type { CancelResult, Family, FamilyApi, MyBookings, MyLesson } from '../api';
 import { APPROVED, LESSONS, TWO_COACHES } from '../testData';
-import { Bookings, insideNotice } from './Bookings';
+import { Bookings, SeriesChange, insideNotice } from './Bookings';
 
 afterEach(() => vi.useRealTimers());
 
@@ -172,4 +172,46 @@ test('inside the notice period means strictly under the lesson’s hours, before
   expect(insideNotice(MONDAY, start - 24 * 3_600_000)).toBe(false);
   expect(insideNotice(MONDAY, start - 24 * 3_600_000 + 1000)).toBe(true);
   expect(insideNotice(MONDAY, start)).toBe(false);
+});
+
+test('a series shows on its lessons and in Repeating lessons, and Change ends it earlier with late lessons named', async () => {
+  at('2026-11-22T14:00:00Z'); // Sunday 8 AM in Chicago: Monday's 7:00 is 23 hours away
+  const series = (date: string): MyLesson => lesson({ date, startsAtUtc: `${date}T13:00:00Z`, recurrenceId: 'r1', intervalWeeks: 1 });
+  const lessons = ['2026-11-23', '2026-11-30', '2026-12-07', '2026-12-14'].map(series);
+  const data: MyBookings = { upcoming: lessons, recent: [], series: [{ coachId: 'dana', recurrenceId: 'r1', studentId: 'ava', studentName: 'Ava Park',
+    coachFirstName: 'Dana', weekday: 'MONDAY', startTime: '07:00', intervalWeeks: 1, endDate: '2026-12-14', lessonsLeft: 4, lastLesson: '2026-12-14' }] };
+  const api = { ...fakeApi(data), changeSeries: vi.fn(() => Promise.resolve({ cancelled: 3, late: true, coachFirstName: 'Dana', studentName: 'Ava Park',
+    endDate: '2026-11-22', intervalWeeks: 1, status: 'ACTIVE' })) } as unknown as FamilyApi & { changeSeries: ReturnType<typeof vi.fn> };
+  const view = render(<Bookings family={APPROVED} api={api} onError={vi.fn()} />);
+  const up = (await screen.findByRole('heading', { name: 'Upcoming' })).closest('section')!;
+  expect(within(up).getAllByText('Repeats weekly')).toHaveLength(4);
+  const card = screen.getByRole('heading', { name: 'Repeating lessons' }).closest('section')!;
+  expect(card).toHaveTextContent('Ava · Mondays 7:00 AM, every week');
+  expect(card).toHaveTextContent('Until Dec 14 · 4 lessons left');
+  expect(within(card).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '#/bookings/series/dana/r1');
+  view.unmount();
+
+  render(<SeriesChange api={api} coachId="dana" recurrenceId="r1" onError={vi.fn()} />);
+  expect(await screen.findByRole('heading', { name: 'Ava · Mondays 7:00 AM' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('New last date'), { target: { value: '2026-11-22' } });
+  const what = screen.getByRole('heading', { name: 'What this will do' }).closest('section')!;
+  expect(what).toHaveTextContent('Mon, Nov 23 · 7:00 AMCancelled · late');
+  expect(what).toHaveTextContent('Mon, Nov 23 · 7:00 AM is less than 24 hours away. Cancelling it may incur a late cancellation fee from Coach Dana.');
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel 4 lessons' }));
+  expect(api.changeSeries).toHaveBeenCalledWith({ coachId: 'dana', recurrenceId: 'r1', change: 'END_EARLIER', endDate: '2026-11-22' });
+});
+
+test('less often keeps the next lesson and every other one; stopping keeps nothing after today', async () => {
+  at('2026-11-22T13:00:00Z');
+  const series = (date: string): MyLesson => lesson({ date, startsAtUtc: `${date}T13:00:00Z`, recurrenceId: 'r1', intervalWeeks: 1 });
+  const data: MyBookings = { upcoming: ['2026-11-23', '2026-11-30', '2026-12-07', '2026-12-14'].map(series), recent: [], series: [{ coachId: 'dana',
+    recurrenceId: 'r1', studentId: 'ava', studentName: 'Ava Park', coachFirstName: 'Dana', weekday: 'MONDAY', startTime: '07:00', intervalWeeks: 1,
+    endDate: '2026-12-14', lessonsLeft: 4, lastLesson: '2026-12-14' }] };
+  render(<SeriesChange api={fakeApi(data)} coachId="dana" recurrenceId="r1" onError={vi.fn()} />);
+  await userEvent.click(await screen.findByRole('button', { name: /Make it less frequent/ }));
+  const what = screen.getByRole('heading', { name: 'What this will do' }).closest('section')!;
+  expect(what).toHaveTextContent('2 lessons cancelled · 2 lessons kept');
+  expect(what.querySelectorAll('.tli--keep')).toHaveLength(2);
+  await userEvent.click(screen.getByRole('button', { name: /Cancel all future lessons/ }));
+  expect(what).toHaveTextContent('4 lessons cancelled · 0 lessons kept');
 });
