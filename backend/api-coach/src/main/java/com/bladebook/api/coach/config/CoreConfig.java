@@ -86,7 +86,8 @@ public class CoreConfig {
     @Bean
     AttendanceService attendanceService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
                                         StudentRepository students, CoachRepository coaches, Clock clock) {
-        return new AttendanceService(new AttendanceRepository(clients, table), schedules, students, coaches, clock);
+        return new AttendanceService(new AttendanceRepository(clients, table), schedules, students, coaches,
+                new CancellationRepository(clients, table), clock);
     }
 
     /** Time off and special schedules (Batch 6). */

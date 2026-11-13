@@ -16,7 +16,8 @@ from the calendar, releasing or holding each time. Batch 6 — time off and spec
 before every schedule save: what it cancels and re-prices, a big price change to confirm, then the save status.
 Batch 7 — the rinkside page online (today's lessons, Present / No-show, contact details on a tap, cancelling one
 lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the coach's Payments page: mark paid with how they paid, waive (final), undo paid. Batch 9 — repeating bookings: book a series, see it on My bookings and Home, and end it earlier, make it less frequent or
-stop it. Everything runs on this computer only; nothing is
+stop it. Batch 10 — the rinkside page with no signal: today kept on the phone, check-ins saved and sent when signal
+returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Everything runs on this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -114,7 +115,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-31 | **The schedule review doesn't say when skaters per lesson changes** (*"Lessons already booked keep their current setting"*): the evaluator leaves booked lessons' skater count alone (owner, 2026-11-12) and nothing reports the change. | Not planned: left as it is (owner, 2026-11-12) |
 | G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: the coach's Lessons page lists lessons that happened, as drawn, and a family's own cancellation history is Phase 2 (owner, 2026-10-12). | Phase 2, the coach's view and the family's (owner, 2026-11-12) |
 | G-34 | **No morning email.** Today's *"Heading to the rink?"* card says *"The link is in your morning email too"*, as designed, but nothing sends it; Today's card is the only way to the rinkside page. | The notification batch (Batch 13) |
-| G-32 | **The rinkside page works online only.** No service worker, no offline copy of today, no queue: with no signal nothing loads or records. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 10 |
+| G-32 | **Two parts of the rinkside page's offline behaviour aren't built.** The page doesn't say when Safari has cleared its offline copy (ADR-014 amendment of 2026-10-13; the design has no screen for it, and a cleared page can't tell a first visit from a cleared one). Nothing has been tried on a real iPhone at a rink: the copy of the page was checked in headless Chrome with the network cut, and the queue, *Not sent* and the family-cancelled card in tests. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Not yet placed |
 | G-33 | **`CheckInRecorded` and `NoShowRecorded` aren't raised**, so no payment reminder follows a check-in. | The payments and notification batches |
 
 ## Repository

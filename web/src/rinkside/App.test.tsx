@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { RinkDay, RinkLesson, RinkSkater } from './api';
@@ -34,7 +34,7 @@ function server(over: Record<string, (init?: RequestInit) => Response> = {}) {
   return calls;
 }
 
-beforeEach(() => { sessionStorage.clear(); window.location.hash = ''; });
+beforeEach(() => { sessionStorage.clear(); localStorage.clear(); window.location.hash = ''; });
 afterEach(() => vi.unstubAllGlobals());
 
 const signedIn = () => sessionStorage.setItem('bb.coach.idToken', 'h.eyJlbWFpbCI6ImRhbmFAZ21haWwuY29tIn0.s');
@@ -117,4 +117,122 @@ test('an old sign-in goes back to the log-in with a note, and Account logs out',
   render(<App />);
   expect(await screen.findByText('You’ve been logged in for a while. Please log in again.')).toBeInTheDocument();
   expect(sessionStorage.getItem('bb.coach.idToken')).toBeNull();
+});
+
+// ---------------------------------------------------------------- no signal (Batch 10; C_Rinkside Offline.md)
+
+const DANA = 'dana@gmail.com';
+const noSignal = () => () => { throw new TypeError('Failed to fetch'); };
+/** The phone's clock on Monday 6:35 AM in Chicago, so the saved day is today's. Only Date is faked. */
+const mondayMorning = () => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-16T12:35:00Z')); };
+function signal(on: boolean) {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(on);
+  act(() => { window.dispatchEvent(new Event(on ? 'online' : 'offline')); });
+}
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+test('with no signal a tap is saved on the phone, and sent when signal comes back', async () => {
+  mondayMorning();
+  signedIn();
+  let up = false;
+  const calls = server({ '/api/coach/rinkside/attendance': (init) => {
+    if (!up) throw new TypeError('Failed to fetch');
+    const b = JSON.parse(init!.body as string) as { outcome: string; outcomeAt: string };
+    return new Response(JSON.stringify(skater('mia', 'Mia C.', 'Mia Chen', { status: 'NO_SHOW', outcomeAt: b.outcomeAt })), { status: 200 });
+  } });
+  render(<App />);
+  const mia = (await screen.findByText('Mia C.')).closest('.rl') as HTMLElement;
+  await userEvent.click(within(mia).getByRole('button', { name: /No-show/ }));
+  expect(await within(mia).findByText('Saved on phone')).toBeInTheDocument();
+  expect(screen.getByText(/^No signal since/)).toBeInTheDocument();
+  expect(screen.getByText('1 check-in saved on this phone. They’ll send when signal comes back.')).toBeInTheDocument();
+  expect(screen.getByText('1 saved on phone')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toMatchObject([{ coach: DANA, studentId: 'mia', outcome: 'NO_SHOW' }]);
+
+  up = true;
+  signal(true);
+  expect(await screen.findByText('Back online. 1 check-in sent.')).toBeInTheDocument();
+  expect(within(mia).queryByText('Saved on phone')).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toEqual([]);
+  // Two tries with no signal (the client retries a network error once), then one send.
+  const sends = calls.filter((c) => c.url === '/api/coach/rinkside/attendance');
+  expect(sends).toHaveLength(3);
+  expect(sends[2]!.body).toMatchObject({ studentId: 'mia', outcome: 'NO_SHOW', outcomeAt: sends[0]!.body && (sends[0]!.body as { outcomeAt: string }).outcomeAt });
+});
+
+test('opened with no signal, today comes from the phone; contact details need a connection', async () => {
+  mondayMorning();
+  localStorage.setItem(`bb.rink.day.${DANA}`, JSON.stringify(DAY));
+  signedIn();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  const calls = server();
+  render(<App />);
+  expect(await screen.findByText('Mia C.')).toBeInTheDocument();
+  expect(calls.find((c) => c.url === '/api/coach/rinkside/today')).toBeUndefined();
+  expect(screen.getByText('Contact details and cancelling need a connection.', { exact: false })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Mia C.' }));
+  expect(within(screen.getByRole('dialog', { name: 'Contact details' })).getByText('Contact details need a connection.')).toBeInTheDocument();
+  expect(calls.find((c) => c.url.includes('/contact/'))).toBeUndefined();
+});
+
+test('opened with no signal and nothing saved for today, it says so instead of an empty day', async () => {
+  mondayMorning();
+  localStorage.setItem(`bb.rink.day.${DANA}`, JSON.stringify({ ...DAY, today: '2026-11-15' }));
+  signedIn();
+  server({ '/api/coach/rinkside/today': noSignal() });
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Today’s lessons haven’t loaded' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  expect(screen.queryByText('Mia C.')).not.toBeInTheDocument();
+});
+
+test('sending later: a family’s cancel shows the lesson cancelled; a wrong clock goes to Not sent with Done', async () => {
+  mondayMorning();
+  signedIn();
+  localStorage.setItem('bb.rink.queue', JSON.stringify([
+    { coach: DANA, date: '2026-11-16', startTime: '06:30', studentId: 'mia', shortName: 'Mia C.', outcome: 'NO_SHOW', outcomeAt: '2026-11-16T12:45:00Z' },
+    { coach: DANA, date: '2026-11-16', startTime: '08:30', studentId: 'owen', shortName: 'Owen B.', outcome: 'CHECKED_IN', outcomeAt: '2026-11-17T03:12:00Z' },
+    { coach: 'ben@gmail.com', date: '2026-11-16', startTime: '07:00', studentId: 'zoe', shortName: 'Zoe K.', outcome: 'CHECKED_IN', outcomeAt: '2026-11-16T13:05:00Z' },
+  ]));
+  server({ '/api/coach/rinkside/attendance': (init) => {
+    const b = JSON.parse(init!.body as string) as { studentId: string };
+    return b.studentId === 'mia'
+      ? new Response(JSON.stringify({ error: 'CONFLICT', message: 'This lesson was cancelled by the family at 6:20 AM, after you recorded it.' }), { status: 409 })
+      : new Response(JSON.stringify({ error: 'INVALID', message: 'The phone’s time didn’t match the lesson, so it couldn’t be recorded.' }), { status: 400 });
+  } });
+  render(<App />);
+  expect(await screen.findByText('Back online. Everything is up to date. A family had cancelled; see Today.')).toBeInTheDocument();
+  const cancelled = screen.getByText('Mia C.').closest('.rl')!;
+  expect(cancelled).toHaveClass('rl--cancelled');
+  expect(cancelled).toHaveTextContent('This lesson was cancelled by the family at 6:20 AM, after you recorded it. Nothing more to do.');
+  // Another coach's check-in waits for that coach (R2).
+  expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toMatchObject([{ coach: 'ben@gmail.com' }]);
+
+  await userEvent.click(screen.getByRole('link', { name: /1 check-in couldn’t be sent/ }));
+  const card = (await screen.findByText('Owen B.')).closest('.rl')!;
+  // Shown in the phone's own time zone, so the expected time follows the machine running the test (9:12 PM in Chicago, 3:12 AM on CI).
+  const phoneTime = new Date('2026-11-17T03:12:00Z').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  expect(card).toHaveTextContent(`Recorded Present at ${phoneTime}, by the phone’s clock`);
+  expect(card).toHaveTextContent('The phone’s time didn’t match the lesson, so it couldn’t be recorded.');
+  expect(within(card as HTMLElement).getByRole('link', { name: 'Record on the website' })).toHaveAttribute('href', '/coach/#/lessons');
+  await userEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Done' }));
+  expect(await screen.findByRole('heading', { name: 'Everything was sent' })).toBeInTheDocument();
+});
+
+test('logging out with check-ins waiting warns, keeps them, and the log-in page says they’re waiting (R2)', async () => {
+  mondayMorning();
+  signedIn();
+  server({ '/api/coach/rinkside/attendance': noSignal() });
+  render(<App />);
+  const mia = (await screen.findByText('Mia C.')).closest('.rl') as HTMLElement;
+  await userEvent.click(within(mia).getByRole('button', { name: /Present/ }));
+  await within(mia).findByText('Saved on phone');
+  window.location.hash = '#/account';
+  await userEvent.click(await screen.findByRole('button', { name: 'Log out' }));
+  const warn = screen.getByRole('dialog', { name: 'Log out' });
+  expect(warn).toHaveTextContent('1 check-in hasn’t been sent');
+  expect(warn).toHaveTextContent('If you log out, they’ll send the next time you log in here. Only your login can send them.');
+  await userEvent.click(within(warn).getByRole('button', { name: 'Log out' }));
+  expect(await screen.findByText('1 check-in waiting on this phone')).toBeInTheDocument();
+  expect(screen.getByText('Saved before you logged out. They send after you log in.')).toBeInTheDocument();
 });
