@@ -19,6 +19,9 @@ Time off and special schedules:
   Every upcoming one, with its name, whether it's a special schedule or time off ("No lessons"), its dates,
   and an Edit button.
   *Built 2026-11-12 (Batch 6): Edit shows on a special schedule only, as the design draws it.*
+  *Decided by the owner 2026-11-12: time off gets Edit too (implementation plan, Batch 21). Changing its dates goes
+    through the same review page, which lists only the dates added or removed, so families hear only about lessons
+    that actually change. Not in the Harbor design yet.*
 
 Deleting time off or a special schedule:
   *Added by the owner, 2026-11-12. Not in the Harbor design.*

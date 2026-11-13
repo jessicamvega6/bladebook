@@ -6,6 +6,14 @@
 fees are calculated is not:** every question about it is in `docs/Q_Rink-Fees.md` (Part A for
 Kim, Part B for the owner), and this ADR is amended when they're answered.
 
+**Amended — 2026-11-12.** *Decided by the owner.* **Rink fees are Phase 2.** The calculation needs
+answers from outside BladeBook (`docs/Q_Rink-Fees.md`) that aren't available yet. In MVP the page
+shows year-to-date gross only (decisions 1, 2, 4 and 5 for gross), the summary download holds
+monthly gross and paid-lesson counts with no rink fees or net (decision 7), and the page says rink
+fee calculation is coming. Decisions 3, 6 and 8 apply from Phase 2. The page's note above the
+figures keeps the screen's line, *"Gross is money you've received,"* with the banner saying the
+figures come from lessons marked paid (implementation plan R10d).
+
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
 **Relies on** [ADR-003](ADR-003-lesson-pricing-and-payment.md) (price stamped on the booking,
@@ -41,7 +49,7 @@ calculates rink fees or the coach types in what they paid. The owner settled bot
 
 ## Decision
 
-### 1. The page shows year-to-date gross and rink fees
+### 1. The page shows year-to-date gross and rink fees *(rink fees: Phase 2, 2026-11-12)*
 
 *Moved to `FeatureDecriptions/Coach Financial Page.md` ("The page shows") on 2026-11-08 — product content, not an architecture decision.*
 The input that drives the design: figures are computed per **calendar year**, in the coach's
@@ -112,7 +120,7 @@ Not decided. The answers in `Q_Rink-Fees.md` decide:
 - how rate changes apply to past months, and what each booking must store (questions 20–22).
 
 Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach Financial Page.md`,
-"Rink fees until the calculation is decided").
+"Rink fees until the calculation is decided"). *2026-11-12: rink fees are Phase 2; MVP shows no reading and no estimate.*
 
 ---
 
@@ -143,7 +151,8 @@ Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach F
   doesn't rewrite past months.
 - **The figure is used for a tax deduction,** so a wrong calculation costs the coach. Until the
   model is confirmed with Kim, the page labels it an estimate (see
-  `FeatureDecriptions/Coach Financial Page.md`, "Rink fees until the calculation is decided").
+  `FeatureDecriptions/Coach Financial Page.md`, "Rink fees until the calculation is decided"). *2026-11-12: rink fees
+  are Phase 2; MVP shows no reading and no estimate.*
 
 ---
 

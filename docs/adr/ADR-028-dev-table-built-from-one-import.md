@@ -60,7 +60,8 @@ Every dev table is created **by an import from one file in S3**, as part of buil
 stack. The table still belongs to the stack, so teardown deletes it and ADR-027 decision 5's
 purge holds. Both Infrastructure as Code (IaC) tools under consideration (ADR-001 A4) support
 this: the Cloud Development Kit (CDK) through `importSource` on `Table`, and Terraform through an
-`import_table` block on `aws_dynamodb_table`.
+`import_table` block on `aws_dynamodb_table`. *2026-11-12: A4 is resolved in favour of CDK, so
+it is `importSource`.*
 
 **Nothing is loaded into a dev table after it is built.** No batch writes, no second import.
 
