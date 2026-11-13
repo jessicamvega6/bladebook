@@ -61,7 +61,7 @@ public class BookingController {
     /** Books each pick with one coach. A taken or vanished time is reported, never retried for another. */
     @PostMapping("/api/client/bookings")
     public BookResponse book(@AuthenticationPrincipal Jwt jwt, @RequestBody BookBody body) {
-        return BookResponse.of(bookings.book(CurrentFamily.of(jwt), body.toRequest()));
+        return BookResponse.of(bookings.book(CurrentFamily.of(jwt), body.toRequest(), body.shareCode()));
     }
 
     /** My bookings: every lesson not started yet, with its price, and the last four that have. */

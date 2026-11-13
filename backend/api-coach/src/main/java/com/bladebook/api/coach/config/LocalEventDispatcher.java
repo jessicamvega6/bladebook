@@ -3,6 +3,7 @@ package com.bladebook.api.coach.config;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.domain.ChangeBatch;
 import com.bladebook.core.domain.StudentRecord;
+import com.bladebook.core.service.NotificationService;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.StudentLinkService;
 import org.slf4j.Logger;
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Component;
  * <b>Local profile only; listed shortcuts (SC-5, SC-8).</b> On AWS a schedule write reaches
  * {@code consumer-schedule-change}, and a {@code STUDENT#} change reaches {@code consumer-student-link}, through
  * DynamoDB Streams and EventBridge (ADR-MASTER sections 9 and 5). Neither runs locally, so this calls the
- * same core services in-process straight after the write (implementation plan, Question 4).
+ * same core services in-process straight after the write (implementation plan, Question 4). The emails those writes
+ * cause go through the local stream stand-in after the request (SC-20), except the decline, below.
  */
 @Component
 @Profile("local")
@@ -24,10 +26,12 @@ public class LocalEventDispatcher {
 
     private final ScheduleChangeService scheduleChange;
     private final StudentLinkService studentLink;
+    private final NotificationService notifications;
 
-    public LocalEventDispatcher(ScheduleChangeService scheduleChange, StudentLinkService studentLink) {
+    public LocalEventDispatcher(ScheduleChangeService scheduleChange, StudentLinkService studentLink, NotificationService notifications) {
         this.scheduleChange = scheduleChange;
         this.studentLink = studentLink;
+        this.notifications = notifications;
     }
 
     /** {@code ScheduleChanged}, from the weekly schedule ({@code DEFAULT}) or a dated one ({@code DATE_OVERRIDE}). */
@@ -45,12 +49,13 @@ public class LocalEventDispatcher {
     }
 
     /**
-     * {@code StudentChanged}, record removed. On AWS the consumer also emails the family that the coach has
-     * no room for new students; that email isn't built yet (SC-9), so it's only logged here, without the
-     * address.
+     * {@code StudentChanged}, record removed: the family's link goes, and {@code consumer-student-link} emails the family
+     * that the coach has no room for new students (Batch 13, closing SC-9; the removed record carries the address, which a
+     * stream's old image would too).
      */
     public void studentDeclined(StudentRecord before) {
         studentLink.declined(before);
-        LOG.info("StudentChanged (local): declined; the family's link removed; decline email not sent (SC-9)");
+        boolean sent = notifications.declined(before);
+        LOG.info("StudentChanged (local): declined; the family's link removed; decline email {}", sent ? "sent" : "not sent");
     }
 }

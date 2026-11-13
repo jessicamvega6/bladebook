@@ -10,10 +10,29 @@
   "noticeHours": "24",
   "skater": "Mia",
   "otherSkater": "Owen B.",
+  "oneLesson": false,
+  "lessonCount": "3",
   "date": "Mon, Oct 19",
   "time": "6:00 AM",
   "rink": "Pelham Civic Center",
   "fullPrice": "$50",
   "share": "$25",
-  "answerBy": "Sun, Oct 18 at 6:00 AM"
+  "answerBy": "Sun, Oct 18 at 6:00 AM",
+  "lessons": [
+    {
+      "date": "Mon, Oct 19",
+      "time": "6:00 AM",
+      "answerBy": "Sun, Oct 18 at 6:00 AM"
+    },
+    {
+      "date": "Mon, Oct 26",
+      "time": "6:00 AM",
+      "answerBy": "Wed, Oct 21 at 9:15 AM"
+    },
+    {
+      "date": "Mon, Nov 2",
+      "time": "6:00 AM",
+      "answerBy": "Wed, Oct 21 at 9:15 AM"
+    }
+  ]
 }

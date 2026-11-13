@@ -5,7 +5,7 @@
  * searchable. Read-only (A4): families change their details on their own profile. Personal prices and Remove
  * are Phase 2 (owner, 2026-10-13).
  * Waiting for approval: sign-ups grouped by family; approve one skater or a whole family, or decline, which
- * deletes the record (ADR-MASTER section 5). The decline email isn't sent yet (shortcut SC-9).
+ * deletes the record (ADR-MASTER section 5). Declining emails the family (Batch 13; locally to the outbox, SC-21).
  */
 import { useId, useState } from 'react';
 import { Avatar, Banner, Button, Card, Dialog, Field, Icon, Row } from '../../shared/components/harbor';

@@ -9,7 +9,8 @@ The coach sees what each automatic email says and chooses which ones go out.
 
 Emails families get:
   Booking confirmation: when a family books.
-  Day-of reminder: the morning of each lesson.
+  Day-of reminder: the morning of each lesson day, one email per family listing that day's lessons (owner,
+    2026-11-13).
   Payment reminder: after a lesson is checked in. Includes the coach's payment instructions, and their
     payment types they have switched on in their profile (one switch per type, ADR-016 d7).
   Lesson cancelled by you: when the coach cancels a lesson, day or week. Always sent.

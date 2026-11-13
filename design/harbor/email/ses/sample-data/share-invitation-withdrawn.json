@@ -10,6 +10,18 @@
   "noticeHours": "24",
   "inviterName": "Grace Chen",
   "skater": "Zoe",
+  "oneLesson": false,
+  "lessonCount": "2",
   "date": "Fri, Oct 16",
-  "time": "8:30 AM"
+  "time": "8:30 AM",
+  "lessons": [
+    {
+      "date": "Fri, Oct 16",
+      "time": "8:30 AM"
+    },
+    {
+      "date": "Fri, Oct 23",
+      "time": "8:30 AM"
+    }
+  ]
 }

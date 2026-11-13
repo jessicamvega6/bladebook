@@ -59,7 +59,7 @@ test('a link to a page inside the site keeps the sign-in', async () => {
 test('an approved family’s menu opens Book a lesson and My bookings', async () => {
   sessionStorage.setItem('bb.family.idToken', 'tok');
   window.location.hash = '#/home';
-  const fetchMock = vi.fn((url: string) => json(200, url === '/api/client/lessons' ? LESSONS : APPROVED));
+  const fetchMock = vi.fn((url: string) => json(200, url === '/api/client/lessons' ? LESSONS : url === '/api/client/invitations' ? [] : APPROVED));
   vi.stubGlobal('fetch', fetchMock);
   render(<App />);
 

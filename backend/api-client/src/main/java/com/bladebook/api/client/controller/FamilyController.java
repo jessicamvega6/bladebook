@@ -39,12 +39,28 @@ public class FamilyController {
     @PostMapping("/api/client/registration")
     @ResponseStatus(HttpStatus.CREATED)
     public FamilyResponse register(@AuthenticationPrincipal Jwt jwt, @RequestBody RegistrationBody body) {
-        return FamilyResponse.of(registration.register(CurrentFamily.of(jwt), CurrentFamily.loginEmail(jwt), body.toRequest()));
+        ClientContext ctx = CurrentFamily.of(jwt);
+        return withShareCodes(ctx, registration.register(ctx, CurrentFamily.loginEmail(jwt), body.toRequest()));
     }
 
+    /** Locally, also issues a share code to any skater made before Batch 11 (a listed shortcut, as the consumer is). */
     @GetMapping("/api/client/me")
     public FamilyResponse me(@AuthenticationPrincipal Jwt jwt) {
-        return FamilyResponse.of(families.view(CurrentFamily.of(jwt)));
+        ClientContext ctx = CurrentFamily.of(jwt);
+        return withShareCodes(ctx, families.view(ctx));
+    }
+
+    /**
+     * On AWS {@code consumer-family-sync} issues a new skater's share code a moment after the write, so the page shows it on
+     * its next load. Locally it runs in-process first, and the family is read again with the codes.
+     */
+    private FamilyResponse withShareCodes(ClientContext ctx, FamilyService.FamilyView view) {
+        LocalEventDispatcher local = localEvents.getIfAvailable();
+        if (local == null || view.skaters().stream().allMatch(s -> s.shareCode() != null)) {
+            return FamilyResponse.of(view);
+        }
+        local.skatersChanged(ctx);
+        return FamilyResponse.of(families.view(ctx));
     }
 
     /** Name and mobile number. Each coach's copy follows through consumer-family-sync. */
@@ -59,7 +75,8 @@ public class FamilyController {
     /** Profile → Add a skater (A9; ADR-025 item k): waiting for each approved coach picked, or with none yet. */
     @PostMapping("/api/client/me/skaters")
     public FamilyResponse addSkater(@AuthenticationPrincipal Jwt jwt, @RequestBody AddSkaterBody body) {
-        return FamilyResponse.of(registration.addSkater(CurrentFamily.of(jwt), body.toRequest()));
+        ClientContext ctx = CurrentFamily.of(jwt);
+        return withShareCodes(ctx, registration.addSkater(ctx, body.toRequest()));
     }
 
     /** Profile → Add a coach (ADR-025 d2): each chosen skater waits for that coach alone. */

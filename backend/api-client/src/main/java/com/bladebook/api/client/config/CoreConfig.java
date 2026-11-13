@@ -6,12 +6,17 @@ import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.FamilyRepository;
 import com.bladebook.core.data.LocalTable;
+import com.bladebook.core.data.ShareRepository;
 import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.domain.RegistrationNumbers;
 import com.bladebook.core.domain.RegistrationRules;
 import com.bladebook.core.service.BookingService;
 import com.bladebook.core.service.CancellationService;
+import com.bladebook.core.service.DeadlineSweepService;
+import com.bladebook.core.service.InviteSyncService;
+import com.bladebook.core.service.SeatEvents;
+import com.bladebook.core.service.ShareService;
 import com.bladebook.core.service.RecurrenceService;
 import com.bladebook.core.service.CodeLookupService;
 import com.bladebook.core.service.FamilySyncService;
@@ -37,6 +42,8 @@ public class CoreConfig {
                                      @Value("${bladebook.table}") String table) {
         TenantClients clients = TenantClients.local(endpoint);
         LocalTable.ensure(clients.forSetup(), table);
+        LocalTable.backfillSeatIndexes(clients.forSetup(), table); // seats from before Batch 13
+        clients.localStream().switchOn(); // SC-20: each request's writes go to the consumers afterwards
         return clients;
     }
 
@@ -77,25 +84,62 @@ public class CoreConfig {
                 () -> UUID.randomUUID().toString(), clock);
     }
 
-    /** Booking one lesson (Batch 4): the write link check, the family-path booking reads and writes. */
+    @Bean
+    ShareRepository shareRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new ShareRepository(clients, table);
+    }
+
+    /**
+     * <b>Local profile: a listed shortcut.</b> On AWS a shared lesson's change reaches {@code consumer-invite} through the
+     * table's stream; locally the services call it in-process straight after the write.
+     */
+    @Bean
+    @Profile("local")
+    SeatEvents localSeatEvents(ShareRepository shares) {
+        return new InviteSyncService(shares);
+    }
+
+    /** Outside the local profile the stream carries the change, so the services tell nobody themselves. */
+    @Bean
+    @Profile("!local")
+    SeatEvents seatEvents() {
+        return SeatEvents.NONE;
+    }
+
+    /** Booking (Batches 4 and 9), with a share code (Batch 11). */
     @Bean
     BookingService bookingService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
-                                  Clock clock) {
-        return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, clock);
+                                  ShareRepository shares, Clock clock, SeatEvents events) {
+        return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, shares, clock, events);
     }
 
-    /** Changing a repeating booking (Batch 9). */
+    /** Changing a repeating booking (Batch 9); a shared series can only be cancelled whole (B4). */
     @Bean
-    RecurrenceService recurrenceService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock) {
+    RecurrenceService recurrenceService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock, SeatEvents events) {
         return new RecurrenceService(new ClientLinks(clients, table), new BookingRepository(clients, table),
-                new CancellationRepository(clients, table), clock);
+                new CancellationRepository(clients, table), clock, events);
     }
 
-    /** Cancelling one lesson from My bookings (Batch 5). */
+    /** Cancelling one lesson from My bookings (Batch 5), shared or not (Batch 11). */
     @Bean
-    CancellationService cancellationService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock) {
+    CancellationService cancellationService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock,
+                                            SeatEvents events) {
         return new CancellationService(new ClientLinks(clients, table), new BookingRepository(clients, table),
-                new CancellationRepository(clients, table), clock);
+                new CancellationRepository(clients, table), clock, events);
+    }
+
+    /** Shared lessons on the family side (Batch 11). */
+    @Bean
+    ShareService shareService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
+                              ShareRepository shares, Clock clock, SeatEvents events) {
+        return new ShareService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, shares,
+                new CancellationRepository(clients, table), clock, events);
+    }
+
+    /** What sched-deadline-sweep will run on AWS; locally a timer and a local-only route trigger it (a listed shortcut). */
+    @Bean
+    DeadlineSweepService deadlineSweepService(ShareRepository shares, SeatEvents events) {
+        return new DeadlineSweepService(shares, events);
     }
 
     /** What consumer-family-sync will run on AWS; locally {@code LocalEventDispatcher} calls it. */
