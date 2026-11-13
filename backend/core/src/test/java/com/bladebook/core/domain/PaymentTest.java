@@ -17,6 +17,19 @@ class PaymentTest {
             Map.of(PaymentTypes.Type.VENMO, "@dana-skates"));
 
     @Test
+    void whatOtherWasIsKeptOnlyWithOtherTrimmedAndCapped() {
+        assertThat(Payment.other("  Zelle ", Payment.Via.OTHER)).isEqualTo("Zelle");
+        assertThat(Payment.other("Zelle", Payment.Via.VENMO)).isNull();
+        assertThat(Payment.other("Zelle", null)).isNull();
+        assertThat(Payment.other("   ", Payment.Via.OTHER)).isNull();
+        assertThat(Payment.other(null, Payment.Via.OTHER)).isNull();
+        assertThat(Payment.other("x".repeat(Payment.MAX_OTHER), Payment.Via.OTHER)).hasSize(Payment.MAX_OTHER);
+        assertThatThrownBy(() -> Payment.other("x".repeat(Payment.MAX_OTHER + 1), Payment.Via.OTHER))
+                .hasMessage("Keep this to 40 characters.");
+        assertThatThrownBy(() -> Payment.other("Zel\nle", Payment.Via.OTHER)).hasMessage("This has a character it can't hold.");
+    }
+
+    @Test
     void aSeatWithNoStatusYetIsUnpaid() {
         assertThat(Payment.of(null)).isEqualTo(Payment.Status.UNPAID);
         assertThat(Payment.of("PAID")).isEqualTo(Payment.Status.PAID);

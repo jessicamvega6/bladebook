@@ -23,8 +23,8 @@ import java.util.Map;
  */
 public final class PaymentRepository {
 
-    /** A seat with its payment as stored. {@code paidVia} only when paid. */
-    public record PaidSeat(Seat seat, Payment.Status status, Payment.Via paidVia) {
+    /** A seat with its payment as stored. {@code paidVia} only when paid; {@code paidViaOther} only with {@code OTHER}. */
+    public record PaidSeat(Seat seat, Payment.Status status, Payment.Via paidVia, String paidViaOther) {
     }
 
     private final TenantClients clients;
@@ -47,37 +47,49 @@ public final class PaymentRepository {
                     .exclusiveStartKey(start).build());
             for (Map<String, AttributeValue> m : r.items()) {
                 out.add(new PaidSeat(SeatItems.seat(m), Payment.of(FamilyItems.str(m, "paymentStatus")),
-                        m.containsKey("paidVia") ? Payment.Via.valueOf(m.get("paidVia").s()) : null));
+                        m.containsKey("paidVia") ? Payment.Via.valueOf(m.get("paidVia").s()) : null, FamilyItems.str(m, "paidViaOther")));
             }
             start = r.hasLastEvaluatedKey() && !r.lastEvaluatedKey().isEmpty() ? r.lastEvaluatedKey() : null;
         } while (start != null);
         return out;
     }
 
-    /** Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy} and {@code paidVia}. */
-    public boolean markPaid(AccessContext ctx, String seatKey, Payment.Status was, Payment.Via via, Instant now) {
+    /**
+     * Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy}, {@code paidVia} and,
+     * with {@code OTHER}, {@code paidViaOther}. Whatever isn't given is removed.
+     */
+    public boolean markPaid(AccessContext ctx, String seatKey, Payment.Status was, Payment.Via via, String other, Instant now) {
         Map<String, AttributeValue> v = new HashMap<>(Map.of(":paid", FamilyItems.s("PAID"), ":by", FamilyItems.s(ctx.coachId())));
         String set = "SET paymentStatus = :paid, markedPaidBy = :by";
         if (was != Payment.Status.PAID) {
             set += ", paidAt = :at";
             v.put(":at", FamilyItems.s(now.toString()));
         }
-        String update = via == null ? set + " REMOVE paidVia" : set + ", paidVia = :via";
-        if (via != null) {
+        List<String> remove = new ArrayList<>();
+        if (via == null) {
+            remove.add("paidVia");
+        } else {
+            set += ", paidVia = :via";
             v.put(":via", FamilyItems.s(via.name()));
         }
-        return update(ctx, seatKey, was, update, v);
+        if (via != Payment.Via.OTHER || other == null) {
+            remove.add("paidViaOther");
+        } else {
+            set += ", paidViaOther = :other";
+            v.put(":other", FamilyItems.s(other));
+        }
+        return update(ctx, seatKey, was, remove.isEmpty() ? set : set + " REMOVE " + String.join(", ", remove), v);
     }
 
     /** Waives an unpaid lesson: final, with no amount. */
     public boolean waive(AccessContext ctx, String seatKey, Instant now) {
-        return update(ctx, seatKey, Payment.Status.UNPAID, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia",
+        return update(ctx, seatKey, Payment.Status.UNPAID, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia, paidViaOther",
                 new HashMap<>(Map.of(":w", FamilyItems.s("WAIVED"), ":at", FamilyItems.s(now.toString()), ":by", FamilyItems.s(ctx.coachId()))));
     }
 
     /** A paid lesson back to unpaid. */
     public boolean undo(AccessContext ctx, String seatKey) {
-        return update(ctx, seatKey, Payment.Status.PAID, "SET paymentStatus = :u REMOVE paidAt, markedPaidBy, paidVia",
+        return update(ctx, seatKey, Payment.Status.PAID, "SET paymentStatus = :u REMOVE paidAt, markedPaidBy, paidVia, paidViaOther",
                 new HashMap<>(Map.of(":u", FamilyItems.s("UNPAID"))));
     }
 

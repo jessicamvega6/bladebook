@@ -138,9 +138,11 @@ interface FieldProps {
   mono?: boolean;
   /** Turns pasting off (the confirm-password box). */
   noPaste?: boolean;
+  /** The most characters the box takes. */
+  maxLength?: number;
 }
 
-export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste, maxLength }: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   return (
@@ -148,7 +150,7 @@ export function Field({ label, value, onChange, type = 'text', hint, error, opti
       <label className="label" htmlFor={id}>{label}{optional && <> <span className="label__opt">Optional</span></>}</label>
       {(() => {
         const input = (
-          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={type} value={value} placeholder={placeholder}
+          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={type} value={value} placeholder={placeholder} maxLength={maxLength}
             autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)} onPaste={noPaste ? (e) => e.preventDefault() : undefined}
             aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
         );
@@ -238,13 +240,18 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
 /** Modal dialog over a scrim. Escape or the scrim closes it; focus moves into it. */
 export function Dialog({ children, onClose, labelledBy }: { children: ReactNode; onClose: () => void; labelledBy: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The latest onClose, so a parent passing a new function each render doesn't re-run the effects below.
+  const close = useRef(onClose);
+  close.current = onClose;
+  // Focus the first control once, when the dialog opens; not on every re-render, or typing in a box would lose focus.
   useEffect(() => {
-    const first = ref.current?.querySelector<HTMLElement>('input, button');
-    first?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    ref.current?.querySelector<HTMLElement>('input, button')?.focus();
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close.current(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
   return (
     <>
       <div className="scrim" onClick={onClose} />

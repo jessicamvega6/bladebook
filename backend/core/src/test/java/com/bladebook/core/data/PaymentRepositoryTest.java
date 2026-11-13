@@ -56,19 +56,30 @@ class PaymentRepositoryTest {
 
     @Test
     void paidWithHowTheyPaidThenChangedThenUndone() {
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.VENMO, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.VENMO, null, NOW)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
         assertThat(seat().paidVia()).isEqualTo(Payment.Via.VENMO);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, null, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, null, null, NOW)).isTrue();
         assertThat(seat().paidVia()).isNull();
         assertThat(payments.undo(dana, seatKey)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
     }
 
     @Test
+    void whatOtherWasIsStoredWithOtherAndRemovedByAnythingElse() {
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.OTHER, "Zelle", NOW)).isTrue();
+        assertThat(seat().paidViaOther()).isEqualTo("Zelle");
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, Payment.Via.CASH, "Zelle", NOW)).isTrue();
+        assertThat(seat().paidViaOther()).isNull();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, Payment.Via.OTHER, "check", NOW)).isTrue();
+        assertThat(payments.undo(dana, seatKey)).isTrue();
+        assertThat(seat().paidViaOther()).isNull();
+    }
+
+    @Test
     void aWriteFromAStaleViewFails() {
         payments.waive(dana, seatKey, NOW);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW)).isFalse();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, NOW)).isFalse();
         assertThat(payments.undo(dana, seatKey)).isFalse();
         assertThat(payments.waive(dana, seatKey, NOW)).isFalse();
         assertThat(seat().status()).isEqualTo(Payment.Status.WAIVED);
@@ -79,13 +90,13 @@ class PaymentRepositoryTest {
         f.clients.forSetup().updateItem(b -> b.tableName(f.table).key(FamilyItems.key("COACH#" + dana.coachId(), seatKey))
                 .updateExpression("REMOVE paymentStatus"));
         assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.CASH, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.CASH, null, NOW)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
     }
 
     @Test
     void aSeatThatIsGoneCantBePaid() {
-        assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, NOW)).isFalse();
+        assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, null, NOW)).isFalse();
         assertThat(Map.<String, AttributeValue>of()).isEmpty();
     }
 }

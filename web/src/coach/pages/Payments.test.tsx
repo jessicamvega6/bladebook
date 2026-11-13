@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const row = (startTime: string, fullName: string, o: Partial<PaymentRowDto> = {}): PaymentRowDto => ({
   date: '2026-11-16', startTime, durationMinutes: 30, studentId: fullName, fullName, familyName: 'Sarah Park', relationship: 'GUARDIAN',
-  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], ...o,
+  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, paidViaOther: null, sharedWith: [], ...o,
 });
 
 const VIEW: PaymentsDto = {
@@ -19,7 +19,8 @@ const VIEW: PaymentsDto = {
 };
 
 function serve(onPost: (path: string, body: Record<string, unknown>) => Response = (_p, b) =>
-  new Response(JSON.stringify(row(b.startTime as string, b.studentId as string, { status: 'PAID', paidVia: (b.paidVia as PaymentRowDto['paidVia']) ?? null })), { status: 200 })) {
+  new Response(JSON.stringify(row(b.startTime as string, b.studentId as string, { status: 'PAID', paidVia: (b.paidVia as PaymentRowDto['paidVia']) ?? null,
+    paidViaOther: (b.paidViaOther as string | null) ?? null })), { status: 200 })) {
   const posts: Array<{ path: string; body: Record<string, unknown> }> = [];
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
     if (init?.method === 'POST') {
@@ -68,7 +69,41 @@ test('Mark paid asks how they paid, from the coach’s types and Other, and says
   await userEvent.click(within(dialog).getByRole('button', { name: 'Venmo' }));
   await userEvent.click(within(dialog).getByRole('button', { name: 'Mark paid' }));
   expect(await screen.findByText('Ava Park, Nov 16: marked paid by Venmo.')).toBeInTheDocument();
-  expect(posts).toEqual([{ path: '/api/coach/payments/paid', body: { date: '2026-11-16', startTime: '06:00', studentId: 'Ava Park', paidVia: 'VENMO' } }]);
+  expect(posts).toEqual([{ path: '/api/coach/payments/paid', body: { date: '2026-11-16', startTime: '06:00', studentId: 'Ava Park', paidVia: 'VENMO', paidViaOther: null } }]);
+});
+
+test('Other opens a box for what they used, sent and shown with it; no tick above the title', async () => {
+  const posts = serve();
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  const ava = (await screen.findByText('Ava Park')).closest('tr')!;
+  await userEvent.click(within(ava).getByRole('button', { name: 'Mark paid' }));
+  const dialog = screen.getByRole('dialog', { name: 'Mark paid' });
+  expect(dialog.querySelector('.dialog__icon')).toBeNull();
+  expect(within(dialog).queryByLabelText(/What did they use/)).not.toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Other' }));
+  const box = within(dialog).getByLabelText(/What did they use/);
+  expect(box).toHaveAttribute('maxLength', '40');
+  await userEvent.type(box, ' Zelle ');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Mark paid' }));
+  expect(await screen.findByText('Ava Park, Nov 16: marked paid by Other: Zelle.')).toBeInTheDocument();
+  expect(posts[0]!.body).toMatchObject({ paidVia: 'OTHER', paidViaOther: 'Zelle' });
+});
+
+test('What Other was is dropped when another type is picked instead', async () => {
+  const posts = serve();
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  const ava = (await screen.findByText('Ava Park')).closest('tr')!;
+  await userEvent.click(within(ava).getByRole('button', { name: 'Mark paid' }));
+  const dialog = screen.getByRole('dialog', { name: 'Mark paid' });
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Other' }));
+  await userEvent.type(within(dialog).getByLabelText(/What did they use/), 'Zelle');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Venmo' }));
+  expect(within(dialog).queryByLabelText(/What did they use/)).not.toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Mark paid' }));
+  await screen.findByText('Ava Park, Nov 16: marked paid by Venmo.');
+  expect(posts[0]!.body).toMatchObject({ paidVia: 'VENMO', paidViaOther: null });
 });
 
 test('Waive always asks first, and a lesson changed elsewhere says so', async () => {

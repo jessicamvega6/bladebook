@@ -17,6 +17,9 @@ public final class Payment {
     /** {@code paidVia}: one of the payment types the coach takes, or {@code OTHER}. */
     public enum Via { CASH, CASHAPP, VENMO, PAYPAL, OTHER }
 
+    /** The most a coach can type for what "Other" was (owner, 2026-11-12). */
+    public static final int MAX_OTHER = 40;
+
     static final String WAIVED_FINAL = "A waived lesson can’t be changed.";
     static final String ALREADY = "This lesson is already %s.";
 
@@ -73,6 +76,24 @@ public final class Payment {
             return v;
         }
         throw DomainException.invalid("paidVia", "Pick how they paid from the list.");
+    }
+
+    /**
+     * What "Other" was, in the coach's words ("Zelle", "check"): optional, and kept only when {@code via} is
+     * {@code OTHER}. Blank for none; refused over {@link #MAX_OTHER} characters or with a control character.
+     */
+    public static String other(String value, Via via) {
+        String v = value == null ? "" : value.trim();
+        if (via != Via.OTHER || v.isEmpty()) {
+            return null;
+        }
+        if (v.length() > MAX_OTHER) {
+            throw DomainException.invalid("paidViaOther", "Keep this to " + MAX_OTHER + " characters.");
+        }
+        if (v.chars().anyMatch(Character::isISOControl)) {
+            throw DomainException.invalid("paidViaOther", "This has a character it can't hold.");
+        }
+        return v;
     }
 
     /** Amounts in minor units, summed per currency: never a total across currencies. */

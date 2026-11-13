@@ -206,10 +206,11 @@ class AttendanceApiTest {
         assertThat(list.body().get("totals").get("unpaid").get("USD").asLong()).isEqualTo(5000);
         assertThat(list.body().get("choices").get(0).asString()).isEqualTo("OTHER");
 
-        String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
+        String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\",\"paidViaOther\":\"Zelle\"}";
         Res paid = call("POST", "/api/coach/payments/paid", token, seat);
         assertThat(paid.s("status")).isEqualTo("PAID");
         assertThat(paid.s("paidVia")).isEqualTo("OTHER");
+        assertThat(paid.s("paidViaOther")).isEqualTo("Zelle");
         assertThat(call("POST", "/api/coach/payments/waive", token, seat).status()).isEqualTo(409);
         assertThat(call("POST", "/api/coach/payments/undo", token, seat).s("status")).isEqualTo("UNPAID");
         assertThat(call("POST", "/api/coach/payments/waive", token, seat).s("status")).isEqualTo("WAIVED");

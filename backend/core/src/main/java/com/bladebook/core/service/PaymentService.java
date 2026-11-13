@@ -38,7 +38,7 @@ public final class PaymentService {
     /** One skater's lesson. {@code amountMinor}: the skater's share of the lesson time's price. */
     public record Row(LocalDate date, LocalTime startTime, int durationMinutes, String studentId, String fullName, String familyName,
                       ClientRelationship relationship, Attendance.Shown attendance, int amountMinor, String currency,
-                      Payment.Status status, Payment.Via paidVia, List<String> sharedWith) {
+                      Payment.Status status, Payment.Via paidVia, String paidViaOther, List<String> sharedWith) {
     }
 
     /** Totals per currency: unpaid, paid, and unpaid no-shows; with the counts the page's figures show. */
@@ -103,13 +103,17 @@ public final class PaymentService {
         return new View(rows, totals(rows), Payment.choices(coach.payments()), coach.currency().name());
     }
 
-    /** Marks paid, or on a paid lesson changes how they paid. {@code paidVia} blank for none. */
-    public Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
+    /**
+     * Marks paid, or on a paid lesson changes how they paid. {@code paidVia} blank for none; {@code paidViaOther}, what
+     * "Other" was, is kept only with {@code OTHER}.
+     */
+    public Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia, String paidViaOther) {
         CoachProfile coach = coach(ctx);
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkMarkPaid(s.status());
         Payment.Via via = Payment.via(paidVia, coach.payments(), s.paidVia());
-        if (!payments.markPaid(ctx, s.seat().key(), s.status(), via, clock.instant())) {
+        String other = Payment.other(paidViaOther, via);
+        if (!payments.markPaid(ctx, s.seat().key(), s.status(), via, other, clock.instant())) {
             throw DomainException.conflict(CHANGED);
         }
         return reread(ctx, date, start, studentId);
@@ -161,7 +165,7 @@ public final class PaymentService {
                 r == null ? s.seat().studentName() : r.studentName(), r == null ? null : r.clientName(),
                 r == null ? null : r.relationship(),
                 Attendance.statusOf(s.seat().seatStatus(), s.seat().startsAtUtc(), s.seat().durationMinutes(), now),
-                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), others);
+                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), s.paidViaOther(), others);
     }
 
     private static Totals totals(List<Row> rows) {

@@ -8,12 +8,16 @@
  */
 import { useEffect, useId, useState } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { Avatar, Badge, Banner, Button, Card, Dialog, Icon, Seg } from '../../shared/components/harbor';
+import { Avatar, Badge, Banner, Button, Card, Dialog, Field, Icon, Seg } from '../../shared/components/harbor';
 import { plural } from '../../shared/logic/booking';
 import { DAYS, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate } from '../../shared/logic/schedule';
 import type { PaidVia, PaymentRowDto, PaymentsApi, PaymentsDto } from '../api';
 
 const VIA: Record<PaidVia, string> = { CASH: 'Cash', CASHAPP: 'Cash App', VENMO: 'Venmo', PAYPAL: 'PayPal', OTHER: 'Other' };
+/** The most a coach can type for what Other was (the API refuses more). */
+const MAX_OTHER = 40;
+/** How they paid, with what Other was when the coach said: "Other: Zelle". */
+const viaText = (r: PaymentRowDto) => (r.paidVia === 'OTHER' && r.paidViaOther ? `Other: ${r.paidViaOther}` : r.paidVia ? VIA[r.paidVia] : '');
 const ATTEND: Record<PaymentRowDto['attendance'], [string, string, string?]> = {
   CHECKED_IN: ['Attended', 'success', 'check'], NO_SHOW: ['No-show', 'danger', 'x'], BOOKED: ['Booked', 'neutral'],
   NOT_RECORDED: ['Not recorded', 'warning', 'alert'],
@@ -33,7 +37,7 @@ function Stat({ label, value, sub, icon }: { label: string; value: string; sub: 
   return <div className="stat"><span className="stat__icon"><Icon name={icon} size={18} /></span><div className="stat__label">{label}</div><div className="stat__value">{value}</div><div className="stat__sub">{sub}</div></div>;
 }
 
-type Modal = { kind: 'paid'; r: PaymentRowDto; edit: boolean; via: PaidVia | null } | { kind: 'waive'; r: PaymentRowDto };
+type Modal = { kind: 'paid'; r: PaymentRowDto; edit: boolean; via: PaidVia | null; other: string } | { kind: 'waive'; r: PaymentRowDto };
 
 export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unknown) => void }) {
   const [from, setFrom] = useState('');
@@ -103,7 +107,7 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
     const [pt, ptone, picon] = PAY[r.status];
     const acts = r.status === 'UNPAID'
       ? <><Button variant="ghost" sm onClick={() => setModal({ kind: 'waive', r })}>Waive</Button>
-          <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null })}>Mark paid</Button></>
+          <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null, other: '' })}>Mark paid</Button></>
       // Waived is final (R7): no Undo. Paid can still be undone.
       : r.status === 'WAIVED' ? <span className="muted">Final</span>
         : <Button variant="ghost" sm icon="undo" onClick={() => void act(() => api.undo(r), () => `${r.fullName}, ${shortDate(r.date)}: back to unpaid.`)}>Undo</Button>;
@@ -116,8 +120,8 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
         <td><Badge tone={atone} icon={aicon}>{at}</Badge></td>
         <td className="r money">{formatMoney(r.amountMinor)}</td>
         <td><Badge tone={ptone} icon={picon}>{pt}</Badge>
-          {r.status === 'PAID' && <small className="mp-how">{r.paidVia ? `${VIA[r.paidVia]} · ` : ''}
-            <a className="link" href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'paid', r, edit: true, via: r.paidVia }); }}>{r.paidVia ? 'Change' : 'Add how they paid'}</a></small>}</td>
+          {r.status === 'PAID' && <small className="mp-how">{r.paidVia ? `${viaText(r)} · ` : ''}
+            <a className="link" href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'paid', r, edit: true, via: r.paidVia, other: r.paidViaOther ?? '' }); }}>{r.paidVia ? 'Change' : 'Add how they paid'}</a></small>}</td>
         <td className="r"><span className="cellbtns">{acts}</span></td>
       </tr>
     );
@@ -144,17 +148,19 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
           : <Empty icon="check" title="Nothing unpaid in this range" body="Every lesson here is paid or waived. Switch to All to see them." />}
         <div className="card__note"><Icon name="info" size={14} /> A no-show shows the full lesson price until you mark it paid or waived. Upcoming lessons aren’t listed until they’ve happened. Each skater in a shared lesson pays for themselves. How a family paid is for your records only; families don’t see it. All amounts are in {cur}.</div>
       </Card>
-      {modal?.kind === 'paid' && <PaidDialog m={modal} choices={data.choices} onPick={(via) => setModal({ ...modal, via })} onClose={() => setModal(null)}
-        onSave={() => void act(() => api.markPaid(modal.r, modal.via), (a) => `${a.fullName}, ${shortDate(a.date)}: ${modal.edit
-          ? (a.paidVia ? `paid by ${VIA[a.paidVia]}.` : 'how they paid cleared.') : `marked paid${a.paidVia ? ` by ${VIA[a.paidVia]}` : ''}.`}`)} />}
+      {modal?.kind === 'paid' && <PaidDialog m={modal} choices={data.choices} onPick={(via) => setModal({ ...modal, via })}
+        onOther={(other) => setModal({ ...modal, other })} onClose={() => setModal(null)}
+        onSave={() => void act(() => api.markPaid(modal.r, modal.via, modal.other), (a) => `${a.fullName}, ${shortDate(a.date)}: ${modal.edit
+          ? (a.paidVia ? `paid by ${viaText(a)}.` : 'how they paid cleared.') : `marked paid${a.paidVia ? ` by ${viaText(a)}` : ''}.`}`)} />}
       {modal?.kind === 'waive' && <WaiveDialog r={modal.r} onClose={() => setModal(null)}
         onWaive={() => void act(() => api.waive(modal.r), (a) => `${a.fullName}, ${shortDate(a.date)}: waived.`)} />}
     </>
   );
 }
 
-function PaidDialog({ m, choices, onPick, onClose, onSave }: {
-  m: Extract<Modal, { kind: 'paid' }>; choices: PaidVia[]; onPick: (via: PaidVia | null) => void; onClose: () => void; onSave: () => void;
+function PaidDialog({ m, choices, onPick, onOther, onClose, onSave }: {
+  m: Extract<Modal, { kind: 'paid' }>; choices: PaidVia[]; onPick: (via: PaidVia | null) => void; onOther: (other: string) => void;
+  onClose: () => void; onSave: () => void;
 }) {
   const id = useId();
   // A stored type switched off since stays a choice, so editing never loses it.
@@ -162,12 +168,14 @@ function PaidDialog({ m, choices, onPick, onClose, onSave }: {
   const on = m.via ? opts.indexOf(m.via) : -1;
   return (
     <Dialog onClose={onClose} labelledBy={id}>
-      <div className="dialog__icon"><Icon name="check" size={22} /></div>
       <h2 className="h2" id={id}>{m.edit ? 'How did they pay?' : 'Mark paid'}</h2>
       <div className="dialog__what"><b>{m.r.fullName}</b><span>{dDow(m.r.date)} · {formatTime(m.r.startTime)} · {formatMoney(m.r.amountMinor)}</span></div>
       <div className="fieldset mp-how-pick"><div className="label">How did they pay? <span className="label__opt">Optional</span></div>
         <Seg label="How did they pay?" options={opts.map((v) => VIA[v])} selected={on} onSelect={(i) => onPick(opts[i] === m.via ? null : opts[i]!)} />
-        <div className="hint">For your records only; families don’t see it. These are the payment types on your <a className="link" href="#/profile/payments">profile</a>, plus Other.{on >= 0 ? ' Pick it again to clear it.' : ''}</div></div>
+        {/* One span, so the link flows with the sentence: .hint is a flex row and would make it its own column. */}
+        <div className="hint"><span>For your records only; families don’t see it. These are the payment types on your <a className="link" href="#/profile/payments">profile</a>, plus Other.{on >= 0 ? ' Pick it again to clear it.' : ''}</span></div></div>
+      {m.via === 'OTHER' && <Field label="What did they use?" optional value={m.other} onChange={onOther} maxLength={MAX_OTHER}
+        placeholder="e.g. Zelle or a check" />}
       <div className="dialog__actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={m.edit ? undefined : 'check'} onClick={onSave}>{m.edit ? 'Save' : 'Mark paid'}</Button></div>
     </Dialog>
   );

@@ -92,26 +92,35 @@ class PaymentServiceTest {
 
     @Test
     void markPaidWithHowTheyPaidChangeItAndUndo() {
-        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "VENMO").paidVia()).isEqualTo(Payment.Via.VENMO);
-        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "OTHER").paidVia()).isEqualTo(Payment.Via.OTHER);
+        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "VENMO", null).paidVia()).isEqualTo(Payment.Via.VENMO);
+        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "OTHER", null).paidVia()).isEqualTo(Payment.Via.OTHER);
         PaymentService.View v = service.list(dana, MONDAY, MONDAY);
         assertThat(v.totals().paid()).containsExactly(Map.entry("USD", 5000L));
         assertThat(service.undo(dana, MONDAY, SIX, ava).status()).isEqualTo(Payment.Status.UNPAID);
-        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "CASH")).hasMessage("Pick how they paid from the list.");
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "CASH", null)).hasMessage("Pick how they paid from the list.");
+    }
+
+    @Test
+    void whatOtherWasIsKeptWithOtherAndDroppedOtherwise() {
+        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "OTHER", " Zelle ").paidViaOther()).isEqualTo("Zelle");
+        assertThat(service.list(dana, MONDAY, MONDAY).rows().get(0).paidViaOther()).isEqualTo("Zelle");
+        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "VENMO", "Zelle").paidViaOther()).isNull();
+        assertThat(service.markPaid(dana, MONDAY, SIX, ava, "OTHER", "check").paidViaOther()).isEqualTo("check");
+        assertThat(service.undo(dana, MONDAY, SIX, ava).paidViaOther()).isNull();
     }
 
     @Test
     void waivedIsFinal() {
         assertThat(service.waive(dana, MONDAY, SIX, ava).status()).isEqualTo(Payment.Status.WAIVED);
         assertThatThrownBy(() -> service.undo(dana, MONDAY, SIX, ava)).hasMessage("A waived lesson can’t be changed.");
-        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "")).hasMessage("A waived lesson can’t be changed.");
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "", null)).hasMessage("A waived lesson can’t be changed.");
         assertThat(service.list(dana, MONDAY, MONDAY).totals().unpaid()).containsExactly(Map.entry("USD", 5000L));
     }
 
     @Test
     void aLessonThatHasntHappenedIsntListedOrPaid() {
         assertThat(service.list(dana, MONDAY, MONDAY).rows()).noneMatch(r -> r.startTime().equals(LocalTime.of(7, 30)));
-        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, LocalTime.of(7, 30), ava, null)).hasMessage("That lesson hasn’t happened yet.");
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, LocalTime.of(7, 30), ava, null, null)).hasMessage("That lesson hasn’t happened yet.");
         assertThatThrownBy(() -> service.list(dana, MONDAY, MONDAY.minusDays(1))).hasMessage("The end date is before the start date.");
         assertThatThrownBy(() -> service.waive(dana, MONDAY, LocalTime.of(9, 0), ava)).hasMessage("That lesson couldn’t be found.");
     }

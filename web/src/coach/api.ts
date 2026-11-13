@@ -243,7 +243,9 @@ export type PaidVia = 'CASH' | 'CASHAPP' | 'VENMO' | 'PAYPAL' | 'OTHER';
 export interface PaymentRowDto {
   date: string; startTime: string; durationMinutes: number; studentId: string; fullName: string; familyName: string | null;
   relationship: 'SELF' | 'GUARDIAN' | null; attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
-  amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
+  amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null;
+  /** What Other was, in the coach's words ("Zelle"); only with OTHER. */
+  paidViaOther: string | null; sharedWith: string[];
 }
 
 /** Totals per currency, never across. */
@@ -257,12 +259,14 @@ export interface PaymentsDto {
 }
 
 export function paymentsApi(token: string) {
-  const seat = (r: PaymentRowDto, paidVia?: PaidVia | null) => ({ date: r.date, startTime: r.startTime, studentId: r.studentId, paidVia: paidVia ?? null });
+  const seat = (r: PaymentRowDto, paidVia?: PaidVia | null, paidViaOther?: string | null) =>
+    ({ date: r.date, startTime: r.startTime, studentId: r.studentId, paidVia: paidVia ?? null, paidViaOther: paidViaOther ?? null });
   const post = (path: string, body: unknown) => apiFetch<PaymentRowDto>(`/api/coach/payments/${path}`, { method: 'POST', body, token, idempotent: true });
   return {
     list: (from: string, to: string) => apiFetch<PaymentsDto>(`/api/coach/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
-    /** Marks paid, or changes how a paid lesson was paid ({@code null} for none). */
-    markPaid: (r: PaymentRowDto, paidVia: PaidVia | null) => post('paid', seat(r, paidVia)),
+    /** Marks paid, or changes how a paid lesson was paid ({@code null} for none). {@code other}: what Other was. */
+    markPaid: (r: PaymentRowDto, paidVia: PaidVia | null, other: string | null = null) =>
+      post('paid', seat(r, paidVia, paidVia === 'OTHER' && other?.trim() ? other.trim() : null)),
     /** Final (R7). */
     waive: (r: PaymentRowDto) => post('waive', seat(r)),
     undo: (r: PaymentRowDto) => post('undo', seat(r)),

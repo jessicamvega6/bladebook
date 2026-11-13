@@ -38,7 +38,7 @@ public class PaymentController {
     /** Marks paid, or changes how a paid lesson was paid. */
     @PostMapping("/paid")
     public RowDto paid(@AuthenticationPrincipal Jwt jwt, @RequestBody SeatBody b) {
-        return RowDto.of(payments.markPaid(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), b.paidVia()));
+        return RowDto.of(payments.markPaid(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), b.paidVia(), b.paidViaOther()));
     }
 
     /** Final (R7). */
