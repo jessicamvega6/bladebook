@@ -1793,7 +1793,6 @@ technical.*
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
-- Which browser library does the SRP sign-in for BladeBook's own forms (ADR-023 d11, Open).
 - Bounds on `requiredNoticeHours` (for Phase 2 editing).
 - Whether the 7-day answer-by should be checked with Kim → `FeatureDecriptions/Schedule lesson split`.
 - **Whether a coach booking for a family (Phase 2) is held to the 3-month window** (ADR-031 Open).
