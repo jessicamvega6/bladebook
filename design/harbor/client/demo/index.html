@@ -1712,7 +1712,7 @@ const CHK = (label, on, act, args = [], sub = '') =>
 /** Real text input bound to a state path ("ui.search", "profile.phone"). o: {type, hint, error, optional, placeholder, mono, prefix} */
 function INP(id, label, path, o = {}) {
   const val = getPath(path) ?? '';
-  const ctl = `<input id="${id}" class="ctl${o.error ? ' is-error' : ''}${o.mono ? ' mono' : ''}" type="${o.type || 'text'}" value="${esc(val)}" data-bind="${path}"${o.placeholder ? ` placeholder="${esc(o.placeholder)}"` : ''}${o.live ? ' data-live="1"' : ''}>`;
+  const ctl = `<input id="${id}" class="ctl${o.error ? ' is-error' : ''}${o.mono ? ' mono' : ''}" type="${o.type || 'text'}" value="${esc(val)}" data-bind="${path}"${o.placeholder ? ` placeholder="${esc(o.placeholder)}"` : ''}${o.max ? ` maxlength="${o.max}"` : ''}${o.live ? ' data-live="1"' : ''}>`;
   return `<div class="field${o.error ? ' field--error' : ''}"><label class="label" for="${id}">${label}${o.optional ? ' <span class="label__opt">Optional</span>' : ''}</label>${ctl}${o.hint || o.error ? `<div class="hint${o.error ? ' hint--error' : ''}">${o.error ? ic('alert', 14) + o.error : o.hint}</div>` : ''}</div>`;
 }
 /** Select bound to a state path. options: [[value, label]] */

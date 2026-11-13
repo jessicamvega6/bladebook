@@ -219,13 +219,21 @@ one records that we asked, the other records that they paid.
 > every hour, and on the SMS cost of doing so (ADR-007). Nothing rate-limits it today, which
 > is a gap to close when the button ships rather than after.
 >
+**Amended — 2026-11-12.** *Decided by the owner.* With `paidVia` = `OTHER`, the coach may note
+what the payment was, as **`paidViaOther`** on the seat: optional free text, trimmed, at most 40
+characters, no control characters, HTML-escaped wherever shown. It exists only with `OTHER`;
+choosing another type, undoing the payment or waiving removes it. Coach-only on screen, like
+`paidVia` (the 2026-10-12, later, amendment above). `paidVia` itself stays a closed set. Product
+rules: `FeatureDecriptions/Coach Payment Section on Dashboard.md`, "How the client paid".
+
 > Source: `FeatureDecriptions/Coach Payment Section on Dashboard.md`.
 
 > **Amended 2026-10-09 — how the client paid.** *Decided by the owner, 2026-10-07.* The coach
 > records how each lesson was paid, as `paidVia` on the booking, alongside `paidAt` and
 > `markedPaidBy` — and on a paid `CANCELLED#` record in Phase 2 (ADR-015). The coach enters it; nothing else observes money changing hands.
 >
-> `paidVia` is a closed set with no free text (product rule — see
+> `paidVia` is a closed set ~~with no free text~~ *(2026-11-12: `OTHER` may carry an optional note,
+> `paidViaOther`; see the 2026-11-12 amendment above)* (product rule — see
 > `FeatureDecriptions/Coach Payment Section on Dashboard.md`, "How the client paid", which also
 > holds which options are offered).
 >

@@ -142,7 +142,7 @@ read seats through GSI2 and filter on the coach's time zone, so they never need 
 **`partnerName` + `partnerStatus`** (written by `consumer-invite`, decision 6),
 `invitedClientId` and `choiceAnswerBy` (read-only copies written by `consumer-invite`, decision 6), the reminder flags (`confirmationSent`, `remindedOn`,
 `settleReminderSentOn`), attendance (`outcomeAt`, `recordedAt`), payment (`paymentStatus`,
-`paidAt`, `markedPaidBy`, `paidVia`, `waivedAt`, `waivedBy`, `paymentReminderSent`) and the
+`paidAt`, `markedPaidBy`, `paidVia`, `paidViaOther` (ADR-003, amended 2026-11-12), `waivedAt`, `waivedBy`, `paymentReminderSent`) and the
 deadline keys (decision 12).
 
 *Phase 2 since ADR-033 (2026-10-20): `seatStatus` is `INVITED | BOOKED | CHECKED_IN | NO_SHOW`.* `seatStatus`: `INVITED | AWAITING_COACH | BOOKED | CHECKED_IN | NO_SHOW`. (*Keep or cancel?* is

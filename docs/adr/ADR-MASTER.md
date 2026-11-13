@@ -543,7 +543,7 @@ messages are product: see `FeatureDecriptions/Schedule Creater.md`,
   of `startsAtUtc`, `coachTz` and `durationMinutes`, `joinedAt`, `idempotencyKey`, `recurrenceId`,
   `bookedIntervalWeeks`, `inviteId`, `invitedByClientId`, `partnerName`, `partnerStatus`,
   `invitedClientId`, `choiceAnswerBy`, `confirmationSent`, `remindedOn`, `settleReminderSentOn`,
-  `outcomeAt`, `recordedAt`, `paymentStatus`, `paidAt`, `markedPaidBy`, `paidVia`, `waivedAt`,
+  `outcomeAt`, `recordedAt`, `paymentStatus`, `paidAt`, `markedPaidBy`, `paidVia`, `paidViaOther`, `waivedAt`,
   `waivedBy`, `paymentReminderSent`, and the deadline keys.
 - **No amount is ever stored on a seat.** A skater's share is worked out from the lesson time
   wherever it is shown (§8).
@@ -1049,6 +1049,9 @@ happens (§18).
 - **`paidVia`** (how the client paid): one of the payment types the coach has switched on, or
   *Other*; optional, editable afterwards, readable only on the coach path. A waived lesson has
   none. Stored on the seat, so turning a type off later doesn't change past records.
+- **`paidViaOther`** (ADR-003, amended 2026-11-12): with `paidVia` = `OTHER` only, the coach's
+  optional note of what it was ("Zelle"). Free text, trimmed, at most 40 characters, no control
+  characters. Removed whenever `paidVia` isn't `OTHER`, and on undo or waive. Coach-only on screen.
 - **GSI3** holds a seat while `UNPAID`; paying or waiving removes it. A skater's unpaid lessons
   for the coach: GSI3 filtered on `studentId`.
 - **`paymentReminderSent`** guards the automatic reminder; it is not payment status.
@@ -1109,7 +1112,7 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
   domain.
 - **Emails to the coach about their own account and lessons go to `loginEmail`**: the daily report,
   the morning email and the weekly unpaid reminder.
-- Coach-authored free text (`paymentInstructions`, block names) is HTML-escaped.
+- Coach-authored free text (`paymentInstructions`, block names, `paidViaOther`) is HTML-escaped.
 
 ### Per message
 

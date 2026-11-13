@@ -843,6 +843,7 @@ erDiagram
         datetime paidAt
         string markedPaidBy
         enum   paidVia &quot;CASH|CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
+        string paidViaOther &quot;with OTHER only, max 40, ADR-003 2026-11-12&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
@@ -932,6 +933,7 @@ erDiagram
         datetime paidAt
         string markedPaidBy
         enum   paidVia &quot;CASH|CASHAPP|VENMO|PAYPAL|OTHER, ADR-003 d4&quot;
+        string paidViaOther &quot;with OTHER only, max 40, ADR-003 2026-11-12&quot;
         datetime waivedAt
         string waivedBy
         bool   paymentReminderSent &quot;automatic-send idempotency guard&quot;
@@ -1743,7 +1745,7 @@ sequenceDiagram
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
-    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;Cog: create account (email + password), verify the email -&lt;br/&gt;on the BladeBook form, straight to Cognito (ADR-023 d11)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
     PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
     F-&gt;&gt;Cog: refresh tokens - they now carry Client
@@ -1786,7 +1788,7 @@ sequenceDiagram
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
-    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;Cog: create account (email + password), verify the email -&lt;br/&gt;on the BladeBook form, straight to Cognito (ADR-023 d11)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
     PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
     F-&gt;&gt;Cog: refresh tokens - they now carry Client
@@ -2175,13 +2177,13 @@ sequenceDiagram
     participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
-    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    C-&gt;&gt;Cog: sign up - login email and password, on the BladeBook form (ADR-016 d3, ADR-023 d11)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
     PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
-    C-&gt;&gt;Cog: sign in
+    C-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form
     Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
@@ -2207,13 +2209,13 @@ sequenceDiagram
     participant PC as Post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
-    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    C-&gt;&gt;Cog: sign up - login email and password, on the BladeBook form (ADR-016 d3, ADR-023 d11)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
     PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
-    C-&gt;&gt;Cog: sign in
+    C-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form
     Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)

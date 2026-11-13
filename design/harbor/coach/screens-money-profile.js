@@ -22,6 +22,8 @@ const mpPart = (id, k = -1) => { const l = mpLesson(id); return !l ? null : k < 
 const mpSharedWith = p => isShared(p.lesson) ? `<small class="mp-sub">${ic('users', 12)} Shared with ${skatersIn(p.lesson).filter(x => x.sid !== p.sid).map(x => esc(shortName(student(x.sid).name))).join(', ')}</small>` : '';
 /** How-paid choices: the payment types the coach takes, plus Other (ADR-003 d4). A stored value whose type was later
    switched off is kept as a choice, so editing never loses it. */
+/** How they paid, with what Other was when the coach said: "Other: Zelle" (owner, 2026-11-12). */
+const mpHowText = part => part.paidBy === 'OTHER' && part.paidOther ? `Other: ${part.paidOther}` : PAID_BY_LABEL[part.paidBy];
 const mpHowOpts = part => { const o = payTypesFor(state.profile); return part && part.paidBy && !o.some(([v]) => v === part.paidBy) ? [...o.slice(0, -1), [part.paidBy, PAID_BY_LABEL[part.paidBy]], o[o.length - 1]] : o; };
 
 /* ================= Lessons — attendance corrections ================= */
@@ -83,7 +85,7 @@ SCREENS.payments = () => {
       // Waived is final (ADR-003; R7, owner 2026-11-09): no Undo, and Waive always asks first. Paid can still be undone.
       : l.pay === 'WAIVED' ? '<span class="muted">Final</span>' : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
     // How they paid sits under the Paid badge and can be changed afterwards. Waived lessons have none.
-    const how = l.pay !== 'PAID' ? '' : `<small class="mp-how">${l.paidBy ? `${PAID_BY_LABEL[l.paidBy]} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
+    const how = l.pay !== 'PAID' ? '' : `<small class="mp-how">${l.paidBy ? `${esc(mpHowText(l))} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
     return `<tr${statusOf(l) === 'NOT_RECORDED' ? ' class="mp-attn"' : ''}><td><span class="cellname">${avatar(initials(s.name), 'sm')}<span>${esc(s.name)}${s.rel !== 'Self' ? `<small class="mp-sub">${esc(s.client)}</small>` : ''}${mpSharedWith(l)}</span></span></td>
       <td class="num">${dDow(l.iso)} · ${fmtT(l.t)}</td><td>${statusBadge(l)}</td><td class="r money">${money(l.price)}</td><td>${payBadge(l)}${how}</td><td class="r"><span class="cellbtns">${acts}</span></td></tr>`;
   }).join('');
@@ -103,20 +105,21 @@ SCREENS.payments = () => {
 };
 Object.assign(ACTIONS, {
   mpPayFilter(i) { state.ui.pay.filter = i; },
-  mpPaidOpen(id, k = -1) { state.ui.pay.how = -1; state.modal = { kind: 'mpHow', id, k, edit: false }; },
-  mpHowOpen(id, k = -1) { const p = mpPart(id, k); if (!p) return; state.ui.pay.how = mpHowOpts(p).findIndex(([v]) => v === p.paidBy); state.modal = { kind: 'mpHow', id, k, edit: true }; },
+  mpPaidOpen(id, k = -1) { state.ui.pay.how = -1; state.ui.pay.other = ''; state.modal = { kind: 'mpHow', id, k, edit: false }; },
+  mpHowOpen(id, k = -1) { const p = mpPart(id, k); if (!p) return; state.ui.pay.how = mpHowOpts(p).findIndex(([v]) => v === p.paidBy); state.ui.pay.other = p.paidOther || ''; state.modal = { kind: 'mpHow', id, k, edit: true }; },
   mpHowPick(i) { const ui = state.ui.pay; ui.how = ui.how === i ? -1 : i; },
   mpHowSave() {
     const m = state.modal, l = mpLesson(m.id), p = mpPart(m.id, m.k); if (!p) return;
     const how = state.ui.pay.how, v = how >= 0 ? mpHowOpts(p)[how][0] : null;
-    p.pay = 'PAID'; p.paidBy = v; state.modal = null;
-    state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: ${m.edit ? (v ? `paid by ${PAID_BY_LABEL[v]}.` : 'how they paid cleared.') : `marked paid${v ? ` by ${PAID_BY_LABEL[v]}` : ''}.`}`;
+    p.pay = 'PAID'; p.paidBy = v; p.paidOther = v === 'OTHER' ? (state.ui.pay.other || '').trim().slice(0, 40) || null : null; state.modal = null;
+    state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: ${m.edit ? (v ? `paid by ${mpHowText(p)}.` : 'how they paid cleared.') : `marked paid${v ? ` by ${mpHowText(p)}` : ''}.`}`;
   },
   mpWaiveAsk(id, k = -1) { state.modal = { kind: 'mpWaive', id, k }; },
-  mpWaive() { const m = state.modal, l = mpLesson(m.id), p = mpPart(m.id, m.k); if (!p) return; p.pay = 'WAIVED'; p.paidBy = null; state.modal = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: waived.`; },
-  mpUndo(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p || p.pay !== 'PAID') return; p.pay = 'UNPAID'; p.paidBy = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
+  mpWaive() { const m = state.modal, l = mpLesson(m.id), p = mpPart(m.id, m.k); if (!p) return; p.pay = 'WAIVED'; p.paidBy = null; p.paidOther = null; state.modal = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: waived.`; },
+  mpUndo(id, k = -1) { const l = mpLesson(id), p = mpPart(id, k); if (!p || p.pay !== 'PAID') return; p.pay = 'UNPAID'; p.paidBy = null; p.paidOther = null; state.flash = `${student(p.sid).name}, ${dShort(l.iso)}: back to unpaid.`; },
 });
-/* Mark paid, with how they paid (ADR-003 d4, amended 2026-10-12): optional, editable afterwards, coach-only, fixed values. */
+/* Mark paid, with how they paid (ADR-003 d4, amended 2026-10-12): optional, editable afterwards, coach-only, fixed values.
+   Other opens an optional box for what they used, up to 40 characters (ADR-003 d4, amended 2026-11-12). */
 /** Waiving can't be undone, so it always asks first (R7, owner 2026-11-09). */
 MODALS.mpWaive = m => {
   const l = mpLesson(m.id), p = mpPart(m.id, m.k);
@@ -128,12 +131,12 @@ MODALS.mpWaive = m => {
 };
 MODALS.mpHow = m => {
   const l = mpLesson(m.id), p = mpPart(m.id, m.k), opts = mpHowOpts(p), on = state.ui.pay.how;
-  return `<div class="dialog__icon">${ic('check', 22)}</div>
-    <h2 class="h2">${m.edit ? 'How did they pay?' : 'Mark paid'}</h2>
+  return `<h2 class="h2">${m.edit ? 'How did they pay?' : 'Mark paid'}</h2>
     <div class="dialog__what"><b>${esc(student(p.sid).name)}</b><span>${dDow(l.iso)} · ${fmtT(l.t)} · ${money(p.price)}</span></div>
     <div class="fieldset mp-how-pick"><div class="label">How did they pay? <span class="label__opt">Optional</span></div>
       ${SEG(opts.map(([, t]) => t), on, 'mpHowPick', [], { block: true })}
-      <div class="hint">For your records only; families don’t see it. These are the payment types on your <a class="link" href="${href('profile-payments')}">profile</a>, plus Other.${on >= 0 ? ' Pick it again to clear it.' : ''}</div></div>
+      <div class="hint"><span>For your records only; families don’t see it. These are the payment types on your <a class="link" href="${href('profile-payments')}">profile</a>, plus Other.${on >= 0 ? ' Pick it again to clear it.' : ''}</span></div></div>
+    ${on >= 0 && opts[on][0] === 'OTHER' ? INP('mp-other', 'What did they use?', 'ui.pay.other', { optional: true, max: 40, placeholder: 'e.g. Zelle or a check' }) : ''}
     <div class="dialog__actions">${B('Cancel', 'secondary', 'closeModal')}${B(m.edit ? 'Save' : 'Mark paid', 'primary', 'mpHowSave', { icon: m.edit ? '' : 'check' })}</div>`;
 };
 
@@ -445,9 +448,15 @@ PRESETS.push(
   { id: 'CoachPaymentsEmpty', file: 'payments-empty', group: 'Payments', title: 'Payments — pick a date range', note: 'Redesigned from Forest CoachPayments: the date range comes first.', setup: st => { st.screen = 'payments'; } },
   { id: 'CoachPayments', file: 'payments', group: 'Payments', title: 'Payments — unpaid', note: 'Redesigned from Forest CoachPayments: unpaid lessons with Mark paid and Waive, and reminders shown as Phase 2.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0 }; } },
   { id: 'CoachPaymentsAll', file: 'payments-all', group: 'Payments', title: 'Payments — all lessons', note: 'Redesigned from Forest CoachPayments: every lesson in the range, with Undo on paid ones; a waived lesson (Sam, Sep 2) is final, with no Undo (R7, 2026-11-09). Under each Paid badge, how the family paid, which the coach can change (ADR-003 d4). Sam and Leo’s shared Wednesday lessons have a row each.', setup: st => { st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 1 }; const w = st.lessons.find(x => x.sid && isPast(x) && x.pay === 'PAID' && !x.with); if (w) { w.pay = 'WAIVED'; w.paidBy = null; } } },
-  { id: 'CoachPaymentsMarkPaid', file: 'payments-mark-paid', group: 'Payments', title: 'Payments — mark paid, how they paid', note: 'New. Marking a lesson paid offers an optional “How did they pay?”: the payment types the coach takes (Cash only if switched on) plus Other, no free text. Coach-only (Open-Pending §3, settled 2026-10-12).', setup: st => {
+  { id: 'CoachPaymentsMarkPaid', file: 'payments-mark-paid', group: 'Payments', title: 'Payments — mark paid, how they paid', note: 'New. Marking a lesson paid offers an optional “How did they pay?”: the payment types the coach takes (Cash only if switched on) plus Other. Coach-only (Open-Pending §3, settled 2026-10-12). No tick above the title (2026-11-12).', setup: st => {
     st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: 0 };
     const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
+    st.modal = { kind: 'mpHow', id: l.id, k: -1, edit: false };
+  } },
+  { id: 'CoachPaymentsMarkPaidOther', file: 'payments-mark-paid-other', group: 'Payments', title: 'Payments — mark paid, Other', note: 'New (2026-11-12). Picking Other opens an optional “What did they use?” box, up to 40 characters. The table then shows “Other: Zelle”. Coach-only, like how they paid (ADR-003 d4, amended 2026-11-12).', setup: st => {
+    st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: 0, other: 'Zelle' };
+    const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
+    st.ui.pay.how = mpHowOpts(l).findIndex(([v]) => v === 'OTHER');
     st.modal = { kind: 'mpHow', id: l.id, k: -1, edit: false };
   } },
   { id: 'CoachPaymentsWaive', file: 'payments-waive', group: 'Payments', title: 'Payments — waive a lesson', note: 'New (R7, owner 2026-11-09). Waiving is final, so it always asks first and names the lesson and amount. Paid lessons can still be undone; waived ones can’t.', setup: st => {

@@ -12,7 +12,13 @@ The coach will need the following abilities:
    *Design: payments-mark-paid.html; how they paid shows under each Paid badge and can be changed.*
 
 How the client paid:
- The options come from the payment types on the coach's profile, plus "Other". There is no free text.
+ The options come from the payment types on the coach's profile, plus "Other". ~~There is no free text.~~
+   *Decided by the owner 2026-11-12:* picking Other opens an optional box, "What did they use?" (e.g. Zelle or a
+   check), up to 40 characters. It's kept only with Other: picking another type, undoing the payment or waiving
+   clears it. The table and the confirmation show it as "Other: Zelle", and Change opens with it filled in. Seen
+   only by the coach, like the rest of how they paid. *(ADR-003 d4, amended 2026-11-12; Harbor
+   payments-mark-paid-other.html)*
+   *Also 2026-11-12:* no tick icon above the dialog's title.
  Only the payment types on the coach's profile are listed, plus Cash if the coach turned on "I accept cash".
  e.g. a coach with only a Cashapp handle sees Cashapp and Other.
  Optional when marking paid, editable afterwards, and seen only by the coach. A waived lesson has none.
@@ -22,7 +28,8 @@ How the client paid:
  *Amended 2026-10-09, decided by the owner 2026-10-07 from talking with Kim:* the coach chooses how the client
    paid on the payment dashboard. ~~The options are the payment handles the coach has filled in on their profile
    (ADR-016 decision 7), plus Other. A coach with only a Cashapp handle sees Cashapp and Other; a coach with no
-   handles sees only Other.~~ *Replaced by the later 2026-10-12 ruling below.* There is no free text: a payment that matches no handle is Other.
+   handles sees only Other.~~ *Replaced by the later 2026-10-12 ruling below.* ~~There is no free text: a payment that matches no handle is Other.~~
+   *Changed 2026-11-12:* a payment that matches no type is still Other, now with an optional note of what it was (above).
  *Amended 2026-10-12, decided by the owner:* Cash is not a fixed option. It's a payment type the coach turns on
    at sign-up or on their profile, and it appears in the list only when it's on. No other types are added;
    cheques and Interac e-transfer are Other. How-paid is optional when marking a lesson paid, editable afterwards,
