@@ -1103,7 +1103,7 @@ add('Family · Booking', 'Confirmation', '4 · Result', 1280, () => familyApp('B
   <div class="hero hero--success"><span class="hero__icon">${ic('check', 26)}</span><div><h1 class="h1">30 lessons booked for Mia</h1><p class="lede">A confirmation email is on its way. 2 dates couldn’t be booked — everything else is confirmed.</p></div></div>
   <div class="grid2">
     ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 9:30 AM</div><div class="series__sub">30 min · $50 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:87.5%"></span></div><div class="series__foot"><b>14 booked</b><span>2 unavailable</span></div></div>`)}
-    ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 3:00 PM</div><div class="series__sub">60 min · $80 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:100%"></span></div><div class="series__foot"><b>16 booked</b><span>All dates</span></div></div>`)}
+    ${card(`<div class="series"><div class="series__title">${ic('repeat', 16)}Mondays · 3:00 PM</div><div class="series__sub">60 min · $80 · weekly, Sep 14 – Dec 28</div><div class="meter meter--ok"><span style="width:100%"></span></div><div class="series__foot"><b>16 booked</b></div></div>`)}
   </div>
   ${card(`
     ${row(`<span class="roundicon roundicon--warn">${ic('x', 16)}</span>${rowTitle('Monday, Oct 12 · 9:30 AM', 'That time was taken or no longer exists.')}`, btn('Pick another time', 'secondary', { sm: true }))}
@@ -1237,14 +1237,14 @@ const coachSteps = (i) => i;
 add('Coach · Sign up', 'CoachAccount', '1 · Account', 1280, () => wizard('Coach sign up', COACH_STEPS, 0, card(`
   <h1 class="h1">Start coaching on BladeBook</h1><p class="lede">Scheduling, lessons and payment reminders in one place.</p>
   ${field('Your name, as families will see it', 'Dana Whitfield', { hint: 'Shown on your booking page and in every email families get.' })}
-  ${field('Login email', 'dana.whitfield@gmail.com', { hint: 'You’ll log in with this. Your daily report comes here.' })}
+  ${field('Login email', 'dana.whitfield@gmail.com', { hint: 'You’ll log in with this. Your morning email comes here.' })}
   ${field('Password', '•••••••••••', { focus: true })}
   ${pwRules()}
   ${btn('Create account', 'primary', { block: true, lg: true })}`),
   `<aside class="help"><div class="help__title">${ic('info', 16)}Setup takes four steps</div><ol class="numlist"><li>Create your account</li><li>Verify your login email with a code</li><li>How families reach and pay you</li><li>Confirm your business email <small>— skipped if it’s your login email</small></li></ol><div class="help__body">Then build your teaching week and share your coach code.</div></aside>`), 'Same wizard frame as family sign-up, so both sides of the product feel like one app.');
 
 add('Coach · Sign up', 'CoachVerify', '2 · Verify login email', 1280, () => verify('Coach sign up', COACH_STEPS, 1, 'dana.whitfield@gmail.com', '',
-  `<aside class="help"><div class="help__title">${ic('info', 16)}Two emails, maybe one</div><div class="help__body"><p><b>Login email</b> — private. You sign in with it; your daily report goes there. Verified now, with a code.</p><p><b>Business email</b> — the reply address families see. Same as login? Already verified. Different? It gets its own link.</p></div></aside>`), 'Identical verify pattern to families; the two-email explainer is structured rather than a wall of text.');
+  `<aside class="help"><div class="help__title">${ic('info', 16)}Two emails, maybe one</div><div class="help__body"><p><b>Login email</b> — private. You sign in with it; your morning email goes there. Verified now, with a code.</p><p><b>Business email</b> — the reply address families see. Same as login? Already verified. Different? It gets its own link.</p></div></aside>`), 'Identical verify pattern to families; the two-email explainer is structured rather than a wall of text.');
 
 const bizForm = (same) => card(`
   <h1 class="h1">How families reach you</h1><p class="lede">You can change any of this later from your profile.</p>
@@ -1420,7 +1420,7 @@ add('Coach · Week, payments & lessons', 'CoachPayments', '3 · Payments', 1280,
     <table class="table"><thead><tr><th>Skater</th><th>Lesson</th><th>Attendance</th><th class="r">Amount</th><th class="r"></th></tr></thead><tbody>
     ${[['MC', 'Mia C.', 'Wed, Sep 2 · 6:30 AM', ['Attended', 'success'], 50], ['LM', 'Leo M.', 'Fri, Sep 4 · 10:00 AM', ['No-show', 'danger'], 50], ['EA', 'Ella A.', 'Mon, Sep 7 · 7:00 AM', ['Not recorded', 'warning'], 50], ['PR', 'Priya R.', 'Mon, Sep 7 · 3:00 PM', ['Attended', 'success'], 80]].map(([a, n, t, [s, v], p]) => `<tr><td><span class="cellname">${avatar(a, 'sm')}${n}</span></td><td>${t}</td><td>${badge(s, v)}</td><td class="r money">$${p}</td><td class="r"><span class="cellbtns">${btn('Waive', 'ghost', { sm: true })}${btn('Mark paid', 'secondary', { sm: true, icon: 'check' })}</span></td></tr>`).join('')}
     </tbody></table>
-    <div class="card__note">${ic('info', 14)} No-shows show the full lesson price until you mark them paid or waived. Lessons in another currency are listed separately and never added together.</div>`, { pad: false })}`, { width: 'wide' }), 'A real table with a totals row up top; the date range is pre-filled to the current month instead of an empty list.');
+    <div class="card__note">${ic('info', 14)} A no-show shows what that skater owes for the lesson until you mark it paid or waived. Lessons in another currency are listed separately and never added together.</div>`, { pad: false })}`, { width: 'wide' }), 'A real table with a totals row up top; the date range is pre-filled to the current month instead of an empty list.');
 
 add('Coach · Week, payments & lessons', 'CoachLessonList', '4 · Lesson list — attendance', 1280, () => coachApp('Lessons', `
   ${pageHead('Lessons', 'Correct anything recorded at the rink. Corrections happen here, never in the rinkside app.')}
@@ -2486,6 +2486,7 @@ PRESETS.push(
    pick with another coach is warned about, never refused. Booking sends one request per coach. */
 
 const BK_MONTHS = ['2026-10', '2026-11', '2026-12'];          // the booking page shows three months (UI limit only)
+const BK_WINDOW_LAST = '2026-12-31';                          // last day the family can see
 /** The booking window's last day: the end of the month two months ahead (ADR-031 d3). The day view never leaves
     TODAY..BK_LAST (B5, owner 2026-11-08). */
 const BK_LAST = (() => { const [y, m] = BK_MONTHS[BK_MONTHS.length - 1].split('-').map(Number); return toIso(new Date(y, m, 0)); })();
@@ -2768,8 +2769,9 @@ MODALS.bkConfirm = () => {
     ${CHK('Repeat these lessons', u.repeat, 'bkRepeat', [], 'Every time you picked repeats on the same day of the week.')}
     <div class="grid2">
       <div class="field"><label class="label" for="bk-every">Repeats</label><select id="bk-every" class="ctl" data-bind="ui.book.every" data-num="1"${dis}>${[1, 2, 3, 4].map(n => `<option value="${n}"${n === u.every ? ' selected' : ''}>${n === 1 ? 'Every week' : `Every ${n} weeks`}</option>`).join('')}</select></div>
-      <div class="field${err ? ' field--error' : ''}"><label class="label" for="bk-until">Until</label><input id="bk-until" class="ctl${err ? ' is-error' : ''}" type="date" value="${u.until}" max="${bkMaxUntil(u)}" data-bind="ui.book.until" data-live="1"${dis}><div class="hint${err ? ' hint--error' : ''}">${err ? ic('alert', 14) + err : 'Starts three months out. Up to 12 months.'}</div></div>
+      <div class="field${err ? ' field--error' : ''}"><label class="label" for="bk-until">Until</label><input id="bk-until" class="ctl${err ? ' is-error' : ''}" type="date" value="${u.until}" max="${bkMaxUntil(u)}" data-bind="ui.book.until" data-live="1"${dis}>${err ? `<div class="hint hint--error">${ic('alert', 14)}${err}</div>` : ''}</div>
     </div>
+    ${u.repeat && !err && u.until > BK_WINDOW_LAST ? banner('warning', 'This goes past the next three months', `Changes to ${multi ? 'your coaches’ schedules' : `Coach ${esc(groups[0].c.first)}’s schedule`} may affect some or all of these lessons.`) : ''}
     ${clashes.length ? `<div class="bk-clashes">${banner('warning', `${plural(clashes.length, 'clash', 'clashes')} with ${kf}’s other lessons`, `${kf} can’t be in two places at once. You can still book, for example back-to-back lessons at the same rink.`)}
       <div class="listbox">${clashes.map(x => row(`<span class="roundicon roundicon--warn">${ic('alert', 16)}</span>${rowTitle(dDow(x.iso), `${fmtT(x.a.t)} with Coach ${esc(coachById(x.a.coach).first)} overlaps ${x.b.booked ? 'the lesson' : 'your pick'} at ${fmtT(x.b.t)} with Coach ${esc(coachById(x.b.coach).first)}`)}`)).join('')}</div></div>` : ''}
     ${bkShareBox(u, k, picks)}
@@ -2794,7 +2796,7 @@ SCREENS['book-result'] = () => {
   const seriesCard = sr => {
     const its = r.items.filter(x => x.series === sr.key), b = its.filter(x => x.res === 'booked').length, mn = its.filter(x => x.res === 'mine').length, sk = its.filter(x => x.res === 'skipped').length;
     const pct = its.length ? Math.round((b + mn) / its.length * 100) : 0;
-    return card(`<div class="series"><div class="series__title">${ic(sr.repeat ? 'repeat' : 'calendar', 16)}${sr.title}</div><div class="series__sub">${sr.sub}</div><div class="meter meter--ok"><span style="width:${pct}%"></span></div><div class="series__foot"><b>${b ? `${b} booked` : 'None new'}${mn ? ` · ${mn} already yours` : ''}</b><span>${sk ? `${sk} unavailable` : 'All dates'}</span></div></div>`);
+    return card(`<div class="series"><div class="series__title">${ic(sr.repeat ? 'repeat' : 'calendar', 16)}${sr.title}</div><div class="series__sub">${sr.sub}</div><div class="meter meter--ok"><span style="width:${pct}%"></span></div><div class="series__foot"><b>${b ? `${b} booked` : 'None new'}${mn ? ` · ${mn} already yours` : ''}</b>${sk ? `<span>${sk} unavailable</span>` : ''}</div></div>`);
   };
   const skippedCard = list => list.length ? card(list.map(x => row(`<span class="roundicon roundicon--warn">${ic('x', 16)}</span>${rowTitle(`${dDow(x.iso)} · ${fmtT(x.t)}`, x.why)}`, B('Pick another time', 'secondary', 'bkPickDay', { sm: true, args: [x.iso, x.coach] }))).join(''),
     { title: `${plural(list.length, 'date')} need${list.length === 1 ? 's' : ''} another time`, sub: 'Or leave them. The rest of your bookings are confirmed.', pad: false }) : '';

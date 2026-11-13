@@ -9,8 +9,10 @@ Settles the pending decision *"Which continuous integration (CI) system?"* in
 decision 2 (the test gates run in CI) and Blockers-Before-Coding #3 (set up the first CI
 pipeline).
 
-**Leaves open** the infrastructure tool, AWS Cloud Development Kit (CDK) or Terraform
-([ADR-001](ADR-001-backend-stack.md) amendment A4). Either one runs from this pipeline.
+~~**Leaves open** the infrastructure tool, AWS Cloud Development Kit (CDK) or Terraform
+([ADR-001](ADR-001-backend-stack.md) amendment A4). Either one runs from this pipeline.~~
+*2026-11-12: A4 is resolved: the infrastructure tool is AWS Cloud Development Kit (CDK) in
+TypeScript, run from this pipeline through each account's CDK bootstrap and OIDC deploy role.*
 
 **Amended — 2026-10-15.** [ADR-027](ADR-027-on-demand-dev-environment.md): the production deploy
 job ends with the post-deploy check (ADR-013 decision 3c's second flow, once, against
@@ -119,7 +121,7 @@ on request** (ADR-028 decision 2).
    privilege").
 
 The tool that checks infrastructure for least privilege (`cdk-nag`, or `checkov`/`tfsec`)
-runs in this pipeline as a build gate once ADR-001 A4 is settled.
+runs in this pipeline as a build gate once ADR-001 A4 is settled. *A4 settled 2026-11-12: CDK, so `cdk-nag`.*
 
 ---
 
@@ -158,7 +160,7 @@ runs in this pipeline as a build gate once ADR-001 A4 is settled.
   ([ADR-012](ADR-012-pii-access-logging.md) lets only the owner's operator role read the
   personal-data access log). Deploy roles must not read the table's data or that log. If CDK is
   chosen (ADR-001 A4), narrow its default bootstrap execution role, which has full administrator
-  access unless changed. *Added 2026-10-15.*
+  access unless changed. *Added 2026-10-15.* *CDK was chosen 2026-11-12, so this applies.*
 - ~~**How a passing dev run is recorded on the commit**, given that dev may be built by hand:
   for example, the dev flows run from a workflow against the dev stack the owner built, and
   set a commit status; or the owner's run sets it. *Added 2026-10-15.*~~ *Gone 2026-10-15: the

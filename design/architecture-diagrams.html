@@ -160,7 +160,7 @@ pre.src{
 <div class="wrap">
   <p class="eyebrow">BladeBook · generated from docs/architecture.md</p>
   <h1>Architecture Diagrams</h1>
-  <p class="lede">All 29 mermaid diagrams from <code>architecture.md</code>, rendered.
+  <p class="lede">All 31 mermaid diagrams from <code>architecture.md</code>, rendered.
   <strong>Nothing here is hand-drawn</strong> — each one is lifted verbatim from the document,
   so re-running <code>design/render-diagrams.py</code> after an edit regenerates this page
   rather than letting it drift. Every diagram keeps its source one click away.</p>
@@ -178,7 +178,7 @@ pre.src{
         <a href="#d10"><span class="i">10</span>6.2 Day-of reminders</a>
         <a href="#d11"><span class="i">11</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
         <a href="#d12"><span class="i">12</span>6.3 Attendance (check-in / no-show) → payment reminder</a>
-        <a href="#d13"><span class="i">13</span>6.4 End-of-day report</a>
+        <a href="#d13"><span class="i">13</span>6.4 End-of-day report (Phase 2)</a>
         <a href="#d14"><span class="i">14</span>6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</a>
         <a href="#d15"><span class="i">15</span>6.5 Schedule change → lesson times added, removed, cancelled and re-priced → notification</a>
         <a href="#d16"><span class="i">16</span>6.6 Direct cancellation</a>
@@ -189,12 +189,14 @@ pre.src{
         <a href="#d21"><span class="i">21</span>6.10 Hourly deadline sweep</a>
         <a href="#d22"><span class="i">22</span>6.11 Coach sign-up</a>
         <a href="#d23"><span class="i">23</span>6.12 Nightly lesson-time roller</a>
-        <a href="#d24"><span class="i">24</span>Authorization (data isolation)</a>
-        <a href="#d25"><span class="i">25</span>Client writes into a coach&#x27;s partition</a>
-        <a href="#d26"><span class="i">26</span>Deploys</a>
-        <a href="#d27"><span class="i">27</span>Data protection</a>
-        <a href="#d28"><span class="i">28</span>Lower environments</a>
-        <a href="#d29"><span class="i">29</span>Lower environments</a>
+        <a href="#d24"><span class="i">24</span>6.13 Business-email confirmation</a>
+        <a href="#d25"><span class="i">25</span>6.14 Weekly unpaid-lesson reminder</a>
+        <a href="#d26"><span class="i">26</span>Authorization (data isolation)</a>
+        <a href="#d27"><span class="i">27</span>Client writes into a coach&#x27;s partition</a>
+        <a href="#d28"><span class="i">28</span>Deploys</a>
+        <a href="#d29"><span class="i">29</span>Data protection</a>
+        <a href="#d30"><span class="i">30</span>Lower environments</a>
+        <a href="#d31"><span class="i">31</span>Lower environments</a>
   </nav>
 
   <div class="zoom" role="group" aria-label="Diagram size">
@@ -241,18 +243,18 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
     UpCheck[&quot;⏱️ Up-check&lt;br/&gt;(health checks, about once a minute)&quot;]
 
-    Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
+    Consumers[&quot;λ 13 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
-        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&lt;br/&gt;cancellation archive; daily reports from Phase 2&quot;]
         Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
 
@@ -321,18 +323,18 @@ flowchart TB
         Stream[&quot;DynamoDB Streams&quot;]
         Pipe[&quot;EventBridge Pipe&quot;]
         Bus[&quot;EventBridge custom bus&quot;]
-        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, end-of-day report, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
+        Sched[&quot;EventBridge Scheduler&lt;br/&gt;(day-of reminder, weekly unpaid,&lt;br/&gt;nightly drift check, nightly lesson roller,&lt;br/&gt;hourly deadline sweep)&quot;]
         DLQ[&quot;☠️ Dead-letter queues&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs (ADR-010)&quot;]
         Alerts[&quot;🔔 Operator alert topic&lt;br/&gt;(SNS + CloudWatch metrics)&quot;]
     end
 
     UpCheck[&quot;⏱️ Up-check&lt;br/&gt;(health checks, about once a minute)&quot;]
 
-    Consumers[&quot;λ 14 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
+    Consumers[&quot;λ 13 event and scheduled consumers&lt;br/&gt;(each one drawn in §3.1 Event consumers)&quot;]
 
     subgraph Data
         DDB[(&quot;DynamoDB&lt;br/&gt;single table&quot;)]
-        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&quot;]
+        Reports[&quot;🪣 S3 reports bucket&lt;br/&gt;(private, SSE-KMS)&lt;br/&gt;cancellation archive; daily reports from Phase 2&quot;]
         Archive[&quot;🧊 S3 archive bucket&lt;br/&gt;(expired items → Deep Archive)&quot;]
     end
 
@@ -399,7 +401,6 @@ flowchart LR
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
         L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email to families,&lt;br/&gt;and the coach&#x27;s morning email&quot;]
-        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
         L_Roller[&quot;λ Lesson-time roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
@@ -413,12 +414,12 @@ flowchart LR
     DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs&lt;br/&gt;(a run that keeps failing lands here)&quot;]
 
     Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
-    Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
+    Sched --&gt; L_Remind &amp; L_Unpaid &amp; L_Drift
     Sched --&gt;|nightly| L_Roller
     Sched --&gt;|every hour| L_Sweep
     Stream --&gt;|TTL removals only| L_Archive
     OnEvent -.-&gt; DLQ
-    L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</pre>
+    L_Remind &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</pre>
         </div>
         <details>
           <summary>Source</summary>
@@ -439,7 +440,6 @@ flowchart LR
 
     subgraph OnSchedule[&quot;Run on a schedule&quot;]
         L_Remind[&quot;λ Day-of reminder&lt;br/&gt;table read/write · email to families,&lt;br/&gt;and the coach&#x27;s morning email&quot;]
-        L_Report[&quot;λ End-of-day report&lt;br/&gt;reads table · email · S3 reports bucket&quot;]
         L_Unpaid[&quot;λ Unpaid-lesson reminder (weekly, to the coach)&lt;br/&gt;table read/write · email&quot;]
         L_Drift[&quot;λ Nightly drift check&lt;br/&gt;reads table · operator alert topic&quot;]
         L_Roller[&quot;λ Lesson-time roller (nightly, ADR-031)&lt;br/&gt;table read/write · completion metric&quot;]
@@ -453,12 +453,12 @@ flowchart LR
     DLQ[&quot;☠️ Dead-letter queues (ADR-010)&lt;br/&gt;one per consumer, except the TTL archiver&lt;br/&gt;and the two ADR-031 jobs&lt;br/&gt;(a run that keeps failing lands here)&quot;]
 
     Bus --&gt; L_Confirm &amp; L_Pay &amp; L_Cancel &amp; L_Notify &amp; L_Link &amp; L_Family &amp; L_Invite
-    Sched --&gt; L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift
+    Sched --&gt; L_Remind &amp; L_Unpaid &amp; L_Drift
     Sched --&gt;|nightly| L_Roller
     Sched --&gt;|every hour| L_Sweep
     Stream --&gt;|TTL removals only| L_Archive
     OnEvent -.-&gt; DLQ
-    L_Remind &amp; L_Report &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</code></pre>
+    L_Remind &amp; L_Unpaid &amp; L_Drift -.-&gt; DLQ</code></pre>
         </details>
       </figure>
 
@@ -548,7 +548,8 @@ erDiagram
         string firstName
         string lastName
         string loginEmail &quot;Cognito username&quot;
-        string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
+        string businessEmail &quot;Reply-To; defaults to loginEmail; a different address only once confirmed, ADR-016&quot;
+        map    pendingBusinessEmails &quot;address to tokenHash (SHA-256) and expiresAt (3 days); ADR-016&quot;
         string phone
         bool   displayPhoneToClients
         bool   displayEmailToClients &quot;off by default; ADR-016 d7a&quot;
@@ -609,7 +610,8 @@ erDiagram
         string firstName
         string lastName
         string loginEmail &quot;Cognito username&quot;
-        string businessEmail &quot;Reply-To; defaults to loginEmail&quot;
+        string businessEmail &quot;Reply-To; defaults to loginEmail; a different address only once confirmed, ADR-016&quot;
+        map    pendingBusinessEmails &quot;address to tokenHash (SHA-256) and expiresAt (3 days); ADR-016&quot;
         string phone
         bool   displayPhoneToClients
         bool   displayEmailToClients &quot;off by default; ADR-016 d7a&quot;
@@ -836,7 +838,7 @@ erDiagram
         enum   dueKind &quot;EXPIRE; ADR-033 d5&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
-        date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
+        date   settleReminderSentOn &quot;Monday last listed as unpaid; re-run guard, ADR-018&quot;
         datetime outcomeAt
         datetime recordedAt
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
@@ -925,7 +927,7 @@ erDiagram
         enum   dueKind &quot;EXPIRE; ADR-033 d5&quot;
         bool   confirmationSent &quot;booking-confirmation idempotency guard, ADR-010 d2&quot;
         date   remindedOn &quot;day-of reminder idempotency guard&quot;
-        date   settleReminderSentOn &quot;coach told it is unpaid, ADR-018&quot;
+        date   settleReminderSentOn &quot;Monday last listed as unpaid; re-run guard, ADR-018&quot;
         datetime outcomeAt
         datetime recordedAt
         enum   paymentStatus &quot;UNPAID|PAID|WAIVED&quot;
@@ -1424,13 +1426,13 @@ sequenceDiagram
       <figure id="d13">
         <figcaption>
           <span class="num">13</span>
-          <span class="ttl">6.4 End-of-day report</span>
+          <span class="ttl">6.4 End-of-day report (Phase 2)</span>
           <span class="kind">Sequence</span>
         </figcaption>
         <div class="plate">
           <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
 sequenceDiagram
-    participant Sch as EventBridge Scheduler (9:00pm)
+    participant Sch as EventBridge Scheduler (9:00pm, Phase 2)
     participant Rep as End-of-day report λ
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
@@ -1444,7 +1446,7 @@ sequenceDiagram
         <details>
           <summary>Source</summary>
           <pre class="src"><code>sequenceDiagram
-    participant Sch as EventBridge Scheduler (9:00pm)
+    participant Sch as EventBridge Scheduler (9:00pm, Phase 2)
     participant Rep as End-of-day report λ
     participant DB as DynamoDB (GSI2)
     participant S3 as S3 reports bucket
@@ -1732,7 +1734,7 @@ sequenceDiagram
 sequenceDiagram
     participant F as Family (web)
     participant Cog as Cognito
-    participant PC as Post-confirmation λ
+    participant PC as auth-post-confirmation λ
     participant API as api-client λ
     participant DB as DynamoDB
     participant AC as api-coach λ
@@ -1743,7 +1745,7 @@ sequenceDiagram
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
-    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;Cog: create account (email + password), verify the email -&lt;br/&gt;on the BladeBook form, straight to Cognito (ADR-023 d11)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
     PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
     F-&gt;&gt;Cog: refresh tokens - they now carry Client
@@ -1775,7 +1777,7 @@ sequenceDiagram
           <pre class="src"><code>sequenceDiagram
     participant F as Family (web)
     participant Cog as Cognito
-    participant PC as Post-confirmation λ
+    participant PC as auth-post-confirmation λ
     participant API as api-client λ
     participant DB as DynamoDB
     participant AC as api-coach λ
@@ -1786,7 +1788,7 @@ sequenceDiagram
     API-&gt;&gt;DB: GetItem CODE#35;&lt;coachCode&gt; under the code-lookup role —&lt;br/&gt;coachId, name and photo only (ADR-022 d7)
     API--&gt;&gt;F: &quot;Code found — you&#x27;re signing up with Dana&quot;
     Note over F: one or more coach codes (ADR-025 d2)
-    F-&gt;&gt;Cog: create account (email + password), verify the email
+    F-&gt;&gt;Cog: create account (email + password), verify the email -&lt;br/&gt;on the BladeBook form, straight to Cognito (ADR-023 d11)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the family app client
     PC-&gt;&gt;Cog: add to the Client group (ADR-023 d10)
     F-&gt;&gt;Cog: refresh tokens - they now carry Client
@@ -2172,30 +2174,38 @@ sequenceDiagram
 sequenceDiagram
     participant C as Coach (website)
     participant Cog as Cognito
-    participant PC as Post-confirmation λ
+    participant PC as auth-post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
-    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    participant SES as SES
+    C-&gt;&gt;Cog: sign up - login email and password, on the BladeBook form (ADR-016 d3, ADR-023 d11)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
     PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
-    C-&gt;&gt;Cog: sign in
+    C-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form
     Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
     alt profile exists
         API--&gt;&gt;C: coach website
     else missing - a new signup, or one that failed after step 1
-        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, smsCancellationAlerts
-        loop until the code is free (ADR-002 d2a)
-            API-&gt;&gt;API: generate a coachCode
-            API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
-        end
+        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, and the business-email choice
         API-&gt;&gt;DB: PutItem COACH#35;&lt;coachId&gt; / PROFILE - coachCode, requiredNoticeHours 24,&lt;br/&gt;businessEmail defaults to loginEmail (d2)
         Note over API,DB: idempotent by construction - a retry&lt;br/&gt;cannot create a second coach (d9)
-        API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+        alt &quot;Use my login email&quot;
+            loop until the code is free (ADR-002 d2a)
+                API-&gt;&gt;API: generate a coachCode
+                API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
+            end
+            API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+        else &quot;Use a different email&quot;
+            API-&gt;&gt;DB: UpdateItem PROFILE - pendingBusinessEmails[address] =&lt;br/&gt;tokenHash, expiresAt now + 3 days (ADR-016)
+            API-&gt;&gt;SES: confirmation link to the new address (§6.13)
+            API--&gt;&gt;C: signup complete - the code shows &quot;Not working yet&quot;
+            Note over API,DB: no CODE#35; item until the address is confirmed (ADR-016, 2026-11-06)
+        end
     end
     Note over C,DB: no rollback - a failure between Cognito and the profile is finished&lt;br/&gt;by the next sign-in taking the &quot;missing&quot; branch (d9, ADR-010 d5b)</pre>
         </div>
@@ -2204,30 +2214,38 @@ sequenceDiagram
           <pre class="src"><code>sequenceDiagram
     participant C as Coach (website)
     participant Cog as Cognito
-    participant PC as Post-confirmation λ
+    participant PC as auth-post-confirmation λ
     participant API as api-coach λ
     participant DB as DynamoDB
-    C-&gt;&gt;Cog: sign up - login email and password (ADR-016 d3)
+    participant SES as SES
+    C-&gt;&gt;Cog: sign up - login email and password, on the BladeBook form (ADR-016 d3, ADR-023 d11)
     Cog--&gt;&gt;C: one-time code to the email
     C-&gt;&gt;Cog: confirm the code - email verified (d4)
     Cog-&gt;&gt;PC: post-confirmation trigger - signed up through the coach app client
     PC-&gt;&gt;Cog: add to the Coach group (ADR-023 d10)
     Note over C,Cog: step 1 done - the Cognito user is the source of truth,&lt;br/&gt;coachId is its sub (d9)
-    C-&gt;&gt;Cog: sign in
+    C-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form
     Cog--&gt;&gt;C: tokens, with the Coach group
     C-&gt;&gt;API: GET profile
     API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
     alt profile exists
         API--&gt;&gt;C: coach website
     else missing - a new signup, or one that failed after step 1
-        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, smsCancellationAlerts
-        loop until the code is free (ADR-002 d2a)
-            API-&gt;&gt;API: generate a coachCode
-            API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
-        end
+        C-&gt;&gt;API: profile - name, phone, coachTimezone and currency (required, d6),&lt;br/&gt;payment details and switches, and the business-email choice
         API-&gt;&gt;DB: PutItem COACH#35;&lt;coachId&gt; / PROFILE - coachCode, requiredNoticeHours 24,&lt;br/&gt;businessEmail defaults to loginEmail (d2)
         Note over API,DB: idempotent by construction - a retry&lt;br/&gt;cannot create a second coach (d9)
-        API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+        alt &quot;Use my login email&quot;
+            loop until the code is free (ADR-002 d2a)
+                API-&gt;&gt;API: generate a coachCode
+                API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - coachId, coachFirstName,&lt;br/&gt;coachLastName, attribute_not_exists(PK) (ADR-022 d7)
+            end
+            API--&gt;&gt;C: signup complete - the coach code is shown to hand out
+        else &quot;Use a different email&quot;
+            API-&gt;&gt;DB: UpdateItem PROFILE - pendingBusinessEmails[address] =&lt;br/&gt;tokenHash, expiresAt now + 3 days (ADR-016)
+            API-&gt;&gt;SES: confirmation link to the new address (§6.13)
+            API--&gt;&gt;C: signup complete - the code shows &quot;Not working yet&quot;
+            Note over API,DB: no CODE#35; item until the address is confirmed (ADR-016, 2026-11-06)
+        end
     end
     Note over C,DB: no rollback - a failure between Cognito and the profile is finished&lt;br/&gt;by the next sign-in taking the &quot;missing&quot; branch (d9, ADR-010 d5b)</code></pre>
         </details>
@@ -2292,6 +2310,122 @@ sequenceDiagram
       <figure id="d24">
         <figcaption>
           <span class="num">24</span>
+          <span class="ttl">6.13 Business-email confirmation</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant C as Coach (any device)
+    participant Page as Confirm page (coach website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    Note over C,DB: the link email was sent at sign-up (§6.11) or from Profile → Business email
+    C-&gt;&gt;Page: open the link - the token is in the address
+    opt not signed in on this device
+        Page-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form (ADR-023 d11)
+        Cog--&gt;&gt;Page: tokens, with the Coach group
+    end
+    Page--&gt;&gt;C: &quot;Confirm this address?&quot; - opening the link alone changes nothing,&lt;br/&gt;so a mail scanner can&#x27;t confirm it
+    C-&gt;&gt;Page: choose Confirm
+    Page-&gt;&gt;API: confirm - token (Coach group and coach app client, ADR-023 d7)
+    API-&gt;&gt;API: SHA-256 hash of the token
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
+    alt a pending address&#x27;s tokenHash matches and expiresAt has not passed
+        API-&gt;&gt;DB: UpdateItem PROFILE - businessEmail = the address,&lt;br/&gt;remove pendingBusinessEmails[address] (single use)
+        opt no CODE#35; item yet (a new coach)
+            loop until the code is free (ADR-002 d2a)
+                API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - attribute_not_exists(PK) (ADR-022 d7)
+            end
+        end
+        API--&gt;&gt;Page: confirmed - families&#x27; replies now go here
+    else no match, already used, or past 3 days
+        API--&gt;&gt;Page: &quot;This link has expired&quot; - Resend from Profile or sign-up
+    end
+    Note over C,DB: Resend writes a new tokenHash and expiresAt over the old entry, so the earlier link stops working.&lt;br/&gt;A link opened while signed in as another coach matches nothing in that coach&#x27;s profile</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant C as Coach (any device)
+    participant Page as Confirm page (coach website)
+    participant Cog as Cognito
+    participant API as api-coach λ
+    participant DB as DynamoDB
+    Note over C,DB: the link email was sent at sign-up (§6.11) or from Profile → Business email
+    C-&gt;&gt;Page: open the link - the token is in the address
+    opt not signed in on this device
+        Page-&gt;&gt;Cog: sign in - Secure Remote Password (SRP), on the BladeBook form (ADR-023 d11)
+        Cog--&gt;&gt;Page: tokens, with the Coach group
+    end
+    Page--&gt;&gt;C: &quot;Confirm this address?&quot; - opening the link alone changes nothing,&lt;br/&gt;so a mail scanner can&#x27;t confirm it
+    C-&gt;&gt;Page: choose Confirm
+    Page-&gt;&gt;API: confirm - token (Coach group and coach app client, ADR-023 d7)
+    API-&gt;&gt;API: SHA-256 hash of the token
+    API-&gt;&gt;DB: GetItem COACH#35;&lt;coachId&gt; / PROFILE - tenant role tagged coachId = the token sub (§7)
+    alt a pending address&#x27;s tokenHash matches and expiresAt has not passed
+        API-&gt;&gt;DB: UpdateItem PROFILE - businessEmail = the address,&lt;br/&gt;remove pendingBusinessEmails[address] (single use)
+        opt no CODE#35; item yet (a new coach)
+            loop until the code is free (ADR-002 d2a)
+                API-&gt;&gt;DB: PutItem CODE#35;&lt;coachCode&gt; / CODE - attribute_not_exists(PK) (ADR-022 d7)
+            end
+        end
+        API--&gt;&gt;Page: confirmed - families&#x27; replies now go here
+    else no match, already used, or past 3 days
+        API--&gt;&gt;Page: &quot;This link has expired&quot; - Resend from Profile or sign-up
+    end
+    Note over C,DB: Resend writes a new tokenHash and expiresAt over the old entry, so the earlier link stops working.&lt;br/&gt;A link opened while signed in as another coach matches nothing in that coach&#x27;s profile</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d25">
+        <figcaption>
+          <span class="num">25</span>
+          <span class="ttl">6.14 Weekly unpaid-lesson reminder</span>
+          <span class="kind">Sequence</span>
+        </figcaption>
+        <div class="plate">
+          <pre class="mermaid">%%{init: {&#x27;theme&#x27;:&#x27;base&#x27;,&#x27;themeVariables&#x27;:{&#x27;fontFamily&#x27;:&#x27;IBM Plex Sans, system-ui, sans-serif&#x27;,&#x27;fontSize&#x27;:&#x27;18px&#x27;,&#x27;primaryColor&#x27;:&#x27;#D6F7DD&#x27;,&#x27;primaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;primaryBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;secondaryColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;secondaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;secondaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;tertiaryColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;tertiaryTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;tertiaryBorderColor&#x27;:&#x27;#4A5651&#x27;,&#x27;lineColor&#x27;:&#x27;#3D4643&#x27;,&#x27;textColor&#x27;:&#x27;#20241F&#x27;,&#x27;mainBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;nodeBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;clusterBkg&#x27;:&#x27;#F1F6F3&#x27;,&#x27;clusterBorder&#x27;:&#x27;#7E8A86&#x27;,&#x27;titleColor&#x27;:&#x27;#20241F&#x27;,&#x27;edgeLabelBackground&#x27;:&#x27;#FFFAFB&#x27;,&#x27;actorBkg&#x27;:&#x27;#D6F7DD&#x27;,&#x27;actorBorder&#x27;:&#x27;#2F633E&#x27;,&#x27;actorTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;actorLineColor&#x27;:&#x27;#6E7A76&#x27;,&#x27;signalColor&#x27;:&#x27;#20241F&#x27;,&#x27;signalTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;labelBoxBkgColor&#x27;:&#x27;#E4EDE8&#x27;,&#x27;labelBoxBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;labelTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;loopTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;noteBkgColor&#x27;:&#x27;#FBF1D6&#x27;,&#x27;noteBorderColor&#x27;:&#x27;#B08900&#x27;,&#x27;noteTextColor&#x27;:&#x27;#20241F&#x27;,&#x27;activationBkgColor&#x27;:&#x27;#B6ECC3&#x27;,&#x27;activationBorderColor&#x27;:&#x27;#2F633E&#x27;,&#x27;sequenceNumberColor&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorOdd&#x27;:&#x27;#FFFAFB&#x27;,&#x27;attributeBackgroundColorEven&#x27;:&#x27;#EFF5F1&#x27;}}}%%
+sequenceDiagram
+    participant Sch as EventBridge Scheduler (Monday morning)
+    participant U as Unpaid-lesson reminder λ
+    participant DB as DynamoDB (GSI3 and table)
+    participant SES as SES
+    Sch-&gt;&gt;U: weekly trigger, carrying that Monday&#x27;s date (ADR-010)
+    U-&gt;&gt;DB: Scan GSI3 - seats still UNPAID, lesson date more than 7 days ago,&lt;br/&gt;any attendance (no-shows and not recorded included)
+    U-&gt;&gt;U: skip seats whose settleReminderSentOn is already this Monday
+    U-&gt;&gt;DB: read each listed seat&#x27;s lesson time - priceMinor, shareCount, joinOrder&lt;br/&gt;(the share it owes) and each coach&#x27;s loginEmail
+    loop each coach with listed seats
+        U-&gt;&gt;SES: one email to the coach&#x27;s login email - date, time, skater,&lt;br/&gt;amount, no-show or attendance-not-recorded labels
+        U-&gt;&gt;DB: UpdateItem each listed seat - settleReminderSentOn = this Monday
+    end
+    Note over U,DB: a seat leaves GSI3 when it is marked paid or waived -&lt;br/&gt;until then it is listed again every Monday (ADR-018, 2026-11-12)
+    Note over U,SES: one aggregate access-log line per run (ADR-012) -&lt;br/&gt;repeated failure goes to its dead-letter queue</pre>
+        </div>
+        <details>
+          <summary>Source</summary>
+          <pre class="src"><code>sequenceDiagram
+    participant Sch as EventBridge Scheduler (Monday morning)
+    participant U as Unpaid-lesson reminder λ
+    participant DB as DynamoDB (GSI3 and table)
+    participant SES as SES
+    Sch-&gt;&gt;U: weekly trigger, carrying that Monday&#x27;s date (ADR-010)
+    U-&gt;&gt;DB: Scan GSI3 - seats still UNPAID, lesson date more than 7 days ago,&lt;br/&gt;any attendance (no-shows and not recorded included)
+    U-&gt;&gt;U: skip seats whose settleReminderSentOn is already this Monday
+    U-&gt;&gt;DB: read each listed seat&#x27;s lesson time - priceMinor, shareCount, joinOrder&lt;br/&gt;(the share it owes) and each coach&#x27;s loginEmail
+    loop each coach with listed seats
+        U-&gt;&gt;SES: one email to the coach&#x27;s login email - date, time, skater,&lt;br/&gt;amount, no-show or attendance-not-recorded labels
+        U-&gt;&gt;DB: UpdateItem each listed seat - settleReminderSentOn = this Monday
+    end
+    Note over U,DB: a seat leaves GSI3 when it is marked paid or waived -&lt;br/&gt;until then it is listed again every Monday (ADR-018, 2026-11-12)
+    Note over U,SES: one aggregate access-log line per run (ADR-012) -&lt;br/&gt;repeated failure goes to its dead-letter queue</code></pre>
+        </details>
+      </figure>
+
+      <figure id="d26">
+        <figcaption>
+          <span class="num">26</span>
           <span class="ttl">Authorization (data isolation)</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -2363,9 +2497,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d25">
+      <figure id="d27">
         <figcaption>
-          <span class="num">25</span>
+          <span class="num">27</span>
           <span class="ttl">Client writes into a coach&#x27;s partition</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -2475,9 +2609,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d26">
+      <figure id="d28">
         <figcaption>
-          <span class="num">26</span>
+          <span class="num">28</span>
           <span class="ttl">Deploys</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -2545,9 +2679,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d27">
+      <figure id="d29">
         <figcaption>
-          <span class="num">27</span>
+          <span class="num">29</span>
           <span class="ttl">Data protection</span>
           <span class="kind">Sequence</span>
         </figcaption>
@@ -2595,9 +2729,9 @@ sequenceDiagram
         </details>
       </figure>
 
-      <figure id="d28">
+      <figure id="d30">
         <figcaption>
-          <span class="num">28</span>
+          <span class="num">30</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Flowchart</span>
         </figcaption>
@@ -2661,9 +2795,9 @@ flowchart LR
         </details>
       </figure>
 
-      <figure id="d29">
+      <figure id="d31">
         <figcaption>
-          <span class="num">29</span>
+          <span class="num">31</span>
           <span class="ttl">Lower environments</span>
           <span class="kind">Sequence</span>
         </figcaption>

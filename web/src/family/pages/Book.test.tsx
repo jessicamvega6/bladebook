@@ -221,6 +221,10 @@ describe('3 · confirm and 4 · result', () => {
     expect(dialog).toHaveTextContent('3 lessons until Dec 14');
     expect(dialog).toHaveTextContent('First week$50');
     expect(dialog).toHaveTextContent('All lessons$150');
+    expect(dialog).not.toHaveTextContent('This goes past the next three months');
+    fireEvent.change(within(dialog).getByLabelText('Until'), { target: { value: '2027-02-01' } });
+    expect(dialog).toHaveTextContent('This goes past the next three months');
+    expect(dialog).toHaveTextContent('Changes to Coach Dana’s schedule may affect some or all of these lessons.');
     fireEvent.change(within(dialog).getByLabelText('Until'), { target: { value: '2027-11-17' } });
     expect(dialog).toHaveTextContent('A repeating booking can run up to 12 months.');
     expect(within(dialog).getByRole('button', { name: /^Book/ })).toBeDisabled();
