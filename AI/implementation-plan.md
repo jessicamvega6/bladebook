@@ -20,6 +20,7 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 | Commit between batches | When the owner says to move on, the previous batch is committed first. |
 | Test-driven development (TDD) on `core/` | A failing test (red) first, then the least code that makes it pass (green). Code counts as working only once its tests are green. |
 | Test focus | Happy path, sad path, error states and invalid input, and important boundaries first. |
+| Mutation testing (PIT) on `core/` | ADR-013 decision 3, in CI from 2026-11-13 (`.github/workflows/mutation.yml`). On a pull request PIT runs only on the `core/` classes the pull request changes; on `main`, nightly and by hand it runs on all of `core/`, and the HTML report is kept as a download on the run. The build fails below `pit.mutationThreshold` in `backend/core/pom.xml`, set at **85%** just under the 2026-11-13 baseline of **87%** (1,491 of 1,717 mutations killed; `core.domain` 95%, `core.data` 84%, `core.service` 77%). Raise it as tests improve; never lower it to get a merge through. Locally, from `backend/`: `./mvnw -pl core test-compile pitest:mutationCoverage` (needs Docker). |
 | ADR vs screen conflicts | **Nothing that conflicts gets built.** Each conflict is listed as a gap (§4). How much a conflict holds back is Question 2 in §6. |
 | Gaps and shortcuts | Listed in the **root `README.md`** only (owner, 2026-11-08: no panel in the websites). Writing a gap down doesn't count as building it. |
 | Layout | `controller/`, `service/`, `repository/` (`core.data`), `dto/`, `domain/`, `config/`, `security/` and `exception/` packages, as already scaffolded. `core/` stays framework-free (ADR-001). |
@@ -313,6 +314,20 @@ comes after 23, before the infrastructure.
 - ~~**G-18, *Which coaches?* on *Add a skater*.**~~ *Ruled: redraw the design to list only coaches who have approved one of the family's skaters. Redrawn 2026-11-13: `client/screens-account.js` (the list, and a hint naming each waiting coach); feature note `FeatureDecriptions/ClientProfileView`.* Batch 15 lists approved coaches only (the design
   lists every coach) so that a waiting family is never given a coach's ID. The root `README.md`
   marks it *"Owner's call"*: keep it as built, or redraw the design to match.
+
+**Found while wiring mutation testing into CI, ruled 2026-11-13 by the owner:**
+
+- ~~**What PIT covers in `core/`.**~~ *Ruled: keep all of `core/` (ADR-013 amended 2026-11-13).
+  If runs get too slow, give service tests in-memory fakes rather than narrowing PIT.* ADR-013
+  decision 3 scoped PIT to `core/` because it was "pure logic with no input or output", so PIT
+  would run fast. That was never true: ADR-001 puts DynamoDB access in `core/`, so it holds
+  `core.data` (the repositories) and `core.service`, and 35 of its 96 test files start
+  DynamoDB Local in Docker. A full run on the owner's Mac on 2026-11-13 took 39 minutes on one thread and 16 on four. As wired today, PIT covers all
+  of `core/`, with 4 threads and pull-request runs limited to changed classes (PIT 1.30's incremental history is now a paid add-on, so it isn't used).
+  **Option:** limit PIT to `core.domain` and `core.events` (the block expansion, conflict, money
+  and idempotency logic ADR-013 names) and leave out the tests that need DynamoDB Local. That's
+  much faster, but repository and service code goes untested by PIT. Either way, ADR-013 needs a
+  line recording the choice.
 
 **Found in Batch 12 (2026-11-13):**
 

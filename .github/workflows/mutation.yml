@@ -1,0 +1,129 @@
+# Mutation testing (PIT) on backend/core only — ADR-013 decision 3, run by CI per ADR-032.
+#
+# - Pull requests: PIT runs only on the core classes the PR adds or changes, so the check stays
+#   quick. It is skipped when no core main code changed.
+# - main, nightly and by hand: PIT runs on all of core.
+# PIT 1.30 has no free incremental history (it moved to the paid Arcmutate add-on), so every run
+# re-tests what it targets; speed comes from 4 threads (backend/core/pom.xml) and PR scoping.
+# Both fail below the threshold in backend/core/pom.xml (pit.mutationThreshold), show the
+# classes with the most missed mutations on the run's page (.github/scripts/pit-summary.py) and
+# keep the HTML report as a download.
+
+name: Mutation testing
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/mutation.yml'
+      - '.github/scripts/pit-summary.py'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/mutation.yml'
+      - '.github/scripts/pit-summary.py'
+  schedule:
+    - cron: '0 8 * * *'   # 08:00 UTC, the middle of the night in the US
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changed-classes:
+    name: PIT on changed core classes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needs the base branch to work out what changed
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'   # must match <maven.compiler.release> in backend/pom.xml
+          cache: maven
+
+      - name: List the core classes this PR changes
+        id: changed
+        env:
+          BASE_REF: ${{ github.base_ref }}   # passed through env, never pasted into the script
+        run: |
+          # backend/core/src/main/java/com/bladebook/core/domain/Foo.java
+          #   -> com.bladebook.core.domain.Foo and its nested classes (Foo$*)
+          classes=$(git diff --name-only --diff-filter=AMR "origin/${BASE_REF}...HEAD" -- core/src/main/java \
+            | { grep '\.java$' || true; } \
+            | sed -e 's#^backend/core/src/main/java/##' -e 's#\.java$##' -e 's#/#.#g' \
+            | awk '{ printf "%s%s,%s$*", (NR > 1 ? "," : ""), $0, $0 }')
+          echo "classes=${classes}" >> "$GITHUB_OUTPUT"
+          if [ -z "$classes" ]; then
+            echo "No core classes changed; skipping mutation testing." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Mutation testing: ${classes}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run PIT on the changed classes
+        if: steps.changed.outputs.classes != ''
+        env:
+          CLASSES: ${{ steps.changed.outputs.classes }}
+        run: ./mvnw -B -pl core test-compile pitest:mutationCoverage "-DtargetClasses=${CLASSES}"
+
+      - name: Show the top offenders on the run page
+        if: always() && steps.changed.outputs.classes != ''
+        run: python3 ../.github/scripts/pit-summary.py core/target/pit-reports/mutations.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report
+        if: always() && steps.changed.outputs.classes != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report-pr
+          path: backend/core/target/pit-reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  all-of-core:
+    name: PIT on all of core
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'   # must match <maven.compiler.release> in backend/pom.xml
+          cache: maven
+
+      - name: Run PIT on all of core
+        run: ./mvnw -B -pl core test-compile pitest:mutationCoverage
+
+      - name: Show the top offenders on the run page
+        if: always()
+        run: python3 ../.github/scripts/pit-summary.py core/target/pit-reports/mutations.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report
+          path: backend/core/target/pit-reports/
+          retention-days: 30
+          if-no-files-found: ignore

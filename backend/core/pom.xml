@@ -14,6 +14,14 @@
     <name>BladeBook core</name>
     <description>Framework-free domain, DynamoDB access and events. Plain Java and AWS SDK v2; no Spring.</description>
 
+    <properties>
+        <!-- PIT (mutation testing, ADR-013). Each can be overridden with -D on the command line. -->
+        <targetClasses>com.bladebook.core.*</targetClasses>
+        <targetTests>com.bladebook.core.*</targetTests>
+        <pit.threads>4</pit.threads>
+        <pit.mutationThreshold>85</pit.mutationThreshold>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -52,17 +60,29 @@
 
     <build>
         <plugins>
-            <!-- Mutation testing on core/ only (ADR-013). Run: mvn -pl core pitest:mutationCoverage -->
+            <!--
+              Mutation testing on core/ only (ADR-013 decision 3). From backend/:
+                ./mvnw -pl core test-compile pitest:mutationCoverage
+              Report: core/target/pit-reports/index.html. Needs Docker (DynamoDB Local tests).
+
+              targetClasses and targetTests are left out of <configuration> on purpose so the
+              properties below set them and -DtargetClasses=... can narrow a run (CI does this
+              on pull requests). A value written in <configuration> would ignore -D.
+            -->
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
                 <configuration>
-                    <targetClasses>
-                        <param>com.bladebook.core.*</param>
-                    </targetClasses>
-                    <targetTests>
-                        <param>com.bladebook.core.*</param>
-                    </targetTests>
+                    <threads>${pit.threads}</threads>
+                    <timestampedReports>false</timestampedReports>
+                    <!-- A PR that only touches an interface or record has nothing to mutate. -->
+                    <failWhenNoMutations>false</failWhenNoMutations>
+                    <outputFormats>
+                        <param>HTML</param>
+                        <param>XML</param>
+                    </outputFormats>
+                    <!-- Fails the build below this score. Raise it as tests improve; never lower it. -->
+                    <mutationThreshold>${pit.mutationThreshold}</mutationThreshold>
                 </configuration>
             </plugin>
         </plugins>
