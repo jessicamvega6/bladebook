@@ -36,6 +36,8 @@ Decided 2026-10-12 by the owner:
     Past years on screen are Phase 2.
   A paid lesson counts in the year and month of the lesson date, not when it was marked paid.
   A finished year is closed for now: its figures don't change afterwards.
+    *Changed 2026-11-13 by the owner:* a lesson from a closed year marked paid later counts in the year and month
+    it was marked paid, flagged as for an earlier year (see "What counts as gross").
   Before the figures, the page says they are calculated from the lessons the coach has marked as paid.
   Summary export is MVP: a Download button saves a CSV for a chosen calendar year (this year or last),
     one row per month with gross received, rink fees and net, plus year totals. No skater names.
@@ -51,10 +53,20 @@ What counts as gross (decided by the owner, 2026-10-12):
     late cancellation is Phase 2, and its collected fee joins gross then.
   Gross leaves out waived and unpaid lessons. A lesson counts once it is marked paid; if a coach undoes that, it
     drops out again.
-  A paid lesson counts in the year, and month, of the lesson date, not the date it was marked paid. A December
-    lesson paid in January counts in December's gross.
-  A finished year is closed (for now): a lesson from that year marked paid afterwards doesn't change its figures,
-    and doesn't count in the new year either.
+  A paid lesson counts in the year, and month, of the lesson date, not the date it was marked paid. ~~A December
+    lesson paid in January counts in December's gross.~~ *(Struck 2026-11-13: it contradicted the closed year.)*
+  A finished year is closed (for now): a lesson from that year marked paid afterwards doesn't change its figures~~,
+    and doesn't count in the new year either~~.
+  *Decided 2026-11-13 by the owner:* a lesson from a closed year marked paid afterwards counts in the year and month
+    it was marked paid, flagged as for an earlier year. The usual case is a December lesson paid in January: it
+    counts in January's gross. The page says so under the month and the year's total ("Includes $30 for 2025
+    lessons"), and the download has a column "Of which for lessons in earlier years". A year closes at midnight
+    starting January 1 in the coach's time zone.
+  *Decided 2026-11-13 by the owner (planned, Batch 26):* a closed year's figures are saved once it closes, and the
+    page and the download use the saved figures from then on. Until then the figures are added up from the lessons
+    each time, so undoing a payment on a closed year's lesson still lowers that year, and once old records are
+    deleted (about 16 months after a lesson is paid) they would drop out too. After Batch 26 neither changes a closed
+    year: undoing or correcting a closed year's lesson counts in the year it's done, as a late payment does.
   *(from ADR-030 §2 and §4, moved 2026-11-08)*
 
 The note above the figures (decided by the owner, 2026-10-12):
@@ -80,7 +92,8 @@ Rink fees until the calculation is decided:
 Export (decided by the owner, 2026-10-12):
   MVP: a summary export. A Download button saves a comma-separated values (CSV) file for a chosen calendar
     year, this year or last: one row per month with gross received ~~, rink fees and net~~ and the number of paid
-    lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. It has
+    lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. *2026-11-13:* each row
+    also says how much of its gross was paid for lessons in earlier years. It has
     no skater names and no personal data. It covers what a tax preparer needs and lets the coach keep their own
     copy before records age out.
   Phase 2: past years on screen.

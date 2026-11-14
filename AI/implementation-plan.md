@@ -2,7 +2,8 @@
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
-#27–#31). Next is Batch 11. Build order from there: 11, 12, 13, 14, 22, 23, 17, 18, 19, 20, 21, 24, 25 (§5).
+#27–#31). Batch 12 is done (PR #37); Batch 11 is in progress on its own branch.
+Build order from there: 11, 12, 13, 14, 22, 23, 26, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -37,8 +38,8 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 - `web/` has three Vite entry points (coach, rinkside and family) with those pages built, and the
   rinkside page's service worker. `shared/auth` holds the local sign-in stand-in (SC-1).
 - **Still disabled on screen:** the rinkside Week tab (G-28, Batch 23), the coach Profile's
-  *Business email* (Batch 14) and *Account* (Batch 18) tabs, Payments' *Financial summary*
-  (Batch 12), and Today's lessons list and figures (G-6, Batch 22).
+  *Business email* (Batch 14) and *Account* (Batch 18) tabs, and Today's lessons list and figures
+  (G-6, Batch 22).
 - `infra/` doesn't exist yet. The CDK (TypeScript) stacks are Batch 17 (proposed, below).
 - **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml` and CI are on
   Java 17, and the ADRs were amended (see §6). The skeleton builds and starts on Java 17.0.10.
@@ -252,18 +253,20 @@ appear in its gap list.** Batches are ordered so the first ones have the fewest 
 
 ### Later batches (planned after Batch 8, in this order)
 
-The rows are in build order; the numbers are names, so 22 and 23 come straight after 14 (owner, 2026-11-13).
+The rows are in build order; the numbers are names, so 22 and 23 come straight after 14 (owner, 2026-11-13), and 26
+comes after 23, before the infrastructure.
 
 | # | Batch | Holding it back |
 |---|---|---|
 | 9 | ~~Recurring bookings and recurrence changes~~ **Done** (PR #28). B4 (a shared series) moved to Batch 11; what's left of G-20 is Batch 24 | — |
 | 10 | ~~Rinkside offline queue and service worker~~ **Done** (PR #29). What's left of G-32 is Batch 25 | — |
 | 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
-| 12 | Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35) | — |
+| 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) waits on the owner | — |
 | 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
+| 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
 | 16 | ~~Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3)~~ **Done** (PR #31) | The *Text me on late cancellations* switch still waits on ADR-007 d8 (§3) |
 | 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 23 (owner, 2026-11-12: after 16; 2026-11-13: Batches 22 and 23 go first) |
@@ -325,6 +328,16 @@ The rows are in build order; the numbers are names, so 22 and 23 come straight a
   and idempotency logic ADR-013 names) and leave out the tests that need DynamoDB Local. That's
   much faster, but repository and service code goes untested by PIT. Either way, ADR-013 needs a
   line recording the choice.
+
+**Found in Batch 12 (2026-11-13):**
+
+- ~~**When a finished year closes.**~~ *Ruled 2026-11-13 by the owner: a lesson from a closed year marked paid later
+  counts in the year and month it was marked paid, flagged as for an earlier year. Built on the Batch 12 branch;
+  ADR-030 amended, ADR-MASTER §12 and `FeatureDecriptions/Coach Financial Page.md` updated.*
+- ~~**G-36: a closed year can still drop**~~ when one of its paid lessons is undone on Payments, and (from Batch 17)
+  when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
+  figures when it closes (option c). Planned as Batch 26, after 23 and before 17. Nothing closes a year today: it's
+  only a date rule, and the figures are added up from the seats on every visit.*
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
@@ -766,3 +779,46 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Checked in the running app (APIs; table `bladebook-b9check`):** an approved family saw no phone or email; the
   coach switched both on; the family then saw both.
 
+### Batch 12 (2026-11-13)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** R10d (the page keeps *"Gross is money you’ve received."*; gross only, and the page says rink fee
+  calculation is coming, ADR-030 as amended 2026-11-12).
+- **Closed:** G-35's financial half (Payments' *Financial summary* opens the new page). *Send reminders* stays Phase 2.
+- **Gaps:** G-36 a closed year's figures can still drop when one of its paid lessons is undone.
+- **Settled while building (owner may override):**
+  - **A finished year closes at midnight starting January 1 in the coach's time zone.** ~~A lesson from it marked paid
+    after that counts in no year, as ADR-MASTER §12 and the design's banner say.~~ *Owner, 2026-11-13: it counts in
+    the year and month it was marked paid, labelled "Includes $30 for 2025 lessons" under the month and the year's
+    total, and in the download's new column "Of which for lessons in earlier years". Only last year's lessons are
+    read for it; one from further back marked paid now isn't counted (settled; the owner may override). The design's
+    banner was reworded to match.* *`FeatureDecriptions/Coach Financial
+    Page.md` also says "A December lesson paid in January counts in December's gross", which can't hold alongside a
+    year that closes when it ends; this build follows ADR-MASTER. If December's late payments should count, the year
+    needs a later closing date (for example the end of January).*
+  - **The figures are worked out from the Payments page's rows**, so a lesson's amount is the same share Payments shows
+    (a no-show marked paid at its share is the missed-lesson fee collected), and only lessons that have started count.
+    Nothing is stored: each visit adds the year up again from the seats.
+  - **"Still unpaid"** is this year's lessons that have happened and are still unpaid, as the design draws it; the
+    month table shows *"$X still unpaid"* under a month's count.
+  - **The page shows this year only**; the server answers this year or last (*"Pick this year or last year."*), so the
+    download can take last year. The year is the coach's, from their time zone.
+  - **The download is built on the server and saved by the browser** (`GET /api/coach/finances/download` returns the
+    file name and the text, so it goes through the same sign-in as every call). File `bladebook-summary-<year>.csv`;
+    columns *Month*, *Paid lessons*, *Gross received (USD)*; amounts as decimals (`75.01`); this month is labelled
+    *"November 2026 (to Nov 13)"*; the last row is *"2025 total"* or *"2026 to date"*; lines end in CRLF. No names.
+  - **Amounts stay per currency underneath; the page and the download show the coach's currency**, which can't change
+    in MVP.
+  - **Months before the first with any lesson** (paid, unpaid or waived) fold into one *"No lessons in BladeBook"* row,
+    as designed.
+  - **The route is `#/finances`**, under the Payments tab, with a *Payments* link back. *Past years* is shown disabled
+    with its Phase 2 tag, as designed.
+  - **`expiresAt` isn't filtered**: no item carries it until the TTL archiver (Batch 17).
+- **Checked in the running app (table `bladebook-b12check`):** a coach and a family sign up, the skater is approved, and
+  today's 2:15 PM lesson is booked → once it started, the page showed $50 still unpaid and no gross → marked paid with
+  Cash: November 1 lesson, $50, *"2026 to date"* $50 → the 2026 download ends *"November 2026 (to Nov 13),1,50.00"* /
+  *"2026 to date,1,50.00"*; the 2025 download has twelve empty months and *"2025 total"* → 2024 refused → Undo took it
+  back out of gross. Headless Chrome: the page at 1280px and 390px (the month table scrolls sideways inside its card
+  at phone width, from the design's 680px table minimum), and Payments' *Financial summary* is a working link. The
+  browser's file save is checked in tests only.

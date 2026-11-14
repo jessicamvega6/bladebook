@@ -23,8 +23,8 @@ import java.util.Map;
  */
 public final class PaymentRepository {
 
-    /** A seat with its payment as stored. {@code paidVia} only when paid. */
-    public record PaidSeat(Seat seat, Payment.Status status, Payment.Via paidVia) {
+    /** A seat with its payment as stored. {@code paidVia} and {@code paidAt} only when paid. */
+    public record PaidSeat(Seat seat, Payment.Status status, Payment.Via paidVia, Instant paidAt) {
     }
 
     private final TenantClients clients;
@@ -47,7 +47,8 @@ public final class PaymentRepository {
                     .exclusiveStartKey(start).build());
             for (Map<String, AttributeValue> m : r.items()) {
                 out.add(new PaidSeat(SeatItems.seat(m), Payment.of(FamilyItems.str(m, "paymentStatus")),
-                        m.containsKey("paidVia") ? Payment.Via.valueOf(m.get("paidVia").s()) : null));
+                        m.containsKey("paidVia") ? Payment.Via.valueOf(m.get("paidVia").s()) : null,
+                        m.containsKey("paidAt") ? Instant.parse(m.get("paidAt").s()) : null));
             }
             start = r.hasLastEvaluatedKey() && !r.lastEvaluatedKey().isEmpty() ? r.lastEvaluatedKey() : null;
         } while (start != null);
