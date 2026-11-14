@@ -120,4 +120,25 @@ class FinancialServiceTest {
         assertThat(finances.year(dana, 2026).summary().closed()).isFalse();
         assertThat(finances.year(dana, 2026).summary().months()).hasSize(12);
     }
+
+    @Test
+    void lastYearsLessonPaidInJanuaryCountsInJanuaryMarkedAsForLastYear() {
+        service.markPaid(dana, MONDAY, SIX, ava, "");                 // paid in 2026: 2026's
+        now.set(Instant.parse("2027-01-05T15:00:00Z"));
+        service.markPaid(dana, MONDAY, SIX_30, jack, "");              // a 2026 lesson paid in January 2027
+        FinancialService.Page p = finances.year(dana, 2027);
+        FinancialSummary.Month jan = p.summary().months().get(0);
+        assertThat(jan.paidLessons()).isEqualTo(1);
+        assertThat(jan.earlierLessons()).isEqualTo(1);
+        assertThat(jan.earlierGross()).containsExactly(Map.entry("USD", 5000L));
+        assertThat(p.summary().gross()).containsExactly(Map.entry("USD", 5000L));
+        assertThat(p.summary().unpaid()).isEmpty();                    // 2026's unpaid 7:30 lesson isn't 2027's
+        assertThat(finances.year(dana, 2026).summary().gross()).containsExactly(Map.entry("USD", 5000L));
+    }
+
+    @Test
+    void aCoachWhoHasntFinishedSettingUpIsToldSo() {
+        AccessContext stranger = new AccessContext(UUID.randomUUID().toString());
+        assertThatThrownBy(() -> finances.year(stranger, 2026)).hasMessage("Finish setting up your account first.");
+    }
 }
