@@ -102,8 +102,9 @@ Profile → Business email, which is product) and `businessEmailsVersion`, a cou
 conditioned on, so a link can't be used twice and two changes can't both land. The link is
 `<site>/coach/#/confirm-email/<token>`: the token sits in the address's hash, so it never reaches a server log, and the page
 sends it in the request body. Opening the page only looks the address up; nothing changes until the coach chooses Confirm.
-Confirming makes the address `businessEmail` at once, as `architecture.md` §6.13 draws; the Harbor design instead has a
-confirmed address wait until the coach chooses it on the profile (gap G-41 in the root `README.md`, for the owner).
+Confirming makes the address `businessEmail` at once, as `architecture.md` §6.13 draws; the Harbor design instead had a
+confirmed address wait until the coach chooses it on the profile. *Decided by the owner 2026-11-16 (G-41): keep switching
+on confirmation; the design's step is superseded.*
 *Resend* waits a minute after the last link, and the list holds up to ten addresses besides the login email.
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design

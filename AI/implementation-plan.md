@@ -1001,9 +1001,10 @@ The full list, with what closes each one, is in the root `README.md`.
   *Use my login email instead* on sign-up step 4 and on the *not working yet* banner (Today, Profile → Details).
 - **Closed:** G-1, G-2 and SC-2 (the local *I've clicked the link* route and button are gone).
 - **Shortcuts:** none new. The email goes to `api-coach`'s outbox (SC-21) until SES (Batch 17).
-- **Gaps:** G-40 the confirm page has no Harbor design (built from sign-up step 4's card); G-41 the design has a confirmed
+- **Gaps:** G-40 the confirm page has no Harbor design (built from sign-up step 4's card); ~~G-41 the design has a confirmed
   address wait to be chosen and saved, the ADR makes it the business email on confirmation (built as the ADR says; needs
-  the owner).
+  the owner).~~ *G-41 ruled 2026-11-16 by the owner: keep the ADR's behaviour, as built (a confirmed address takes over
+  at once). The Harbor design's choose-and-Save step after confirming is superseded.*
 - **Settled while building (owner may override):**
   - **Confirming makes the address the business email at once** (ADR-MASTER §4, `architecture.md` §6.13), on sign-up and
     on the profile; the address it replaces stays on the list as *Confirmed* and can be chosen again with Save (G-41).
@@ -1020,9 +1021,13 @@ The full list, with what closes each one, is in the root `README.md`.
     flood an inbox; **ten addresses at most** besides the login email.
   - **An email that can't be sent** leaves the address and its link saved and says *"We saved the address but couldn't
     send its email. Try Resend link in a minute."*
-  - **Sign-up step 4's *Change address*** opens a box on the same page; the new address replaces the waiting one (whose link
+  - **Sign-up step 4's *Change address*** (*accepted by the owner, 2026-11-16*) opens a box on the same page; the new address replaces the waiting one (whose link
     stops working). The design sends the coach back to step 3, whose answers are already saved by then. The step also looks
     again when its tab gets focus, so a link confirmed on the phone moves sign-up on to *You're all set*.
+  - **The sign-up step bar fits a phone** (*owner, 2026-11-16*): at 760px and under it shows the dots with only the current
+    step named (the other names stay for screen readers), and the lines between dots shrink. It used to scroll sideways, with
+    the current step cut off at 390px. Changed in the Harbor design (`coach/app.css`, `client/app.css`, rebuilt) and in
+    `web/src/coach/coach.css` and `web/src/family/family.css`.
   - **The banner's *Change address*** opens Profile → Business email, as designed. *Use my login email instead* leaves the
     waiting address on the list, still confirmable.
   - **A waiting row shows *Resend link*** where the design has *I've clicked the link* (the demo's stand-in), with when the
