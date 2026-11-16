@@ -108,3 +108,8 @@
   .bb.rk-app .tabbar__item { flex-direction: row; gap: 6px; font-size: 13px; }
   .bb.rk-app .phone__body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 }
+/* The Week tab (Batch 23). Not in the design: the button bar sticks just above the fixed tab bar, not under it, and the
+   time column fits the site's "10:00am" (the design writes "10:00"). */
+.bb.rk-app .rk-sticky { bottom: calc(64px + env(safe-area-inset-bottom)); padding-bottom: 8px; }
+.bb .rk-pick__t { width: auto; min-width: 58px; }
+@media (max-height: 500px) { .bb.rk-app .rk-sticky { bottom: calc(48px + env(safe-area-inset-bottom)); } }

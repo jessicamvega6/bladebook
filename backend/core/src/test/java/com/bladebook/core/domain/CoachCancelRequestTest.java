@@ -91,4 +91,44 @@ class CoachCancelRequestTest {
         assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", many, null)).hasMessage("That’s more lessons than one day holds.");
         assertThat(CoachCancelRequest.parse("DAY", many.subList(0, 100), null).picks()).hasSize(100);
     }
+
+    // ------------------------------------------- the rinkside Week tab's picks (Batch 23; ADR-009 d5a)
+
+    @Test
+    void lessonsPickedAcrossTheWeekKeepEachChoiceAndSpanTheirDates() {
+        CoachCancelRequest r = CoachCancelRequest.parse("SELECTION", List.of(pick("2026-11-18", "06:00", "HOLD"),
+                pick("2026-11-16", "06:30", "RELEASE")), null);
+        assertThat(r.scope()).isEqualTo(ChangeBatch.Source.SELECTION);
+        assertThat(r.picks()).extracting(CoachCancelRequest.Pick::after).containsExactly(AfterCancel.HOLD, AfterCancel.RELEASE);
+        assertThat(r.first()).isEqualTo(LocalDate.of(2026, 11, 16));
+        assertThat(r.last()).isEqualTo(LocalDate.of(2026, 11, 18));
+    }
+
+    @Test
+    void picksStayInsideOneSundayToSaturdayWeek() {
+        // Saturday the 21st and Sunday the 22nd are two weeks.
+        assertThatThrownBy(() -> CoachCancelRequest.parse("SELECTION", List.of(pick("2026-11-21", "06:00", "HOLD"),
+                pick("2026-11-22", "06:00", "HOLD")), null)).hasMessage("Pick lessons from one week at a time.");
+        assertThat(CoachCancelRequest.parse("SELECTION", List.of(pick("2026-11-15", "06:00", "HOLD"),
+                pick("2026-11-21", "06:00", "RELEASE")), null).picks()).hasSize(2);
+    }
+
+    @Test
+    void picksNeedAtLeastOneLessonAndAChoiceEach() {
+        assertThatThrownBy(() -> CoachCancelRequest.parse("SELECTION", List.of(), null)).hasMessage("Choose at least one lesson to cancel.");
+        assertThatThrownBy(() -> CoachCancelRequest.parse("SELECTION", List.of(pick("2026-11-16", "06:00", "KEEP")), null))
+                .hasMessage("Choose release or hold for each lesson.");
+    }
+
+    @Test
+    void atMostSevenHundredPicksAWeek() {
+        List<CoachCancelRequest.PickInput> many = new ArrayList<>();
+        for (int d = 0; d < 7; d++) {
+            for (int i = 0; i < 101; i++) {
+                many.add(pick(LocalDate.of(2026, 11, 15).plusDays(d).toString(), LocalTime.of(0, 0).plusMinutes(i * 10L).toString(), "HOLD"));
+            }
+        }
+        assertThatThrownBy(() -> CoachCancelRequest.parse("SELECTION", many, null)).hasMessage("That’s more lessons than one week holds.");
+        assertThat(CoachCancelRequest.parse("SELECTION", many.subList(0, 700), null).picks()).hasSize(700);
+    }
 }

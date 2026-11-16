@@ -485,7 +485,7 @@ erDiagram
         string batchId
         enum   cancelledBy "CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable"
         string cancelledById "the acting identity"
-        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE"
+        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|SELECTION|RECURRENCE|RECONCILE"
         date   affectedFrom
         date   affectedTo
         int    lessonCount

@@ -23,8 +23,11 @@ public record ChangeBatch(String batchId, Instant createdAt, Source batchSource,
     /** {@code notes.kind} on the staying family's "Cancel, no charge" batch. */
     public static final String STAYING_CANCEL = "STAYING_CANCEL";
 
-    /** {@code batchSource}: what made the batch. Batch 5 writes {@code LESSON}, {@code DAY} and {@code WEEK}. */
-    public enum Source { DEFAULT, DATE_OVERRIDE, LESSON, DAY, WEEK, RECURRENCE, RECONCILE }
+    /**
+     * {@code batchSource}: what made the batch. Batch 5 writes {@code LESSON}, {@code DAY} and {@code WEEK}; Batch 23 adds
+     * {@code SELECTION}, the rinkside Week tab's lessons picked across the week (ADR-009 d5a: one batch, one email per family).
+     */
+    public enum Source { DEFAULT, DATE_OVERRIDE, LESSON, DAY, WEEK, SELECTION, RECURRENCE, RECONCILE }
 
     /** {@code cancelledBy}. */
     public enum By { CLIENT, COACH, SCHEDULE_CHANGE, NO_ANSWER }

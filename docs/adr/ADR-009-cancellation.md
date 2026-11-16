@@ -64,6 +64,16 @@ Decision 7's button still states the range and count, now of booked lessons and 
 **The rinkside page's whole week (decision 5a) works the same way.** A whole day, part of a day
 or week, specific lessons and the check-in list still ask release-or-hold per lesson.
 
+**Amended — 2026-11-16.** *Settled while building Batch 23 (the rinkside Week tab); the owner may
+override.* Decision 5a's "part of a week" — lessons picked on more than one day — is written as
+**one batch** with a new `batchSource`, **`SELECTION`**, so each family gets one email (decision 9)
+however many days the picks cover. The picks must fall in one Sunday–Saturday week, each with its
+own release-or-hold answer; everything else is decision 5a as written (same header, lines and
+`cancelledBy = COACH`). The tab lists, for each day from today to Saturday, the lessons that can
+still be cancelled and the open times, worked out by the same plan *Cancel rest of week* carries
+out, so the whole-week confirmation shows exactly what it holds. ADR-MASTER §3 (`batchSource`) and
+`architecture.md` (the entity diagram) amended the same day.
+
 ---
 
 ## Context

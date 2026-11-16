@@ -12,7 +12,8 @@
  * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/coach/rinkside/sw.js)
  * keeps the page itself.
  *
- * Not yet: the Week tab's cancel-several (G-28).
+ * Batch 23, the Week tab (G-28; WeekTab.tsx): the week's lessons, cancelling several, and Cancel rest of week (S8); with
+ * no signal only "The week needs a connection" (R5).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../shared/api/client';
@@ -20,13 +21,14 @@ import { coachSession, emailFromToken } from '../shared/auth/localAuth';
 import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
 import { DAYS, MONTHS, dayOfWeek, formatShort, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
-import { rinkApi, type Contact, type RinkApi, type RinkDay, type RinkLesson, type RinkSkater } from './api';
+import { rinkApi, type CancelResult, type Contact, type RinkApi, type RinkDay, type RinkLesson, type RinkSkater, type RinkWeek } from './api';
+import { WeekOffline, WeekTab, pickKey, weekRange, type Picks, type WeekSheet } from './WeekTab';
 import {
   addUnsent, dequeue, enqueue, goesTomorrow, queue, queuedFor, removeUnsent, saveDay, savedDay, unsent, type Queued, type Unsent,
 } from './offline';
 
 const RINK = 'Pelham Civic Center';
-type Tab = 'today' | 'account' | 'unsent';
+type Tab = 'today' | 'week' | 'account' | 'unsent';
 type Sheet =
   | { kind: 'signout' }
   | { kind: 'more'; l: RinkLesson }
@@ -122,7 +124,7 @@ function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: (token: st
 
 function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSignOut: (message?: string) => void }) {
   const hash = useHash();
-  const tab: Tab = hash === '#/account' ? 'account' : hash === '#/unsent' ? 'unsent' : 'today';
+  const tab: Tab = hash === '#/account' ? 'account' : hash === '#/unsent' ? 'unsent' : hash === '#/week' ? 'week' : 'today';
   const [day, setDay] = useState<RinkDay | null>(null);
   const [notLoaded, setNotLoaded] = useState(false);
   const [error, setError] = useState('');
@@ -249,6 +251,43 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
     }
   };
 
+  /** The Week tab (Batch 23): read with signal each time it opens; never kept on the phone (R5). */
+  const [week, setWeek] = useState<RinkWeek | null>(null);
+  const [picks, setPicks] = useState<Picks>({});
+  const [weekSheet, setWeekSheet] = useState<WeekSheet | null>(null);
+  const loadWeek = useCallback(async () => {
+    try {
+      const w = await api.week();
+      setWeek(w); setError('');
+      // A lesson that's gone since (started, or cancelled elsewhere) can't stay picked.
+      const listed = new Set(w.days.flatMap((d) => d.lessons).map(pickKey));
+      setPicks((p) => Object.fromEntries(Object.entries(p).filter(([k]) => listed.has(k))));
+    } catch (e) {
+      if (isNetwork(e)) setOnline(false); else fail(e);
+    }
+  }, [api, fail, setOnline]);
+  useEffect(() => { if (tab === 'week' && online) void loadWeek(); }, [tab, online, loadWeek]);
+  useEffect(() => { if (tab !== 'week') setWeekSheet(null); }, [tab]);
+
+  const left = (r: CancelResult) => (r.skipped ? ` ${plural(r.skipped, 'lesson')} had already started or gone, so ${r.skipped === 1 ? 'it was' : 'they were'} left alone.` : '');
+  const emailed = (n: number) => (n ? ` ${plural(n, 'family', 'families')} will be emailed.` : '');
+  /** Both of the Week tab's cancels: a refusal (nothing left) stays in the sheet; anything else closes it. */
+  const weekCancel = async (send: () => Promise<CancelResult>, said: (r: CancelResult) => string) => {
+    if (!weekSheet) return;
+    setWeekSheet({ ...weekSheet, busy: true, error: '' });
+    setToast('');
+    try {
+      const r = await send();
+      setWeekSheet(null); setPicks({});
+      setToast(`${said(r)}${emailed(r.families)}${left(r)}`);
+      void loadWeek(); void load();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) { setWeekSheet({ ...weekSheet, busy: false, error: e.message }); void loadWeek(); return; }
+      setWeekSheet(null);
+      if (isNetwork(e)) setOnline(false); else fail(e);
+    }
+  };
+
   const now = day ? toMinutes(day.now) : 0;
   const isStarted = (l: RinkLesson) => toMinutes(l.startTime) <= now;
   const all = day ? day.lessons.flatMap((l) => l.skaters) : [];
@@ -261,8 +300,9 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       <header className="phone__head">
         <div>
           <a className="rk-home" href="/coach/"><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
-          <div className="phone__title">{tab === 'account' ? 'Account' : tab === 'unsent' ? 'Not sent' : 'Today'}</div>
-          <div className="phone__sub">{tab === 'account' ? 'Rinkside page' : tab === 'unsent' ? 'Check-ins the server turned down' : sub}</div>
+          <div className="phone__title">{tab === 'account' ? 'Account' : tab === 'unsent' ? 'Not sent' : tab === 'week' ? 'This week' : 'Today'}</div>
+          <div className="phone__sub">{tab === 'account' ? 'Rinkside page' : tab === 'unsent' ? 'Check-ins the server turned down'
+            : tab === 'week' ? (!online ? 'No signal' : week ? weekRange(week) : 'Cancel lessons') : sub}</div>
         </div>
         {!online ? <span className="rk-pill rk-pill--warn"><Icon name="wifiOff" size={13} />{saved.size ? `${saved.size} saved on phone` : 'No signal'}</span>
           : notSent.length ? <span className="rk-pill rk-pill--danger"><Icon name="alert" size={13} />{notSent.length} not sent</span>
@@ -277,7 +317,15 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       <div className="phone__body rk-body">
         {toast && <div className="rk-toast" role="status"><Icon name="check" size={16} /><span>{toast}</span></div>}
         {error && <Banner tone="danger">{error}</Banner>}
-        {tab === 'account' ? (
+        {tab === 'week' ? (
+          !online ? <WeekOffline />
+            : !week ? <p className="muted" aria-busy="true">Loading this week’s lessons…</p>
+              : <WeekTab week={week} picks={picks} onPicks={setPicks} sheet={weekSheet} onSheet={setWeekSheet}
+                  onCancelPicked={(picked) => void weekCancel(() => api.cancelPicked(picked), (r) =>
+                    `${plural(r.cancelled, 'lesson')} cancelled${r.held ? `, ${r.held} held closed` : ''}.`)}
+                  onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), (r) =>
+                    `${plural(r.cancelled, 'lesson')} cancelled and ${plural(r.openHeld, 'open time')} closed.`)} />
+        ) : tab === 'account' ? (
           <>
             <section className="rk-card"><div className="rk-who"><Avatar name={day?.coachFirstName ?? email} /><div><b>{day?.coachFirstName ? `Coach ${day.coachFirstName}` : 'Signed in'}</b><span className="muted-sm">{email}</span></div></div>
               <dl className="rk-kv"><div><dt>Rink</dt><dd>{RINK}</dd></div>
@@ -314,7 +362,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       </div>
       <nav className="tabbar" aria-label="Rinkside">
         <a className={`tabbar__item${tab === 'today' ? ' is-active' : ''}`} href="#/today" aria-current={tab === 'today' ? 'page' : undefined}><span className="rk-tabicon"><Icon name="list" size={20} /></span><span>Today</span></a>
-        <span className="tabbar__item is-disabled" aria-disabled="true" title="Comes in a later batch"><span className="rk-tabicon"><Icon name="calendar" size={20} /></span><span>Week</span></span>
+        <a className={`tabbar__item${tab === 'week' ? ' is-active' : ''}`} href="#/week" aria-current={tab === 'week' ? 'page' : undefined}><span className="rk-tabicon"><Icon name="calendar" size={20} /></span><span>Week</span></a>
         <a className={`tabbar__item${tab === 'account' ? ' is-active' : ''}`} href="#/account" aria-current={tab === 'account' ? 'page' : undefined}><span className="rk-tabicon"><Icon name="user" size={20} /></span><span>Account</span></a>
       </nav>
       {sheet && day && (

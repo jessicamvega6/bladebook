@@ -10,8 +10,10 @@ The page lists each day from today to the end of the week, with the lessons that
   "Select whole day" picks every lesson that day ("Clear day" undoes it).
   Each picked lesson asks whether the time can be booked again: Release, or Hold closed (see cancelation.md).
   *Changed 2026-11-08 (owner; ADR-009):* cancelling the whole week (everything left from now to Saturday) doesn't ask:
-    every booked lesson and every open time is held closed, as with "Cancel rest of week" on the website. The
-    Harbor design hasn't been redrawn for this yet.
+    every booked lesson and every open time is held closed, as with "Cancel rest of week" on the website.
+    ~~The Harbor design hasn't been redrawn for this yet.~~ *Drawn 2026-11-08: a "Cancel the rest of the week"
+    card at the top of the tab, stating how many lessons and open times it holds, and its confirmation listing
+    each one as Hold (design week-all-confirm).*
   Lessons that have started can't be picked. A day says how many have already started, or "No lessons".
 
 Button at the bottom: "Cancel N lessons", disabled until at least one is picked.
@@ -27,3 +29,11 @@ No signal: the Week tab shows no lessons. It says "The week needs a connection. 
 too. Today's lessons are on the Today tab." with a "Go to Today" button. *Owner, 2026-11-09 (R5).*
 Why: the phone saves only today's lessons (one device, one day of names, ADR-014), and cancelling needs
 signal anyway, so there is nothing to show or do for the rest of the week.
+
+*Built 2026-11-16 (Batch 23).* As above, with these details settled while building (the owner may change them):
+  The picked lessons are cancelled together, so each family gets one email even when their lessons are on
+    different days (ADR-009, amended 2026-11-16).
+  A lesson already marked Present or No-show can't be picked either; it counts with the ones that have started.
+  If a picked lesson started or was cancelled meanwhile, it's left alone and the message afterwards says so:
+    "1 lesson had already started or gone, so it was left alone." (the website's wording).
+  The message afterwards leaves out "N families will be emailed" when no family is.

@@ -233,7 +233,7 @@ GSI1 keys only from `consumer-invite` (§8).
 | `paymentStatus` | `UNPAID` \| `PAID` \| `WAIVED` |
 | `paidVia` | `CASH` \| `CASHAPP` \| `VENMO` \| `PAYPAL` \| `OTHER` |
 | `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` |
-| `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `RECURRENCE` \| `RECONCILE` |
+| `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `SELECTION` \| `RECURRENCE` \| `RECONCILE`. *`SELECTION` added 2026-11-16 (Batch 23): lessons picked on the rinkside Week tab across one Sunday–Saturday week, each released or held, cancelled as one batch (ADR-009 d5a).* |
 | `planStatus` | `WRITING` \| `COMPLETE` |
 | `executionStatus` | `PLANNED` \| `EXECUTED` \| `SKIPPED` |
 | `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` |

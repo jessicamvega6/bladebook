@@ -13,6 +13,10 @@ import java.util.Map;
  * The coach cancelling from the calendar (ADR-MASTER section 10, "By the coach"): one lesson, a day, or the rest
  * of the week. For a lesson or a day, each lesson carries its own release-or-hold choice (S9). The week names only
  * its Sunday: what it closes is worked out on the server from now on, and everything is held (S8).
+ *
+ * <p>{@code SELECTION} (Batch 23) is the rinkside Week tab's "part of a week": lessons picked on any days of one
+ * Sunday–Saturday week, each with its own release-or-hold choice, cancelled as one batch so each family gets one email
+ * (ADR-009 d5a: "a multi-select of <i>this lesson</i>").
  */
 public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, LocalDate weekStart) {
 
@@ -25,6 +29,8 @@ public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, Loc
 
     /** More times than any day holds. */
     static final int MAX_PICKS = 100;
+    /** More times than any week holds. */
+    static final int MAX_WEEK_PICKS = 7 * MAX_PICKS;
 
     public CoachCancelRequest {
         picks = List.copyOf(picks);
@@ -46,14 +52,17 @@ public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, Loc
             source = ChangeBatch.Source.LESSON;
         } else if ("DAY".equals(scope)) {
             source = ChangeBatch.Source.DAY;
+        } else if ("SELECTION".equals(scope)) {
+            source = ChangeBatch.Source.SELECTION;
         } else {
             throw DomainException.invalid("scope", "Choose a lesson, a day or the rest of the week.");
         }
         if (picks == null || picks.isEmpty()) {
             throw DomainException.invalid("picks", "Choose at least one lesson to cancel.");
         }
-        if (picks.size() > MAX_PICKS) {
-            throw DomainException.invalid("picks", "That’s more lessons than one day holds.");
+        if (source == ChangeBatch.Source.SELECTION ? picks.size() > MAX_WEEK_PICKS : picks.size() > MAX_PICKS) {
+            throw DomainException.invalid("picks", source == ChangeBatch.Source.SELECTION
+                    ? "That’s more lessons than one week holds." : "That’s more lessons than one day holds.");
         }
         Map<String, Pick> unique = new LinkedHashMap<>();
         for (PickInput p : picks) {
@@ -70,6 +79,9 @@ public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, Loc
         if (source == ChangeBatch.Source.DAY && out.stream().map(Pick::date).distinct().count() != 1) {
             throw DomainException.invalid("picks", "Cancel day takes the lessons of one day.");
         }
+        if (source == ChangeBatch.Source.SELECTION && out.stream().map(p -> sunday(p.date())).distinct().count() != 1) {
+            throw DomainException.invalid("picks", "Pick lessons from one week at a time.");
+        }
         return new CoachCancelRequest(source, out, null);
     }
 
@@ -80,6 +92,11 @@ public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, Loc
 
     public LocalDate last() {
         return scope == ChangeBatch.Source.WEEK ? weekStart.plusDays(6) : picks.stream().map(Pick::date).max(LocalDate::compareTo).orElseThrow();
+    }
+
+    /** The Sunday that starts the week {@code d} is in. */
+    public static LocalDate sunday(LocalDate d) {
+        return d.minusDays(d.getDayOfWeek().getValue() % 7);
     }
 
     private static LocalDate date(String v, String field) {

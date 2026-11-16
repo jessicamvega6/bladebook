@@ -12,6 +12,7 @@ import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
 import com.bladebook.core.service.FinancialService;
+import com.bladebook.core.service.RinksideWeekService;
 import com.bladebook.core.service.Mailer;
 import com.bladebook.core.service.PaymentService;
 import com.bladebook.core.service.CoachCancelService;
@@ -101,6 +102,12 @@ public class CoreConfig {
                                         StudentRepository students, CoachRepository coaches, Clock clock) {
         return new AttendanceService(new AttendanceRepository(clients, table), schedules, students, coaches,
                 new CancellationRepository(clients, table), clock);
+    }
+
+    /** The rinkside Week tab (Batch 23). */
+    @Bean
+    RinksideWeekService rinksideWeekService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
+        return new RinksideWeekService(schedules, coaches, students, clock);
     }
 
     /** Time off and special schedules (Batch 6). */
