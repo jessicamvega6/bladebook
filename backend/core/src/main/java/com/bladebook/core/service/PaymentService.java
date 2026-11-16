@@ -2,6 +2,7 @@ package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CoachRepository;
+import com.bladebook.core.data.FinancialRepository;
 import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.PaymentRepository.PaidSeat;
 import com.bladebook.core.data.ScheduleRepository;
@@ -10,6 +11,7 @@ import com.bladebook.core.domain.Attendance;
 import com.bladebook.core.domain.ClientRelationship;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
+import com.bladebook.core.domain.FinancialSummary;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Payment;
 import com.bladebook.core.domain.Seat;
@@ -19,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 /**
  * The coach's Payments page (ADR-MASTER section 12; FeatureDecriptions/Coach Payment Section on Dashboard.md): every
@@ -62,6 +66,7 @@ public final class PaymentService {
     private final StudentRepository students;
     private final CoachRepository coaches;
     private final Clock clock;
+    private volatile ClosedYears closedYears;
 
     public PaymentService(PaymentRepository payments, ScheduleRepository schedules, StudentRepository students, CoachRepository coaches,
                           Clock clock) {
@@ -124,14 +129,43 @@ public final class PaymentService {
         return reread(ctx, date, start, studentId);
     }
 
-    /** A paid lesson back to unpaid. */
+    /**
+     * A paid lesson back to unpaid. When the year its payment counted in has closed, that year's figures are saved first
+     * (if nothing has saved them yet), and the undo is written with a correction that counts in this year, flagged as
+     * for an earlier year, so the closed year doesn't change (Batch 26; ADR-030 decision 4, amended 2026-11-16).
+     */
     public Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkUndo(s.status());
-        if (!payments.undo(ctx, s.seat().key())) {
+        Instant now = clock.instant();
+        ZoneId zone = ZoneId.of(coach(ctx).coachTimezone());
+        OptionalInt counted = FinancialSummary.countedIn(date, s.paidAt(), zone);
+        boolean done;
+        if (counted.isPresent() && counted.getAsInt() < LocalDate.ofInstant(now, zone).getYear()) {
+            if (closedYears == null) {
+                throw new IllegalStateException("A closed year's payment can't be undone before its figures can be saved.");
+            }
+            closedYears.saveBeforeUndo(ctx, counted.getAsInt());
+            Row was = reread(ctx, date, start, studentId);
+            done = payments.undo(ctx, s.seat().key(), new FinancialRepository.Undone(now, s.seat().key(), date, start, studentId,
+                    was.amountMinor(), was.currency(), counted.getAsInt()));
+        } else {
+            done = payments.undo(ctx, s.seat().key());
+        }
+        if (!done) {
             throw DomainException.conflict(CHANGED);
         }
         return reread(ctx, date, start, studentId);
+    }
+
+    /** Saves a closed year's figures, if nothing has yet, before one of its payments is undone (Batch 26). */
+    public interface ClosedYears {
+        void saveBeforeUndo(AccessContext ctx, int year);
+    }
+
+    /** Set by {@link FinancialService}, which reads this service to add a year up. */
+    void closedYears(ClosedYears closedYears) {
+        this.closedYears = closedYears;
     }
 
     // ---------------------------------------------------------------------- helpers

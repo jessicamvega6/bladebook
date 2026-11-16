@@ -5,8 +5,13 @@ import com.bladebook.core.domain.Seat;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.Update;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.time.Instant;
@@ -78,11 +83,36 @@ public final class PaymentRepository {
 
     /** A paid lesson back to unpaid. */
     public boolean undo(AccessContext ctx, String seatKey) {
+        return update(ctx, seatKey, Payment.Status.PAID, UNDO, undoValues(ctx, seatKey));
+    }
+
+    /**
+     * A paid lesson back to unpaid when the year its payment counted in has closed (Batch 26): the seat and its
+     * correction ({@code PAYCORRECTION#}) are written in one transaction, or neither is.
+     */
+    public boolean undo(AccessContext ctx, String seatKey, FinancialRepository.Undone correction) {
+        Map<String, AttributeValue> v = undoValues(ctx, seatKey);
+        v.put(":was", FamilyItems.s(Payment.Status.PAID.name()));
+        try {
+            db(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(
+                    TransactWriteItem.builder().update(Update.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), seatKey))
+                            .conditionExpression("attribute_exists(SK) AND paymentStatus = :was").updateExpression(UNDO)
+                            .expressionAttributeValues(v).build()).build(),
+                    TransactWriteItem.builder().put(Put.builder().tableName(table).item(FinancialRepository.correctionItem(ctx, correction))
+                            .conditionExpression("attribute_not_exists(SK)").build()).build()).build());
+            return true;
+        } catch (TransactionCanceledException e) {
+            return false;
+        }
+    }
+
+    private static final String UNDO = "SET paymentStatus = :u, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK REMOVE paidAt, markedPaidBy, paidVia";
+
+    private static Map<String, AttributeValue> undoValues(AccessContext ctx, String seatKey) {
         String[] k = seatKey.split("#"); // SEAT#<date>#<startTime>#<studentId>
         Map<String, AttributeValue> v = new HashMap<>(Map.of(":u", FamilyItems.s("UNPAID")));
         SeatItems.unpaidIndex(ctx.coachId(), java.time.LocalDate.parse(k[1]), k[3]).forEach((n, val) -> v.put(":" + n, val));
-        return update(ctx, seatKey, Payment.Status.PAID,
-                "SET paymentStatus = :u, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK REMOVE paidAt, markedPaidBy, paidVia", v);
+        return v;
     }
 
     /** One conditional update: the seat must exist and still have the status the coach saw. */

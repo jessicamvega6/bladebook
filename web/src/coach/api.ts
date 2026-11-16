@@ -303,13 +303,15 @@ export type PaymentsApi = ReturnType<typeof paymentsApi>;
 export interface FinanceMonthDto {
   month: string; hasLessons: boolean; paidLessons: number; gross: Record<string, number>; unpaid: Record<string, number>;
   earlierLessons: number; earlierGross: Record<string, number>;
+  /** Earlier years' payments undone this month, already taken off {@code gross} (Batch 26). */
+  undoneLessons: number; undoneGross: Record<string, number>;
 }
 
 /** A year's figures (Batch 12): gross only; rink fees are Phase 2. {@code today}: the coach's date. */
 export interface FinanceYearDto {
   year: number; closed: boolean; today: string; months: FinanceMonthDto[]; paidLessons: number;
   gross: Record<string, number>; unpaid: Record<string, number>; earlierLessons: number; earlierGross: Record<string, number>;
-  currency: string;
+  undoneLessons: number; undoneGross: Record<string, number>; currency: string;
 }
 
 export function financesApi(token: string) {

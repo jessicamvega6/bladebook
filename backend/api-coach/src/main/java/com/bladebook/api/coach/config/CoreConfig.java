@@ -4,6 +4,7 @@ import com.bladebook.core.data.AttendanceRepository;
 import com.bladebook.core.data.CancellationRepository;
 import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.CoachRepository;
+import com.bladebook.core.data.FinancialRepository;
 import com.bladebook.core.data.LocalTable;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -11,6 +12,7 @@ import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.ClosedYearJob;
 import com.bladebook.core.service.FinancialService;
 import com.bladebook.core.service.Mailer;
 import com.bladebook.core.service.PaymentService;
@@ -89,10 +91,20 @@ public class CoreConfig {
         return new PaymentService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
     }
 
-    /** The financial page and its download (Batch 12), built on the Payments page's rows. */
+    /**
+     * The financial page and its download (Batch 12), built on the Payments page's rows; a closed year is read from its
+     * saved figures (Batch 26).
+     */
     @Bean
-    FinancialService financialService(PaymentService payments, CoachRepository coaches, Clock clock) {
-        return new FinancialService(payments, coaches, clock);
+    FinancialService financialService(PaymentService payments, CoachRepository coaches, TenantClients clients,
+                                      @Value("${bladebook.table}") String table, Clock clock) {
+        return new FinancialService(payments, coaches, new FinancialRepository(clients, table), clock);
+    }
+
+    /** {@code sched-year-close} (Batch 26): saves last year's figures for every coach in the first days of January. */
+    @Bean
+    ClosedYearJob closedYearJob(com.bladebook.core.data.NotifyRepository repo, FinancialService finances) {
+        return new ClosedYearJob(repo, finances);
     }
 
     /** Attendance: the rinkside page and the Lessons page (Batch 7). */

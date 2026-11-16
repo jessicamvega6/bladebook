@@ -12,22 +12,26 @@ public final class FinancialDtos {
     private FinancialDtos() {
     }
 
-    /** {@code month}: yyyy-MM. {@code earlierGross}: the part of {@code gross} paid for lessons in earlier years. */
+    /**
+     * {@code month}: yyyy-MM. {@code earlierGross}: the part of {@code gross} paid for lessons in earlier years.
+     * {@code undoneGross}: earlier years' payments undone this month, already taken off {@code gross} (Batch 26).
+     */
     public record MonthDto(String month, boolean hasLessons, int paidLessons, Map<String, Long> gross, Map<String, Long> unpaid,
-                           int earlierLessons, Map<String, Long> earlierGross) {
+                           int earlierLessons, Map<String, Long> earlierGross, int undoneLessons, Map<String, Long> undoneGross) {
         static MonthDto of(FinancialSummary.Month m) {
             return new MonthDto(m.month().toString(), m.hasLessons(), m.paidLessons(), m.gross(), m.unpaid(), m.earlierLessons(),
-                    m.earlierGross());
+                    m.earlierGross(), m.undoneLessons(), m.undoneGross());
         }
     }
 
     /** {@code today}: the coach's date, so the page can say "to Nov 13". */
     public record YearDto(int year, boolean closed, String today, List<MonthDto> months, int paidLessons, Map<String, Long> gross,
-                          Map<String, Long> unpaid, int earlierLessons, Map<String, Long> earlierGross, String currency) {
+                          Map<String, Long> unpaid, int earlierLessons, Map<String, Long> earlierGross, int undoneLessons,
+                          Map<String, Long> undoneGross, String currency) {
         public static YearDto of(FinancialService.Page p) {
             FinancialSummary.Summary s = p.summary();
             return new YearDto(s.year(), s.closed(), s.today().toString(), s.months().stream().map(MonthDto::of).toList(),
-                    s.paidLessons(), s.gross(), s.unpaid(), s.earlierLessons(), s.earlierGross(), p.currency());
+                    s.paidLessons(), s.gross(), s.unpaid(), s.earlierLessons(), s.earlierGross(), s.undoneLessons(), s.undoneGross(), p.currency());
         }
     }
 

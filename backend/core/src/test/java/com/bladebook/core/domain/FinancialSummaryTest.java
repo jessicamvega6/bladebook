@@ -170,4 +170,76 @@ class FinancialSummaryTest {
         assertThat(lines[12]).isEqualTo("2026 to date,0,0.00,0.00");
         assertThat(FinancialSummary.fileName(2026)).isEqualTo("bladebook-summary-2026.csv");
     }
+
+    // ------------------------------------------------------------- Batch 26: closed years saved (G-36)
+
+    private static FinancialSummary.Correction undone(String at, String lessonDate, int minor) {
+        return new FinancialSummary.Correction(Instant.parse(at), LocalDate.parse(lessonDate), minor, "USD");
+    }
+
+    @Test
+    void anUndoOfAClosedYearsPaymentLowersTheMonthItWasUndoneFlaggedAsForAnEarlierYear() {
+        // ADR-030 amendment of 2026-11-16: a correction to a closed year's lesson counts in the year it's made.
+        FinancialSummary.Summary s = FinancialSummary.of(2026, List.of(
+                paid("2026-03-02", 5000, "2026-03-02T15:00:00Z"),
+                paid("2025-12-15", 3000, "2026-03-05T15:00:00Z")),          // a late payment in March
+                List.of(undone("2026-03-10T15:00:00Z", "2025-12-08", 4000),  // a 2025 payment undone in March
+                        undone("2026-01-01T05:59:59Z", "2025-12-01", 1000),  // still Dec 31 in Chicago: not 2026's
+                        undone("2027-01-01T06:00:00Z", "2026-12-01", 1000)), // 2027's
+                CHICAGO, TODAY);
+        FinancialSummary.Month mar = s.months().get(2);
+        assertThat(mar.paidLessons()).isEqualTo(2);                         // lessons marked paid; an undo isn't one
+        assertThat(mar.gross()).containsExactly(Map.entry("USD", 4000L));  // 5000 + 3000 - 4000
+        assertThat(mar.earlierLessons()).isEqualTo(1);
+        assertThat(mar.earlierGross()).containsExactly(Map.entry("USD", 3000L));
+        assertThat(mar.undoneLessons()).isEqualTo(1);
+        assertThat(mar.undoneGross()).containsExactly(Map.entry("USD", 4000L));
+        assertThat(s.months().get(0).undoneLessons()).isZero();
+        assertThat(s.gross()).containsExactly(Map.entry("USD", 4000L));
+        assertThat(s.undoneLessons()).isEqualTo(1);
+        assertThat(s.undoneGross()).containsExactly(Map.entry("USD", 4000L));
+        String[] lines = FinancialSummary.csv(s, "USD").split("\r\n");
+        assertThat(lines[3]).isEqualTo("March 2026,2,40.00,-10.00");      // the earlier-years column is net
+        assertThat(lines[12]).isEqualTo("2026 to date,2,40.00,-10.00");
+    }
+
+    @Test
+    void aPaymentCountsInTheLessonsYearOrTheNextWhenPaidLate() {
+        assertThat(FinancialSummary.countedIn(LocalDate.parse("2025-12-31"), Instant.parse("2026-01-01T05:59:59Z"), CHICAGO)).hasValue(2025);
+        assertThat(FinancialSummary.countedIn(LocalDate.parse("2025-12-31"), Instant.parse("2026-01-01T06:00:00Z"), CHICAGO)).hasValue(2026);
+        assertThat(FinancialSummary.countedIn(LocalDate.parse("2025-06-01"), null, CHICAGO)).hasValue(2025);
+        // Paid two or more years after the lesson's year: the page never read it, so it counted in no year (G-39).
+        assertThat(FinancialSummary.countedIn(LocalDate.parse("2024-12-31"), Instant.parse("2026-02-01T15:00:00Z"), CHICAGO)).isEmpty();
+    }
+
+    @Test
+    void aSavedYearIsReadBackAsClosedWithItsTotals() {
+        FinancialSummary.Summary live = FinancialSummary.of(2025, List.of(
+                paid("2025-02-03", 5000, "2025-02-03T15:00:00Z"),
+                paid("2024-12-20", 2000, "2025-01-04T15:00:00Z"),
+                of("2025-03-03", 5000, Payment.Status.UNPAID)),
+                List.of(undone("2025-04-01T15:00:00Z", "2024-11-04", 1500)), CHICAGO, TODAY);
+        FinancialSummary.Summary saved = FinancialSummary.saved(2025, live.months(), TODAY);
+        assertThat(saved.closed()).isTrue();
+        assertThat(saved.months()).hasSize(12);
+        assertThat(saved.paidLessons()).isEqualTo(2);
+        assertThat(saved.gross()).containsExactly(Map.entry("USD", 5500L));
+        assertThat(saved.earlierLessons()).isEqualTo(1);
+        assertThat(saved.earlierGross()).containsExactly(Map.entry("USD", 2000L));
+        assertThat(saved.undoneLessons()).isEqualTo(1);
+        assertThat(saved.undoneGross()).containsExactly(Map.entry("USD", 1500L));
+        assertThat(saved.unpaid()).isEmpty();                                // "still unpaid" is this year's only
+        assertThat(saved.months().get(2).hasLessons()).isTrue();
+        assertThat(saved.months().get(2).unpaid()).isEmpty();
+        assertThat(FinancialSummary.csv(saved, "USD")).isEqualTo(FinancialSummary.csv(live, "USD"));
+    }
+
+    @Test
+    void onlyAFinishedYearsTwelveMonthsCanBeSaved() {
+        FinancialSummary.Summary thisYear = FinancialSummary.of(2026, List.of(), CHICAGO, TODAY);
+        assertThatThrownBy(() -> FinancialSummary.saved(2026, thisYear.months(), TODAY)).isInstanceOf(IllegalArgumentException.class);
+        FinancialSummary.Summary last = FinancialSummary.of(2025, List.of(), CHICAGO, TODAY);
+        assertThatThrownBy(() -> FinancialSummary.saved(2025, last.months().subList(0, 11), TODAY))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
