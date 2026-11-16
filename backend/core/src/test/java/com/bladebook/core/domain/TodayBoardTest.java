@@ -130,7 +130,7 @@ class TodayBoardTest {
     }
 
     @Test
-    void theWeekCountsEverySkatersLessonInItAtTheirShareWhateverHappened() {
+    void theWeekCountsEachLessonTimeOnceSharedOrNotWhateverHappenedAndAddsUpEverySkatersShare() {
         LocalDate sun = MON.minusDays(1);
         LocalDate sat = MON.plusDays(5);
         LessonTime shared = time(MON.plusDays(2), 9, 0, LessonTime.Status.BOOKED, 5000, 2, List.of("sam", "leo"));
@@ -144,8 +144,20 @@ class TodayBoardTest {
 
         TodayBoard.Figures week = b.booked(sun, sat);
 
-        assertThat(week.count()).isEqualTo(5);
+        assertThat(week.count()).isEqualTo(4);   // the shared lesson is one lesson time (owner's ruling, 2026-11-16)
         assertThat(week.amounts()).containsExactly(Map.entry("USD", 20000L));
+    }
+
+    @Test
+    void aHeldOrEmptyTimeIsNotALessonThisWeek() {
+        TodayBoard b = board(List.of(booked(MON, 7, 0), time(MON, 8, 0, LessonTime.Status.HELD, 5000, 0, List.of()),
+                        time(MON, 9, 0, LessonTime.Status.OPEN, 5000, 0, List.of()), booked(MON, 10, 0)),
+                List.of(seat(MON, 7, 0, "ava"), seat(MON, 8, 0, "leo")));
+
+        TodayBoard.Figures week = b.booked(MON, MON);
+
+        assertThat(week.count()).isEqualTo(1);
+        assertThat(week.amounts()).containsExactly(Map.entry("USD", 5000L));
     }
 
     @Test

@@ -15,7 +15,8 @@ import java.util.TreeMap;
 /**
  * The coach's Today page (G-6, Batch 22; design {@code coach/static/today.html}; FeatureDecriptions/Coach Dashboard on
  * website.md): today's lessons, each skater with their share of the price and their attendance, the next lesson marked,
- * and two figures: the lessons booked in a range (this week) and every lesson that has started and is still unpaid.
+ * and two figures: the lesson times booked in a range (this week; a shared lesson once) and every skater's lesson that
+ * has started and is still unpaid.
  *
  * <p>Everything is worked out from the lesson times and seats already stored (Batches 4 to 8); nothing is kept. A seat
  * still {@code INVITED} isn't in the lesson yet and counts nowhere. Shares come from the lesson time, as on Payments
@@ -43,7 +44,7 @@ public final class TodayBoard {
         }
     }
 
-    /** A count of skaters' lessons and their amounts per currency, by currency code. */
+    /** A count (lesson times for the week, skaters' lessons for unpaid) and their amounts per currency, by currency code. */
     public record Figures(int count, Map<String, Long> amounts) {
 
         public Figures {
@@ -110,10 +111,21 @@ public final class TodayBoard {
         return out;
     }
 
-    /** Every skater's lesson dated {@code from} to {@code to}, whatever happened at it or was paid. */
+    /**
+     * The lesson times dated {@code from} to {@code to} with at least one skater booked, whatever happened at them or was
+     * paid: a shared lesson counts once (owner's ruling, 2026-11-16), and a held or empty time not at all. The amounts
+     * are every skater's share in them, so a shared lesson adds its whole price.
+     */
     public Figures booked(LocalDate from, LocalDate to) {
-        return figures(seatOf.values().stream()
-                .filter(s -> !s.lessonDate().isBefore(from) && !s.lessonDate().isAfter(to)).map(Seat::key).toList());
+        List<String> seatKeys = seatOf.values().stream()
+                .filter(s -> !s.lessonDate().isBefore(from) && !s.lessonDate().isAfter(to))
+                .filter(s -> {
+                    LessonTime t = times.get(LessonTime.key(s.lessonDate(), s.startTime()));
+                    return t == null || t.lessonStatus() != LessonTime.Status.HELD;
+                })
+                .map(Seat::key).toList();
+        long lessonTimes = seatKeys.stream().map(seatOf::get).map(s -> LessonTime.key(s.lessonDate(), s.startTime())).distinct().count();
+        return new Figures((int) lessonTimes, figures(seatKeys).amounts());
     }
 
     /** Every skater's lesson that has started and is still unpaid, no-shows included (ADR-015 d4). */
