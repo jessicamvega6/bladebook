@@ -31,6 +31,7 @@ function server(family: Family, pages: Record<string, BookingPage>, book: (b: Se
       sent.push(body);
       return book(body);
     }
+    if (url === '/api/client/share-check') return json(200, { displayName: 'Mia C.', onCoachRoster: true });
     return json(404, { error: 'NOT_FOUND', message: 'x' });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -201,6 +202,29 @@ describe('3 · confirm and 4 · result', () => {
 
     await userEvent.click(within(another).getByRole('button', { name: 'Pick another time' }));
     expect(window.location.hash).toBe('#/book/day/2026-11-16');
+  });
+
+  test('a time that can be shared offers the share box; Book waits for the code to check out, then sends it (Batch 11)', async () => {
+    const page = { ...DANA_PAGE, times: DANA_PAGE.times.map((t) => (t.startTime === '06:00' && t.date === '2026-11-16' ? { ...t, shareable: true } : t)) };
+    const { sent } = server(APPROVED, { dana: page },
+      (b) => json(200, { ...booked(b), shared: { displayName: 'Mia C.', sibling: false, lessons: 1 } }));
+    open('#/book/day/2026-11-16');
+    await userEvent.click(await screen.findByRole('button', { name: /^6:00 AM/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^7:30 AM/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Book for Ava' });
+    expect(dialog).toHaveTextContent('Share this lesson');
+    expect(dialog).toHaveTextContent('Only Mon 6:00 AM can be shared.');
+    await userEvent.type(within(dialog).getByLabelText('Skater’s share code'), 'MIA-4K7');
+    expect(within(dialog).getByRole('button', { name: 'Book 2 lessons' })).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText('Skater’s share code'), 'QX');
+
+    expect(await within(dialog).findByText('Code found')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Book 2 lessons' }));
+
+    expect(await screen.findByText('Invitation sent to Mia C.’s family')).toBeInTheDocument();
+    expect(sent[0]).toMatchObject({ shareCode: 'MIA-4K7QX' });
   });
 
   test('repeating a pick books it every N weeks to the end date and the result shows the series', async () => {

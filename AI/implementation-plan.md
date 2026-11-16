@@ -2,8 +2,8 @@
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
 **Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
-#27–#31). Batch 12 is done (PR #37); Batch 11 is in progress on its own branch.
-Build order from there: 11, 12, 13, 14, 22, 23, 26, 17, 18, 19, 20, 21, 24, 25 (§5).
+#27–#31). Batches 11 and 12 are merged (PRs #38 and #37). Batch 13 is built on `feature/batch-13-emails-and-jobs`
+(PR #39). Build order from there: 14, 22, 23, 26, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -20,7 +20,7 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 | Commit between batches | When the owner says to move on, the previous batch is committed first. |
 | Test-driven development (TDD) on `core/` | A failing test (red) first, then the least code that makes it pass (green). Code counts as working only once its tests are green. |
 | Test focus | Happy path, sad path, error states and invalid input, and important boundaries first. |
-| Mutation testing (PIT) on `core/` | ADR-013 decision 3, in CI from 2026-11-13 (`.github/workflows/mutation.yml`). On a pull request PIT runs only on the `core/` classes the pull request changes; on `main`, nightly and by hand it runs on all of `core/`, and the HTML report is kept as a download on the run. The build fails below `pit.mutationThreshold` in `backend/core/pom.xml`, set at **85%** just under the 2026-11-13 baseline of **87%** (1,491 of 1,717 mutations killed; `core.domain` 95%, `core.data` 84%, `core.service` 77%). Raise it as tests improve; never lower it to get a merge through. Locally, from `backend/`: `./mvnw -pl core test-compile pitest:mutationCoverage` (needs Docker). |
+| Mutation testing (PIT) on `core/` | ADR-013 decision 3, in CI from 2026-11-13 (`.github/workflows/mutation.yml`). It runs on all of `core/`, nightly (08:00 UTC) and by hand only; not on pull requests or pushes to `main` (owner, 2026-11-16). The run page lists the classes with the most missed mutations, and the HTML report is kept as a download on the run. The build fails below `pit.mutationThreshold` in `backend/core/pom.xml`, set at **85%** just under the 2026-11-13 baseline of **87%** (1,491 of 1,717 mutations killed; `core.domain` 95%, `core.data` 84%, `core.service` 77%). Raise it as tests improve; never lower it to make a run pass. Locally, from `backend/`: `./mvnw -pl core test-compile pitest:mutationCoverage` (needs Docker). |
 | ADR vs screen conflicts | **Nothing that conflicts gets built.** Each conflict is listed as a gap (§4). How much a conflict holds back is Question 2 in §6. |
 | Gaps and shortcuts | Listed in the **root `README.md`** only (owner, 2026-11-08: no panel in the websites). Writing a gap down doesn't count as building it. |
 | Layout | `controller/`, `service/`, `repository/` (`core.data`), `dto/`, `domain/`, `config/`, `security/` and `exception/` packages, as already scaffolded. `core/` stays framework-free (ADR-001). |
@@ -260,13 +260,14 @@ comes after 23, before the infrastructure.
 |---|---|---|
 | 9 | ~~Recurring bookings and recurrence changes~~ **Done** (PR #28). B4 (a shared series) moved to Batch 11; what's left of G-20 is Batch 24 | — |
 | 10 | ~~Rinkside offline queue and service worker~~ **Done** (PR #29). What's left of G-32 is Batch 25 | — |
-| 11 | Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
-| 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) waits on the owner | — |
-| 13 | Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
+| 11 | ~~Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5)~~ **Done** (2026-11-13; §7). Its emails are SC-18 (Batch 13) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
+| 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) is planned as Batch 26 (owner, 2026-11-13) | — |
+| 13 | **Done** (branch `feature/batch-13-emails-and-jobs`, after Batch 11). Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
+| 27 | **Added 2026-11-15: lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can still be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the case the financial page leaves out today: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` amended then | After Batch 26, which settles how a closed year's corrections count. Before Batch 17 |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
 | 16 | ~~Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3)~~ **Done** (PR #31) | The *Text me on late cancellations* switch still waits on ADR-007 d8 (§3) |
 | 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 23 (owner, 2026-11-12: after 16; 2026-11-13: Batches 22 and 23 go first) |
@@ -338,6 +339,10 @@ comes after 23, before the infrastructure.
   when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
   figures when it closes (option c). Planned as Batch 26, after 23 and before 17. Nothing closes a year today: it's
   only a date rule, and the figures are added up from the seats on every visit.*
+- ~~**A lesson from two or more years back marked paid now counts in no year**~~ (the financial page reads only this
+  year's and last year's lessons). *Ruled 2026-11-15 by the owner: lessons from over a year back are view only.
+  Planned as Batch 27 (G-39), after 26 and before 17. Read as lessons dated before January 1 of last year, so it
+  lines up with the year the financial page reads; the owner may override.*
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
@@ -779,6 +784,63 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Checked in the running app (APIs; table `bladebook-b9check`):** an approved family saw no phone or email; the
   coach switched both on; the family then saw both.
 
+### Batch 11 (2026-11-13)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** B2 (answer by whichever comes first, the start of the notice period or 7 days after the leave); B3
+  (one card per series, *Keep all remaining dates*, *Cancel all remaining dates* with its confirmation, and a choice per
+  date); B4 (while any lesson still to come is shared, joined or invited, the change page offers only *Cancel all future
+  lessons*, and the server refuses the other two); B7 (the invitation page lists every clash); B8 (*expired* and
+  *Cancelled, no answer* come from the clock, before the sweep runs); B10 (a share is the price divided by the skaters,
+  odd cents to the earliest; no page says "half"); B11 (*Go ahead* / *Decline*); S11 (the coach's cancel deletes an
+  unanswered invited seat with no record, and a later answer gets "no longer available").
+- **Closed:** G-17 (share codes, issued by `consumer-family-sync` and shown on Profile with *Copy*); G-21 (sharing at
+  booking: the share box, the share-check, invitations and siblings).
+- **Shortcuts:** SC-16 `consumer-invite`'s copies written in-process; SC-17 the hourly sweep on a local timer, with a
+  local-only button; SC-18 no shared-lesson emails (Batch 13); SC-19 the share-check's access-log line goes to the
+  application log. SC-8 widened (share codes); G-26 widened (the shared-lesson attributes and writes).
+- **Settled while building (owner may override):**
+  - **A name with fewer than 3 letters A–Z** gets its share code's prefix padded with `X` (`JOX-…`).
+  - **The invited seat isn't part of the inviting family's series** (no `recurrenceId`), nor is a sibling's: the invited
+    family cancels its dates one by one, and only the booking family can change or stop the series. Stopping a shared
+    series cancels each date by the shared rules, so the other family is asked about each.
+  - **The inviting family's seat records `invitedStudentId`**, so its cancel can end an unanswered invitation without
+    reading the other family's seat; the invited seat records `invitedByName`, the inviting family's name for the invitation
+    page. Neither is in ADR-MASTER §7's list.
+  - **A kept lesson is marked `freedPlace`** on the staying family's seat, which is how My bookings knows to offer *Invite
+    a skater* (the family can't read the lesson time's history). A freed place takes another family's skater or a sibling.
+  - **`seatsTaken` counts every place held, an invitation included; `shareCount` counts only skaters splitting the
+    price.** The family's lesson-time read now names `maxSkaters` (only to say *shareable*) and `seatsTaken` (G-26).
+  - **The coach's lines and Payments use the lesson time's `shareCount` and `joinOrder`**, as the family's pages do, so a
+    late leaver's partner is still charged their share on both sides. Lesson times from before Batch 11 fall back to the
+    booked seats.
+  - **The coach's calendar names only skaters who have joined**: an invitation still unanswered isn't shown, as the design
+    draws it. Every booked skater is named, *"Ava P. & Mia C."*.
+  - **An invitation's ID is derived from the booking request's key**, so a retry makes the same invitation; a freed place's
+    invitation gets a new one.
+  - **The share-check answers `{ displayName, onCoachRoster }` only**; the page knows its own skaters' codes, so adding a
+    sibling makes no call. A sibling not yet accepted, the skater's own code, and a code of the wrong shape are refused on
+    the page and again by the server.
+  - **Declining and answering need the skater still `ACTIVE` with the coach** (`requireActive`, ADR-MASTER §8); otherwise
+    the page says *"This lesson is no longer available."*
+  - **The invitation page lives at `#/invite/<inviteId>`**, the link the invitation email will carry (Batch 13). Home lists
+    open invitations with *See the invitation*. After the sweep ends one, the link says it's no longer available.
+  - **The staying family's "Cancel, no charge"** is one change batch for all the dates answered, each date its own
+    transaction, re-checked first; dates that had gone are reported.
+  - **A leave's line records the leaver's share of the price**; the missed-lesson fee is still Phase 2.
+- **Found while building:** the shared `Dialog` moved focus back to its first control whenever its parent re-rendered with a
+  new close handler, so typing in a field inside a pop-up (the share box) jumped away. It now focuses once, when it opens.
+- **Checked in the running app (APIs on :8094 and :8095; table `bladebook-b11check`):** a coach saves a week that takes 2
+  skaters → two families sign up and are approved → each skater has a share code → the share-check answers *"Mia C."*, on
+  the roster, with no ID; an unknown code is a 404 → the booking page marks the time shareable → booking Ava with Mia's
+  code sends the invitation; Ava's lesson is $50 and *waiting for their family*; the coach's calendar names Ava only →
+  the Chens see the invitation, $25 of $50, from Sarah Park for Ava P. → *Go ahead*: both pay $25 and the calendar names
+  both → Mia's family cancels in time: the Parks are asked, answer by the start of the notice period, still $25 → *Keep*:
+  $50 and a freed place; a lesson tomorrow cancelled the same way is a late leave and the Parks keep $25 unasked → the
+  local sweep runs. The flows the clock decides (expiry, no answer) are in `ShareServiceTest`. **Not checked in a browser**;
+  the pages are covered by their tests.
+
 ### Batch 12 (2026-11-13)
 
 The full list, with what closes each one, is in the root `README.md`.
@@ -787,13 +849,15 @@ The full list, with what closes each one, is in the root `README.md`.
   calculation is coming, ADR-030 as amended 2026-11-12).
 - **Closed:** G-35's financial half (Payments' *Financial summary* opens the new page). *Send reminders* stays Phase 2.
 - **Gaps:** G-36 a closed year's figures can still drop when one of its paid lessons is undone. *Owner, 2026-11-13:
-  save each year's figures when it closes (option c), planned as Batch 26.*
+  save each year's figures when it closes (option c), planned as Batch 26.* G-39 (added 2026-11-15) a lesson from before
+  last year can still be marked paid, waived or undone, and then counts in no year; Batch 27 makes it view only.
 - **Settled while building (owner may override):**
   - **A finished year closes at midnight starting January 1 in the coach's time zone.** ~~A lesson from it marked paid
     after that counts in no year, as ADR-MASTER §12 and the design's banner say.~~ *Owner, 2026-11-13: it counts in
     the year and month it was marked paid, labelled "Includes $30 for 2025 lessons" under the month and the year's
     total, and in the download's new column "Of which for lessons in earlier years". Only last year's lessons are
-    read for it; one from further back marked paid now isn't counted (settled; the owner may override). The design's
+    read for it; one from further back marked paid now isn't counted (settled; *owner, 2026-11-15: such lessons
+    become view only, Batch 27*). The design's
     banner was reworded to match.* ~~*`FeatureDecriptions/Coach Financial
     Page.md` also says "A December lesson paid in January counts in December's gross", which can't hold alongside a
     year that closes when it ends; this build follows ADR-MASTER. If December's late payments should count, the year
@@ -825,3 +889,92 @@ The full list, with what closes each one, is in the root `README.md`.
   back out of gross. Headless Chrome: the page at 1280px and 390px (the month table scrolls sideways inside its card
   at phone width, from the design's 680px table minimum), and Payments' *Financial summary* is a working link. The
   browser's file save is checked in tests only.
+
+### Batch 13 (2026-11-13)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** R8 (the coach's late-cancellation wording, by email; the text itself still waits on ADR-007 d8);
+  R10a (the weekly unpaid email: 7 days, each lesson with date, time, skater and amount, no-shows labelled, *attendance not
+  recorded* where nothing was recorded, listed every Monday until paid or waived); R10c (a no-show is listed at that
+  skater's share); R10b (no end-of-day report: Phase 2); A10 (no approval email: Phase 2).
+- **Built:** every MVP email in `design/harbor/email/templates.mjs` except the business-email confirmation (Batch 14) and
+  the two Phase 2 ones (*skater approved*, *skater removed*): the booking confirmation; the payment reminder after a check-in;
+  the coach's cancel, a schedule change's cancellations and new prices, and a lesson that passed before it could be
+  cancelled; a family's late cancel, to the coach; the decline; the day-of reminder and the coach's morning email
+  (`sched-day-reminder`, on GSI2); the weekly unpaid list (`sched-unpaid-reminder`, on GSI3); the shared lessons' invitation,
+  *joined* (to both families), *declined*, *withdrawn*, *no longer available*, *keep or cancel*, *cancelled, no answer* and
+  the staying family's *dates cancelled*. And `sched-lesson-roller`, which adds the lesson times the schedule makes up to the
+  end of what's stored. Seats now carry GSI2 and GSI3 keys; paying or waiving removes GSI3, undoing a payment puts it back.
+- **Closed:** SC-9, SC-11, SC-13 (but for the coach's text, G-3), SC-18, G-9, G-25, G-33 and G-34.
+- **Shortcuts:** SC-20 the table's stream is stood in for by a wrapper on the local client and a router after each request;
+  SC-21 emails go to an in-memory outbox per API, readable at `/api/*/local/outbox`; SC-22 the 7am, Monday and nightly jobs
+  run on a local timer, with local routes to run them for any date, and the unpaid threshold is a local setting.
+- **Gaps:** ~~G-37 the day-of reminder's design says one per family per day, the ADR one per lesson (built as the ADR says);
+  G-38 a shared series, and a series change with several late dates, send one email per date.~~ *Both ruled 2026-11-13 by
+  the owner and built on this branch (below).*
+- **Rulings applied after review (owner, 2026-11-13):**
+  - **G-37: the day-of reminder is one email per family per day**, listing each of that day's lessons (skater, time, length,
+    rink, who it's shared with). ADR-002 decision 7 reversed; ADR-MASTER §13, ADR-006 d6's note, the email feature notes and
+    the template's note updated.
+  - **G-38: shared-lesson emails list every date they cover.** One invitation per invitation, one *joined* to each family per
+    answer, one *declined*, *withdrawn* or *no longer available* per invitation, one *keep or cancel* per leaving family's
+    change (each date with its own answer-by time), and one late-cancellation email to the coach per change batch. Each
+    template is worded for one date or several (`oneLesson`, `lessonCount`, `lessons`). ADR-031 amended; ADR-MASTER §8 and
+    §13, ADR-006's note, `FeatureDecriptions/Email templates Needed:`, `Schedule lesson split` and the email design's
+    README updated; the SES templates and gallery rebuilt.
+- **Settled while building (owner may override):**
+  - **Emails are the SES template's name plus its data**, formatted in the coach's zone and currency (`Mon, Nov 16`, `6:00 AM`,
+    `$50`, `$25.01`), as `design/harbor/email/README.md` asks; nothing is HTML-escaped by the sender, because SES escapes each
+    value. Payment instructions are passed as lines.
+  - **Every guard is claimed before sending and given back if the email isn't accepted**, so a failure is tried again and a
+    success is never sent twice. Change lines are stamped `SENT` or `FAILED` (with the reason) per recipient; a retry skips a
+    recipient whose lines are all `SENT`.
+  - **One booking confirmation per family per booking request**, listing every date booked with that coach (ADR-MASTER §13
+    guards each seat; the template lists several). A seat that joined through an invitation gets *joined* instead.
+  - **New guards not in the ADR's lists:** `inviteEmailSent` and `joinedEmailSent` on a seat, `emailSent` on an ended
+    invitation and on a pending leave.
+  - **Change-batch headers carry `notes`** (not in the ADR): for *no answer*, who left and the answer-by time; for the staying
+    family's *Cancel, no charge*, `kind = STAYING_CANCEL`, so that family gets *dates cancelled* and the coach nothing.
+  - **An ended invitation records both families** (`clientId`, the invited one, and `invitedByClientId`), so *declined* and
+    *withdrawn* know whom to tell; a withdrawal that can't name the invited family finds them from the coach's `STUDENT#`
+    record, as `consumer-invite` does.
+  - **A family's late cancel is late when its whole hours to the start are under the coach's notice** (24 for everyone, B6),
+    from the line's `noticeHours`.
+  - **The payment reminder isn't sent once the lesson is already paid or waived**, and a no-show sends none (ADR-MASTER §13
+    names `CheckInRecorded` only). `NoShowRecorded` has no consumer in MVP.
+  - **The day-of reminder takes every seat on the date**, whatever its time, as the 7am run would; the morning email groups
+    the day's seats by start time (*"Sam R. & Leo M."*). A coach with no lessons that day gets none.
+  - **One day-of reminder per family per coach per day** (G-37 says per family per day): every family email comes from its
+    coach and replies go to that coach, so a family with lessons from two coaches that day gets one from each. The guard stays
+    `remindedOn` on each seat: every seat in the email is claimed before sending and all are given back if it isn't accepted,
+    so a re-run sends nothing twice and a failed reminder is sent whole the next time.
+  - **How several dates become one email (G-38):** the invitation, *joined* and ended-invitation emails are grouped by the
+    invitation's `inviteId`. Whichever lesson time the consumer runs for first reads the invitation's other seats (through
+    GSI1, the family's own index) or ended records (`SEATEND#` with that `inviteId`), claims each date's own guard, and sends
+    one email for every date it claimed; the other lesson times then find nothing left. *Keep or cancel* moves to the change
+    notifier and is grouped by the leaving family's `CLIENT` batch, whose header is `EXECUTED` only after every date of it is
+    written, with each date's guard still on its pending leave. On AWS the stream can deliver one request's dates in separate
+    batches: a date written after the first email went is sent in an email of its own, but no date is ever in two emails or
+    left out. The *no answer* email stays one per sweep batch (the sweep cancels each lesson on its own).
+  - **The unpaid list takes lessons dated more than 7 days before the Monday** (a lesson exactly 7 days before waits a week),
+    at each seat's share; the job runs for whatever date it's given, Monday or not.
+  - **The roller lists coaches by scanning their profiles**; one coach's failure doesn't stop the rest. It only adds.
+  - **Every email's link is to a page that asks to sign in**: My bookings, Book, the invitation (`#/invite/<inviteId>`),
+    Payments, the calendar and the rinkside page, from the setting `bladebook.site-url`.
+  - **Seats from before this batch** get their GSI2 and GSI3 keys on the next start of either API, and are marked
+    `confirmationSent` (and, once checked in, `paymentReminderSent`), so their next write doesn't send a late "Booked".
+  - **The rink in every email is Pelham Civic Center**, the only rink in MVP.
+- **Checked in the running app (APIs on :8096 and :8097; table `bladebook-b13check`):** a coach signs up and saves a week →
+  a family signs up and is approved → booking two dates puts one confirmation in `api-client`'s outbox, from *"Dana
+  Whitfield via BladeBook"*, Reply-To the coach, $50 each → the same request again books nothing and emails nothing → the
+  coach's cancel of one date puts *lesson cancelled* in `api-coach`'s outbox → the 7am job for the other date sends one
+  reminder and one morning email with the rinkside link, and nothing on a re-run → the roller for a date 40 days on adds 116
+  lesson times, then none → declining a second family's skater sends the decline → the booked seat has its GSI2 and GSI3
+  keys and its guards. The shared-lesson emails, the late cancel, the schedule change, the payment reminder and the Monday
+  list are checked in `NotificationServiceTest` against DynamoDB Local. **Not checked in a browser** (no page changed), and
+  **nothing has been rendered by SES**: the template data is checked against the template's fields by hand.
+  G-37 and G-38 (2026-11-13) are checked in `NotificationServiceTest` against DynamoDB Local: two families' reminders, a
+  refused reminder sent whole on the retry, a three-week shared series' one invitation and one *joined* each, a two-date
+  decline and withdrawal, and stopping a shared series asking the staying family once for all three dates. The rebuilt
+  templates were rendered with their samples by the email build's own Handlebars subset.

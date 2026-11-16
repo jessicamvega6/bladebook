@@ -13,7 +13,9 @@ import com.bladebook.core.domain.CoachCancelRequest;
 import com.bladebook.core.domain.CoachCancelRequest.PickInput;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -190,5 +192,95 @@ class CoachCancelServiceTest {
         var before = new ScheduleService(scheduleRepo, t.coaches).schedule(dana);
         service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
         assertThat(new ScheduleService(scheduleRepo, t.coaches).schedule(dana)).isEqualTo(before);
+    }
+
+    // ------------------------------------------- a lesson that changed between the read and the write
+
+    @AfterEach
+    void noRacesLeft() {
+        WriteRaces.clear();
+    }
+
+    /** Sets the lesson's stored seat count, so a write planned from the earlier read fails its check. */
+    private Runnable seatsTaken(String time, int n) {
+        return () -> t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table)
+                .key(java.util.Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()),
+                        "SK", AttributeValue.fromS(LessonTime.key(MONDAY, LocalTime.parse(time)))))
+                .updateExpression("SET seatsTaken = :n")
+                .expressionAttributeValues(java.util.Map.of(":n", AttributeValue.fromN(Integer.toString(n)))));
+    }
+
+    @Test
+    void oneLessonThatChangedSinceItWasReadIsReadAgainAndCancelled() {
+        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5), seatsTaken("06:00", 1));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(pick("06:00", "HOLD")), null));
+
+        assertThat(r).isEqualTo(new CoachCancelService.Result(1, 1, 0, 1, 0));
+        assertThat(status("06:00")).isEqualTo(LessonTime.Status.HELD);
+        assertThat(cancelRepo.lines(dana)).extracting(CancellationLine::studentId).containsExactly(ava);
+    }
+
+    @Test
+    void oneLessonThatStillCantBeWrittenAfterReadingAgainIsRefused() {
+        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5), WriteRaces.NOTHING);
+
+        assertThatThrownBy(() -> service.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(pick("06:00", "HOLD")), null)))
+                .isInstanceOf(DomainException.class).hasMessage("These lessons have already started or were cancelled.");
+        assertThat(cancelRepo.batches(dana)).isEmpty();
+    }
+
+    @Test
+    void inADayALessonThatChangedIsReadAgainAndCancelled() {
+        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5), seatsTaken("06:00", 1));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
+                List.of(pick("06:00", "RELEASE"), pick("06:30", "RELEASE")), null));
+
+        assertThat(r.cancelled()).isEqualTo(2);
+        assertThat(r.skipped()).isZero();
+        assertThat(r.families()).isEqualTo(1);
+        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).extracting(s -> s.studentId()).containsExactly(mia);
+    }
+
+    @Test
+    void inADayALessonThatStillCantBeWrittenIsSkipped() {
+        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
+                List.of(pick("06:00", "RELEASE"), pick("06:30", "RELEASE")), null));
+
+        assertThat(r.cancelled()).isEqualTo(1);
+        assertThat(r.skipped()).isEqualTo(1);
+        assertThat(cancelRepo.batches(dana).get(0).lessonCount()).isEqualTo(1);
+    }
+
+    @Test
+    void theRestOfTheWeekHoldsAnOpenTimeBookedMeanwhileByCancellingIt() {
+        now.set(Instant.parse("2026-11-16T12:45:00Z")); // Monday 6:45 AM: the 7:00 is booked, the 7:30 open
+        // The 7:00's cancel goes through; just before the 7:30 is held, the Parks book Jack into it.
+        WriteRaces.beforeNextWrites(WriteRaces.NOTHING, () -> book(park, jack, "07:30"));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
+
+        assertThat(r.cancelled()).isEqualTo(2);
+        assertThat(r.held()).isEqualTo(2);
+        assertThat(r.openHeld()).isZero();
+        assertThat(r.families()).isEqualTo(2);
+        assertThat(r.skipped()).isZero();
+        assertThat(status("07:30")).isEqualTo(LessonTime.Status.HELD);
+        assertThat(cancelRepo.lines(dana)).extracting(CancellationLine::studentId).containsExactlyInAnyOrder(mia, jack);
+    }
+
+    @Test
+    void theRestOfTheWeekSkipsAnOpenTimeThatCantBeHeldOrCancelled() {
+        now.set(Instant.parse("2026-11-16T12:45:00Z"));
+        WriteRaces.beforeNextWrites(WriteRaces.NOTHING, seatsTaken("07:30", 1));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
+
+        assertThat(r.cancelled()).isEqualTo(1);
+        assertThat(r.openHeld()).isZero();
+        assertThat(r.skipped()).isEqualTo(1);
     }
 }

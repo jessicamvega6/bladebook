@@ -71,8 +71,17 @@ export function Profile({ family, api, onChange, onSignOut, onError }: {
           <span className="ac-kc__list">{k.coaches.map((x) => <span key={x.firstName + x.lastName}>{statusBadge(x.status === 'ACTIVE', `Coach ${x.firstName}`)}</span>)}</span>
         </div>
       )}
+      {k.shareCode && (
+        <div className="ac-code"><span className="ac-code__label">Share code</span><span className="mono ac-code__v">{k.shareCode}</span>
+          <span className="ac-code__btns"><Button variant="ghost" sm icon="copy" onClick={() => copyCode(k.shareCode!)}>Copy</Button></span></div>
+      )}
     </Fragment>
   );
+  // A skater's share code never changes (owner, 2026-10-13); another family enters it to share a lesson (G-17).
+  const copyCode = (code: string) => {
+    void navigator.clipboard?.writeText(code).catch(() => undefined);
+    setFlash(`Copied ${code}.`);
+  };
 
   return (
     <>
@@ -103,6 +112,7 @@ export function Profile({ family, api, onChange, onSignOut, onError }: {
       </Card>
       <Card title="Skaters" flush sub={multi || family.skaters.some((k) => !k.coaches.length) ? 'Everyone in your family who skates, and the coaches they’re with.' : `Everyone who takes lessons with Coach ${coach?.firstName ?? ''}.`}>
         {family.skaters.map(skaterRow)}
+        {family.skaters.some((k) => k.shareCode) && <div className="card__note"><Icon name="users" size={14} /> To share a lesson, give a skater’s share code to the other family. They enter it when they book.</div>}
         {self ? <div className="card__note"><Icon name="info" size={14} /> You skate yourself. To book for a child, they need their own family account.</div>
           : <AddSkater family={family} api={api} onAdded={added} onError={onError} />}
       </Card>

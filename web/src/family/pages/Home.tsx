@@ -6,13 +6,14 @@
  * Approved by a coach (Batch 4 closes G-16): Book a lesson, banners for coaches still waiting, Today and Coming
  * up from the family's own lessons with every coach, the skaters, one card per coach with the contact details and
  * payment types that coach shows, and Go to. Batch 5: each lesson's price, My bookings in Go to and "All bookings"
- * on Coming up. Payments is Phase 2.
+ * on Coming up. Payments is Phase 2. Batch 11: shared-lesson invitations to answer, and the staying family's cards.
  */
 import { Avatar, Badge, Banner, Card, Icon, Row } from '../../shared/components/harbor';
 import { repeatsText } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
 import { DAYS, formatMoney, formatShort, shortDate, todayIn } from '../../shared/logic/schedule';
-import type { Family, MyLesson } from '../api';
+import type { Family, FamilyApi, Invitation, MyLesson } from '../api';
+import { InvitationsCard, WaitingCards } from './Sharing';
 
 type Coach = Family['coaches'][number];
 type Skater = Family['skaters'][number];
@@ -111,11 +112,17 @@ function Waiting({ family }: { family: Family }) {
  * A lesson row (design: acLessonRow): the coach's time, the skater, and the coach when there's more than one.
  * The date sits to the right of the name (owner, 2026-11-11); the Today card leaves it out, its heading says it.
  */
+/** Home's lesson rows say a lesson is shared, or that its skater's invitation is waiting (design: acLessonRow). */
+const shareNote = (l: MyLesson) => {
+  const st = l.share?.partnerStatus ?? '';
+  return l.share?.joined || ['BOOKED', 'CHECKED_IN', 'NO_SHOW'].includes(st) ? ' · shared' : st === 'INVITED' ? ' · invited to share' : '';
+};
+
 function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDate: boolean }) {
   return (
     <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
       title={<>{l.studentName}{showDate && <span className="ac-date">{dateOf(l.date)}</span>}</>}
-      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}${l.recurrenceId && l.intervalWeeks ? ` · ${repeatsText(l.intervalWeeks)}` : ''}`}
+      sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}${l.recurrenceId && l.intervalWeeks ? ` · ${repeatsText(l.intervalWeeks)}` : ''}${shareNote(l)}`}
       side={<Badge tone="primary">Booked</Badge>} />
   );
 }
@@ -157,7 +164,14 @@ function GoTo() {
   );
 }
 
-export function Home({ family, lessons = null }: { family: Family; lessons?: MyLesson[] | null }) {
+/**
+ * {@code invitations}: shared-lesson invitations for the family's skaters (Batch 11). {@code sharing}: the calls the staying
+ * family's cards need; without it they aren't shown.
+ */
+export function Home({ family, lessons = null, invitations = [], sharing }: {
+  family: Family; lessons?: MyLesson[] | null; invitations?: Invitation[];
+  sharing?: { api: FamilyApi; onChanged: () => void; onError: (e: unknown) => void };
+}) {
   if (family.waiting) return <Waiting family={family} />;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -173,6 +187,8 @@ export function Home({ family, lessons = null }: { family: Family; lessons?: MyL
           You can book with Coach {c.firstName} once they approve.
         </Banner>
       ))}
+      <InvitationsCard invitations={invitations} />
+      {sharing && lessons && <WaitingCards lessons={lessons} api={sharing.api} onChanged={sharing.onChanged} onError={sharing.onError} />}
       <div className="split split--today">
         <div className="stack"><Lessons lessons={lessons} multi={multi} /><Skaters family={family} /></div>
         <div className="stack">

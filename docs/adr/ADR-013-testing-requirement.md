@@ -48,8 +48,9 @@ DynamoDB access in `core/` too (`core.data`), and `core.service` reads and write
 35 of `core/`'s 96 test files run against DynamoDB Local. **PIT still covers all of `core/`.**
 Narrowing it to `core.domain` would drop the code with the weakest tests (2026-11-13 baseline:
 `domain` 95%, `data` 84%, `service` 77%), including price totals, the schedule-change review and
-tenant access. CI runs it as `.github/workflows/mutation.yml`: on a pull request only the changed
-`core/` classes, on `main` and nightly all of `core/`, failing below 85% (`pit.mutationThreshold`
+tenant access. CI runs it as `.github/workflows/mutation.yml`: ~~on a pull request only the changed
+`core/` classes, on `main` and nightly all of `core/`,~~ *(2026-11-16, owner: nightly and by hand only,
+on all of `core/`; not on pull requests or pushes to `main`)*, failing below 85% (`pit.mutationThreshold`
 in `backend/core/pom.xml`, raised as tests improve). If runs get too slow, the next step is
 in-memory fakes for service tests, keeping DynamoDB Local for the repository tests.
 

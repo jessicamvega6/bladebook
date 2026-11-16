@@ -28,6 +28,8 @@ export const blockLabel = (name: string | null, seq: number) => (name && name.tr
 export interface Pick {
   coachId: string; coachFirstName: string; date: string; startTime: string; endTime: string;
   durationMinutes: number; priceMinor: number;
+  /** Its block takes 2 or more skaters, so the confirm pop-up offers the share box (Batch 11). */
+  shareable?: boolean;
 }
 
 export const samePick = (a: Pick, coachId: string, date: string, startTime: string) =>

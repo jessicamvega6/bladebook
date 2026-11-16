@@ -86,6 +86,14 @@ family's day view shows only days inside the booking window.
 
 ---
 
+**Amended — 2026-11-13.** *Decided by the owner (implementation plan G-38):* shared-lesson emails
+are **one per invitation or answer, listing every date**, not one per date. The invitation,
+joined, declined, withdrawn and no-longer-available emails each cover every date of the
+invitation (`inviteId`); "the other skater can't make it — keep or cancel" lists every date one
+leaving family's change freed, each with its own answer-by time, and moves from `consumer-invite`
+to the change notifier (decision 14), which sends it from that family's `CLIENT` batch. The coach's
+late-cancellation email lists every late lesson of a batch. Each date keeps its own guard.
+
 ## Context
 
 Under ADR-006 and ADR-026 a booking belonged to the family who made it. A shared lesson was that
@@ -465,7 +473,8 @@ content, not an architecture decision.*
 - *Phase 2 since ADR-033 (2026-10-20): no consent link and no "no longer available after the coach's Accept" email.* **Who sends what:** `consumer-invite` writes the partner fields and sends the invitation and every outcome email (joined,
   declined, withdrawn, expired, no longer available after the coach's Accept, and "the other skater can't
   make it — keep or cancel"). The change notifier sends cancellation emails, including cancel all
-  and no answer.
+  and no answer. *Amended 2026-11-13 (G-38): "keep or cancel" is sent by the change notifier, from
+  the leaving family's batch, and each of these emails lists every date it covers.*
 - **A skater's name change reaches their seats.** `consumer-family-sync` (ADR-025 d6) already
   copies a skater's changes to every coach's record; it now also updates `studentName` on their
   upcoming seats, which it finds, for each of the skater's coaches, by querying that coach's

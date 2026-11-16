@@ -1,19 +1,21 @@
 /**
  * The family website. Batch 3: sign-up with coach codes (steps 1, 2, 4 and 5), the local log-in stand-in, and
  * the waiting family's Home and Profile. Batch 4: once a coach approves, Book a lesson (#/book…) and Home's
- * Today and Coming up. Batch 5: My bookings (#/bookings), with Cancel on each lesson.
+ * Today and Coming up. Batch 5: My bookings (#/bookings), with Cancel on each lesson. Batch 11: the invitation page
+ * (#/invite/<inviteId>), and Home's invitations and staying-family cards.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { familySession } from '../shared/auth/localAuth';
 import { Banner } from '../shared/components/harbor';
-import { familyApi, type Family, type MyLesson } from './api';
+import { familyApi, type Family, type Invitation, type MyLesson } from './api';
 import { FamilyShell } from './components/Shells';
 import { Book } from './pages/Book';
 import { Bookings, SeriesChange } from './pages/Bookings';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
+import { InvitePage } from './pages/Sharing';
 import { Signup } from './pages/Signup';
 
 type Load =
@@ -54,6 +56,8 @@ export function App() {
   const route = useHashRoute();
   const api = useMemo(() => (token ? familyApi(token) : null), [token]);
   const [lessons, setLessons] = useState<MyLesson[] | null>(null);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [homeReload, setHomeReload] = useState(0);
 
   const signOut = useCallback((message = '') => {
     familySession.signOut();
@@ -89,7 +93,7 @@ export function App() {
 
   // Home's Today and Coming up, read again each time Home opens so a new booking shows. A waiting family has none.
   const approved = load.state === 'ready' && !load.family.waiting;
-  const onHome = route !== '#/profile' && !route.startsWith('#/book');  // #/bookings too
+  const onHome = route !== '#/profile' && !route.startsWith('#/book') && !route.startsWith('#/invite');  // #/bookings too
   useEffect(() => {
     if (!api || !approved || !onHome) return;
     let live = true;
@@ -100,8 +104,10 @@ export function App() {
         if (e instanceof ApiError && e.status === 401) handleError(e);
         else setLessons([]);
       });
+    // Invitations to the family's skaters (Batch 11); a failure leaves Home without the card.
+    api.invitations().then((i) => live && setInvitations(Array.isArray(i) ? i : [])).catch(() => live && setInvitations([]));
     return () => { live = false; };
-  }, [api, approved, onHome, handleError]);
+  }, [api, approved, onHome, handleError, homeReload]);
 
   let page;
   if (signingUp || (!token && route === '#/signup')) {
@@ -123,6 +129,10 @@ export function App() {
           onSignOut={() => signOut()} onError={handleError} />
       </FamilyShell>
     );
+  } else if (route.startsWith('#/invite/') && !load.family.waiting) {
+    // The invitation page (Batch 11), opened from the invitation email; signing in proves it's the invited family.
+    const id = route.slice('#/invite/'.length);
+    page = <FamilyShell family={load.family} section="Home" wide><InvitePage key={id} api={api} inviteId={id} onError={handleError} /></FamilyShell>;
   } else if (route.startsWith('#/bookings/series/') && !load.family.waiting) {
     const [coachId = '', rid = ''] = route.slice('#/bookings/series/'.length).split('/');
     page = <FamilyShell family={load.family} section="My bookings" wide><SeriesChange key={route} api={api} coachId={coachId} recurrenceId={rid} onError={handleError} /></FamilyShell>;
@@ -138,7 +148,12 @@ export function App() {
       </FamilyShell>
     );
   } else {
-    page = <FamilyShell family={load.family} section="Home" wide={!load.family.waiting}><Home family={load.family} lessons={lessons} /></FamilyShell>;
+    page = (
+      <FamilyShell family={load.family} section="Home" wide={!load.family.waiting}>
+        <Home family={load.family} lessons={lessons} invitations={invitations}
+          sharing={{ api, onChanged: () => setHomeReload((n) => n + 1), onError: handleError }} />
+      </FamilyShell>
+    );
   }
 
   return <div className="bb" data-layout="top">{page}</div>;

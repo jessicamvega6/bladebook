@@ -12,7 +12,6 @@ import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.LessonTimes;
 import com.bladebook.core.domain.PriceChange;
-import com.bladebook.core.domain.PriceShare;
 import com.bladebook.core.domain.RepriceLine;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.ScheduleChange;
@@ -110,6 +109,29 @@ public final class ScheduleChangeService {
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
     }
 
+    /**
+     * {@code sched-lesson-roller} for one coach: the lesson times the schedule makes from {@code date} to the end of what's
+     * stored ({@link Weeks#storeUntil}) that don't exist yet. Only adds; a time that exists is left as it is, booked or not.
+     * Takes the date it's for, as the Scheduler gives it (ADR-MASTER section 14), and works from the start of that day in
+     * the coach's zone.
+     *
+     * @return lesson times added
+     */
+    public int roll(AccessContext ctx, LocalDate date) {
+        CoachProfile coach = coach(ctx);
+        ZoneId zone = ZoneId.of(coach.coachTimezone());
+        Instant from = date.atStartOfDay(zone).toInstant();
+        LocalDate until = Weeks.storeUntil(date);
+        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, date, until), date, until, zone,
+                coach.currency().name(), coach.requiredNoticeHours(), from);
+        ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
+        if (plan.add().isEmpty()) {
+            return 0;
+        }
+        return schedules.apply(ctx, new ScheduleChange(plan.add(), List.of(), List.of())).added();
+    }
+
     /** Header, planned lines, then each lesson in its own transaction, then the header {@code EXECUTED}. */
     private int[] runBatch(AccessContext ctx, ChangeBatch.Source source, ScheduleChange plan, Map<String, List<Seat>> seats, Instant now) {
         List<LocalDate> dates = new ArrayList<>();
@@ -129,15 +151,15 @@ public final class ScheduleChangeService {
             List<Seat> in = bookedIn(seats, c.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             cancelLines.put(c.time().key(), in.stream().map(s -> CancellationLine.of(batch, s,
-                    PriceShare.of(c.time().priceMinor(), in.size(), order, s.studentId()), c.time().currency(), now)
+                    c.time().shareFor(c.time().priceMinor(), s.studentId(), order), c.time().currency(), now)
                     .withStatus(ChangeBatch.Execution.PLANNED)).toList());
         }
         for (ScheduleChange.Reprice r : plan.reprice()) {
             List<Seat> in = bookedIn(seats, r.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             repriceLines.put(r.time().key(), in.stream().map(s -> RepriceLine.planned(batch, s,
-                    PriceShare.of(r.time().priceMinor(), in.size(), order, s.studentId()),
-                    PriceShare.of(r.newPriceMinor(), in.size(), order, s.studentId()), r.time().currency())).toList());
+                    r.time().shareFor(r.time().priceMinor(), s.studentId(), order),
+                    r.time().shareFor(r.newPriceMinor(), s.studentId(), order), r.time().currency())).toList());
         }
         batches.plan(ctx, batch, cancelLines.values().stream().flatMap(List::stream).toList(),
                 repriceLines.values().stream().flatMap(List::stream).toList());

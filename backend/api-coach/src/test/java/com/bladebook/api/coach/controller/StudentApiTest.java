@@ -163,6 +163,35 @@ class StudentApiTest {
     }
 
     @Test
+    void decliningEmailsTheFamilyThroughTheLocalOutbox() throws Exception {
+        String id = pendingIds().get(0);
+        call("DELETE", "/api/coach/students/" + id, token, null);
+
+        JsonNode sent = call("GET", "/api/coach/local/outbox", token, null).body();
+        JsonNode declined = null;
+        for (JsonNode s : sent) {
+            JsonNode e = s.get("email");
+            if (e.get("template").asString().equals("signup-declined") && e.get("data").get("coachBusinessEmail").asString().startsWith("coach-")) {
+                declined = e;
+                break;
+            }
+        }
+        assertThat(declined).isNotNull();
+        assertThat(declined.get("to").asString()).isEqualTo("sarah@example.com");
+        assertThat(declined.get("fromName").asString()).isEqualTo("Dana Whitfield via BladeBook");
+    }
+
+    @Test
+    void theJobsRunForTheDateGiven() throws Exception {
+        Res r = call("POST", "/api/coach/local/jobs/day-reminder?date=2031-01-06", token, null);
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("reminders").asInt()).isZero();
+        assertThat(call("POST", "/api/coach/local/jobs/unpaid-reminder?date=2031-01-06", token, null).status()).isEqualTo(200);
+        assertThat(call("POST", "/api/coach/local/jobs/day-reminder?date=Monday", token, null).status()).isEqualTo(400);
+        assertThat(call("POST", "/api/coach/local/jobs/day-reminder", null, null).status()).isEqualTo(401);
+    }
+
+    @Test
     void anApprovedSkaterCantBeDeclined() throws Exception {
         String id = pendingIds().get(0);
         call("POST", "/api/coach/students/approve", token, "{\"studentIds\":[\"" + id + "\"]}");

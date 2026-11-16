@@ -23,13 +23,22 @@ class LocalTableTest {
         DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
         var gsis = f.clients.forSetup().describeTable(DescribeTableRequest.builder().tableName(f.table).build())
                 .table().globalSecondaryIndexes();
-        assertThat(gsis).hasSize(1);
-        assertThat(gsis.get(0).indexName()).isEqualTo("GSI1");
-        assertThat(gsis.get(0).keySchema()).extracting(KeySchemaElement::attributeName).containsExactly("GSI1PK", "GSI1SK");
+        var gsi1 = gsis.stream().filter(g -> g.indexName().equals("GSI1")).findFirst().orElseThrow();
+        assertThat(gsi1.keySchema()).extracting(KeySchemaElement::attributeName).containsExactly("GSI1PK", "GSI1SK");
     }
 
     @Test
-    void aTableMadeBeforeGsi1GetsItAdded() {
+    void hasGsi4ForTheSweepsDeadlines() {
+        DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
+        var gsis = f.clients.forSetup().describeTable(DescribeTableRequest.builder().tableName(f.table).build())
+                .table().globalSecondaryIndexes();
+        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI2", "GSI3", "GSI4");
+        var gsi4 = gsis.stream().filter(g -> g.indexName().equals("GSI4")).findFirst().orElseThrow();
+        assertThat(gsi4.keySchema()).extracting(KeySchemaElement::attributeName).containsExactly("GSI4PK", "GSI4SK");
+    }
+
+    @Test
+    void aTableMadeBeforeTheIndexesGetsThemAdded() {
         DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
         String old = f.table + "-old";
         var db = f.clients.forSetup();
@@ -43,6 +52,6 @@ class LocalTableTest {
         LocalTable.ensure(db, old);
 
         var gsis = db.describeTable(DescribeTableRequest.builder().tableName(old).build()).table().globalSecondaryIndexes();
-        assertThat(gsis).extracting(g -> g.indexName()).containsExactly("GSI1");
+        assertThat(gsis).extracting(g -> g.indexName()).containsExactlyInAnyOrder("GSI1", "GSI2", "GSI3", "GSI4");
     }
 }

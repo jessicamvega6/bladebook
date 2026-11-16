@@ -6,10 +6,20 @@
   "paymentsUrl": "https://bladebook.app/coach/payments",
   "familyName": "Grace Chen",
   "skater": "Mia C.",
+  "oneLesson": true,
+  "lessonCount": "1",
   "date": "Fri, Oct 16",
   "time": "8:30 AM",
   "rink": "Pelham Civic Center",
   "cancelledAt": "Thu, Oct 15 at 7:42 PM",
   "noticeHours": "24",
-  "sharedWith": ""
+  "sharedWith": "",
+  "lessons": [
+    {
+      "date": "Fri, Oct 16",
+      "time": "8:30 AM",
+      "skater": "Mia C.",
+      "sharedWith": ""
+    }
+  ]
 }
