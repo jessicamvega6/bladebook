@@ -31,6 +31,17 @@ The **scheduled canary moves to Phase 2**, undecided. Between releases, a stall 
 cancellation path that the up-check can't see goes unnoticed until a coach reports it. That gap
 is accepted for MVP.
 
+**Amended — 2026-11-16.** *Decided by the owner.* Decision 8's DNS, as built: **`bladebook.org` is
+registered and its DNS kept in Cloudflare** (bought there 2026-11-12; Cloudflare's registrar allows
+no other nameservers, and a new domain can't be transferred for 60 days). `dev.bladebook.org` is
+delegated from Cloudflare to a Route 53 hosted zone in the dev account (`bladebook-dev`), as
+planned. **Production gets the same: a subdomain delegated from Cloudflare to a Route 53 hosted
+zone in the production account**, so CDK manages every production record under it (the websites,
+the APIs, SES's verification records and the certificates). The domain itself and its bare and
+`www` records stay in Cloudflare, managed by hand. The subdomain's name is chosen when production
+is built (for example `app.bladebook.org`). The domain is not transferred to Route 53. The
+Organization's **management account is `307202557124`**; production and dev are its member accounts.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across
@@ -217,7 +228,9 @@ unless production explicitly allows it.
 exported and imported. Cognito users can't move with their passwords, so every coach and family
 would have to reset theirs. Deciding before anything is built costs nothing extra.
 
-**DNS.** The domain's zone stays in the production account. `dev.<domain>` is delegated to its
+**DNS.** ~~The domain's zone stays in the production account.~~ *Amended 2026-11-16: the domain's
+DNS stays in Cloudflare, and production gets a subdomain delegated to its own hosted zone in the
+production account, as dev does (see Status).* `dev.<domain>` is delegated to its
 own hosted zone in the dev account (about $0.50 a month), so the dev stack creates and removes
 its own records without any permission in production.
 

@@ -2873,7 +2873,7 @@ pipeline.
 | **WAF** (ADR-019) — web ACL + 7 rules (3 managed, 4 rate-based; recounted 2026-10-20) | ~$12 |
 | **SMS** — for the coach's late-cancellation text (client texts are Phase 2): the number, plus carrier registration fees; a monthly campaign fee if 10DLC is chosen (toll-free vs 10DLC is open) | ~$3–12 |
 | **CloudWatch alarms** — ADR-010's pages and dead man's switches, ~15–20 | ~$2 |
-| **Route 53 hosted zone + domain** (~$15–20/year) | ~$2 |
+| **Route 53 hosted zone** for the production subdomain (~$0.50) + the domain's yearly renewal at Cloudflare (ADR-027 d8, amended 2026-11-16) | ~$2 |
 | Encryption keys — **AWS-managed**, no monthly fee (§7) | ~$0 |
 | CloudTrail data events, Secrets Manager (including the production canary's test-account credentials, ~$0.40 — ADR-027 d7), WAF logs | under $1 |
 | Up-check: two health checks, home page and API `/health` (ADR-027, amended 2026-10-15) | about $1 |
