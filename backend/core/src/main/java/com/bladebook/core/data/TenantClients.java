@@ -22,9 +22,9 @@ public final class TenantClients {
 
     private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
 
-    private final DynamoDbClient local;
+    private final LocalStream local;
 
-    private TenantClients(DynamoDbClient local) {
+    private TenantClients(LocalStream local) {
         this.local = local;
     }
 
@@ -39,7 +39,12 @@ public final class TenantClients {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")))
                 .httpClient(UrlConnectionHttpClient.create())
                 .build();
-        return new TenantClients(client);
+        return new TenantClients(new LocalStream(client));
+    }
+
+    /** The local stand-in for the table's stream (SC-20): off until the API switches it on. */
+    public LocalStream localStream() {
+        return local;
     }
 
     /** The client for one coach's request. */

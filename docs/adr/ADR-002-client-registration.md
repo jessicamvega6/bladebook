@@ -9,6 +9,11 @@ while no such link existed in the model. Adds entities and access patterns to §
 (any age); a **client** is whoever books, is billed and is notified — the student
 themselves when adult, a parent or guardian when the student is a minor.
 
+**Amended — 2026-11-13.** *Decided by the owner (implementation plan G-37):* decision 7 is
+reversed. The day-of reminder is **one email per family per coach per day**, listing each of that
+day's lessons with that coach. The payment reminder stays one per lesson. ADR-MASTER §13 and
+`FeatureDecriptions/Email templates Needed:` updated.
+
 **Amended — 2026-10-01.** Confirming or declining a student (decisions 2, 2b) no longer
 writes the client's link item directly. `api-coach` writes only the `STUDENT#` item, and
 `consumer-student-link` updates or deletes the link about a second later
@@ -242,8 +247,11 @@ If codes should eventually expire, that is a DynamoDB **TTL attribute** on the
 
 ### 7. Reminders are per lesson, not per client
 
-Every scheduled lesson produces its own reminder: no per-client digest, no grouping, and no
-deduplication (product rule — see `FeatureDecriptions/Email templates Needed:`, "Day-of
+*Reversed 2026-11-13 by the owner (G-37): the day-of reminder is one email per family per coach per
+day. The payment reminder below stays per lesson.*
+
+~~Every scheduled lesson produces its own reminder: no per-client digest, no grouping, and no
+deduplication~~ (product rule — see `FeatureDecriptions/Email templates Needed:`, "Day-of
 reminder").
 
 This confirms the loop in §6.2 as written — the job queries `GSI2PK = DATE#today`

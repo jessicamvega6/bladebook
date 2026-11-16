@@ -1,8 +1,10 @@
 package com.bladebook.api.client.config;
 
 import com.bladebook.core.data.ClientContext;
+import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.DeadlineSweepService;
 import com.bladebook.core.service.FamilySyncService;
+import com.bladebook.core.service.LocalStreamRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -27,11 +29,16 @@ public class LocalEventDispatcher {
     private final FamilySyncService familySync;
     private final DeadlineSweepService sweep;
     private final Clock clock;
+    private final LocalStreamRouter router;
+    private final TenantClients clients;
 
-    public LocalEventDispatcher(FamilySyncService familySync, DeadlineSweepService sweep, Clock clock) {
+    public LocalEventDispatcher(FamilySyncService familySync, DeadlineSweepService sweep, Clock clock,
+                                LocalStreamRouter router, TenantClients clients) {
         this.familySync = familySync;
         this.sweep = sweep;
         this.clock = clock;
+        this.router = router;
+        this.clients = clients;
     }
 
     /** {@code FamilyChanged}: contact copies, and a share code for any skater without one (G-17). */
@@ -48,10 +55,11 @@ public class LocalEventDispatcher {
         }
     }
 
-    /** The hourly sweep, on the hour it's for. */
+    /** The hourly sweep, on the hour it's for; its cancellations and expiries are then emailed (SC-20). */
     @Scheduled(cron = "0 0 * * * *")
     public void hourlySweep() {
         sweepNow();
+        router.drain(clients.localStream());
     }
 
     public DeadlineSweepService.Swept sweepNow() {
