@@ -14,7 +14,7 @@
  */
 import { Badge, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
-import { DAYS, dayOfWeek, formatShort, shortDate } from '../shared/logic/schedule';
+import { DAYS, dayOfWeek, formatTime, shortDate } from '../shared/logic/schedule';
 import type { OpenTime, RinkWeek, WeekLesson } from './api';
 
 export type WeekSheet = { kind: 'picked' | 'all'; error: string; busy: boolean };
@@ -62,7 +62,7 @@ export function WeekTab({ week, picks, onPicks, sheet, onSheet, onCancelPicked, 
   const listed = week.days.flatMap((d) => d.lessons);
   const picked = listed.filter((l) => pickKey(l) in picks).map((l) => ({ ...l, hold: picks[pickKey(l)]! }));
   const all = restOfWeek(week);
-  const when = (x: { date: string; startTime: string }) => `${x.date === week.today ? 'Today' : dDow(x.date)} · ${formatShort(x.startTime)}`;
+  const when = (x: { date: string; startTime: string }) => `${x.date === week.today ? 'Today' : dDow(x.date)} · ${formatTime(x.startTime)}`;
   const toggle = (l: WeekLesson) => {
     const next = { ...picks };
     if (pickKey(l) in next) delete next[pickKey(l)]; else next[pickKey(l)] = false;
@@ -100,12 +100,12 @@ export function WeekTab({ week, picks, onPicks, sheet, onSheet, onCancelPicked, 
                 <div key={pickKey(l)} className={`rk-pick${on ? ' is-on' : ''}`}>
                   <label className="rk-pick__row">
                     <input type="checkbox" className="check__input" checked={on} onChange={() => toggle(l)} />
-                    <span className="num rk-pick__t">{formatShort(l.startTime)}</span>
+                    <span className="num rk-pick__t">{formatTime(l.startTime)}</span>
                     <span className="rk-pick__n">{rkName(l)}{l.skaters.length > 1 && <small>Shared · cancels both skaters</small>}</span>
                     <span className="rl__len">{l.durationMinutes} min</span>
                   </label>
                   {on && (
-                    <div className="seg seg--block" role="group" aria-label={`After cancelling ${rkName(l)} at ${formatShort(l.startTime)}`}>
+                    <div className="seg seg--block" role="group" aria-label={`After cancelling ${rkName(l)} at ${formatTime(l.startTime)}`}>
                       {['Release', 'Hold closed'].map((o, i) => (
                         <button key={o} type="button" className={`seg__opt${picks[pickKey(l)] === (i === 1) ? ' is-on' : ''}`} aria-pressed={picks[pickKey(l)] === (i === 1)}
                           onClick={() => onPicks({ ...picks, [pickKey(l)]: i === 1 })}>{o}</button>

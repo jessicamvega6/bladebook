@@ -37,3 +37,5 @@ signal anyway, so there is nothing to show or do for the rest of the week.
   If a picked lesson started or was cancelled meanwhile, it's left alone and the message afterwards says so:
     "1 lesson had already started or gone, so it was left alone." (the website's wording).
   The message afterwards leaves out "N families will be emailed" when no family is.
+  *Owner, 2026-11-16:* times are written "1:00 PM" everywhere, so a lesson's time here reads "3:00 PM" or
+    "10:30 AM" (on Today as well), not "3pm" or the design's "3:00". The design was changed to match.

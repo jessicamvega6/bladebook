@@ -20,7 +20,7 @@ import { ApiError } from '../shared/api/client';
 import { coachSession, emailFromToken } from '../shared/auth/localAuth';
 import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
-import { DAYS, MONTHS, dayOfWeek, formatShort, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
+import { DAYS, MONTHS, dayOfWeek, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
 import { rinkApi, type CancelResult, type Contact, type RinkApi, type RinkDay, type RinkLesson, type RinkSkater, type RinkWeek } from './api';
 import { WeekOffline, WeekTab, pickKey, weekRange, type Picks, type WeekSheet } from './WeekTab';
 import {
@@ -310,7 +310,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       </header>
       {tab === 'today' && day && (
         <div className="phone__progress">
-          <div className="phone__progress-row"><span>{done} of {all.length} recorded</span><span>{next ? `Next: ${names(next)} ${formatShort(next.startTime)}` : 'All done for today'}</span></div>
+          <div className="phone__progress-row"><span>{done} of {all.length} recorded</span><span>{next ? `Next: ${names(next)} ${formatTime(next.startTime)}` : 'All done for today'}</span></div>
           <div className="meter"><span style={{ width: `${all.length ? (done / all.length) * 100 : 0}%` }} /></div>
         </div>
       )}
@@ -349,7 +349,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
             <div className="rk-cards">
               {day.lessons.map((l) => (
                 familyCancelled[lessonKey(l.date, l.startTime)]
-                  ? <article key={l.startTime} className="rl rl--cancelled"><div className="rl__head"><span className="rl__time num">{formatShort(l.startTime)}</span>
+                  ? <article key={l.startTime} className="rl rl--cancelled"><div className="rl__head"><span className="rl__time num">{formatTime(l.startTime)}</span>
                       <span className="rl__name"><s>{names(l)}</s></span><span className="badge badge--neutral">Cancelled</span></div>
                       <div className="rl__meta">{familyCancelled[lessonKey(l.date, l.startTime)]} Nothing more to do.</div></article>
                   : <LessonCard key={l.startTime} l={l} now={now} tz={day.coachTimezone} saved={saved} onRecord={(s, o) => void record(l, s, o)}
@@ -423,7 +423,7 @@ function LessonCard({ l, now, tz, saved, onRecord, onName, onMore }: {
   l: RinkLesson; now: number; tz: string; saved: Set<string>; onRecord: (s: RinkSkater, o: 'CHECKED_IN' | 'NO_SHOW') => void;
   onName: (s: RinkSkater) => void; onMore: () => void;
 }) {
-  const time = <span className="rl__time num">{formatShort(l.startTime)}</span>;
+  const time = <span className="rl__time num">{formatTime(l.startTime)}</span>;
   const len = <span className="rl__len">{l.durationMinutes} min</span>;
   if (l.lessonStatus === 'HELD' || !l.skaters.length) {
     return <article className="rl rl--held"><div className="rl__head">{time}<span className="rl__name">Held slot</span>{len}</div>

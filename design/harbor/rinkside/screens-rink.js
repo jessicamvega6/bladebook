@@ -43,7 +43,7 @@ function seatFoot(l, p, more = '') {
 }
 const nameBtn = (l, sid) => `<button type="button" class="rl__name rk-namebtn"${actAttr('rkContact', [l.id, sid])}>${esc(seatName(sid))}</button>`;
 function lessonCard(l) {
-  const name = esc(rkName(l)), len = `${l.len} min`, time = `<span class="rl__time num">${fmtShortT(l.t)}</span>`;
+  const name = esc(rkName(l)), len = `${l.len} min`, time = `<span class="rl__time num">${fmtT(l.t)}</span>`;
   if (!l.sid) return `<article class="rl rl--held"><div class="rl__head">${time}<span class="rl__name">Held slot</span><span class="rl__len">${len}</span></div><div class="rl__meta">${ic('lock', 13)} You kept this time closed. Nobody can book it.</div></article>`;
   if (l.status === 'FAMILY_CANCELLED') return `<article class="rl rl--cancelled"><div class="rl__head">${time}<span class="rl__name"><s>${name}</s></span>${badge('Cancelled', 'neutral')}</div><div class="rl__meta">${esc(student(l.sid).client)} cancelled at ${l.cancelledAt}, while your phone had no signal. Nothing more to do.</div></article>`;
   const later = l.t > NOW_MIN + 10, now = inProgress(l) && !allRecorded(l) ? ' rl--now' : '';
@@ -69,7 +69,7 @@ SCREENS.today = () => {
   ].join('');
   return phoneShell(`${banners}${todays().map(lessonCard).join('')}
     <p class="phone__hint">${r.online ? 'Tap a name for the family’s contact details.' : `${ic('lock', 13)} Contact details and cancelling need a connection.`}</p>`,
-    { progress: [done, each.length, nx ? `Next: ${esc(rkName(nx))} ${fmtShortT(nx.t)}` : 'All done for today'] });
+    { progress: [done, each.length, nx ? `Next: ${esc(rkName(nx))} ${fmtT(nx.t)}` : 'All done for today'] });
 };
 Object.assign(ACTIONS, {
   /** Records one skater. sid picks the skater in a shared lesson; it defaults to the booking's skater. */
@@ -171,7 +171,7 @@ SCREENS.week = () => {
     if (!ls.length) return `<section class="rk-day"><div class="rk-day__head"><b>${iso === TODAY ? 'Today' : dDow(iso)}</b><span class="muted-sm">${started ? 'Nothing left to cancel' : 'No lessons'}</span></div></section>`;
     const all = ls.every(l => r.sel[l.id]);
     return `<section class="rk-day"><div class="rk-day__head"><b>${iso === TODAY ? `Today, ${dShort(iso)}` : dDow(iso)}</b>${off ? '' : `<button type="button" class="link"${actAttr('rkSelDay', [iso, !all])}>${all ? 'Clear day' : 'Select whole day'}</button>`}</div>
-      ${ls.map(l => `<div class="rk-pick${r.sel[l.id] ? ' is-on' : ''}"><label class="rk-pick__row"><input type="checkbox" class="check__input"${r.sel[l.id] ? ' checked' : ''}${off ? ' disabled' : actAttr('rkSel', [l.id])}><span class="num rk-pick__t">${fmtShortT(l.t)}</span><span class="rk-pick__n">${esc(rkName(l))}${isShared(l) ? '<small>Shared · cancels both skaters</small>' : ''}</span><span class="rl__len">${l.len} min</span></label>
+      ${ls.map(l => `<div class="rk-pick${r.sel[l.id] ? ' is-on' : ''}"><label class="rk-pick__row"><input type="checkbox" class="check__input"${r.sel[l.id] ? ' checked' : ''}${off ? ' disabled' : actAttr('rkSel', [l.id])}><span class="num rk-pick__t">${fmtT(l.t)}</span><span class="rk-pick__n">${esc(rkName(l))}${isShared(l) ? '<small>Shared · cancels both skaters</small>' : ''}</span><span class="rl__len">${l.len} min</span></label>
         ${r.sel[l.id] ? SEG(['Release', 'Hold closed'], r.hold[l.id] ? 1 : 0, 'rkHold', [l.id], { block: true }) : ''}</div>`).join('')}
       ${started ? `<p class="fine">${plural(started, 'lesson')} already started and can’t be cancelled.</p>` : ''}</section>`;
   }).join('');
@@ -206,7 +206,7 @@ Object.assign(ACTIONS, {
 RK_SHEETS.weekConfirm = () => {
   const r = rk(), sel = selected(), held = sel.filter(l => r.hold[l.id]).length, fams = [...new Set(sel.flatMap(clients))];
   return sheet(`<h2 class="h2">Cancel ${plural(sel.length, 'lesson')}?</h2>
-    <ul class="rk-confirm">${sel.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtShortT(l.t)}</span><b>${esc(rkName(l))}</b>${r.hold[l.id] ? badge('Hold', 'warning', 'lock') : badge('Release', 'neutral')}</li>`).join('')}</ul>
+    <ul class="rk-confirm">${sel.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtT(l.t)}</span><b>${esc(rkName(l))}</b>${r.hold[l.id] ? badge('Hold', 'warning', 'lock') : badge('Release', 'neutral')}</li>`).join('')}</ul>
     <p class="fine">${esc(fams.join(', '))} will be emailed.${held ? ` ${plural(held, 'held time')} stay${held === 1 ? 's' : ''} closed for good.` : ''} This can’t be undone.</p>
     ${B(`Cancel ${plural(sel.length, 'lesson')}`, 'danger', 'rkWeekCancel', { block: true, lg: true })}${B('Keep them', 'secondary', 'rkClose', { block: true, lg: true })}`, 'Confirm cancellation');
 };
@@ -215,7 +215,7 @@ RK_SHEETS.weekAllConfirm = () => {
   const w = restOfWeek(), fams = [...new Set(w.lessons.flatMap(clients))];
   return sheet(`<h2 class="h2">Cancel the rest of the week?</h2>
     <p class="fine">Everything left from now to Saturday is held closed. Nobody can book these times.</p>
-    <ul class="rk-confirm">${w.lessons.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtShortT(l.t)}</span><b>${esc(rkName(l))}</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}${w.open.map(o => `<li><span class="num">${o.iso === TODAY ? 'Today' : dDow(o.iso)} · ${fmtShortT(o.t)}</span><b>Open</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}</ul>
+    <ul class="rk-confirm">${w.lessons.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtT(l.t)}</span><b>${esc(rkName(l))}</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}${w.open.map(o => `<li><span class="num">${o.iso === TODAY ? 'Today' : dDow(o.iso)} · ${fmtT(o.t)}</span><b>Open</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}</ul>
     <p class="fine">${fams.length ? `${esc(fams.join(', '))} will be emailed. ` : ''}Your weekly schedule doesn’t change, so next week is untouched. This can’t be undone.</p>
     ${B(`Cancel ${plural(w.lessons.length, 'lesson')} and ${plural(w.open.length, 'open time')}`, 'danger', 'rkWeekAllCancel', { block: true, lg: true })}${B('Keep them', 'secondary', 'rkClose', { block: true, lg: true })}`, 'Confirm cancellation');
 };

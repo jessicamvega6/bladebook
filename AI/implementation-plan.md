@@ -1079,8 +1079,11 @@ The full list, with what closes each one, is in the root `README.md`.
   - **A refusal** (*"These lessons have already started or were cancelled."*) stays in the confirmation sheet; a lesson
     left alone is counted in the message afterwards with the website's wording (*"1 lesson had already started or gone, so
     it was left alone."*). The message leaves out *"N families will be emailed"* when no family is.
-  - **Times read "3pm" / "10:30am"**, as on Today, where the design writes "3:00" without am/pm; the time column is widened
-    to fit. **The button bar sticks above the fixed tab bar** (the design's phone frame has no fixed bar).
+  - **Owner ruling (2026-11-16): "1:00 PM" everywhere.** Every time on the rinkside page (Today's lesson rows and *Next:*
+    line, the Week tab, both confirmations) is written "3:00 PM" / "10:30 AM" with the shared `formatTime`, not "3pm"
+    (built first) or the design's "3:00"; the Harbor rinkside design is changed to match. The time columns don't wrap and
+    the Week tab's is 74px, checked at a true 390px. **The button bar sticks above the fixed tab bar** (the design's phone
+    frame has no fixed bar).
   - **The website's `/api/coach/calendar/cancel` also accepts `SELECTION`** (same request type); the website doesn't send it.
 - **Checked in the running app (APIs on :8102 and :8103, Vite on :5191; table `bladebook-b23check`):** a coach with lessons
   Monday to Saturday 3–6 PM and one at 1:00 PM today (checked in early), three families, six lessons booked → the Week tab

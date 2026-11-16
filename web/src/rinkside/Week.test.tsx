@@ -85,8 +85,8 @@ test('picked lessons on two days, one held, are confirmed once and sent as one b
   const sheet = screen.getByRole('dialog', { name: 'Confirm cancellation' });
   expect(within(sheet).getByRole('heading', { name: 'Cancel 2 lessons?' })).toBeInTheDocument();
   const rows = within(sheet).getAllByRole('listitem');
-  expect(rows[0]).toHaveTextContent('Today · 10amLeo M.Release');
-  expect(rows[1]).toHaveTextContent('Wed, Nov 18 · 6amSam R. and Mia C.Hold');
+  expect(rows[0]).toHaveTextContent('Today · 10:00 AMLeo M.Release');
+  expect(rows[1]).toHaveTextContent('Wed, Nov 18 · 6:00 AMSam R. and Mia C.Hold');
   expect(sheet).toHaveTextContent('Kate Martin, Ana Rivera, Lily Chen will be emailed. 1 held time stays closed for good. This can’t be undone.');
   await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel 2 lessons' }));
 
@@ -123,7 +123,7 @@ test('Cancel rest of week lists everything it holds, asks nothing per lesson, an
   const rows = within(sheet).getAllByRole('listitem');
   expect(rows).toHaveLength(4);
   expect(rows.every((r) => r.textContent!.endsWith('Hold'))).toBe(true);
-  expect(rows[3]).toHaveTextContent('Today · 10:30amOpen');
+  expect(rows[3]).toHaveTextContent('Today · 10:30 AMOpen');
   expect(within(sheet).queryByRole('button', { name: 'Release' })).not.toBeInTheDocument();
   expect(sheet).toHaveTextContent('Kate Martin, Ana Rivera, Lily Chen will be emailed. Your weekly schedule doesn’t change, so next week is untouched.');
   await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel 3 lessons and 1 open time' }));
