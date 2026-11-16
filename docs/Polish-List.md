@@ -27,3 +27,10 @@ prefer if you know.
 ## Shared / everywhere
 
 - [ ]
+
+## Code tidy-ups
+
+- [ ] `CoachRepository` and `ScheduleRepository` each keep a private copy of the one-line
+  `s(String)` helper (wraps a string as a DynamoDB string value). Every repository written
+  since Batch 3 uses the shared `FamilyItems.s(...)` instead. Switch these two over and delete
+  their copies (`CoachRepository.java:254`, `ScheduleRepository.java:432`).
