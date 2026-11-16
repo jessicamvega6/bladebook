@@ -330,12 +330,16 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   received. That means lessons marked paid, plus missed-lesson fees actually collected. Waived
   and unpaid lessons are left out. The year is the calendar year (the tax year for individuals
   in both the US and Canada). Past years on screen are **Phase 2**. A paid lesson counts by its
-  **lesson date**, and a finished year is **closed** for now. (ADR-030,
+  **lesson date**, and a finished year is **closed** for now. *2026-11-13 (owner): a lesson from a closed year marked
+  paid later counts in the year and month it was paid, flagged as for an earlier year; a year closes at midnight
+  starting January 1 in the coach's time zone. Each closed year's figures will be saved when it closes (Batch 26).*
+  (ADR-030,
   `FeatureDecriptions/Coach Financial Page.md`)
 - **Decided 2026-10-12 by the owner: a summary export is in MVP.** A **Download** button on the
   financial page saves a CSV for a chosen calendar year (this year or last): one row per month
   with gross received, rink fees and net, plus year totals. *2026-11-12: MVP's download is monthly gross and
-  paid-lesson counts; rink fees and net are Phase 2.* It has no skater names and no
+  paid-lesson counts; rink fees and net are Phase 2. 2026-11-13: it also has a column for the part paid for earlier
+  years' lessons.* It has no skater names and no
   personal data, so it isn't a PII read under ADR-012. It covers what the coach's tax preparer
   needs, and lets the coach keep their own copy before records pass the 16-month floor (§8).
   Rows read live data only, filtered on `expiresAt` (ADR-017 decision 1).

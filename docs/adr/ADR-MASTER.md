@@ -1092,7 +1092,8 @@ happens (§18).
 - **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
   developer sets. The coach can't edit terms, override a month or type in what they paid. How the
   fee is calculated is undecided (§25).
-- **Download:** a CSV of monthly gross and paid-lesson counts for this year or last. **No names or personal data.**
+- **Download:** a CSV of monthly gross and paid-lesson counts for this year or last, with a column for the part paid for
+  earlier years' lessons (2026-11-13). **No names or personal data.**
   Reads live data only, filtered on `expiresAt`.
 - Year figures are a range query on the coach's `SEAT#<date>` items.
 

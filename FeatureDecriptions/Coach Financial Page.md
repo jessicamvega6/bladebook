@@ -34,7 +34,8 @@ Decided 2026-10-12 by the owner:
   Gross is money received: lessons marked paid, plus missed-lesson fees actually collected.
     Waived and unpaid lessons are left out. The year is the calendar year.
     Past years on screen are Phase 2.
-  A paid lesson counts in the year and month of the lesson date, not when it was marked paid.
+  A paid lesson counts in the year and month of the lesson date, not when it was marked paid (except a closed
+    year's lesson paid late; see below).
   A finished year is closed for now: its figures don't change afterwards.
     *Changed 2026-11-13 by the owner:* a lesson from a closed year marked paid later counts in the year and month
     it was marked paid, flagged as for an earlier year (see "What counts as gross").
