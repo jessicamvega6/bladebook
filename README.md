@@ -19,7 +19,9 @@ lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the 
 stop it. Batch 10 — the rinkside page with no signal: today kept on the phone, check-ins saved and sent when signal
 returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Batch 15 — the family's Profile:
 *Add a skater* (with *None of my coaches yet*) and *Add a coach*. Batch 16 — the coach's Profile → Visibility & texts:
-show my phone and my business email to approved families. Everything runs on this computer only; nothing is
+show my phone and my business email to approved families. Batch 14 — the business email: BladeBook's confirmation
+email with a link that works once for 3 days, the confirm page it opens (the coach signs in, then chooses Confirm),
+Resend link and Change address, and Profile → Business email. Everything runs on this computer only; nothing is
 deployed.
 
 ## Running it locally
@@ -49,7 +51,9 @@ names and email. The same email always signs in as the same coach.
 
 Open **http://localhost:5173/family/** for the family website, and choose *Sign up with a coach code*.
 A coach's code is on their Today page; it works once their business email is confirmed (*Use my login
-email* makes it work at once).
+email* makes it work at once). Nothing is emailed locally: the confirmation email, with its link, is in
+`api-coach`'s outbox at http://localhost:8080/api/coach/local/outbox (SC-21; send the coach's token). Open the
+link in the browser to reach the confirm page.
 
 ## Tests
 
@@ -72,7 +76,6 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | ID | What | Closed by |
 |---|---|---|
 | SC-1 | Signing in is a **local token stub**, not Amazon Cognito. `api-coach` issues ID tokens with the `Coach` group and the coach app client; `api-client` issues them with the `Client` group and the family app client. The real checks (group, app client, 60-minute sign-in from `auth_time`) run against them. The coach's sign-up steps 1–2 and Log in are one stand-in page; the family's Log in is a stand-in page with no password. | Batch 18 (real sign-in), on Batch 17's user pool |
-| SC-2 | **“I’ve clicked the link”** marks a different business email confirmed at once. No email or link is sent. | Batch 14 (business-email confirmation) |
 | SC-3 | Data is in **DynamoDB Local** through one unscoped client. The `coach-tenant`, `client-tenant` and `code-lookup` roles, their session tags and the database gate aren't exercised; DynamoDB Local ignores IAM (Identity and Access Management). The code still goes through the same doors (`AccessContext`, `ClientContext`, `LinkedCoach`), and a waiting family's code path reads nothing of the coach. | Batch 17 (infrastructure, then the gate tests on real AWS) |
 | SC-5 | **A schedule save updates the lesson times in-process.** On AWS the save raises `ScheduleChanged` through DynamoDB Streams and EventBridge, and `consumer-schedule-change` does it; locally `LocalEventDispatcher` calls the same core service straight after the write. Since Batch 6 it also cancels and re-prices booked lessons through a change batch, with the lines planned first; nothing retries it, so a save that fails part-way isn't resumed (ADR-MASTER §9 resumes from the event's ID). Time off and special-schedule saves go the same way. | Batch 17 (Streams, the Pipe, the consumer Lambda) |
 | SC-7 | **"Sign in again and save"** after the 15-minute limit asks the local token stub for a fresh sign-in; there is no password to enter. | Batch 18 (real sign-in), on Batch 17's user pool |
@@ -95,8 +98,6 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 |---|---|---|
 | A1 | No profile photo upload; families see the coach's initials. Ruled 2026-11-06. | Phase 2 |
 | A3 | No texts switch at sign-up. Ruled 2026-11-06: it's on the profile only, under Visibility & texts (G-3). | G-3 |
-| G-1 | “Resend link” and “Change address” for a business email waiting to be confirmed. | Batch 14 |
-| G-2 | Profile → Business email (the list of addresses). | Batch 14 |
 | G-3 | Profile → Visibility & texts: the *Text me when a family cancels late* switch is shown off and can't be turned on. The two contact switches are built (Batch 16). | ADR-007 d8 |
 | G-4 | Profile → Account: change password, log out through Cognito. | Batch 18 (real sign-in), on Batch 17's user pool |
 | G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | Batch 18 (real sign-in), on Batch 17's user pool |

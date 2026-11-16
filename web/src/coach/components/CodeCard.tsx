@@ -37,16 +37,28 @@ export function CodeCard({ profile, extra }: { profile: Profile; extra?: ReactNo
   );
 }
 
-/** Shown on Today and Profile while the code waits for the business email. */
-export function CodePendingBanner({ profile, onUseLogin, busy }: { profile: Profile; onUseLogin: () => void; busy?: boolean }) {
+/**
+ * Shown on Today and Profile while the code waits for the business email, with the design's three ways on: Resend link,
+ * Change address (Profile → Business email) and Use my login email instead.
+ */
+export function CodePendingBanner({ profile, onUseLogin, onResend, busy }: {
+  profile: Profile; onUseLogin: () => void; onResend?: () => void; busy?: boolean;
+}) {
   if (profile.codeWorks) return null;
   return (
     <div className="codewait">
       <Banner tone="warning" icon="clock" title="Your code starts working once you confirm your business email">
-        We sent a link to <b>{profile.pendingBusinessEmail}</b>. Until you click it, families who enter your code are
-        told it doesn’t match, and they can’t sign up with you.
+        {profile.pendingBusinessEmail
+          ? <>We sent a link to <b>{profile.pendingBusinessEmail}</b>. Until you click it, families who enter your code are
+            told it doesn’t match, and they can’t sign up with you.</>
+          : <>Until you confirm an address, families who enter your code are told it doesn’t match, and they can’t sign up
+            with you.</>}
       </Banner>
       <p className="fine codewait__links">
+        {onResend && profile.pendingBusinessEmail && <>
+          <button type="button" className="link" onClick={onResend} disabled={busy}>Resend link</button>{' · '}
+        </>}
+        <a className="link" href="#/profile/email">Change address</a>{' · '}
         <button type="button" className="link" onClick={onUseLogin} disabled={busy}>Use my login email instead</button>
       </p>
     </div>

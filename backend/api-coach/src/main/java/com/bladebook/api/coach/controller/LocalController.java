@@ -1,17 +1,12 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.config.LocalJobs;
-import com.bladebook.api.coach.dto.ProfileDtos.ProfileResponse;
-import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.api.coach.security.LocalTokenStub;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.ProfileRules;
-import com.bladebook.core.service.CoachProfileService;
 import com.bladebook.core.service.LocalOutbox;
 import com.bladebook.core.service.ScheduledJobs;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,8 +23,6 @@ import java.util.Map;
  * <b>Local profile only.</b> Listed shortcuts:
  * <ul>
  *   <li>{@code POST /api/coach/local/token} stands in for Cognito's sign-up and sign-in;</li>
- *   <li>{@code POST /api/coach/local/business-email/confirm} stands in for clicking the
- *       business-email link, until batch 14 builds the email and its page;</li>
  *   <li>{@code POST /api/coach/local/jobs/{day-reminder,unpaid-reminder,lesson-roller}?date=} runs a scheduled job for a
  *       date, as the Scheduler would (SC-22);</li>
  *   <li>{@code GET /api/coach/local/outbox} lists the emails this API would have sent (SC-21).</li>
@@ -46,13 +39,11 @@ public class LocalController {
     }
 
     private final LocalTokenStub stub;
-    private final CoachProfileService profiles;
     private final LocalJobs jobs;
     private final LocalOutbox outbox;
 
-    public LocalController(LocalTokenStub stub, CoachProfileService profiles, LocalJobs jobs, LocalOutbox outbox) {
+    public LocalController(LocalTokenStub stub, LocalJobs jobs, LocalOutbox outbox) {
         this.stub = stub;
-        this.profiles = profiles;
         this.jobs = jobs;
         this.outbox = outbox;
     }
@@ -61,11 +52,6 @@ public class LocalController {
     public Map<String, String> token(@RequestBody TokenRequest body) {
         String email = ProfileRules.email("loginEmail", body.loginEmail());
         return Map.of("idToken", stub.coachToken(email));
-    }
-
-    @PostMapping("/business-email/confirm")
-    public ProfileResponse markConfirmed(@AuthenticationPrincipal Jwt jwt) {
-        return ProfileResponse.of(profiles.confirmPendingBusinessEmail(CurrentCoach.of(jwt)));
     }
 
     @PostMapping("/jobs/day-reminder")

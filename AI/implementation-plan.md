@@ -1,9 +1,9 @@
 # BladeBook — Implementation Plan
 
 **Status:** Approved. The owner answered §6 and said **go** for Batch 1 on 2026-11-08.
-**Progress (2026-11-13):** Batches 1–10, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
-#27–#31). Batches 11 and 12 are merged (PRs #38 and #37). Batch 13 is built on `feature/batch-13-emails-and-jobs`
-(PR #39). Build order from there: 14, 22, 23, 26, 17, 18, 19, 20, 21, 24, 25 (§5).
+**Progress (2026-11-16):** Batches 1–13, 15 and 16 are merged (Batches 8, 9, 10, 15 and 16 by PRs
+#27–#31; Batches 11, 12 and 13 by PRs #38, #37 and #39). Batch 14 is built on `feature/batch-14-business-email`.
+Build order from there: 22, 23, 26, 27, 17, 18, 19, 20, 21, 24, 25 (§5).
 **Written:** 2026-11-06
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor
 screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16),
@@ -38,8 +38,8 @@ screen designs in `design/harbor/`, `docs/architecture.md` §10 (MVP features 1�
 - `web/` has three Vite entry points (coach, rinkside and family) with those pages built, and the
   rinkside page's service worker. `shared/auth` holds the local sign-in stand-in (SC-1).
 - **Still disabled on screen:** the rinkside Week tab (G-28, Batch 23), the coach Profile's
-  *Business email* (Batch 14) and *Account* (Batch 18) tabs, and Today's lessons list and figures
-  (G-6, Batch 22).
+  *Account* tab (Batch 18), and Today's lessons list and figures (G-6, Batch 22). *Business email* is built
+  (Batch 14, 2026-11-16).
 - `infra/` doesn't exist yet. The CDK (TypeScript) stacks are Batch 17 (proposed, below).
 - **Java version:** the owner chose **Java 17** on 2026-11-06. `backend/pom.xml` and CI are on
   Java 17, and the ADRs were amended (see §6). The skeleton builds and starts on Java 17.0.10.
@@ -263,7 +263,7 @@ comes after 23, before the infrastructure.
 | 11 | ~~Shared lessons: share code (issued by `consumer-family-sync`, G-17), sharing at booking (G-21), invite, accept, leave, and the hourly deadline sweep (`sched-deadline-sweep`). Also B4 from Batch 9 (a shared series offers only *Cancel all future lessons*), and S11's deleted invitation becomes reachable (coded in Batch 5)~~ **Done** (2026-11-13; §7). Its emails are SC-18 (Batch 13) | — (B2, B3, B4, B7, B8, B10 and B11 ruled). The gate-test rows are a listed shortcut until they pass on real AWS, as in Batch 4 (owner, 2026-11-12) |
 | 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) is planned as Batch 26 (owner, 2026-11-13) | — |
 | 13 | **Done** (branch `feature/batch-13-emails-and-jobs`, after Batch 11). Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
-| 14 | Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2) | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
+| 14 | **Done** (branch `feature/batch-14-business-email`, 2026-11-16; §7). Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2). Opened G-40 (the confirm page isn't drawn) and G-41 (when a confirmed address takes over), both ruled by the owner 2026-11-16 and closed | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
@@ -369,7 +369,8 @@ The full list, with what closes each one, is in the root `README.md`.
   address; G-2 Business email tab; G-3 Visibility & texts tab (contact switches moved to Batch 16 on 2026-11-09); G-4 Account tab; G-5 sign-up steps
   1–2; G-6 every other coach page; G-7 no warning before the 60-minute sign-in ends.
 - **Settled while building (owner may override):**
-  - An unconfirmed business email is stored as `pendingBusinessEmail`; `businessEmail` stays
+  - *(Replaced in Batch 14 by `pendingBusinessEmails`, ADR-016's 2026-11-12 shape; an old `pendingBusinessEmail`
+    reads as an address whose link has expired.)* An unconfirmed business email is stored as `pendingBusinessEmail`; `businessEmail` stays
     empty until it is confirmed, and the code works exactly when `businessEmail` is set. The
     attribute name isn't in the ADRs.
   - Time zones: the seven on the Profile → Details design are offered at sign-up too (step 3's
@@ -978,3 +979,73 @@ The full list, with what closes each one, is in the root `README.md`.
   refused reminder sent whole on the retry, a three-week shared series' one invitation and one *joined* each, a two-date
   decline and withdrawal, and stopping a shared series asking the staying family once for all three dates. The rebuilt
   templates were rendered with their samples by the email build's own Handlebars subset.
+
+### Batch 14 (2026-11-16)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** the owner's 2026-11-12 rulings on ADR-016: a random token that works **once** and lasts **3 days**;
+  *Resend* issues a new one and the old one stops working; each waiting address is kept on the coach's own profile
+  (`pendingBusinessEmails`: address → `tokenHash`, `expiresAt`); only the token's Secure Hash Algorithm (SHA-256) hash is
+  stored; **the coach signs in to confirm**, through `api-coach` like every coach route. A2 (families can't reach a new
+  coach, and the code doesn't work, until a different address is confirmed; `CODE#` is written on confirmation).
+- **Built:** `core`: `BusinessEmails` (the list: login email, other confirmed addresses, waiting addresses with their
+  links; add, resend, remove, choose, find, confirm) and `LinkToken` (32 random bytes, base64url; SHA-256 hash; constant-time
+  compare). `CoachProfileService` adds, resends, removes, chooses, checks and confirms, and sends the
+  `business-email-confirmation` email through the Batch 13 `Mailer` (the SES template's name plus its data: `coachFirst`,
+  `newEmail`, `confirmUrl`, `expiresAt` in the coach's zone). `CoachRepository.saveBusinessEmails` writes the list under a
+  version, and writes `CODE#` in the same transaction when a new coach's first address is confirmed. `api-coach`:
+  `POST /api/coach/profile/business-email` (add; `replaces` for sign-up step 4's *Change address*), `PUT` (choose),
+  `/resend`, `/remove`, `/check` and `/confirm`; the profile lists the addresses (`emails`). `web`: Profile → Business
+  email (design `profile-email`), the confirm page (`#/confirm-email/<token>`), and *Resend link* · *Change address* ·
+  *Use my login email instead* on sign-up step 4 and on the *not working yet* banner (Today, Profile → Details).
+- **Closed:** G-1, G-2 and SC-2 (the local *I've clicked the link* route and button are gone).
+- **Shortcuts:** none new. The email goes to `api-coach`'s outbox (SC-21) until SES (Batch 17).
+- **Gaps:** ~~G-40 the confirm page has no Harbor design (built from sign-up step 4's card)~~ *G-40 ruled 2026-11-16 by the owner: the built page is fine as it is, a page of its own under the Profile tab; no design needed*; ~~G-41 the design has a confirmed
+  address wait to be chosen and saved, the ADR makes it the business email on confirmation (built as the ADR says; needs
+  the owner).~~ *G-41 ruled 2026-11-16 by the owner: keep the ADR's behaviour, as built (a confirmed address takes over
+  at once). The Harbor design's choose-and-Save step after confirming is superseded.*
+- **Settled while building (owner may override):**
+  - **Confirming makes the address the business email at once** (ADR-MASTER §4, `architecture.md` §6.13), on sign-up and
+    on the profile; the address it replaces stays on the list as *Confirmed* and can be chosen again with Save (G-41).
+  - **The other confirmed addresses are kept** as `confirmedBusinessEmails` on the profile (not in the ADRs; the list is
+    product, `FeatureDecriptions/C_Coach Profile.md`). Changes to the list go through `businessEmailsVersion`, a counter the
+    save is conditioned on, so a link can't be used twice and two tabs can't both change the list.
+  - **The link is `<site>/coach/#/confirm-email/<token>`.** The token is in the address's hash, so it never reaches a
+    server log; the page sends it in the request body. Opening the page only asks `/check` which address it's for; nothing
+    changes until *Confirm*. A link opened while signed out comes back to its page after sign-in.
+  - **One message for every refused link** (used, replaced by Resend, more than 3 days old, removed, or another coach's):
+    *"This link doesn't work any more. It may have been used already, replaced by a newer link, or be more than 3 days
+    old."*, with *Go to Business email* to send a new one. A 409.
+  - **Resend waits a minute** after the last link (*"We sent a link a moment ago…"*), so a double click or a script can't
+    flood an inbox; **ten addresses at most** besides the login email.
+  - **An email that can't be sent** leaves the address and its link saved and says *"We saved the address but couldn't
+    send its email. Try Resend link in a minute."*
+  - **Sign-up step 4's *Change address*** (*accepted by the owner, 2026-11-16*) opens a box on the same page; the new address replaces the waiting one (whose link
+    stops working). The design sends the coach back to step 3, whose answers are already saved by then. The step also looks
+    again when its tab gets focus, so a link confirmed on the phone moves sign-up on to *You're all set*.
+  - **The sign-up step bar fits a phone** (*owner, 2026-11-16*): at 760px and under it shows the dots with only the current
+    step named (the other names stay for screen readers), and the lines between dots shrink. It used to scroll sideways, with
+    the current step cut off at 390px. Changed in the Harbor design (`coach/app.css`, `client/app.css`, rebuilt) and in
+    `web/src/coach/coach.css` and `web/src/family/family.css`.
+  - **The banner's *Change address*** opens Profile → Business email, as designed. *Use my login email instead* leaves the
+    waiting address on the list, still confirmable.
+  - **A waiting row shows *Resend link*** where the design has *I've clicked the link* (the demo's stand-in), with when the
+    link stops working (*"The link works until Thu, Nov 19 at 2:15 PM."*) or *"The link has expired. Resend it to get a new
+    one."*
+  - **An address left waiting by Batch 1's stand-in** (`pendingBusinessEmail`) reads as one whose link has expired; Resend
+    sends it a real link, and the old attribute is removed on the next save.
+  - **The email goes straight from `api-coach`** when the address is added or resent (as `architecture.md` §6.11 draws), not
+    through the stream; its sender is *BladeBook* with no Reply-To, to the new address.
+- **Checked in the running app (APIs on :8098 and :8099, Vite on :5188; table `bladebook-b14check`):** a coach signs up with
+  a different business email → `api-coach`'s outbox has *business-email-confirmation* to that address, from *BladeBook*, no
+  Reply-To, link `http://localhost:5188/coach/#/confirm-email/…`, *"Thu, Nov 19 at 11:11 AM"* → opening the link shows
+  *Confirm your business email* and changes nothing (code still not working) → *Confirm* → *Business email confirmed*, *"Your
+  coach code works now"*, and the `CODE#` item is in the table → the same link again: *This link doesn't work any more* → on
+  the profile, a new address; Resend at once refused (409), two minutes on (stored time moved back) a new link, the old one
+  refused on check and confirm, the new one accepted → its stored expiry moved past: refused → resent and confirmed: it
+  became the business email → Change address back: the login email chosen, then the first address → a second coach opens
+  their link signed out, signs in on the stand-in, and lands back on the confirm page; Today shows the banner with *Resend
+  link · Change address · Use my login email instead*. Headless Chrome at 1280px and 390px: sign-up step 4, the confirm page
+  (asking, confirmed, refused), Profile → Business email, and Today's banner; no sideways scroll on any. **Not checked:** a
+  real inbox or SES rendering (SC-21); the 3 days were stood in for by moving the stored expiry.

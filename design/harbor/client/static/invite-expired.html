@@ -720,7 +720,11 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
   .bb .wmain { padding: 20px 16px 40px; }
   .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .bb .wbar__right { width: 100%; }
-  .bb .stepper { overflow-x: auto; }
+  .bb .stepper { gap: 6px; }
+  /* Phone: dots only, with the current step named; the other names stay for screen readers (owner, 2026-11-16). */
+  .bb .step:not(.step--current) .step__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bb .step--current .step__label { white-space: nowrap; }
+  .bb .step__line { flex: 1 1 12px; width: auto; min-width: 8px; }
   .bb .wcol > .card > .card__body { padding: 20px; }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }

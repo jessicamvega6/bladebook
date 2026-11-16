@@ -5,7 +5,7 @@
  * the coach's two ways to the rinkside page (FeatureDecriptions/Coach Dashboard on website.md; the other is the
  * morning email, not built yet).
  */
-import { Avatar, Card, Icon, Row } from '../../shared/components/harbor';
+import { Avatar, Banner, Card, Icon, Row } from '../../shared/components/harbor';
 import type { Profile, StudentDto } from '../api';
 import { CodeCard, CodePendingBanner } from '../components/CodeCard';
 
@@ -16,14 +16,17 @@ function byFamily(pending: StudentDto[]): StudentDto[][] {
   return [...by.values()];
 }
 
-export function Today({ profile, onUseLogin, busy, pending = [] }: { profile: Profile; onUseLogin: () => void; busy: boolean; pending?: StudentDto[] }) {
+export function Today({ profile, onUseLogin, onResend, note, busy, pending = [] }: {
+  profile: Profile; onUseLogin: () => void; onResend?: () => void; note?: string; busy: boolean; pending?: StudentDto[];
+}) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   return (
     <>
       <div className="phead"><div className="phead__text"><h1 className="h1">{greeting}, {profile.firstName}</h1>
         <p className="lede">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p></div></div>
-      <CodePendingBanner profile={profile} onUseLogin={onUseLogin} busy={busy} />
+      {note && <Banner tone="info">{note}</Banner>}
+      <CodePendingBanner profile={profile} onUseLogin={onUseLogin} onResend={onResend} busy={busy} />
       <Card>
         <div className="rink-cta">
           <div className="rink-cta__text"><b>Heading to the rink?</b>

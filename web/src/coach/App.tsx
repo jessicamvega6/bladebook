@@ -2,7 +2,8 @@
  * The coach website. Batch 1: local sign-in stand-in → sign-up step 3 (and step 4 when a different
  * business email waits for its link) → Today and Profile. Batch 2: Schedule (hub and weekly editor) and
  * Calendar (month, week and day). Batch 3: Students and Waiting for approval, with the waiting count on the
- * Students tab and Today's new-families card.
+ * Students tab and Today's new-families card. Batch 14: Profile → Business email (#/profile/email) and the confirm page
+ * the confirmation email's link opens (#/confirm-email/<token>).
  *
  * "First sign-in completes sign-up if the profile is missing" (ADR-MASTER section 4): a 404 on the
  * profile shows step 3.
@@ -15,7 +16,8 @@ import { coachApi, financesApi, lessonsApi, paymentsApi, scheduleApi, studentApi
 import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
-import { ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
+import { ProfileBusinessEmail, ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
+import { ConfirmEmail } from './pages/ConfirmEmail';
 import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { Lessons } from './pages/Lessons';
@@ -53,6 +55,9 @@ function calendarRoute(route: string, timeZone: string): CalendarRoute | null {
   return { view, date: view === 'month' ? `${m[2].slice(0, 8)}01` : m[2] };
 }
 
+/** The business-email confirm page: #/confirm-email/<token>. The token stays in the hash, so it never reaches a server log. */
+const CONFIRM = '#/confirm-email/';
+
 function go(route: string) {
   window.location.hash = route;
 }
@@ -82,6 +87,7 @@ export function App() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState('');
+  const [note, setNote] = useState(''); // Today: what Resend link did
   // What the last accepted review said, for the save status page that follows it.
   const [saved, setSaved] = useState<Saved | null>(null);
   const afterSave = useCallback((s: Saved) => { setSaved(s); go('#/schedule/status'); window.scrollTo(0, 0); }, []);
@@ -94,7 +100,7 @@ export function App() {
   const studentsApi = useMemo(() => (token ? studentApi(token) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
-  useEffect(() => { if (route !== '#/schedule') setFlash(''); }, [route]);
+  useEffect(() => { if (route !== '#/schedule') setFlash(''); setNote(''); }, [route]);
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && e.status === 401) {
@@ -141,7 +147,8 @@ export function App() {
 
   let page;
   if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances) {
-    page = <LocalSignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); go('#/today'); }} />;
+    // A business-email link opened while signed out comes back to its confirm page after sign-in (ADR-016, 2026-11-12).
+    page = <LocalSignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); if (!route.startsWith(CONFIRM)) go('#/today'); }} />;
   } else if (load.state === 'loading') {
     page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
   } else if (load.state === 'error') {
@@ -165,7 +172,26 @@ export function App() {
         setBusy(false);
       }
     };
-    if (route === '#/signup/confirm' && !profile.codeWorks) {
+    const resend = async () => {
+      setBusy(true);
+      try {
+        setProfile(await api.resendLink(profile.pendingBusinessEmail ?? ''));
+        setNote(`Sent a new link to ${profile.pendingBusinessEmail}. The one sent before no longer works.`);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) setNote(e.message);
+        else handleError(e);
+      } finally {
+        setBusy(false);
+      }
+    };
+    if (route.startsWith(CONFIRM)) {
+      const linkToken = route.slice(CONFIRM.length);
+      page = (
+        <CoachShell profile={profile} waiting={students?.pending.length} section="Profile">
+          <ConfirmEmail key={linkToken} api={api} token={linkToken} profile={profile} onChange={setProfile} onError={handleError} />
+        </CoachShell>
+      );
+    } else if (route === '#/signup/confirm' && !profile.codeWorks) {
       page = <SignupConfirm api={api} profile={profile} onChange={(p) => { setProfile(p); if (p.codeWorks) go('#/signup/done'); }} onFinish={() => go('#/today')} />;
     } else if (route === '#/signup/done' || route === '#/signup/confirm') {
       page = <SignupDone profile={profile} />;
@@ -215,12 +241,14 @@ export function App() {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Lessons" wide><Lessons api={lessons} onError={handleError} /></CoachShell>;
     } else if (route === '#/profile') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+    } else if (route === '#/profile/email') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else if (route === '#/profile/visibility') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else if (route === '#/profile/payments') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} onUseLogin={useLogin} busy={busy} pending={students?.pending} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} onUseLogin={useLogin} onResend={resend} note={note} busy={busy} pending={students?.pending} /></CoachShell>;
     }
   }
 
