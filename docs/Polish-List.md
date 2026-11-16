@@ -25,6 +25,8 @@ prefer if you know.
 - [ ] Home page, **Today** card: remove any text about upcoming lessons (e.g. "Next: Sully, Wed,
   Nov 18 at 5am" under "No lessons today"). The Today card is only about what's happening
   today; upcoming lessons belong in **Coming up** (`web/src/family/pages/Home.tsx:144`).
+- [ ] Profile, **Your coaches**: the dashed border around **Add a coach** is wonky. The dots
+  are missing from the bottom-left and bottom-right corners (`web/src/family/pages/Profile.tsx`).
 
 ## Rinkside app
 
