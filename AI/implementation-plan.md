@@ -267,6 +267,7 @@ comes after 23, before the infrastructure.
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
+| 27 | **Added 2026-11-15: lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can still be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the case the financial page leaves out today: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` amended then | After Batch 26, which settles how a closed year's corrections count. Before Batch 17 |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
 | 16 | ~~Coach Profile → *Visibility & texts*: show my phone to families, show my business email to families (ADR-MASTER §4, "What families see"; A3)~~ **Done** (PR #31) | The *Text me on late cancellations* switch still waits on ADR-007 d8 (§3) |
 | 17 | **Proposed 2026-11-12:** infrastructure on the dev account in CDK (TypeScript): the table and its indexes, Cognito with both app clients and `auth-post-confirmation`, the REST API with the Web Application Firewall (WAF), the functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the S3 buckets, and the access-log groups. CI deploys with ADR-032's security setup (Blocker 3). The tenant roles run for real and the gate tests are re-run on AWS (Blockers 23, 24, G-26). The drift check and TTL archiver come in here, since both need the real stream and table. Closes SC-3, SC-4, SC-5, SC-8, SC-12, SC-14 and SC-15 | After Batch 23 (owner, 2026-11-12: after 16; 2026-11-13: Batches 22 and 23 go first) |
@@ -338,6 +339,10 @@ comes after 23, before the infrastructure.
   when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
   figures when it closes (option c). Planned as Batch 26, after 23 and before 17. Nothing closes a year today: it's
   only a date rule, and the figures are added up from the seats on every visit.*
+- ~~**A lesson from two or more years back marked paid now counts in no year**~~ (the financial page reads only this
+  year's and last year's lessons). *Ruled 2026-11-15 by the owner: lessons from over a year back are view only.
+  Planned as Batch 27 (G-39), after 26 and before 17. Read as lessons dated before January 1 of last year, so it
+  lines up with the year the financial page reads; the owner may override.*
 
 - **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
 
@@ -844,13 +849,15 @@ The full list, with what closes each one, is in the root `README.md`.
   calculation is coming, ADR-030 as amended 2026-11-12).
 - **Closed:** G-35's financial half (Payments' *Financial summary* opens the new page). *Send reminders* stays Phase 2.
 - **Gaps:** G-36 a closed year's figures can still drop when one of its paid lessons is undone. *Owner, 2026-11-13:
-  save each year's figures when it closes (option c), planned as Batch 26.*
+  save each year's figures when it closes (option c), planned as Batch 26.* G-39 (added 2026-11-15) a lesson from before
+  last year can still be marked paid, waived or undone, and then counts in no year; Batch 27 makes it view only.
 - **Settled while building (owner may override):**
   - **A finished year closes at midnight starting January 1 in the coach's time zone.** ~~A lesson from it marked paid
     after that counts in no year, as ADR-MASTER §12 and the design's banner say.~~ *Owner, 2026-11-13: it counts in
     the year and month it was marked paid, labelled "Includes $30 for 2025 lessons" under the month and the year's
     total, and in the download's new column "Of which for lessons in earlier years". Only last year's lessons are
-    read for it; one from further back marked paid now isn't counted (settled; the owner may override). The design's
+    read for it; one from further back marked paid now isn't counted (settled; *owner, 2026-11-15: such lessons
+    become view only, Batch 27*). The design's
     banner was reworded to match.* ~~*`FeatureDecriptions/Coach Financial
     Page.md` also says "A December lesson paid in January counts in December's gross", which can't hold alongside a
     year that closes when it ends; this build follows ADR-MASTER. If December's late payments should count, the year

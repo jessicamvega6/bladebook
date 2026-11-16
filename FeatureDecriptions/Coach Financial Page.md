@@ -68,6 +68,10 @@ What counts as gross (decided by the owner, 2026-10-12):
     each time, so undoing a payment on a closed year's lesson still lowers that year, and once old records are
     deleted (about 16 months after a lesson is paid) they would drop out too. After Batch 26 neither changes a closed
     year: undoing or correcting a closed year's lesson counts in the year it's done, as a late payment does.
+  *Decided 2026-11-15 by the owner (planned, Batch 27):* lessons from over a year back (dated before January 1 of
+    last year) are view only on Payments: they can't be marked paid, waived or undone. So a late payment can only
+    be for last year's lessons, which is all the page reads. Until Batch 27, one from further back can still be
+    marked paid, and it counts in no year.
   *(from ADR-030 §2 and §4, moved 2026-11-08)*
 
 The note above the figures (decided by the owner, 2026-10-12):
