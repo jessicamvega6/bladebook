@@ -20,6 +20,8 @@ prefer if you know.
 
 - [ ] Home page: add padding to the bottom of the **Today** and **Coming up** cards
   (`web/src/family/pages/Home.tsx`).
+- [ ] My bookings: remove the **Shared lesson** badge from a lesson once the original invitee
+  has left it, so it's no longer shared.
 
 ## Rinkside app
 
