@@ -86,6 +86,8 @@ class AttendanceApiTest {
     private String ava;
     private LocalDate today;
     private LocalTime started;
+    private ClientContext family;
+    private LinkedSkater linked;
 
     record Res(int status, JsonNode body) {
         String s(String field) {
@@ -128,7 +130,7 @@ class AttendanceApiTest {
                 LessonTime.Status.OPEN);
         new ScheduleRepository(clients, table).apply(dana, new ScheduleChange(List.of(t), List.of(), List.of()));
 
-        ClientContext family = new ClientContext(UUID.randomUUID().toString());
+        family = new ClientContext(UUID.randomUUID().toString());
         Skater k = new Skater(UUID.randomUUID().toString(), "Ava Park", true, SkatingOrg.USFS, "1234567");
         ava = k.studentId();
         FamilyProfile p = new FamilyProfile(family.clientId(), "Sarah", "Park", "sarah@example.com", "(205) 555-0196",
@@ -138,7 +140,7 @@ class AttendanceApiTest {
         new FamilyRepository(clients, table).register(family, p, List.of(k), List.of(r), Map.of(coachId, new CoachName("Dana", "Whitfield")));
         new StudentRepository(clients, table).approve(dana, ava);
         new SyncRepository(clients, table).setLinkStatus(family.clientId(), coachId, ava, StudentStatus.ACTIVE);
-        LinkedSkater linked = new ClientLinks(clients, table).requireActive(family, coachId, ava);
+        linked = new ClientLinks(clients, table).requireActive(family, coachId, ava);
         BookingRepository bookings = new BookingRepository(clients, table);
         bookings.book(family, linked, bookings.times(family, linked.coach(), today, today).get(0), UUID.randomUUID().toString(),
                 startsAt.minusSeconds(3600));
@@ -229,16 +231,72 @@ class AttendanceApiTest {
         assertThat(row.get("status").asString()).isEqualTo("UNPAID");
         assertThat(list.body().get("totals").get("unpaid").get("USD").asLong()).isEqualTo(5000);
         assertThat(list.body().get("choices").get(0).asString()).isEqualTo("OTHER");
+        assertThat(list.body().get("thisYear").asInt()).isEqualTo(java.time.LocalDate.now(java.time.ZoneId.of("America/Chicago")).getYear());
+        assertThat(row.path("closedYear").isNumber()).isFalse();             // unpaid: no closed year to warn about
 
         String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
         Res paid = call("POST", "/api/coach/payments/paid", token, seat);
         assertThat(paid.s("status")).isEqualTo("PAID");
         assertThat(paid.s("paidVia")).isEqualTo("OTHER");
+        assertThat(paid.body().path("closedYear").isNumber()).isFalse();     // paid this year
         assertThat(call("POST", "/api/coach/payments/waive", token, seat).status()).isEqualTo(409);
         assertThat(call("POST", "/api/coach/payments/undo", token, seat).s("status")).isEqualTo("UNPAID");
         assertThat(call("POST", "/api/coach/payments/waive", token, seat).s("status")).isEqualTo("WAIVED");
         Res again = call("POST", "/api/coach/payments/undo", token, seat);
         assertThat(again.status()).isEqualTo(409);
         assertThat(again.s("message")).isEqualTo("A waived lesson can’t be changed.");
+    }
+
+    // ------------------------------------------- the Week tab (Batch 23)
+
+    @Test
+    void theWeekTabListsWhatCanBeCancelledAndCancelsPickedLessonsAsOneBatch() throws Exception {
+        // A second lesson later today, booked by the same family. Too close to midnight there's no later today: skipped.
+        LocalTime later = started.plusMinutes(90).withMinute(0);
+        org.junit.jupiter.api.Assumptions.assumeTrue(later.isAfter(started) && later.isBefore(LocalTime.of(23, 0)));
+        Instant laterAt = today.atTime(later).atZone(CHICAGO).toInstant();
+        new ScheduleRepository(clients, table).apply(dana, new ScheduleChange(List.of(new LessonTime(today, later, laterAt, "America/Chicago",
+                45, 5000, "USD", 0, 24, 1, 0, 1, IceType.PUBLIC, 1, LessonTime.Status.OPEN)), List.of(), List.of()));
+        BookingRepository bookings = new BookingRepository(clients, table);
+        bookings.book(family, linked, bookings.times(family, linked.coach(), today, today).stream()
+                .filter(t -> t.startTime().equals(later)).findFirst().orElseThrow(), UUID.randomUUID().toString(), Instant.now());
+
+        Res week = call("GET", "/api/coach/rinkside/week", token, null);
+        assertThat(week.status()).isEqualTo(200);
+        assertThat(week.s("today")).isEqualTo(today.toString());
+        LocalDate sunday = LocalDate.parse(week.s("weekStart"));
+        assertThat(sunday.getDayOfWeek()).isEqualTo(java.time.DayOfWeek.SUNDAY);
+        assertThat(week.body().get("days")).hasSize(7 - (int) java.time.temporal.ChronoUnit.DAYS.between(sunday, today));
+        JsonNode first = week.body().get("days").get(0);
+        assertThat(first.get("started").asInt()).isEqualTo(1);              // the lesson from setUp
+        assertThat(first.get("lessons")).hasSize(1);
+        JsonNode lesson = first.get("lessons").get(0);
+        assertThat(lesson.get("startTime").asString()).isEqualTo(later.toString());
+        assertThat(lesson.get("durationMinutes").asInt()).isEqualTo(45);
+        assertThat(lesson.get("skaters").get(0).get("shortName").asString()).isEqualTo("Ava P.");
+        assertThat(lesson.get("skaters").get(0).get("familyName").asString()).isEqualTo("Sarah Park");
+        assertThat(lesson.get("skaters").get(0).get("familyId").asString()).isEqualTo(family.clientId());
+
+        // Only a lesson, a day or the week (owner, 2026-11-16): lessons on two days are refused; one lesson is cancelled and held.
+        Res twoDays = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"SELECTION\",\"picks\":["
+                + "{\"date\":\"" + today + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"},"
+                + "{\"date\":\"" + today.plusDays(1) + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"}]}");
+        assertThat(twoDays.status()).isEqualTo(400);
+        assertThat(twoDays.s("message")).isEqualTo("Choose a lesson, a day or the rest of the week.");
+        Res done = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"LESSON\",\"picks\":["
+                + "{\"date\":\"" + today + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"}]}");
+        assertThat(done.status()).isEqualTo(200);
+        assertThat(done.body().get("cancelled").asInt()).isEqualTo(1);
+        assertThat(done.body().get("held").asInt()).isEqualTo(1);
+        assertThat(done.body().get("families").asInt()).isEqualTo(1);
+        assertThat(call("GET", "/api/coach/rinkside/week", token, null).body().get("days").get(0).get("lessons")).isEmpty();
+    }
+
+    @Test
+    void theWeekTabKeepsTheRinksideSessionAndRefusesAFamily() throws Exception {
+        String twoHours = stub.token(email, List.of("Coach"), coachClient, Instant.now().minus(Duration.ofHours(2)));
+        assertThat(call("GET", "/api/coach/rinkside/week", twoHours, null).status()).isEqualTo(200);
+        String family = stub.token(email, List.of("Client"), coachClient, Instant.now());
+        assertThat(call("GET", "/api/coach/rinkside/week", family, null).status()).isEqualTo(403);
     }
 }

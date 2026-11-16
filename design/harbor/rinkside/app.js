@@ -41,7 +41,7 @@ function freshState() {
       unsent: [],         // wrong-clock entries the server refused (ADR-014 d4a): { lid, name, when, outcome, at, reason, days }
       toast: '',
       serverCancel: null, // a lesson the family cancelled while the phone had no signal
-      sel: {}, hold: {},  // week tab: selected lesson ids, and which are held rather than released
+      // (the Week tab keeps nothing here: each cancel is its own sheet; owner 2026-11-16)
     },
   };
 }

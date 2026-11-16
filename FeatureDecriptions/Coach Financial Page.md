@@ -63,11 +63,35 @@ What counts as gross (decided by the owner, 2026-10-12):
     counts in January's gross. The page says so under the month and the year's total ("Includes $30 for 2025
     lessons"), and the download has a column "Of which for lessons in earlier years". A year closes at midnight
     starting January 1 in the coach's time zone.
-  *Decided 2026-11-13 by the owner (planned, Batch 26):* a closed year's figures are saved once it closes, and the
-    page and the download use the saved figures from then on. Until then the figures are added up from the lessons
-    each time, so undoing a payment on a closed year's lesson still lowers that year, and once old records are
-    deleted (about 16 months after a lesson is paid) they would drop out too. After Batch 26 neither changes a closed
-    year: undoing or correcting a closed year's lesson counts in the year it's done, as a late payment does.
+  *Decided 2026-11-13 by the owner (~~planned~~ built 2026-11-16, Batch 26):* a closed year's figures are saved once it
+    closes, and the page and the download use the saved figures from then on. ~~Until then the figures are added up
+    from the lessons each time, so undoing a payment on a closed year's lesson still lowers that year, and once old
+    records are deleted (about 16 months after a lesson is paid) they would drop out too.~~ ~~After Batch 26~~ Neither
+    undoing a payment nor old records being deleted (about 16 months after a lesson is paid) changes a closed year:
+    undoing or correcting a closed year's lesson counts in the year it's done, as a late payment does.
+  *Built 2026-11-16 (Batch 26; owner may override):*
+    The figures are saved in the first days of January for every coach, or by the first download of last year, or
+      by the first undo of one of last year's payments, whichever comes first. Saved once; never changed.
+    A paid lesson whose year has closed and that is undone on Payments comes off the gross of the month it's undone,
+      labelled under the month and the year's total: "Less $50 for 2025 lessons marked unpaid". ~~It doesn't lower
+      the count of paid lessons.~~ A month whose only entry is such an undo is listed, and its gross can be below
+      zero ("−$50").
+    ~~The download's "Of which for lessons in earlier years" column is what was paid for earlier years' lessons less
+      what was undone, so it can be negative ("-50.00"); "Gross received" already has it taken off.~~
+  *Ruled 2026-11-16 by the owner (G-48 closed):*
+    The wording stays as built: "Less $50 for 2025 lessons marked unpaid".
+    Such an undo lowers that month's count of paid lessons too, but a month's count never goes below zero: a month
+      whose only entry is an undo shows "0 lessons". The year's count is the sum of the months'. The same holds for a
+      closed year read from its saved figures, and in the download.
+    The download has a fifth column, "Taken off for earlier years' lessons marked unpaid", as a positive amount.
+      "Of which for lessons in earlier years" is late payments only, never net of undos, so never negative.
+      "Gross received" is still net of undos.
+    Payments asks before Undo on a payment that counted in a closed year: "Undo a payment from 2025?" — "2025 is
+      closed, so its figures won't change. Undoing this takes $50 off 2026's figures, in this month." (Cancel /
+      Undo payment). BladeBook works out which payments those are; other paid lessons' Undo doesn't ask.
+    Marking that lesson paid again later counts as a late payment, so the undo and the new payment cancel out.
+    Undoing a late payment (a December lesson paid in January, then undone in February) just takes it back out of
+      the year it was paid in; the closed year never had it.
   *Decided 2026-11-15 by the owner (planned, Batch 27):* lessons from over a year back (dated before January 1 of
     last year) are view only on Payments: they can't be marked paid, waived or undone. So a late payment can only
     be for last year's lessons, which is all the page reads. Until Batch 27, one from further back can still be
@@ -98,7 +122,10 @@ Export (decided by the owner, 2026-10-12):
   MVP: a summary export. A Download button saves a comma-separated values (CSV) file for a chosen calendar
     year, this year or last: one row per month with gross received ~~, rink fees and net~~ and the number of paid
     lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. *2026-11-13:* each row
-    also says how much of its gross was paid for lessons in earlier years. It has
+    also says how much of its gross was paid for lessons in earlier years. *2026-11-16:* and how much was taken
+    off for earlier years' lessons marked unpaid. The columns: Month, Paid lessons, Gross received, Of which for
+    lessons in earlier years, Taken off for earlier years' lessons marked unpaid (amounts in the coach's
+    currency). It has
     no skater names and no personal data. It covers what a tax preparer needs and lets the coach keep their own
     copy before records age out.
   Phase 2: past years on screen.

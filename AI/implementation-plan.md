@@ -266,6 +266,8 @@ comes after 23, before the infrastructure.
 | 14 | **Done** (branch `feature/batch-14-business-email`, 2026-11-16; §7). Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2). Opened G-40 (the confirm page isn't drawn) and G-41 (when a confirmed address takes over), both ruled by the owner 2026-11-16 and closed | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Done** (branch `feature/batch-22-today`, 2026-11-16; §7). **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write. Closed G-6 | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
+| 26 | **Done** (branch `feature/batch-26-closed-years`, 2026-11-16; §7). **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
+| 23 | **Done** (branch `feature/batch-23-rinkside-week`, 2026-11-16; §7). ~~**The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today~~ Cancels one lesson, a whole day, or the rest of the week, nothing in between (owner, 2026-11-16; ADR-009 amended). Closed G-28 | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
 | 27 | **Added 2026-11-15: lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can still be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the case the financial page leaves out today: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` amended then | After Batch 26, which settles how a closed year's corrections count. Before Batch 17 |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
@@ -337,8 +339,9 @@ comes after 23, before the infrastructure.
   ADR-030 amended, ADR-MASTER §12 and `FeatureDecriptions/Coach Financial Page.md` updated.*
 - ~~**G-36: a closed year can still drop**~~ when one of its paid lessons is undone on Payments, and (from Batch 17)
   when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
-  figures when it closes (option c). Planned as Batch 26, after 23 and before 17. Nothing closes a year today: it's
-  only a date rule, and the figures are added up from the seats on every visit.*
+  figures when it closes (option c). Planned as Batch 26, after 23 and before 17. ~~Nothing closes a year today: it's
+  only a date rule, and the figures are added up from the seats on every visit.~~ Built in Batch 26 (2026-11-16; §7):
+  a closed year is saved once as `CLOSEDYEAR#<year>`, and an undo after its year closed counts in this year.*
 - ~~**A lesson from two or more years back marked paid now counts in no year**~~ (the financial page reads only this
   year's and last year's lessons). *Ruled 2026-11-15 by the owner: lessons from over a year back are view only.
   Planned as Batch 27 (G-39), after 26 and before 17. Read as lessons dated before January 1 of last year, so it
@@ -1133,3 +1136,149 @@ The full list, with what closes each one, is in the root `README.md`.
   today · Your next lesson is on Wednesday, Nov 18.* Headless Chrome at 1280px and inside a 390px frame: both coaches'
   Today; no sideways scroll. **Not checked:** a lesson from before this week still unpaid (it can't be booked in the
   past locally; `TodayServiceTest` covers it against DynamoDB Local), and a coach with more than one currency.
+
+### Batch 26 (2026-11-16)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** G-36 option c (owner, 2026-11-13): save each year's figures when it closes; the ADR-030
+  amendment of 2026-11-13 (a late payment for a closed year's lesson counts in the month it's paid, flagged as for an
+  earlier year), extended to corrections: a correction to a closed year counts in the year it's made.
+- **Built:** `core`: `FinancialSummary` takes corrections (`Correction`: an undone payment, counted in the month it was
+  undone) and reads a saved year (`saved`), with `countedIn` (the year a payment counted in) and `closesAt`; months and
+  years carry `undoneLessons` and `undoneGross`. `FinancialRepository` saves `CLOSEDYEAR#<year>` once (conditional put)
+  and reads it, and reads `PAYCORRECTION#` items. `PaymentRepository.undo` can write the seat and its correction in one
+  transaction. `PaymentService.undo` works out the year the payment counted in; if that year has closed, it saves the year
+  first (through `FinancialService`), then undoes with a correction. `FinancialService` reads a closed year from its saved
+  figures, saving them on the first read; `saveClosedYear` is the job's step. `ClosedYearJob` (`sched-year-close`) saves
+  the year before its date's for every coach whose year has closed. `api-coach`: the job on the local timer (8:00 AM
+  Central, January 1–7) and `POST /api/coach/local/jobs/year-close?date=`; the finances responses carry the undone
+  figures. `web`: the financial page shows *"Less $50 for 2025 lessons marked unpaid"* under the month and the year's
+  total, lists a month whose only entry is such an undo, and shows gross below zero as *"−$50"*.
+- **Docs:** ADR-030 (amendment of 2026-11-16, decision 4, decision 7's download, Consequences), ADR-MASTER §2, §3 (two new
+  items), §12, §14 (`sched-year-close`) and §20 (their retention), `FeatureDecriptions/Coach Financial Page.md`.
+- **Closed:** G-36.
+- **Shortcuts:** SC-27 `sched-year-close` runs on a local timer, with a local route to run it for any date.
+- **Gaps:** ~~G-48 the Harbor design doesn't draw a closed year's payment undone this year (built as *"Less $50 for 2025
+  lessons marked unpaid"*; the banner and the card's note are as drawn; Payments doesn't warn before such an undo).~~
+  Closed by the owner's ruling of 2026-11-16 (below).
+- **Settled while building (owner may override):**
+  - **The items:** `CLOSEDYEAR#<year>` (the twelve months: `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`,
+    `earlierGross`, `undoneLessons`, `undoneGross`, amounts per currency; `savedAt`; `savedBy` `JOB`, `READ` or `UNDO`)
+    and `PAYCORRECTION#<undoneAt>#<seatKey>` (`undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`,
+    `currency`, `forYear`, `undoneBy`). No names. *"Still unpaid"* isn't saved: it's this year's figure only.
+  - ~~**An undo of a closed year's payment lowers this year's gross, not its count of paid lessons.**~~ *Overruled
+    2026-11-16 (below).* It's shown on its own line and counted in `undoneLessons`. Marking the lesson paid again later
+    counts as a late payment, so the two cancel out.
+  - ~~**The download keeps its four columns.**~~ *Overruled 2026-11-16 (below).*
+  - **Only an undo is a correction.** Changing how a lesson was paid moves no money, and waiving applies only to unpaid
+    lessons. Undoing a late payment (a December lesson paid in January) is an ordinary undo of the year it was paid in;
+    undoing a payment that counted in no year (G-39) changes nothing.
+  - **The closed year is saved before its first undo**, so a year the job hasn't reached yet can't lose the payment and
+    then have the correction take it off again. Saving and the undo aren't one transaction; the saved year is read from
+    the seats before the undo commits, so the order holds.
+  - **The job saves the year before its date's** for every coach, and reads the clock only to check each coach's year has
+    closed (skipping those it hasn't: `notClosedYet`). It is safe to run twice; one coach's failure doesn't stop the rest.
+    On AWS it is a second Scheduler rule on `sched-lesson-roller`'s function (January 1–7, 8:00 AM launch time, after
+    midnight everywhere a coach can be), so the count of functions stays sixteen (kept by the owner, 2026-11-16).
+  - **The first read of a closed year** is the download of last year (the page shows this year only).
+  - **`PaymentService` learns of `FinancialService` through a hook** that `FinancialService` sets when it's made (it reads
+    Payments' rows to add a year up, so neither can take the other in its constructor). Without it an undo of a closed
+    year's payment is refused rather than written without saving the year first.
+- **Owner rulings (2026-11-16), applied on the same branch (PR #52):**
+  1. **G-48, the undo's wording: kept as built** (*"Less $50 for 2025 lessons marked unpaid"*); G-48 is closed (its row is
+     gone from the root `README.md`). **New: Payments asks before *Undo* on a payment that counted in a closed year.**
+     `core`: `PaymentService.Row` gains `closedYear` (the closed year a paid lesson's payment counted in, else null),
+     worked out with `FinancialSummary.countedIn` in the coach's time zone, the same test `undo` uses to decide on a
+     correction; `View` gains `thisYear`. `api-coach`: both on the Payments DTOs. `web`: *Undo* on such a row opens
+     *"Undo a payment from 2025?"* — *"2025 is closed, so its figures won't change. Undoing this takes $50 off 2026's
+     figures, in this month."* — *Cancel* / *Undo payment*, in the Waive dialog's Harbor style (icon, the lesson's
+     line, fine print, actions); other rows' *Undo* is unchanged. The page doesn't work out year closing itself.
+  2. **An undo lowers the count of paid lessons too, but a month's count never goes below zero.** `FinancialSummary`: a
+     month's `paidLessons` is the lessons marked paid less `undoneLessons`, and `Month` clamps it at 0, so it holds for
+     a live year, a saved `CLOSEDYEAR#` year as read back, the page and the download; the year's count is the sum of
+     the months'. The saved item now holds the lowered count.
+  3. **The download has five columns:** *Month*, *Paid lessons*, *Gross received (CUR)* (net of undos), *Of which for
+     lessons in earlier years (CUR)* (late payments only, never net of undos, never negative) and *Taken off for earlier
+     years' lessons marked unpaid (CUR)* (positive); the totals row likewise. ADR-030 decision 7 (amended 2026-11-16)
+     and the 2026-11-16 amendment's text, ADR-MASTER §12, and the feature notes say so.
+  4. **The January job stays a second Scheduler rule on `sched-lesson-roller`'s function** (sixteen functions), as
+     built; ADR-MASTER §14's row no longer says the owner may change it.
+  - **Tests:** `FinancialSummaryTest` (an undo lowering the count; a month with undos and nothing paid showing 0, not
+    −2; the year's total as the months' sum; a saved year's months read back never below zero; the five columns),
+    `FinancialServiceTest` (which Payments rows carry `closedYear`, either side of midnight in Chicago, and not after a
+    late re-payment), `FinancialApiTest` (the header), `AttendanceApiTest` (`thisYear`, no `closedYear` this year),
+    `Payments.test.tsx` (the dialog asks, *Cancel* sends nothing, *Undo payment* undoes; another paid row undoes at once).
+  - **Settled while applying (owner may override):** the row carries the closed year (a number) rather than a
+    boolean, and the view carries this year, so the dialog can name both without the page working out either. The
+    header's apostrophe is a plain `'` (spreadsheet apps can garble a curly one in a CSV); the page's text keeps
+    curly ones. The dialog's button is the primary style, not the danger one Waive uses, as an undo can be redone. A
+    `CLOSEDYEAR#` item saved by the earlier build of this branch (only the local `bladebook-b26check` table) holds a
+    count not lowered by undos; nothing on AWS has one. No gap is opened for the dialog: the Harbor design has no
+    such dialog, but it reuses the Waive dialog's parts, so it's recorded as settled rather than for drawing.
+  - **Checked in the running app** (api-coach on :8104, Vite on :5192, table `bladebook-b26check`): Ava's Dec 8, 2025
+    lesson put back as paid on Dec 9, 2025 → Payments lists it with `closedYear` 2025 and `thisYear` 2026 → *Undo* opens
+    the dialog (headless Chrome at 1280px, and at 390px inside a 390px-wide frame: no sideways scroll) → undone: the
+    2025 download unchanged (*"2025 total,1,50.00,0.00,0.00"*); 2026's November, with this undo and the earlier run's,
+    reads *"0,-100.00,0.00,100.00"* (count 0, not −2).
+- **Checked in the running app (APIs on :8104 and :8105, Vite on :5192; table `bladebook-b26check`):** a coach signs up
+  and saves a schedule, a family signs up and is approved and books a lesson → the lesson time and seat were moved to Dec
+  8, 2025 in DynamoDB Local and marked paid Dec 9, 2025 → nothing saved yet → the 2025 download (*"2025 total,1,50.00,0.00"*)
+  saved the year (`savedBy` `READ`) → a second coach (Los Angeles) signs up → the job for 2026-01-02: `{"coaches":2,"saved":1,
+  "alreadySaved":1,"notClosedYet":0}`; again for 2026-01-03: `saved 0, alreadySaved 2`, Dana's year unchanged → *Undo* on
+  the Dec 8 lesson: 2025 still closed at $50; 2026 gross −$50 in November (`undoneLessons 1`), download *"2026 to
+  date,0,-50.00,-50.00"*, one `PAYCORRECTION#` for 2025 → the seat deleted (as the TTL will): 2025 still $50, December
+  still *has lessons*. Headless Chrome at 1280px and 390px: the financial page with *"−$50"* and *"Less $50 for 2025
+  lessons marked unpaid"* under November and the year's total; no sideways page scroll (the month table scrolls inside its
+  card, as in Batch 12). **Not checked in the app:** the job waiting for midnight in a coach's time zone (the real clock
+  is in November; checked in `FinancialServiceTest`), and the local timer firing on January 1.
+### Batch 23 (2026-11-16)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** S8 (*Cancel rest of week* holds every booked lesson and open time left, Sunday–Saturday, with no
+  release-or-hold question; it sends only its Sunday and the server works out the rest); S9 (one lesson, and each
+  lesson of a whole day, asks release or hold on its own); S11 (an unanswered invitation on a cancelled lesson is deleted quietly, as
+  `CoachCancelService` already does); R5 (with no signal the tab shows no lessons, only *"The week needs a connection"*).
+- **Built:** `core`: `RinksideWeekService` (each day from today to Saturday in the coach's time zone: the lessons that can
+  still be cancelled, how many have started, the open times), worked out by `CoachCancelPlan` for the whole week, so the
+  tab lists exactly what *Cancel rest of week* would hold. The cancels are Batch 5's `CoachCancelRequest` scopes
+  `LESSON`, `DAY` and `WEEK` and its `CoachCancelService`, unchanged. `api-coach`: `GET /api/coach/rinkside/week`; the
+  existing `POST /api/coach/rinkside/cancel` takes `DAY` and `WEEK` too (4-hour rinkside session). `web`: the Week tab
+  (`web/src/rinkside/WeekTab.tsx`, designs `week`, `week-lesson`, `week-day`, `week-all-confirm`, `week-offline`),
+  turned on in the tab bar.
+- **Closed:** G-28.
+- **Shortcuts:** none new. A whole day and the rest of the week run as they go (SC-14); emails go to the outbox (SC-21).
+- **Gaps:** none new.
+- **Settled while building (owner may override):**
+  - ~~**Lessons picked on several days are one batch**, `batchSource = SELECTION` (new)~~ **Owner ruling (2026-11-16):
+    only three cancels — one lesson, a whole day, or the rest of the week.** Lessons on different days are cancelled one
+    by one, so `SELECTION` was removed before merging and `batchSource` is unchanged. The tab has no checkboxes: each
+    lesson has *Cancel* (the same confirmation as Today's, sent as `LESSON`), and a day with two or more lessons has
+    *Cancel whole day* (one confirmation asking release or hold for each lesson, sent as `DAY`). The design's
+    `week-confirm` is replaced by `week-lesson` and `week-day`. ADR-009 (amended 2026-11-16), ADR-MASTER §10,
+    `architecture.md`, `cancelation.md`, `Coach App` and the Week tab's feature notes say so.
+  - **A lesson already marked Present or No-show isn't listed** (Batch 5's rule); it's counted with the started ones
+    (*"1 lesson already started and can't be cancelled."*).
+  - **The week is read again** each time the tab opens with signal and after every cancel. Nothing about the week is kept on the phone (R5).
+  - **A refusal** (*"These lessons have already started or were cancelled."*) stays in the confirmation sheet; a lesson
+    left alone is counted in the message afterwards with the website's wording (*"1 lesson had already started or gone, so
+    it was left alone."*). The message leaves out *"N families will be emailed"* when no family is.
+  - **Owner ruling (2026-11-16): "1:00 PM" everywhere.** Every time on the rinkside page (Today's lesson rows and *Next:*
+    line, the Week tab, its confirmations) is written "3:00 PM" / "10:30 AM" with the shared `formatTime`, not "3pm"
+    (built first) or the design's "3:00"; the Harbor rinkside design is changed to match. The time columns don't wrap and
+    the Week tab's is 74px, checked at a true 390px.
+- **Checked in the running app (APIs on :8102 and :8103, Vite on :5191; table `bladebook-b23check`):** a coach with lessons
+  Monday to Saturday 3–6 PM and one at 1:00 PM today (checked in early), three families, six lessons booked → the Week tab
+  lists Monday to Saturday, today with *"1 lesson already started and can't be cancelled."* and *6 lessons and 12 open
+  times* on the rest-of-week card → picks from two weeks refused (400) → Ava's Monday 3 PM held and Wednesday 4 PM released:
+  one batch, **one email to the Parks listing both dates** → *Cancel rest of week*: 4 lessons and 13 open times held, one
+  email per family (3) → the tab shows nothing left, and the same cancel again answers 409. In headless Chrome (an iframe of
+  exactly 390px, and 1280px): the tab, picks with Hold, both confirmations, the messages afterwards from real clicks, and the
+  no-signal page. **Not checked:** a real phone at a rink (G-32), real emails (SC-21).
+- **After the owner's lesson/day/week ruling (2026-11-16):** that run was of the first build (picks across days, now
+  removed). The rework was checked by tests — `RinksideWeekServiceTest` (one lesson is a `LESSON` batch; a whole day is
+  one `DAY` batch with each lesson's choice; a lesson that started meanwhile is left and counted), `CoachCancelRequestTest`
+  (`SELECTION` refused), `AttendanceApiTest` (lessons on two days refused, 400) and the Week tab's web tests — and by the
+  rebuilt design's `week`, `week-day` and `week-lesson` in a 390px-wide iframe (no sideways scroll). It wasn't run again
+  in the running app; the lesson and day cancels are Batch 5's, unchanged.
