@@ -264,7 +264,7 @@ comes after 23, before the infrastructure.
 | 12 | ~~Financial page: gross and the summary CSV (gross only; rink fees are Phase 2, owner 2026-11-12). Turns on Payments' *Financial summary* (G-35)~~ **Done** (PR #37). G-36 (a closed year can still drop) is planned as Batch 26 (owner, 2026-11-13) | — |
 | 13 | **Done** (branch `feature/batch-13-emails-and-jobs`, after Batch 11). Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | **Done** (branch `feature/batch-14-business-email`, 2026-11-16; §7). Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2). Opened G-40 (the confirm page isn't drawn) and G-41 (when a confirmed address takes over), both ruled by the owner 2026-11-16 and closed | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
-| 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
+| 22 | **Done** (branch `feature/batch-22-today`, 2026-11-16; §7). **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write. Closed G-6 | — (owner, 2026-11-13: after Batch 14) |
 | 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
 | 27 | **Added 2026-11-15: lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can still be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the case the financial page leaves out today: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` amended then | After Batch 26, which settles how a closed year's corrections count. Before Batch 17 |
@@ -1049,3 +1049,61 @@ The full list, with what closes each one, is in the root `README.md`.
   link · Change address · Use my login email instead*. Headless Chrome at 1280px and 390px: sign-up step 4, the confirm page
   (asking, confirmed, refused), Profile → Business email, and Today's banner; no sideways scroll on any. **Not checked:** a
   real inbox or SES rendering (SC-21); the 3 days were stood in for by moving the stored expiry.
+
+### Batch 22 (2026-11-16)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** the owner's 2026-11-13 order (Batch 22 straight after 14); the 2026-11-09 ruling that the rink card
+  comes first, then the figures, as designed. No new ruling was needed: the design (`coach/static/today.html`), the feature
+  note and ADR-MASTER agree, and the page reads only what Batches 4–8 write.
+- **Built:** `core`: `TodayBoard` (domain, test-driven: today's booked and held times in order, each skater's full name,
+  share and attendance, *Next* on the first booked lesson not yet started; the lessons booked in a range; every lesson
+  that has started and is still unpaid; the next date with a lesson) and `TodayService` (the coach's time zone; lesson
+  times and seats from the earlier of this week's Sunday and the oldest unpaid lesson to Saturday; when today is empty
+  and nothing follows this week, the seats to the end of what's stored, once). `PaymentRepository.oldestUnpaid` reads one
+  sort key from GSI3 (access pattern 11), which ADR-MASTER §2 and §16 already give `api-coach` through `coach-tenant`.
+  `api-coach`: `GET /api/coach/today`. `web`: Today as designed: *Open week view*; the *not working yet* banner (Batch 14)
+  and the rink card (Batch 7) kept; the three figures; *Today's lessons* with *Day view*, each row's time, avatar, names,
+  length and shares (*"$25 + $25 · shared lesson"*), *Next* and each skater's attendance badge (named per skater when
+  shared), lessons already started greyed, a held time as *Held slot · not bookable*, and the note to fix mistakes on
+  Lessons; *New families to approve*; and *Go to* with a link to every page (*Email templates* shown as Phase 2).
+- **Closed:** G-6.
+- **Shortcuts:** none new.
+- **Gaps:** none new. Nothing in the design conflicted with an ADR.
+- **Settled while building (owner may override):**
+  - **The coach code card leaves Today**, as the design draws it (Batch 1 had put it there while Today had little else).
+    The code stays on Profile → Details, sign-up's last steps and the empty *Waiting for approval* tab; the root `README.md`
+    now points to Profile → Details.
+  - **This week** is Sunday to Saturday in the coach's time zone and counts each skater's lesson, whatever happened at it
+    (the design's `flatMap(skatersIn)`): a shared lesson is two lessons, each at that skater's share, and the amount is
+    what they come to. A cancelled lesson isn't counted; a held time has no skater, so isn't either.
+  - **Unpaid** counts every lesson that has **started** and is still unpaid, however old, no-shows included, at each
+    skater's share: the Payments page's rule, so the two pages agree (the design's demo uses lessons that have ended). It
+    isn't limited to this year: it reads back to the oldest unpaid lesson on GSI3.
+  - **Waiting for approval** counts skaters and names their families (*"Sarah Park, Olivia Grant"*), or *Nobody waiting*.
+    It counts the Students list the app already loads for the nav, so `/api/coach/today` doesn't read it again.
+  - **The time column is the design's `6:00`, with no AM or PM** (the design's `fmtShortT`).
+  - **A day with no lessons** says *"Your next lesson is on Wednesday, Nov 18."* (the design's *"…on Friday."*, with the date
+    added, as the next lesson can be weeks away), or *"Nothing is booked after today yet."*. Only a coach with no lessons
+    today pays for that read.
+  - **The greeting and date are the coach's own** (time zone from the profile), not the browser's.
+  - **A failed load** shows *"Couldn't load today's lessons"* on the page and leaves the banner, the rink card, the sign-ups
+    card and *Go to* working; an expired sign-in goes back to sign in, as on every page.
+  - **A booked time with no skater left** (it shouldn't happen) is left out rather than shown empty. A seat still `INVITED`
+    isn't in the lesson yet: it isn't listed or counted.
+  - **"Time off or special schedule"** opens the schedule hub, where both start; **"Month"** opens this month.
+  - **The empty state's spacing:** the design's `.pempty` sits inside the card with room above only; the website adds
+    room below (`web/src/coach/coach.css`).
+- **Checked in the running app (APIs on :8100 and :8101, Vite on :5190; table `bladebook-b22check`, deleted afterwards):**
+  a coach saves Monday, Wednesday and Friday afternoons (30 minutes, $50, two skaters a lesson) → two families sign up and
+  are approved, a third is left waiting → the Parks book Ava at 1:00 PM today and invite Leo Martin, who accepts; Jack at
+  1:30, Ava at 4:00, Leo at 5:00, Jack at 6:00 (then cancelled by the coach and held), Ava on Wednesday and Leo next
+  Monday → at 12:30 Today read *6 lessons, $250 booked* (next Monday's left out), *$0, 0 past lessons*, *1 skater, Wen
+  Chen*, and 1:00 (*Ava Park & Leo Martin*, *$25 + $25 · shared lesson*, *Next*), 1:30, 4:00, 5:00 and *Held slot* at
+  6:00 → after 1:00, Ava checked in and Leo a no-show on the rinkside page: the 1:00 row greyed with *Ava Attended · Leo
+  No-show*, *Next* moved to 1:30, and *Unpaid $50, 2 past lessons*, the same as the Payments page's totals for the same
+  lessons → Ava marked paid on Payments: *$25, 1 past lesson*. A second coach with one lesson on Wednesday: *No lessons
+  today · Your next lesson is on Wednesday, Nov 18.* Headless Chrome at 1280px and inside a 390px frame: both coaches'
+  Today; no sideways scroll. **Not checked:** a lesson from before this week still unpaid (it can't be booked in the
+  past locally; `TodayServiceTest` covers it against DynamoDB Local), and a coach with more than one currency.

@@ -50,7 +50,7 @@ Open **http://localhost:5173/coach/**. The first page is the local sign-in stand
 names and email. The same email always signs in as the same coach.
 
 Open **http://localhost:5173/family/** for the family website, and choose *Sign up with a coach code*.
-A coach's code is on their Today page; it works once their business email is confirmed (*Use my login
+A coach's code is on their Profile → Details tab; it works once their business email is confirmed (*Use my login
 email* makes it work at once). Nothing is emailed locally: the confirmation email, with its link, is in
 `api-coach`'s outbox at http://localhost:8080/api/coach/local/outbox (SC-21; send the coach's token). Open the
 link in the browser to reach the confirm page.
@@ -101,7 +101,6 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-3 | Profile → Visibility & texts: the *Text me when a family cancels late* switch is shown off and can't be turned on. The two contact switches are built (Batch 16). | ADR-007 d8 |
 | G-4 | Profile → Account: change password, log out through Cognito. | Batch 18 (real sign-in), on Batch 17's user pool |
 | G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | Batch 18 (real sign-in), on Batch 17's user pool |
-| G-6 | **Today's lessons and stats.** Today shows the coach code, new families and the rink card; its lessons list and the week, unpaid and waiting figures aren't built. Lessons (Batch 7) and Payments (Batch 8) are. | Batch 22 (owner, 2026-11-13: after Batch 14) |
 | G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Phase 3 (owner, 2026-11-12): changing the time zone; decided then |
 | G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | Batch 20 (owner, 2026-11-12) |
 | G-14 | Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done. | Batch 18 (real sign-in), on Batch 17's user pool |

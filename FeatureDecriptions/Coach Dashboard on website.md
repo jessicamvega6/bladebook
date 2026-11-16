@@ -13,6 +13,18 @@ are fixed on Lessons. Links to the day and week views.
   *(from ADR-023's amendment of 2026-10-13, moved 2026-11-08)*
 Figures under the rink card: this week's lessons and amount booked, unpaid total for past lessons, skaters waiting for approval.
 When families are waiting, a "New families to approve" card lists them with a "Review sign-ups" button.
+*Built 2026-11-16 (Batch 22, G-6), as the design draws it; the owner may change any of these readings:*
+  - **This week** is Sunday to Saturday in the coach's time zone, and counts each skater's lesson in it, whatever
+    happened at it (a shared lesson is two, each at that skater's share), with the amount those lessons come to.
+  - **Unpaid** is every lesson that has started and is still unpaid, however long ago, no-shows included (ADR-015 d4),
+    each at the skater's share: the same rule and amounts as the Payments page. It reads back to the oldest unpaid
+    lesson through the unpaid index (global secondary index 3, GSI3; access pattern 11), so it isn't limited to this year.
+  - **Waiting for approval** counts skaters and names their families, or says *Nobody waiting*.
+  - **Today's lessons** lists the booked and held times; a booked one shows each skater's full name, the length and
+    each share (*"$25 + $25 · shared lesson"*), and each skater's attendance (*Booked*, *Attended*, *No-show*, or *Not
+    recorded* once it has ended). The first booked lesson that hasn't started is *Next*; earlier ones are greyed. A day
+    with none says *"Your next lesson is on Monday, Nov 23."*, or *"Nothing is booked after today yet."*
+  - The coach code isn't on Today, as drawn; it's on Profile → Details.
 
 Has a button that routes to: ~~Create Default Schedule, Temparary Schedule~~ *Edit weekly schedule, Time off or special schedule*, Month view of lessons, week view of lessons, Student List, *Payments*, coach profile, ~~Pending Student List~~ *(pending students are reached from "Review sign-ups" and the Students page)*, Email template list (phase 2)
 *Design:* the main navigation is Today · Calendar · Schedule · Students · Lessons · Payments · Profile. Students shows a count when families are waiting.
