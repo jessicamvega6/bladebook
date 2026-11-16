@@ -121,7 +121,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
-| `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
+| `sched-lesson-roller` | Scheduler, nightly; and January 1–7 (2026-11-16) | Keeps lesson times stored ~15 months ahead. Its second rule, `sched-year-close`, saves last year's figures for every coach (§12, §14). |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
 | `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
@@ -200,6 +200,8 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Change batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource`, `cancelledBy`, acting identity, `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount`, `planStatus`, `executionStatus` |
 | Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
 | Re-price line | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<seatKey>` | seat, skater, family, date and time, old and new price and fee, `direction`, `executionStatus`, `notificationStatus` |
+| Closed year's figures | `COACH#<coachId>` | `CLOSEDYEAR#<year>` | `year`, `months` (each `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`, `earlierGross`, `undoneLessons`, `undoneGross`; amounts per currency), `savedAt`, `savedBy` (`JOB` \| `READ` \| `UNDO`). Written once (§12; 2026-11-16) |
+| Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
 | Family profile | `CLIENT#<sub>` | `PROFILE` | `clientName`, `clientEmail`, `clientPhone`, `smsOptIn` (Phase 2) |
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
 | Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name |
@@ -1097,13 +1099,25 @@ happens (§18).
   from a closed year marked paid later counts in the year and month it was marked paid, flagged as
   for an earlier year:** the page labels it and the download gives it its own column (owner,
   2026-11-13; ADR-030 amended). The page reads this year's lessons and last year's.
+- **A closed year's figures are saved once** (2026-11-16; ADR-030 d4 amended; Batch 26): its twelve
+  months (paid lessons, gross, the part for earlier years' lessons and the part undone, per
+  currency) on `CLOSEDYEAR#<year>`, written only if not there. `sched-year-close` saves them for
+  every coach on January 1–7 once the coach's year has closed; a read of the closed year, or an undo
+  of one of its payments, saves them first if the job hasn't. From then on the page and the
+  download read the saved figures, so neither *Undo* nor old records being deleted (§20) changes a
+  closed year.
+- **A correction to a closed year counts in the year it's made** (2026-11-16): a payment undone after
+  the year it counted in has closed writes a `PAYCORRECTION#` item with the seat, in one
+  transaction. Its amount comes off the month it's undone, flagged as for an earlier year; the count
+  of paid lessons isn't lowered, and the download's earlier-years column is net of it.
 - **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
   developer sets. The coach can't edit terms, override a month or type in what they paid. How the
   fee is calculated is undecided (§25).
 - **Download:** a CSV of monthly gross and paid-lesson counts for this year or last, with a column for the part paid for
   earlier years' lessons (2026-11-13). **No names or personal data.**
-  Reads live data only, filtered on `expiresAt`.
-- Year figures are a range query on the coach's `SEAT#<date>` items.
+  Reads live data only, filtered on `expiresAt`; a closed year's comes from its saved figures (2026-11-16).
+- This year's figures are a range query on the coach's `SEAT#<date>` items (this year's and last
+  year's) and `PAYCORRECTION#` items (made this year); a closed year's are one `GetItem`.
 
 ---
 
@@ -1178,6 +1192,7 @@ notified.
 | `sched-drift-check` | Nightly | §19. Read-only. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
+| `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule (Batch 26, settled while building; the owner may make it its own function).* |
 
 - **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no
   recorded outcome shows as *Not recorded* on Payments and the lesson list, and as "attendance
@@ -1513,6 +1528,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Re-price line | Written | Cancellation window |
 | Cancellation line (chargeable, Phase 2) | Settled | Settlement + cancellation window |
 | Change batch header | With its lines | **Never earlier than its latest line** (only ever raised) |
+| Closed year's figures (`CLOSEDYEAR#`) | Never | Account lifecycle (2026-11-16; Phase 2's past years read them) |
+| Payment correction (`PAYCORRECTION#`) | Written | At least 16 months, like every payment record; set with the others in Batch 17. Once its year is saved, nothing reads it |
 | Recurrence header | Written, and when its end date moves | `endDate` + booking window |
 | Rejected `PENDING` skater | — | **Deleted immediately** |
 | Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle; erasure on request from Phase 2 |
