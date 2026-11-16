@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { getToken, signOut } from '../shared/auth/localAuth';
 import { Banner } from '../shared/components/harbor';
-import { coachApi, financesApi, lessonsApi, paymentsApi, scheduleApi, studentApi, type Profile, type StudentsDto } from './api';
+import { coachApi, financesApi, lessonsApi, paymentsApi, scheduleApi, studentApi, todayApi, type Profile, type StudentsDto } from './api';
 import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { LocalSignIn } from './pages/LocalSignIn';
@@ -97,6 +97,7 @@ export function App() {
   const lessons = useMemo(() => (token ? lessonsApi(token) : null), [token]);
   const payments = useMemo(() => (token ? paymentsApi(token) : null), [token]);
   const finances = useMemo(() => (token ? financesApi(token) : null), [token]);
+  const todays = useMemo(() => (token ? todayApi(token) : null), [token]);
   const studentsApi = useMemo(() => (token ? studentApi(token) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
@@ -146,7 +147,7 @@ export function App() {
   const setProfile = (profile: Profile) => setLoad({ state: 'ready', profile });
 
   let page;
-  if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances) {
+  if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances || !todays) {
     // A business-email link opened while signed out comes back to its confirm page after sign-in (ADR-016, 2026-11-12).
     page = <LocalSignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); if (!route.startsWith(CONFIRM)) go('#/today'); }} />;
   } else if (load.state === 'loading') {
@@ -248,7 +249,7 @@ export function App() {
     } else if (route === '#/profile/payments') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} onUseLogin={useLogin} onResend={resend} note={note} busy={busy} pending={students?.pending} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} api={todays} onUseLogin={useLogin} onResend={resend} onError={handleError} note={note} busy={busy} pending={students?.pending} /></CoachShell>;
     }
   }
 

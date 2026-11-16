@@ -327,3 +327,32 @@ export function financesApi(token: string) {
 }
 
 export type FinancesApi = ReturnType<typeof financesApi>;
+
+// ------------------------------------------------------------- Batch 22
+
+/** One skater in one of today's lessons, at their share of the price. */
+export interface TodaySkaterDto {
+  studentId: string; name: string; amountMinor: number; currency: string;
+  attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
+}
+
+/** A booked lesson time (skaters in the order they joined) or a held one (no skaters). {@code next}: the next to start. */
+export interface TodayLessonDto { startTime: string; durationMinutes: number; held: boolean; next: boolean; skaters: TodaySkaterDto[] }
+
+/** A count of skaters' lessons and their amounts per currency, never added across. */
+export interface FiguresDto { count: number; amounts: Record<string, number> }
+
+/**
+ * The Today page (G-6): dates and times are the coach's own. {@code nextLessonDate}: only when today has no lessons.
+ * {@code week}: every lesson booked Sunday to Saturday; {@code unpaid}: every lesson that has started and is still unpaid.
+ */
+export interface TodayDto {
+  coachTimezone: string; currency: string; today: string; now: string; weekStart: string; weekEnd: string;
+  lessons: TodayLessonDto[]; nextLessonDate: string | null; week: FiguresDto; unpaid: FiguresDto;
+}
+
+export function todayApi(token: string) {
+  return { today: () => apiFetch<TodayDto>('/api/coach/today', { token }) };
+}
+
+export type TodayApi = ReturnType<typeof todayApi>;
