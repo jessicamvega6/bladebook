@@ -50,6 +50,11 @@ Business email (from ADR-016, moved 2026-11-08):
     *(from ADR-016, amendment 2026-10-13)*
   *Decided by the owner 2026-11-12:* the link works once and lasts 3 days. Resend sends a new link and the old one stops
     working. The coach signs in to confirm. (ADR-016, amendment 2026-11-12)
+  *Built 2026-11-16 (Batch 14; settled while building, owner may override):* the link opens a page that names the
+    address and asks the coach to choose Confirm; a link opened while signed out comes back to that page after sign-in.
+    A used, replaced or expired link says "This link doesn't work any more" with a way to send a new one. Step 4's
+    "Change address" opens a box on the same page for the corrected address, which replaces the waiting one (the design
+    goes back to step 3, whose answers are saved by then). Resend waits a minute after the last link.
   *Decided by the owner 2026-11-06, settling a conflict with the Harbor design (design/harbor/coach/app.js, sign-up
     step 4):* at sign-up, families can't reach the coach until a different business email is confirmed. Until the link
     is clicked, the login email is not used as the address families reply to. Step 4's banner stands as drawn:
