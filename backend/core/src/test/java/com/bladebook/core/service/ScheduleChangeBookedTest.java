@@ -157,6 +157,8 @@ class ScheduleChangeBookedTest {
         assertThat(b.executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
         assertThat(b.lessonCount()).isEqualTo(3);
         assertThat(b.clientCount()).isEqualTo(2);
+        assertThat(b.affectedFrom()).isEqualTo(MONDAY);
+        assertThat(b.affectedTo()).isEqualTo(NEXT_MONDAY);   // the furthest re-priced lesson
         assertThat(cancels.lines(dana)).extracting(CancellationLine::studentId, CancellationLine::executionStatus)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(mia, ChangeBatch.Execution.EXECUTED));
         assertThat(batches.reprices(dana)).extracting(RepriceLine::oldPriceMinor, RepriceLine::newPriceMinor, RepriceLine::executionStatus)
@@ -295,5 +297,20 @@ class ScheduleChangeBookedTest {
         change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
         assertThat(repo.lessonTimes(dana, MONDAY.plusDays(14), MONDAY.plusDays(14))).hasSize(4);
         assertThatThrownBy(() -> temps.delete(dana, saved.tempId())).hasMessage("That time off or special schedule couldn’t be found.");
+    }
+
+    @Test
+    void aBatchThatHasntFinishedAfterAnHourIsReportedStuck() {
+        Instant started = now.get();
+        batches.begin(dana, new ChangeBatch(UUID.randomUUID().toString(), started, ChangeBatch.Source.DEFAULT,
+                ChangeBatch.By.SCHEDULE_CHANGE, dana.coachId(), MONDAY, MONDAY, 1, 1, ChangeBatch.Execution.PLANNED));
+
+        now.set(started.plus(java.time.Duration.ofMinutes(59)));
+        assertThat(change.status(dana)).hasValueSatisfying(s -> assertThat(s.stuck()).isFalse());
+        now.set(started.plus(java.time.Duration.ofMinutes(61)));
+        assertThat(change.status(dana)).hasValueSatisfying(s -> {
+            assertThat(s.stuck()).isTrue();
+            assertThat(s.batch().executionStatus()).isEqualTo(ChangeBatch.Execution.PLANNED);
+        });
     }
 }

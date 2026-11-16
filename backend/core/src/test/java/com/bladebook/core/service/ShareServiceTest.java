@@ -19,6 +19,7 @@ import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Recurrence;
 import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.Sharing;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import com.bladebook.core.service.BookingService.MyLesson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -66,6 +68,8 @@ class ShareServiceTest {
     private RecurrenceService series;
     private ShareService shares;
     private DeadlineSweepService sweep;
+    /** Each seats-changed notice the share service and the sweep send, as {@code <date> <start>}. */
+    private final List<String> seen = new CopyOnWriteArrayList<>();
     private AccessContext dana;
     private ClientContext park;
     private ClientContext chen;
@@ -94,8 +98,12 @@ class ShareServiceTest {
         booking = new BookingService(links, bookingRepo, t.families, shareRepo, clock, invite);
         cancels = new CancellationService(links, bookingRepo, cancelRepo, clock, invite);
         series = new RecurrenceService(links, bookingRepo, cancelRepo, clock, invite);
-        shares = new ShareService(links, bookingRepo, t.families, shareRepo, cancelRepo, clock, invite);
-        sweep = new DeadlineSweepService(shareRepo, invite);
+        SeatEvents recorded = (coachId, date, start) -> {
+            seen.add(date + " " + start);
+            invite.seatsChanged(coachId, date, start);
+        };
+        shares = new ShareService(links, bookingRepo, t.families, shareRepo, cancelRepo, clock, recorded);
+        sweep = new DeadlineSweepService(shareRepo, recorded);
 
         dana = t.coach("Dana", DANA);
         // Mondays 6:00–8:00, 30 minutes, $50, up to 2 skaters; Tuesdays the same but private.
@@ -492,5 +500,175 @@ class ShareServiceTest {
         List<Seat> seats = scheduleRepo.seats(dana, MON, MON);
         assertThat(seats).extracting(Seat::studentName).containsExactlyInAnyOrder("Ava P.", "Mia C.");
         assertThat(lesson(MON).shareFor(5000, mia, List.of())).isEqualTo(2500);
+    }
+
+    // ------------------------------------------------------- answers, in more detail
+
+    private static final LocalDate TUE = MON.plusDays(1);
+
+    private void bookPrivate(ClientContext family, String studentId, LocalDate date, String time) {
+        booking.book(family, BookingRequest.parse(dana.coachId(), studentId, UUID.randomUUID().toString(),
+                List.of(new BookingRequest.PickInput(date.toString(), time))), null);
+    }
+
+    @Test
+    void decliningAnswersOnlyTheInvitationAndNamesWhoItWasFor() {
+        bookAva(miaCode, MON);
+        bookPrivate(chen, mia, TUE, "06:00");            // Mia's own lesson, not part of the invitation
+        ShareService.Invitation i = shares.invitations(chen).get(0);
+        assertThat(i.coachLastName()).isNotEmpty();
+        assertThat(i.currency()).isEqualTo("USD");
+        assertThat(i.clashes()).isEmpty();               // the invited date doesn't clash with itself or with Tuesday
+        seen.clear();
+
+        ShareService.Answered a = shares.decline(chen, i.inviteId());
+
+        assertThat(a.studentName()).isEqualTo("Mia Chen");
+        assertThat(a.coachFirstName()).isEqualTo("Dana");
+        assertThat(a.done()).containsExactly(MON);
+        assertThat(a.skipped()).isEmpty();
+        assertThat(seen).containsExactly(MON + " 06:00");
+    }
+
+    @Test
+    void decliningOnceTheLessonHasStartedSkipsItRatherThanRefusing() {
+        bookAva(miaCode, MON);
+        String id = shares.invitations(chen).get(0).inviteId();
+        now.set(SIX_AT);
+        seen.clear();
+
+        ShareService.Answered a = shares.decline(chen, id);
+
+        assertThat(a.done()).isEmpty();
+        assertThat(a.skipped()).containsExactly(MON);
+        assertThat(seen).isEmpty();
+    }
+
+    @Test
+    void withdrawingEndsOnlyTheInvitationAndSaysWhatItDid() {
+        bookAva(miaCode, MON);
+        bookAva(null, TUE);                               // Ava's private Tuesday lesson has no invitation
+        seen.clear();
+
+        ShareService.Answered a = shares.withdraw(park, parkLesson(MON, ava).share().inviteId());
+
+        assertThat(a.studentName()).isEqualTo("Ava Park");
+        assertThat(a.coachFirstName()).isEqualTo("Dana");
+        assertThat(a.done()).containsExactly(MON);
+        assertThat(a.skipped()).isEmpty();
+        assertThat(seen).containsExactly(MON + " 06:00");
+    }
+
+    @Test
+    void keepingAnswersForTheSkaterAtThatTimeNotAnotherLessonThatDay() {
+        miaAccepted(MON);
+        bookPrivate(park, jack, MON, "06:30");           // the same family, the same day, a later time
+        now.set(Instant.parse("2026-11-12T15:00:00Z"));
+        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
+        seen.clear();
+
+        ShareService.Answered a = shares.keep(park, dana.coachId(), ava, SIX, List.of(MON));
+
+        assertThat(a.done()).containsExactly(MON);
+        assertThat(seen).containsExactly(MON + " 06:00");
+        seen.clear();
+        assertThat(shares.keep(park, dana.coachId(), ava, SIX, List.of(MON)).skipped()).containsExactly(MON);
+        assertThat(seen).isEmpty();
+    }
+
+    @Test
+    void fillingAFreedPlaceTellsTheLessonAndALessonTheyDontHaveIsNotFound() {
+        miaAccepted(MON);
+        now.set(Instant.parse("2026-11-12T15:00:00Z"));
+        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
+        shares.keep(park, dana.coachId(), ava, SIX, List.of(MON));
+        seen.clear();
+
+        shares.fillFreedPlace(park, dana.coachId(), ava, MON, SIX, jackCode);
+
+        assertThat(seen).containsExactly(MON + " 06:00");
+        assertThatThrownBy(() -> shares.fillFreedPlace(park, dana.coachId(), ava, MON, LocalTime.of(7, 0), jackCode))
+                .hasMessage("That lesson couldn’t be found. Reload the page.");
+    }
+
+    // ------------------------------------------------------- the sweep, in more detail
+
+    /** A deadline left on a record that no longer needs it: the app always clears its own, so this is the sweep's safety net. */
+    private void staleDeadline(String itemKey, String kind) {
+        Instant at = SIX_AT.minus(Duration.ofDays(1));
+        t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table)
+                .key(Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS(itemKey)))
+                .conditionExpression("attribute_exists(PK)")
+                .updateExpression("SET GSI4PK = :due, GSI4SK = :sk, dueKind = :kind, dueAt = :at")
+                .expressionAttributeValues(Map.of(":due", AttributeValue.fromS("DUE"),
+                        ":sk", AttributeValue.fromS(Sharing.dueKey(at, dana.coachId(), itemKey)),
+                        ":kind", AttributeValue.fromS(kind), ":at", AttributeValue.fromS(at.toString()))));
+    }
+
+    @Test
+    void theSweepClearsAnExpiryLeftOnASeatThatIsNoLongerInvitedOnce() {
+        bookAva(null, MON);
+        staleDeadline(Seat.key(MON, SIX, ava), "EXPIRE");
+
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(parkLesson(MON, ava).lesson().studentId()).isEqualTo(ava);     // the seat itself is untouched
+    }
+
+    @Test
+    void theSweepClearsAnAnswerByLeftOnALessonWithNoLeavePendingOnce() {
+        bookAva(null, MON);
+        staleDeadline(LessonTime.key(MON, SIX), "ANSWER");
+
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+    }
+
+    @Test
+    void theSweepClearsADeadlineOfAKindItDoesntKnowOnce() {
+        bookAva(null, MON);
+        staleDeadline(LessonTime.key(MON, SIX), "SOMETHING_ELSE");
+
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+    }
+
+    @Test
+    void anExpiredInvitationTellsTheLesson() {
+        bookAva(miaCode, MON);
+        seen.clear();
+        sweep.sweep(SIX_AT);
+        assertThat(seen).containsExactly(MON + " 06:00");
+    }
+
+    @Test
+    void noAnswerWhenTheStayingSeatIsAlreadyGoneStillEndsTheLeaveOnce() {
+        miaAccepted(MON);
+        now.set(Instant.parse("2026-11-12T15:00:00Z"));
+        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
+        t.f.clients.forSetup().deleteItem(b -> b.tableName(t.f.table).key(Map.of(
+                "PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS(Seat.key(MON, SIX, ava)))));
+        Instant by = SIX_AT.minus(Duration.ofHours(24));
+
+        assertThat(sweep.sweep(by).cancelledNoAnswer()).isEqualTo(1);
+        assertThat(sweep.sweep(by.plusSeconds(60))).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+    }
+
+    // ------------------------------------------------------- Payments, for a shared lesson
+
+    @Test
+    void paymentsListsBothSkatersOfASharedLessonEachAtTheirShareNamingTheOther() {
+        miaAccepted(MON);
+        now.set(SIX_AT.plus(Duration.ofHours(1)));
+        PaymentService payments = new PaymentService(new com.bladebook.core.data.PaymentRepository(t.f.clients, t.f.table),
+                scheduleRepo, t.studentRepo, t.coaches, clock);
+
+        PaymentService.View v = payments.list(dana, MON, MON);
+
+        assertThat(v.rows()).extracting(PaymentService.Row::fullName).containsExactly("Ava Park", "Mia Chen");
+        assertThat(v.rows()).extracting(PaymentService.Row::amountMinor).containsExactly(2500, 2500);
+        assertThat(v.rows().get(0).sharedWith()).containsExactly("Mia C.");
+        assertThat(v.rows().get(1).sharedWith()).containsExactly("Ava P.");
+        assertThat(v.totals().unpaid()).containsExactly(Map.entry("USD", 5000L));
     }
 }
