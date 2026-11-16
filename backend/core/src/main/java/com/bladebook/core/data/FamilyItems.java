@@ -141,7 +141,7 @@ final class FamilyItems {
 
     static Skater skater(Map<String, AttributeValue> m) {
         return new Skater(str(m, "studentId"), str(m, "studentName"), bool(m, "isMinor"),
-                SkatingOrg.parse(str(m, "skatingOrg")), str(m, "registrationNumber"));
+                SkatingOrg.parse(str(m, "skatingOrg")), str(m, "registrationNumber"), str(m, "shareCode"));
     }
 
     static SkaterLink link(Map<String, AttributeValue> m) {

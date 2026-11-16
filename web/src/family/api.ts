@@ -17,6 +17,8 @@ export interface Family {
     studentId: string; name: string; isMinor: boolean; skatingOrg: SkatingOrg; registrationNumber: string;
     /** {@code coachId} only once that coach has approved one of the family's skaters. */
     coaches: Array<{ coachId: string | null; firstName: string; lastName: string; status: Status }>;
+    /** For inviting this skater to share a lesson (G-17); null until it's issued, a moment after the skater is created. */
+    shareCode?: string | null;
   }>;
   coaches: Array<{
     coachId: string | null; firstName: string; lastName: string; status: Status; skaterNames: string[]; waitingNames: string[];
@@ -34,11 +36,37 @@ export interface RegistrationBody {
   skaters: Array<{ name: string; skatingOrg: SkatingOrg; registrationNumber: string; coachCodes: string[] }>;
 }
 
-/** One lesson time. Dates and times are the coach's own; {@code free}: nobody holds it (who does is never shown). */
+/**
+ * One lesson time. Dates and times are the coach's own; {@code free}: nobody holds it (who does is never shown).
+ * {@code shareable}: its block takes 2 or more skaters, so the confirm pop-up offers the share box (never how many).
+ */
 export interface TimeDto {
   date: string; startTime: string; endTime: string; durationMinutes: number; priceMinor: number; currency: string;
-  blockSeq: number; blockName: string | null; free: boolean; started: boolean;
+  blockSeq: number; blockName: string | null; free: boolean; started: boolean; shareable?: boolean;
 }
+
+/**
+ * Who a lesson is shared with, from the family's own seat (Batch 11). {@code partnerStatus}: INVITED, BOOKED, CHECKED_IN,
+ * NO_SHOW, LEFT (left in time; this family answers by {@code answerBy}), or how an invitation ended: DECLINED, WITHDRAWN,
+ * EXPIRED. {@code inviteId}: the family's own invitation, to withdraw. {@code joined}: the skater joined another family's
+ * lesson. {@code freedPlace}: kept at the full price, so it can take a one-lesson invitation.
+ */
+export interface LessonShare {
+  partnerName: string | null; partnerStatus: string | null; inviteId: string | null; answerBy: string | null;
+  fullPriceMinor: number | null; shareable: boolean; freedPlace: boolean; joined: boolean;
+}
+
+/** An invitation to one of the family's skaters (design: invite). {@code status} OPEN, or EXPIRED once every date started. */
+export interface Invitation {
+  inviteId: string; coachId: string; coachFirstName: string; coachLastName: string; studentId: string; studentName: string;
+  hostName: string | null; invitedByName: string | null; series: boolean;
+  dates: Array<{ date: string; startTime: string; durationMinutes: number; startsAtUtc: string; open: boolean }>;
+  priceMinor: number | null; shareMinor: number | null; skaters: number; currency: string | null; status: 'OPEN' | 'EXPIRED';
+  clashes: Array<{ date: string; startTime: string; otherCoachFirstName: string; otherStartTime: string; otherDurationMinutes: number }>;
+}
+
+/** An answer on several dates: those carried out, and those that had gone or been answered. */
+export interface Answered { studentName: string | null; coachFirstName: string | null; hostName: string | null; done: string[]; skipped: string[] }
 
 /** One of the family's own lessons, with any of its skaters. */
 export interface FamilyLesson {
@@ -53,14 +81,17 @@ export interface MyLesson extends FamilyLesson {
   attendance?: 'CHECKED_IN' | 'NO_SHOW' | null;
   /** Its series and how often that repeats now, or null and 0 (Batch 9). */
   recurrenceId?: string | null; intervalWeeks?: number;
+  /** Who it's shared with (Batch 11). */
+  share?: LessonShare | null;
 }
 
 /** My bookings: every lesson not started yet, soonest first, and the last four that have, newest first. */
 export interface MyBookings { upcoming: MyLesson[]; recent: MyLesson[]; series?: MySeries[] }
 
-/** {@code late}: inside the notice period, so the coach is told. */
+/** {@code late}: inside the notice period, so the coach is told. {@code leave}: what it did to a shared lesson. */
 export interface CancelResult {
   outcome: 'CANCELLED' | 'ALREADY_CANCELLED'; late: boolean; coachFirstName: string; studentName: string; date: string; startTime: string;
+  leave?: 'RELEASE' | 'WITHDRAW' | 'IN_TIME' | 'LATE';
 }
 
 /** One coach's booking page for one skater: every time in the booking window. */
@@ -78,6 +109,8 @@ export type Outcome = 'BOOKED' | 'ALREADY_BOOKED' | 'UNAVAILABLE';
 export interface BookBody {
   coachId: string; studentId: string; idempotencyKey: string; picks: Array<{ date: string; startTime: string }>;
   repeat?: boolean; everyWeeks?: number; until?: string;
+  /** Share every pick that can be shared with that skater (Batch 11). */
+  shareCode?: string;
 }
 
 export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
@@ -90,6 +123,8 @@ export interface BookResult {
   }>;
   /** One per repeating pick. */
   series?: Array<{ recurrenceId: string; weekday: Weekday; startTime: string; intervalWeeks: number; first: string; until: string }>;
+  /** What the share code did: an invitation to another family's skater, or a sibling added directly. */
+  shared?: { displayName: string; sibling: boolean; lessons: number } | null;
 }
 
 /** A series still running, on My bookings. */
@@ -129,6 +164,21 @@ export function familyApi(token: string) {
       apiFetch<CancelResult>('/api/client/bookings/cancel', {
         method: 'POST', body: { coachId: l.coachId, studentId: l.studentId, date: l.date, startTime: l.startTime }, token, idempotent: true,
       }),
+    /** ADR-033 d2a: a share code's display name, and whether the coach has accepted that skater. 404: no such code. */
+    shareCheck: (shareCode: string, coachId: string) =>
+      apiFetch<{ displayName: string; onCoachRoster: boolean }>('/api/client/share-check', { method: 'POST', body: { shareCode, coachId }, token }),
+    invitations: () => apiFetch<Invitation[]>('/api/client/invitations', { token }),
+    acceptInvite: (inviteId: string) => apiFetch<Answered>('/api/client/invitations/accept', { method: 'POST', body: { inviteId }, token }),
+    declineInvite: (inviteId: string) => apiFetch<Answered>('/api/client/invitations/decline', { method: 'POST', body: { inviteId }, token }),
+    withdrawInvite: (inviteId: string) => apiFetch<Answered>('/api/client/invitations/withdraw', { method: 'POST', body: { inviteId }, token }),
+    /** The staying family's answer for one or several dates of one skater's lesson at one time. */
+    keep: (b: { coachId: string; studentId: string; startTime: string; dates: string[] }) =>
+      apiFetch<Answered>('/api/client/bookings/keep', { method: 'POST', body: b, token }),
+    cancelWaiting: (b: { coachId: string; studentId: string; startTime: string; dates: string[] }) =>
+      apiFetch<Answered>('/api/client/bookings/cancel-waiting', { method: 'POST', body: b, token }),
+    /** A freed place takes a skater for that one lesson. */
+    inviteToFreed: (b: { coachId: string; studentId: string; date: string; startTime: string; shareCode: string }) =>
+      apiFetch<{ displayName: string; sibling: boolean }>('/api/client/bookings/invite', { method: 'POST', body: b, token }),
   };
 }
 

@@ -3,6 +3,7 @@ package com.bladebook.core.domain;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -13,9 +14,31 @@ import java.util.Objects;
 public record LessonTime(LocalDate lessonDate, LocalTime startTime, Instant startsAtUtc, String coachTz,
                          int durationMinutes, int priceMinor, String currency, int missedLessonFeeMinor,
                          int requiredNoticeHours, int maxSkaters, int seatsTaken, int blockSeq, IceType iceType,
-                         long scheduleVersion, Status lessonStatus) {
+                         long scheduleVersion, Status lessonStatus, int shareCount, List<String> joinOrder) {
 
     public enum Status { OPEN, BOOKED, HELD }
+
+    public LessonTime {
+        joinOrder = joinOrder == null ? List.of() : List.copyOf(joinOrder);
+    }
+
+    /** A lesson time nobody shares yet: {@code shareCount} 0, {@code joinOrder} empty. */
+    public LessonTime(LocalDate lessonDate, LocalTime startTime, Instant startsAtUtc, String coachTz, int durationMinutes, int priceMinor,
+                      String currency, int missedLessonFeeMinor, int requiredNoticeHours, int maxSkaters, int seatsTaken, int blockSeq,
+                      IceType iceType, long scheduleVersion, Status lessonStatus) {
+        this(lessonDate, startTime, startsAtUtc, coachTz, durationMinutes, priceMinor, currency, missedLessonFeeMinor, requiredNoticeHours,
+                maxSkaters, seatsTaken, blockSeq, iceType, scheduleVersion, lessonStatus, 0, List.of());
+    }
+
+    /**
+     * A skater's share of this price (ADR-031 decision 7), from the lesson time's own {@code shareCount} and {@code joinOrder},
+     * as the family's pages work it out. A lesson time from before Batch 11 has no {@code shareCount}; then the booked seats,
+     * in the order they joined, stand in for it.
+     */
+    public int shareFor(int price, String studentId, List<String> bookedInJoinOrder) {
+        return shareCount > 0 ? PriceShare.of(price, shareCount, joinOrder, studentId)
+                : PriceShare.of(price, bookedInJoinOrder.size(), bookedInJoinOrder, studentId);
+    }
 
     /** The sort key: {@code LESSON#2026-11-09#06:00}. */
     public String key() {
@@ -45,6 +68,6 @@ public record LessonTime(LocalDate lessonDate, LocalTime startTime, Instant star
     public LessonTime withPrice(int price) {
         return new LessonTime(lessonDate, startTime, startsAtUtc, coachTz, durationMinutes, price, currency,
                 missedLessonFeeMinor, requiredNoticeHours, maxSkaters, seatsTaken, blockSeq, iceType, scheduleVersion,
-                lessonStatus);
+                lessonStatus, shareCount, joinOrder);
     }
 }

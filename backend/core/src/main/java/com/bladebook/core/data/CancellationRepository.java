@@ -6,6 +6,7 @@ import com.bladebook.core.domain.ChangeBatch;
 import com.bladebook.core.domain.CoachCancelPlan;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Seat;
+import com.bladebook.core.domain.Sharing;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
@@ -44,7 +45,7 @@ public final class CancellationRepository {
     /** What the family's read of its own seat names (ADR-MASTER section 16). */
     private static final List<String> SEAT_FIELDS = List.of("PK", "lessonDate", "startTime", "studentId", "clientId",
             "studentName", "seatStatus", "startsAtUtc", "coachTz", "durationMinutes", "joinedAt", "idempotencyKey", "recurrenceId",
-            "bookedIntervalWeeks");
+            "bookedIntervalWeeks", "inviteId", "invitedStudentId", "partnerName", "partnerStatus", "choiceAnswerBy", "freedPlace");
 
     private final TenantClients clients;
     private final String table;
@@ -74,29 +75,78 @@ public final class CancellationRepository {
 
     /**
      * A family cancels one booked seat: the seat deleted (still theirs, still {@code BOOKED}, not started, the same
-     * one that was read), its line and the batch header put, and the lesson time back to {@code OPEN} as its last
-     * seat goes. Shared lessons, where a seat stays, come with Batch 11.
+     * one that was read), its line and the batch header put, and the lesson time changed as {@code leave} says
+     * (ADR-MASTER section 8, "Leaving" and "Ending an invitation"):
+     * <ul>
+     *   <li>{@code RELEASE}: its last seat goes, so it's {@code OPEN} again, any pending leave cleared;</li>
+     *   <li>{@code WITHDRAW}: the invitation this family sent, still unanswered, ends {@code WITHDRAWN} in the same
+     *       transaction, and the time is released;</li>
+     *   <li>{@code IN_TIME}: the time stays booked for the other skater, with {@code pending} recorded and its {@code ANSWER}
+     *       deadline on GSI4; the staying skater's share stands until they answer;</li>
+     *   <li>{@code LATE}: the time stays booked; {@code shareCount} and {@code joinOrder} don't change.</li>
+     * </ul>
+     *
+     * @param header the batch header, put in the same transaction; {@code null} when the batch's header is written by
+     *               {@link #startForFamily} and {@link #finishForFamily} (a series change)
      */
-    public boolean cancelByFamily(ClientContext ctx, LinkedSkater skater, ChangeBatch batch, Seat seat, CancellationLine line, Instant now) {
+    public boolean cancelOwn(ClientContext ctx, LinkedSkater skater, ChangeBatch header, Seat seat, CancellationLine line,
+                             Sharing.Leave leave, ShareRepository.PendingLeave pending, Instant now) {
         List<TransactWriteItem> items = new ArrayList<>();
         items.add(deleteSeat(seat, now, ":c", skater.clientId()));
-        items.add(lessonAfter(skater.coachId(), seat.lessonDate(), seat.startTime(), 1, AfterCancel.RELEASE, now));
-        items.add(put(CancellationItems.header(skater.coachId(), batch)));
+        switch (leave) {
+            case RELEASE -> items.add(lessonAfter(skater.coachId(), seat.lessonDate(), seat.startTime(), 1, AfterCancel.RELEASE, now));
+            case WITHDRAW -> {
+                if (seat.share().invitedStudentId() == null) {
+                    return false;
+                }
+                Seat invited = ShareRepository.invitedSeatOf(seat);
+                items.add(ShareRepository.deleteInvited(table, skater.coachId(), invited.key(), skater.clientId()));
+                items.add(put(ShareRepository.ended(invited, ShareRepository.Ended.WITHDRAWN, null, skater.clientId(), now)));
+                items.add(lessonAfter(skater.coachId(), seat.lessonDate(), seat.startTime(), 2, AfterCancel.RELEASE, now));
+            }
+            case IN_TIME -> items.add(leaveShared(skater.coachId(), seat, pending, now));
+            case LATE -> items.add(leaveShared(skater.coachId(), seat, null, now));
+            default -> throw new IllegalStateException(leave.name());
+        }
+        if (header != null) {
+            items.add(put(CancellationItems.header(skater.coachId(), header)));
+        }
         items.add(put(CancellationItems.line(skater.coachId(), line)));
         return write(clients.clientFor(ctx, skater.coach()), items);
     }
 
-    /**
-     * One seat of a family's batch (a series change, ADR-MASTER section 10): the seat deleted, its line put, the lesson time
-     * back to {@code OPEN}, in one transaction, with the batch's header written by {@link #startForFamily} and
-     * {@link #finishForFamily}.
-     */
+    /** As {@link #cancelOwn}, for a lesson nobody shares: the time released. */
+    public boolean cancelByFamily(ClientContext ctx, LinkedSkater skater, ChangeBatch batch, Seat seat, CancellationLine line, Instant now) {
+        return cancelOwn(ctx, skater, batch, seat, line, Sharing.Leave.RELEASE, null, now);
+    }
+
+    /** One seat of a family's batch (a series change, ADR-MASTER section 10), with the batch's header written separately. */
     public boolean cancelSeatByFamily(ClientContext ctx, LinkedSkater skater, Seat seat, CancellationLine line, Instant now) {
-        List<TransactWriteItem> items = new ArrayList<>();
-        items.add(deleteSeat(seat, now, ":c", skater.clientId()));
-        items.add(lessonAfter(skater.coachId(), seat.lessonDate(), seat.startTime(), 1, AfterCancel.RELEASE, now));
-        items.add(put(CancellationItems.line(skater.coachId(), line)));
-        return write(clients.clientFor(ctx, skater.coach()), items);
+        return cancelOwn(ctx, skater, null, seat, line, Sharing.Leave.RELEASE, null, now);
+    }
+
+    /** A joined lesson one skater leaves: one place freed, and for an in-time leave the staying family's question. */
+    private TransactWriteItem leaveShared(String coachId, Seat seat, ShareRepository.PendingLeave pending, Instant now) {
+        Map<String, AttributeValue> v = new HashMap<>();
+        v.put(":booked", FamilyItems.s(LessonTime.Status.BOOKED.name()));
+        v.put(":one", AttributeValue.fromN("1"));
+        v.put(":two", AttributeValue.fromN("2"));
+        v.put(":now", FamilyItems.s(seconds(now)));
+        String set = "SET seatsTaken = :one";
+        if (pending != null) {
+            String lessonKey = LessonTime.key(seat.lessonDate(), seat.startTime());
+            v.put(":p", AttributeValue.fromM(ShareRepository.pendingLeaveItem(pending)));
+            v.put(":due", FamilyItems.s(SeatItems.DUE));
+            v.put(":dueSk", FamilyItems.s(com.bladebook.core.domain.Sharing.dueKey(pending.answerBy(), coachId, lessonKey)));
+            v.put(":kind", FamilyItems.s(SeatItems.ANSWER));
+            v.put(":at", FamilyItems.s(pending.answerBy().truncatedTo(ChronoUnit.SECONDS).toString()));
+            set += ", pendingLeave = :p, GSI4PK = :due, GSI4SK = :dueSk, dueKind = :kind, dueAt = :at";
+        }
+        return TransactWriteItem.builder().update(Update.builder().tableName(table)
+                .key(FamilyItems.key("COACH#" + coachId, LessonTime.key(seat.lessonDate(), seat.startTime())))
+                .conditionExpression("lessonStatus = :booked AND seatsTaken = :two AND shareCount = :two AND startsAtUtc > :now"
+                        + " AND attribute_not_exists(pendingLeave)")
+                .updateExpression(set).expressionAttributeValues(v).build()).build();
     }
 
     /** A family's batch header, {@code PLANNED}, in the coach's partition. */
@@ -201,7 +251,8 @@ public final class CancellationRepository {
         return TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(FamilyItems.key("COACH#" + coachId, LessonTime.key(date, start)))
                 .conditionExpression("lessonStatus = :booked AND seatsTaken = :n AND startsAtUtc > :now")
-                .updateExpression("SET lessonStatus = :after, seatsTaken = :zero, shareCount = :zero, joinOrder = :none")
+                .updateExpression("SET lessonStatus = :after, seatsTaken = :zero, shareCount = :zero, joinOrder = :none"
+                        + " REMOVE pendingLeave, GSI4PK, GSI4SK, dueKind, dueAt")
                 .expressionAttributeValues(v).build()).build();
     }
 

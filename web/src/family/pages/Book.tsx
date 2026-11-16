@@ -29,6 +29,7 @@ import {
 } from '../../shared/logic/schedule';
 import { timezoneLabel } from '../../shared/logic/timezones';
 import type { BookBody, BookResult, BookingPage, Family, FamilyApi, TimeDto } from '../api';
+import { ShareBox, ShareResult, type ShareAnswer } from './Sharing';
 
 type Skater = Family['skaters'][number];
 type CoachLink = Skater['coaches'][number];
@@ -71,6 +72,9 @@ export function Book({ family, api, route, onError }: {
   const [repeat, setRepeat] = useState<Repeat>({ on: false, every: 1, until: '' });
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  // The share box (Batch 11): what's typed, and whether the booking may go ahead with it.
+  const [share, setShare] = useState('');
+  const [shareAnswer, setShareAnswer] = useState<ShareAnswer>({ ready: true, code: null });
   const r = parseBookRoute(route);
   const pageKey = `${coachId}|${kid?.studentId ?? ''}`;
   const page = pages[pageKey];
@@ -94,7 +98,7 @@ export function Book({ family, api, route, onError }: {
     setPicks((ps) => ps.some((p) => samePick(p, coachId, t.date, t.startTime))
       ? ps.filter((p) => !samePick(p, coachId, t.date, t.startTime))
       : sortPicks([...ps, { coachId, coachFirstName: page.coachFirstName, date: t.date, startTime: t.startTime, endTime: t.endTime,
-        durationMinutes: t.durationMinutes, priceMinor: t.priceMinor }]));
+        durationMinutes: t.durationMinutes, priceMinor: t.priceMinor, shareable: !!t.shareable }]));
   }, [page, coachId]);
 
   const remove = (p: Pick) => setPicks((ps) => ps.filter((x) => !samePick(x, p.coachId, p.date, p.startTime)));
@@ -111,17 +115,21 @@ export function Book({ family, api, route, onError }: {
   };
 
   const book = async () => {
-    if (!kid || !picks.length) return;
+    if (!kid || !picks.length || !shareAnswer.ready) return;
     setSending(true);
     try {
       const sections: Section[] = [];
+      // The code goes with the coach of the first pick that can be shared (design: bkShareCoach).
+      const shareCoach = picks.find((p) => p.shareable)?.coachId;
       for (const g of byCoach(picks)) {
         sections.push(await send({ coachId: g.coachId, studentId: kid.studentId, idempotencyKey: newKey(),
           picks: g.picks.map((p) => ({ date: p.date, startTime: p.startTime })),
-          ...(repeat.on ? { repeat: true, everyWeeks: repeat.every, until: repeat.until } : {}) }, g.coachFirstName));
+          ...(repeat.on ? { repeat: true, everyWeeks: repeat.every, until: repeat.until } : {}),
+          ...(shareAnswer.code && g.coachId === shareCoach ? { shareCode: shareAnswer.code } : {}) }, g.coachFirstName));
       }
       setResult({ studentId: kid.studentId, studentName: kid.name, sections });
       setPicks([]);
+      setShare('');
       setRepeat({ on: false, every: 1, until: '' });
       setConfirming(false);
       setPages({});
@@ -192,7 +200,14 @@ export function Book({ family, api, route, onError }: {
   return (
     <>
       {body}
-      {confirming && <ConfirmDialog kid={kid} picks={picks} repeat={repeat} onRepeat={setRepeat} sending={sending} windowLast={page.windowLast} onBack={() => setConfirming(false)} onBook={book} />}
+      {confirming && <ConfirmDialog kid={kid} picks={picks} repeat={repeat} onRepeat={setRepeat} sending={sending} windowLast={page.windowLast} onBack={() => setConfirming(false)} onBook={book}
+        shareBox={picks.some((p) => p.shareable) ? (() => {
+          const can = picks.filter((p) => p.shareable), first = can[0]!;
+          const only = can.length < picks.length ? ` Only ${can.map((p) => `${DAYS[dayOfWeek(p.date)]} ${formatTime(p.startTime)}`).join(' and ')} can be shared.` : '';
+          return <ShareBox api={api} coachId={first.coachId} coachFirstName={first.coachFirstName} priceMinor={first.priceMinor} currency={page.times[0]?.currency ?? null}
+            kid={kid} family={family} repeat={repeat.on} onlyNote={only} value={share} onChange={setShare} onAnswer={setShareAnswer} />;
+        })() : null}
+        shareReady={!picks.some((p) => p.shareable) || shareAnswer.ready} />}
     </>
   );
 }
@@ -489,8 +504,10 @@ function PicksPanel({ picks, onRemove, onContinue }: { picks: Pick[]; onRemove: 
 
 // ------------------------------------------------------------ 3 · Confirm
 
-function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBack, onBook }: {
+function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBack, onBook, shareBox = null, shareReady = true }: {
   kid: Skater; picks: Pick[]; repeat: Repeat; onRepeat: (r: Repeat) => void; sending: boolean; windowLast: string; onBack: () => void; onBook: () => void;
+  /** The share box, on picks that can be shared (Batch 11); Book stays off until {@code shareReady}. */
+  shareBox?: ReactNode; shareReady?: boolean;
 }) {
   const titleId = useId();
   const groups = byCoach(picks), multi = groups.length > 1, kf = firstName(kid.name);
@@ -532,6 +549,7 @@ function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBa
           Changes to {multi ? 'your coaches’ schedules' : `Coach ${groups[0]!.coachFirstName}’s schedule`} may affect some or all of these lessons.
         </Banner>
       )}
+      {shareBox}
       <div className="summary">
         <div>
           <div className="kv"><span className="kv__k">Lessons</span><span className="kv__v">{repeat.on && !err ? `${plural(occ.length, 'lesson')} until ${shortDate(repeat.until)}` : plural(occ.length || picks.length, 'lesson')}</span></div>
@@ -544,7 +562,7 @@ function ConfirmDialog({ kid, picks, repeat, onRepeat, sending, windowLast, onBa
       </div>
       <div className="dialog__actions">
         <Button variant="secondary" onClick={onBack} disabled={sending}>Back</Button>
-        <Button onClick={onBook} disabled={sending || !!err || !occ.length}>{sending ? 'Booking…' : `Book ${plural(occ.length || picks.length, 'lesson')}`}</Button>
+        <Button onClick={onBook} disabled={sending || !!err || !occ.length || !shareReady}>{sending ? 'Booking…' : `Book ${plural(occ.length || picks.length, 'lesson')}`}</Button>
       </div>
     </Dialog>
   );
@@ -641,6 +659,9 @@ function ResultPage({ result, sending, onRetry, onPickAnother }: {
         <span className="hero__icon"><Icon name={ok ? 'check' : 'alert'} size={26} /></span>
         <div><h1 className="h1">{title}</h1>{sub && <p className="lede">{sub}</p>}</div>
       </div>
+      {result.sections.filter((s) => s.result?.shared).map((s) => (
+        <ShareResult key={`share-${s.coachId}`} shared={s.result!.shared!} kidName={result.studentName} coachFirstName={s.coachFirstName} />
+      ))}
       {perCoach || failed.length ? result.sections.map(section) : <>{pickCards(items)}{skippedCard(skipped)}</>}
       {mine.length > 0 && (
         <Card flush title={`Already booked for ${kf}`} sub="From an earlier booking. They weren’t booked again.">
