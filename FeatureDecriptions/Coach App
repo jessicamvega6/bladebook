@@ -19,8 +19,10 @@ confirms, names the family who will be emailed, and asks Release for rebooking o
 A lesson that has started can't be cancelled, and cancelling needs signal.
 *Rinkside cancelling rules:*
   Added 2026-09-22. The rinkside app is used at the rink on a phone. It offers cancellation in two places:
-    1. A cancel section — the whole day, part of a day, the whole week, part of a week, or specific lessons
-       (see C_Rinkside Cancel Several Lessons.md; "part of a day/week" is a multi-select of lessons, see cancelation.md).
+    1. A cancel section — ~~the whole day, part of a day, the whole week, part of a week, or specific lessons
+       (see C_Rinkside Cancel Several Lessons.md; "part of a day/week" is a multi-select of lessons, see cancelation.md).~~
+       *Owner, 2026-11-16:* one lesson, a whole day, or the rest of the week, nothing in between; lessons on different
+       days are cancelled one by one (the Week tab, see C_Rinkside Cancel Several Lessons.md).
     2. The check-in list — each lesson has a cancel action under its "…" button, kept away from Present and No-show,
        so a single lesson can be cancelled from either place. *Ruled by the owner 2026-11-09.*
   It is the same cancellation as on the website: the same release-or-hold question, it skips lessons that already
