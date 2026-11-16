@@ -5,7 +5,9 @@ BladeBook's AWS infrastructure, written with the AWS Cloud Development Kit (CDK)
 every synth against the AWS Solutions rules and fails it on any finding that has no written
 reason (ADR-032).
 
-**Status (Batch 17a, 2026-11-16):** written and tested, **not deployed**. The rest of Batch 17,
+**Status (Batch 17a, 2026-11-16):** written and tested. In dev, `bladebook-dev-identity` is
+deployed. `bladebook-dev-app` waits for the account's CloudFront verification (below), and
+`bladebook-dev-deploy-access` waits for the deploy workflow. The rest of Batch 17,
 including the table, API and functions, is Batch 17b (`AI/implementation-plan.md`).
 
 ## Stacks
@@ -38,6 +40,9 @@ Deploying to dev (by hand: ADR-032 allows hand-run dev builds before the deploy 
 ```sh
 aws sso login --sso-session bladebook
 
+# Once per account, before the first deploy: ask AWS Support to verify the account for CloudFront
+# (see "New account: CloudFront verification" below).
+
 # Once per account: the roles CDK deploys through.
 npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
 
@@ -47,6 +52,25 @@ npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the 
 # Tear down (deletes dev's data: ADR-027 d4's rules apply first)
 npx cdk destroy bladebook-dev-app bladebook-dev-identity --profile bladebook-dev
 ```
+
+### New account: CloudFront verification
+
+A new AWS account can't create CloudFront distributions until AWS Support verifies it. Without that
+verification, `bladebook-<env>-app` fails with `Your account must be verified before you can add new
+CloudFront resources` (403) and rolls back. The identity stack has no CloudFront resources, so it
+deploys without verification.
+
+Dev's account (793581837527) was asked on 2026-11-16 (case 179485860000682). **Production's
+account needs the same step as soon as it is created, a day or more before its first deploy.**
+
+1. Open AWS Support Center in the new account and choose **Create case**.
+2. Choose **Account and billing**, then service **Account** and category **Other Account Issues**
+   (or **Activation**). Severity is **General question**.
+3. Ask for the account to be verified for CloudFront. Give the account ID, the region (`us-east-1`)
+   and the full error message with its request ID. Say what it's for: two static websites in
+   private S3 buckets, served through Origin Access Control with ACM certificates.
+4. Wait for AWS to confirm, then deploy. A stack that failed and rolled back is
+   `ROLLBACK_COMPLETE`, and the next `cdk deploy` replaces it.
 
 The first synth with a sign-in looks up the `dev.bladebook.org` hosted zone and saves the answer
 in `cdk.context.json`. Commit that file, so later synths (and CI) don't need the lookup.
@@ -84,4 +108,5 @@ Change any of these in `lib/` and its test together.
 - **CloudTrail data events.** Dev's trail writes to production's data-loading stack (ADR-027 d4),
   so it is built with production.
 - **The archive's expiry** (legal review; at least 210 days) and **the reports bucket's lifecycle**.
-- **Production's email domain** and its account ID.
+- **Production's email domain** and its account ID. Once the account exists, ask for its CloudFront
+  verification first (above).
