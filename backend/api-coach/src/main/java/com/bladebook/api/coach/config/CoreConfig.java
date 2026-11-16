@@ -12,6 +12,7 @@ import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
 import com.bladebook.core.service.FinancialService;
+import com.bladebook.core.service.Mailer;
 import com.bladebook.core.service.PaymentService;
 import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.CoachProfileService;
@@ -53,8 +54,11 @@ public class CoreConfig {
     }
 
     @Bean
-    CoachProfileService coachProfileService(CoachRepository repo) {
-        return new CoachProfileService(repo, CoachProfileService.randomCodes());
+    CoachProfileService coachProfileService(CoachRepository repo, Mailer mailer, Clock clock,
+                                            @Value("${bladebook.site-url:http://localhost:5173}") String site) {
+        // The business-email confirmation link is sent straight from api-coach (ADR-016, amended 2026-11-12).
+        return new CoachProfileService(repo, CoachProfileService.randomCodes(),
+                new CoachProfileService.ConfirmationMail(mailer, site, clock, CoachProfileService.randomTokens()));
     }
 
     @Bean
