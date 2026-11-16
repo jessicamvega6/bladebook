@@ -91,4 +91,17 @@ class CoachCancelRequestTest {
         assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", many, null)).hasMessage("That’s more lessons than one day holds.");
         assertThat(CoachCancelRequest.parse("DAY", many.subList(0, 100), null).picks()).hasSize(100);
     }
+
+    // ------------------------------------------- the rinkside Week tab (Batch 23; owner 2026-11-16)
+
+    @Test
+    void thereAreOnlyThreeKindsOfCancelLessonDayOrWeek() {
+        // Lessons on different days are cancelled one by one; there is no fourth "selection" kind (owner, 2026-11-16).
+        assertThatThrownBy(() -> CoachCancelRequest.parse("SELECTION", List.of(pick("2026-11-16", "06:00", "HOLD"),
+                pick("2026-11-18", "06:00", "HOLD")), null)).hasMessage("Choose a lesson, a day or the rest of the week.");
+        assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "06:00", "HOLD"),
+                pick("2026-11-18", "06:00", "HOLD")), null)).hasMessage("Cancel day takes the lessons of one day.");
+        assertThatThrownBy(() -> CoachCancelRequest.parse("LESSON", List.of(pick("2026-11-16", "06:00", "HOLD"),
+                pick("2026-11-18", "06:00", "HOLD")), null)).hasMessage("Cancel one lesson at a time here.");
+    }
 }

@@ -265,7 +265,7 @@ comes after 23, before the infrastructure.
 | 13 | **Done** (branch `feature/batch-13-emails-and-jobs`, after Batch 11). Emails and scheduled jobs: booking confirmation (SC-11), cancellation and schedule-change notices (SC-13), the decline email (SC-9), the payment reminder after a check-in (`CheckInRecorded` / `NoShowRecorded`, G-33), the day-of reminder and the coach's morning email (G-34, on GSI2), the weekly unpaid reminder (7 days, every Monday until settled; ADR-018; on GSI3) and the nightly lesson roller (G-9). Adds GSI2 and GSI3 to the seats (rest of G-25). The end-of-day report is Phase 2 since 2026-11-11 | — (Question 4, R8, R10a, R10c and R10d ruled 2026-11-12; R10b 2026-11-11). Jobs are triggered by hand or a local timer, a listed shortcut |
 | 14 | **Done** (branch `feature/batch-14-business-email`, 2026-11-16; §7). Business-email confirmation: BladeBook's own email with a link to a page where the coach, signed in, clicks Confirm; Resend gives a new link; the `CODE#` item is written on confirmation (ADR-016, A2; `architecture.md` §6.13). Also Profile → Business email, the address list, *Resend link* and *Change address* (G-1, G-2). Replaces Batch 1's local stand-in (SC-2). Opened G-40 (the confirm page isn't drawn) and G-41 (when a confirmed address takes over), both ruled by the owner 2026-11-16 and closed | — (owner, 2026-11-12: a random token that works once and lasts 3 days, kept as a hash on the coach profile; the coach signs in to confirm; ADR-016 amended) |
 | 22 | **Today's lessons and figures** (G-6, MVP feature 9's home page): the coach's Today list of today's lessons, and the week, unpaid and waiting figures, as designed. Reads only what Batches 4–8 already write | — (owner, 2026-11-13: after Batch 14) |
-| 23 | **The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today | — (owner, 2026-11-13: after Batch 14) |
+| 23 | **Done** (branch `feature/batch-23-rinkside-week`, 2026-11-16; §7). ~~**The rinkside Week tab** (G-28, MVP features 10 and 12): the week's lessons, cancel on each, and *Cancel rest of week*, which holds everything (S8, already drawn as `week-all-confirm`); with no signal the tab shows only *"The week needs a connection"* (R5, drawn as `week-offline`). The tab is disabled today~~ Cancels one lesson, a whole day, or the rest of the week, nothing in between (owner, 2026-11-16; ADR-009 amended). Closed G-28 | — (owner, 2026-11-13: after Batch 14) |
 | 26 | **Added 2026-11-13: saving a closed year's figures** (G-36; owner, 2026-11-13, option c). When a year closes, its month-by-month figures (paid lessons, gross, and the part for earlier years' lessons, per currency) are saved once on the coach's partition, written only if not there already. A scheduled job saves them for every coach in the first days of January, and the first read of a closed year saves them if the job hasn't. From then on the financial page and the summary download read the saved figures, so neither *Undo* on Payments nor old records being deleted can change a closed year. A correction to a closed year's lesson counts in the year it's made, as a late payment does. Item name and shape settled when built; ADR-030 decision 4 and ADR-MASTER §12 amended then | Batch 13's scheduled jobs. Before Batch 17, which turns on the deletion of old records (ADR-MASTER §20: a paid lesson goes about 16 months after it's paid) |
 | 27 | **Added 2026-11-15: lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can still be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the case the financial page leaves out today: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` amended then | After Batch 26, which settles how a closed year's corrections count. Before Batch 17 |
 | 15 | ~~Family profile: *Add a skater*, with "None of my coaches yet", and *Add a coach* (A9; ADR-025 decision 2 and item k)~~ **Done** (PR #30). G-18 closed 2026-11-13: the design was redrawn to list approved coaches only, as built | — |
@@ -1049,3 +1049,54 @@ The full list, with what closes each one, is in the root `README.md`.
   link · Change address · Use my login email instead*. Headless Chrome at 1280px and 390px: sign-up step 4, the confirm page
   (asking, confirmed, refused), Profile → Business email, and Today's banner; no sideways scroll on any. **Not checked:** a
   real inbox or SES rendering (SC-21); the 3 days were stood in for by moving the stored expiry.
+
+### Batch 23 (2026-11-16)
+
+The full list, with what closes each one, is in the root `README.md`.
+
+- **Rulings applied:** S8 (*Cancel rest of week* holds every booked lesson and open time left, Sunday–Saturday, with no
+  release-or-hold question; it sends only its Sunday and the server works out the rest); S9 (one lesson, and each
+  lesson of a whole day, asks release or hold on its own); S11 (an unanswered invitation on a cancelled lesson is deleted quietly, as
+  `CoachCancelService` already does); R5 (with no signal the tab shows no lessons, only *"The week needs a connection"*).
+- **Built:** `core`: `RinksideWeekService` (each day from today to Saturday in the coach's time zone: the lessons that can
+  still be cancelled, how many have started, the open times), worked out by `CoachCancelPlan` for the whole week, so the
+  tab lists exactly what *Cancel rest of week* would hold. The cancels are Batch 5's `CoachCancelRequest` scopes
+  `LESSON`, `DAY` and `WEEK` and its `CoachCancelService`, unchanged. `api-coach`: `GET /api/coach/rinkside/week`; the
+  existing `POST /api/coach/rinkside/cancel` takes `DAY` and `WEEK` too (4-hour rinkside session). `web`: the Week tab
+  (`web/src/rinkside/WeekTab.tsx`, designs `week`, `week-lesson`, `week-day`, `week-all-confirm`, `week-offline`),
+  turned on in the tab bar.
+- **Closed:** G-28.
+- **Shortcuts:** none new. A whole day and the rest of the week run as they go (SC-14); emails go to the outbox (SC-21).
+- **Gaps:** none new.
+- **Settled while building (owner may override):**
+  - ~~**Lessons picked on several days are one batch**, `batchSource = SELECTION` (new)~~ **Owner ruling (2026-11-16):
+    only three cancels — one lesson, a whole day, or the rest of the week.** Lessons on different days are cancelled one
+    by one, so `SELECTION` was removed before merging and `batchSource` is unchanged. The tab has no checkboxes: each
+    lesson has *Cancel* (the same confirmation as Today's, sent as `LESSON`), and a day with two or more lessons has
+    *Cancel whole day* (one confirmation asking release or hold for each lesson, sent as `DAY`). The design's
+    `week-confirm` is replaced by `week-lesson` and `week-day`. ADR-009 (amended 2026-11-16), ADR-MASTER §10,
+    `architecture.md`, `cancelation.md`, `Coach App` and the Week tab's feature notes say so.
+  - **A lesson already marked Present or No-show isn't listed** (Batch 5's rule); it's counted with the started ones
+    (*"1 lesson already started and can't be cancelled."*).
+  - **The week is read again** each time the tab opens with signal and after every cancel. Nothing about the week is kept on the phone (R5).
+  - **A refusal** (*"These lessons have already started or were cancelled."*) stays in the confirmation sheet; a lesson
+    left alone is counted in the message afterwards with the website's wording (*"1 lesson had already started or gone, so
+    it was left alone."*). The message leaves out *"N families will be emailed"* when no family is.
+  - **Owner ruling (2026-11-16): "1:00 PM" everywhere.** Every time on the rinkside page (Today's lesson rows and *Next:*
+    line, the Week tab, its confirmations) is written "3:00 PM" / "10:30 AM" with the shared `formatTime`, not "3pm"
+    (built first) or the design's "3:00"; the Harbor rinkside design is changed to match. The time columns don't wrap and
+    the Week tab's is 74px, checked at a true 390px.
+- **Checked in the running app (APIs on :8102 and :8103, Vite on :5191; table `bladebook-b23check`):** a coach with lessons
+  Monday to Saturday 3–6 PM and one at 1:00 PM today (checked in early), three families, six lessons booked → the Week tab
+  lists Monday to Saturday, today with *"1 lesson already started and can't be cancelled."* and *6 lessons and 12 open
+  times* on the rest-of-week card → picks from two weeks refused (400) → Ava's Monday 3 PM held and Wednesday 4 PM released:
+  one batch, **one email to the Parks listing both dates** → *Cancel rest of week*: 4 lessons and 13 open times held, one
+  email per family (3) → the tab shows nothing left, and the same cancel again answers 409. In headless Chrome (an iframe of
+  exactly 390px, and 1280px): the tab, picks with Hold, both confirmations, the messages afterwards from real clicks, and the
+  no-signal page. **Not checked:** a real phone at a rink (G-32), real emails (SC-21).
+- **After the owner's lesson/day/week ruling (2026-11-16):** that run was of the first build (picks across days, now
+  removed). The rework was checked by tests — `RinksideWeekServiceTest` (one lesson is a `LESSON` batch; a whole day is
+  one `DAY` batch with each lesson's choice; a lesson that started meanwhile is left and counted), `CoachCancelRequestTest`
+  (`SELECTION` refused), `AttendanceApiTest` (lessons on two days refused, 400) and the Week tab's web tests — and by the
+  rebuilt design's `week`, `week-day` and `week-lesson` in a 390px-wide iframe (no sideways scroll). It wasn't run again
+  in the running app; the lesson and day cancels are Batch 5's, unchanged.

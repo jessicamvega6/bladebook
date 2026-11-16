@@ -155,6 +155,8 @@ each cancelation will ask the coach if they want to release the time slot back f
     future week): every booked lesson and every open time is held closed. The weekly schedule doesn't change, so the
     next week is untouched. The button says the dates it covers and how many booked lessons and open times it closes.
   - The rinkside page's whole-week cancel works the same way.
+*Changed 2026-11-16 (owner):* the rinkside page cancels the same three ways — one lesson, a whole day, or the rest of
+  the week — and nothing in between. To cancel a Monday lesson and a Friday lesson, the coach cancels each one on its own.
   - A shared-lesson invitation that hasn't been answered when the coach cancels the lesson is quietly removed: no
     record, no email. If the family answers later, nothing is written and they see "no longer available".
     *Phase 2:* record it and tell the invited family.

@@ -5,12 +5,14 @@ import com.bladebook.api.coach.dto.AttendanceDtos.OutcomeBody;
 import com.bladebook.api.coach.dto.AttendanceDtos.PastLessonDto;
 import com.bladebook.api.coach.dto.AttendanceDtos.SkaterDto;
 import com.bladebook.api.coach.dto.AttendanceDtos.TodayDto;
+import com.bladebook.api.coach.dto.AttendanceDtos.WeekDto;
 import com.bladebook.api.coach.dto.ScheduleDtos.CancelRequest;
 import com.bladebook.api.coach.dto.ScheduleDtos.CancelResponse;
 import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CoachCancelService;
+import com.bladebook.core.service.RinksideWeekService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +30,8 @@ import java.util.List;
 
 /**
  * Attendance (ADR-MASTER section 11). {@code /api/coach/rinkside/**} is the rinkside page, with its 4-hour session:
- * today's lessons, capture, contact details on a tap, and cancelling one lesson. {@code /api/coach/lessons} is the
+ * today's lessons, capture, contact details on a tap, cancelling one lesson, and the Week tab (Batch 23): the week's lessons
+ * and cancelling several, or the rest of the week. {@code /api/coach/lessons} is the
  * coach website's Lessons page, where recorded attendance is corrected (R1).
  */
 @RestController
@@ -36,8 +39,10 @@ public class AttendanceController {
 
     private final AttendanceService attendance;
     private final CoachCancelService cancels;
+    private final RinksideWeekService weeks;
 
-    public AttendanceController(AttendanceService attendance, CoachCancelService cancels) {
+    public AttendanceController(AttendanceService attendance, CoachCancelService cancels, RinksideWeekService weeks) {
+        this.weeks = weeks;
         this.attendance = attendance;
         this.cancels = cancels;
     }
@@ -60,7 +65,16 @@ public class AttendanceController {
         return ContactDto.of(attendance.contact(CurrentCoach.of(jwt), studentId));
     }
 
-    /** The check-in list's cancel: the same cancel as the website's, on the rinkside session. */
+    /** The Week tab: today to Saturday, what can still be cancelled and the open times. Read with signal only (R5). */
+    @GetMapping("/api/coach/rinkside/week")
+    public WeekDto week(@AuthenticationPrincipal Jwt jwt) {
+        return WeekDto.of(weeks.week(CurrentCoach.of(jwt)));
+    }
+
+    /**
+     * The check-in list's cancel ({@code LESSON}) and the Week tab's: one lesson ({@code LESSON}), a whole day ({@code DAY})
+     * or Cancel rest of week ({@code WEEK}). The same cancel as the website's, on the rinkside session.
+     */
     @PostMapping("/api/coach/rinkside/cancel")
     public CancelResponse cancel(@AuthenticationPrincipal Jwt jwt, @RequestBody CancelRequest body) {
         return CancelResponse.of(cancels.cancel(CurrentCoach.of(jwt), body.toRequest()));
