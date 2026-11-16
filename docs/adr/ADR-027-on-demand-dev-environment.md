@@ -42,6 +42,18 @@ the APIs, SES's verification records and the certificates). The domain itself an
 is built (for example `app.bladebook.org`). The domain is not transferred to Route 53. The
 Organization's **management account is `307202557124`**; production and dev are its member accounts.
 
+**Amended — 2026-11-16, later.** *Decided by the owner.* The names: **the coach website is
+`app.bladebook.org`** (the rinkside page at `app.bladebook.org/rinkside`) and **the family website
+is `family.bladebook.org`**. Each is its own subdomain delegated from Cloudflare to a Route 53
+hosted zone in the production account, so production has two delegated zones, not one. Two hosts,
+not two paths, so the browser keeps the coach's sign-in apart from the family site's. Each site's
+API is reached on its own host, under `/api/*`, so the websites need no cross-origin (CORS) rules;
+decision 6's `api.dev.<domain>` is withdrawn. **Dev mirrors them inside the existing dev zone:**
+`app.dev.bladebook.org` and `family.dev.bladebook.org`, with no change in Cloudflare. **The bare
+`bladebook.org` and `www` redirect to `app.bladebook.org`** (a Cloudflare redirect rule, by hand).
+The domain production's email is sent from is not chosen yet; dev's SES verifies
+`dev.bladebook.org` and stays in the sandbox.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across
