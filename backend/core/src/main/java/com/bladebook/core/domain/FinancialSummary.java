@@ -44,13 +44,15 @@ public final class FinancialSummary {
      * One month. {@code hasLessons}: any of its own lessons that happened, paid or not. {@code paidLessons} and
      * {@code gross} include the earlier years' lessons paid this month, which {@code earlierLessons} and
      * {@code earlierGross} count again on their own. {@code gross} is net of {@code undoneGross}, the earlier years'
-     * payments undone this month; {@code paidLessons} counts lessons marked paid and isn't lowered by an undo. Amounts
-     * per currency, never added across.
+     * payments undone this month, and {@code paidLessons} is net of {@code undoneLessons} but never below zero (owner,
+     * 2026-11-16): a month with an undo and nothing else paid shows 0, however it was read. Amounts per currency, never
+     * added across.
      */
     public record Month(YearMonth month, boolean hasLessons, int paidLessons, Map<String, Long> gross, Map<String, Long> unpaid,
                         int earlierLessons, Map<String, Long> earlierGross, int undoneLessons, Map<String, Long> undoneGross) {
 
         public Month {
+            paidLessons = Math.max(0, paidLessons);
             gross = Map.copyOf(gross);
             unpaid = Map.copyOf(unpaid);
             earlierGross = Map.copyOf(earlierGross);
@@ -58,7 +60,7 @@ public final class FinancialSummary {
         }
     }
 
-    /** A year: January to this month (this year) or to December (a closed year). */
+    /** A year: January to this month (this year) or to December (a closed year). {@code paidLessons}: the months' summed. */
     public record Summary(int year, boolean closed, LocalDate today, List<Month> months, int paidLessons, Map<String, Long> gross,
                           Map<String, Long> unpaid, int earlierLessons, Map<String, Long> earlierGross, int undoneLessons,
                           Map<String, Long> undoneGross) {
@@ -158,7 +160,7 @@ public final class FinancialSummary {
                     ug.add(new Payment.Amount(c.amountMinor(), c.currency()));
                 }
             }
-            months.add(new Month(ym, has, paid, Payment.totals(g), Payment.totals(u), earlier, Payment.totals(eg), undone,
+            months.add(new Month(ym, has, paid - undone, Payment.totals(g), Payment.totals(u), earlier, Payment.totals(eg), undone,
                     Payment.totals(ug)));
         }
         return totals(year, closed, today, months, true);
@@ -207,25 +209,26 @@ public final class FinancialSummary {
     }
 
     /**
-     * The summary download: one row per month with the paid lessons and gross received, then the year's totals. No
-     * skater names or personal data. Amounts in {@code currency}, as decimals. The last column says how much of each
-     * month's gross was for lessons in earlier years (owner, 2026-11-13): paid for them, less any of their payments
-     * undone (Batch 26), so it can be negative.
+     * The summary download: one row per month with the paid lessons and gross received (net of undos), then the
+     * year's totals. No skater names or personal data. Amounts in {@code currency}, as decimals. The fourth column is
+     * what was paid this month for lessons in earlier years (owner, 2026-11-13); the fifth, what was taken off for
+     * earlier years' lessons marked unpaid this month (owner, 2026-11-16). Both are positive.
      */
     public static String csv(Summary s, String currency) {
         StringBuilder out = new StringBuilder();
-        line(out, "Month", "Paid lessons", "Gross received (" + currency + ")", "Of which for lessons in earlier years (" + currency + ")");
+        line(out, "Month", "Paid lessons", "Gross received (" + currency + ")", "Of which for lessons in earlier years (" + currency + ")",
+                "Taken off for earlier years' lessons marked unpaid (" + currency + ")");
         for (Month m : s.months()) {
             String label = m.month().getMonth().getDisplayName(TextStyle.FULL, Locale.US) + " " + s.year();
             if (!s.closed() && m.month().equals(YearMonth.from(s.today()))) {
                 label += " (to " + s.today().getMonth().getDisplayName(TextStyle.SHORT, Locale.US) + " " + s.today().getDayOfMonth() + ")";
             }
             line(out, label, String.valueOf(m.paidLessons()), decimal(m.gross().getOrDefault(currency, 0L), currency),
-                    decimal(m.earlierGross().getOrDefault(currency, 0L) - m.undoneGross().getOrDefault(currency, 0L), currency));
+                    decimal(m.earlierGross().getOrDefault(currency, 0L), currency), decimal(m.undoneGross().getOrDefault(currency, 0L), currency));
         }
         line(out, s.year() + (s.closed() ? " total" : " to date"), String.valueOf(s.paidLessons()),
                 decimal(s.gross().getOrDefault(currency, 0L), currency),
-                decimal(s.earlierGross().getOrDefault(currency, 0L) - s.undoneGross().getOrDefault(currency, 0L), currency));
+                decimal(s.earlierGross().getOrDefault(currency, 0L), currency), decimal(s.undoneGross().getOrDefault(currency, 0L), currency));
         return out.toString();
     }
 

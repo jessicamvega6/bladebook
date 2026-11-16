@@ -1073,18 +1073,18 @@ The full list, with what closes each one, is in the root `README.md`.
   items), §12, §14 (`sched-year-close`) and §20 (their retention), `FeatureDecriptions/Coach Financial Page.md`.
 - **Closed:** G-36.
 - **Shortcuts:** SC-27 `sched-year-close` runs on a local timer, with a local route to run it for any date.
-- **Gaps:** G-48 the Harbor design doesn't draw a closed year's payment undone this year (built as *"Less $50 for 2025
-  lessons marked unpaid"*; the banner and the card's note are as drawn; Payments doesn't warn before such an undo).
+- **Gaps:** ~~G-48 the Harbor design doesn't draw a closed year's payment undone this year (built as *"Less $50 for 2025
+  lessons marked unpaid"*; the banner and the card's note are as drawn; Payments doesn't warn before such an undo).~~
+  Closed by the owner's ruling of 2026-11-16 (below).
 - **Settled while building (owner may override):**
   - **The items:** `CLOSEDYEAR#<year>` (the twelve months: `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`,
     `earlierGross`, `undoneLessons`, `undoneGross`, amounts per currency; `savedAt`; `savedBy` `JOB`, `READ` or `UNDO`)
     and `PAYCORRECTION#<undoneAt>#<seatKey>` (`undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`,
     `currency`, `forYear`, `undoneBy`). No names. *"Still unpaid"* isn't saved: it's this year's figure only.
-  - **An undo of a closed year's payment lowers this year's gross, not its count of paid lessons.** It's shown on its own
-    line and counted in `undoneLessons`; a month can show *"0 lessons"* and *"−$50"*. Marking the lesson paid again later
+  - ~~**An undo of a closed year's payment lowers this year's gross, not its count of paid lessons.**~~ *Overruled
+    2026-11-16 (below).* It's shown on its own line and counted in `undoneLessons`. Marking the lesson paid again later
     counts as a late payment, so the two cancel out.
-  - **The download keeps its four columns.** *"Of which for lessons in earlier years"* is net (paid for them less undone),
-    so it can be negative (`-50.00`), and *Gross received* = this year's own + that column.
+  - ~~**The download keeps its four columns.**~~ *Overruled 2026-11-16 (below).*
   - **Only an undo is a correction.** Changing how a lesson was paid moves no money, and waiving applies only to unpaid
     lessons. Undoing a late payment (a December lesson paid in January) is an ordinary undo of the year it was paid in;
     undoing a payment that counted in no year (G-39) changes nothing.
@@ -1094,11 +1094,47 @@ The full list, with what closes each one, is in the root `README.md`.
   - **The job saves the year before its date's** for every coach, and reads the clock only to check each coach's year has
     closed (skipping those it hasn't: `notClosedYet`). It is safe to run twice; one coach's failure doesn't stop the rest.
     On AWS it is a second Scheduler rule on `sched-lesson-roller`'s function (January 1–7, 8:00 AM launch time, after
-    midnight everywhere a coach can be), so the count of functions stays sixteen.
+    midnight everywhere a coach can be), so the count of functions stays sixteen (kept by the owner, 2026-11-16).
   - **The first read of a closed year** is the download of last year (the page shows this year only).
   - **`PaymentService` learns of `FinancialService` through a hook** that `FinancialService` sets when it's made (it reads
     Payments' rows to add a year up, so neither can take the other in its constructor). Without it an undo of a closed
     year's payment is refused rather than written without saving the year first.
+- **Owner rulings (2026-11-16), applied on the same branch (PR #52):**
+  1. **G-48, the undo's wording: kept as built** (*"Less $50 for 2025 lessons marked unpaid"*); G-48 is closed (its row is
+     gone from the root `README.md`). **New: Payments asks before *Undo* on a payment that counted in a closed year.**
+     `core`: `PaymentService.Row` gains `closedYear` (the closed year a paid lesson's payment counted in, else null),
+     worked out with `FinancialSummary.countedIn` in the coach's time zone, the same test `undo` uses to decide on a
+     correction; `View` gains `thisYear`. `api-coach`: both on the Payments DTOs. `web`: *Undo* on such a row opens
+     *"Undo a payment from 2025?"* — *"2025 is closed, so its figures won't change. Undoing this takes $50 off 2026's
+     figures, in this month."* — *Cancel* / *Undo payment*, in the Waive dialog's Harbor style (icon, the lesson's
+     line, fine print, actions); other rows' *Undo* is unchanged. The page doesn't work out year closing itself.
+  2. **An undo lowers the count of paid lessons too, but a month's count never goes below zero.** `FinancialSummary`: a
+     month's `paidLessons` is the lessons marked paid less `undoneLessons`, and `Month` clamps it at 0, so it holds for
+     a live year, a saved `CLOSEDYEAR#` year as read back, the page and the download; the year's count is the sum of
+     the months'. The saved item now holds the lowered count.
+  3. **The download has five columns:** *Month*, *Paid lessons*, *Gross received (CUR)* (net of undos), *Of which for
+     lessons in earlier years (CUR)* (late payments only, never net of undos, never negative) and *Taken off for earlier
+     years' lessons marked unpaid (CUR)* (positive); the totals row likewise. ADR-030 decision 7 (amended 2026-11-16)
+     and the 2026-11-16 amendment's text, ADR-MASTER §12, and the feature notes say so.
+  4. **The January job stays a second Scheduler rule on `sched-lesson-roller`'s function** (sixteen functions), as
+     built; ADR-MASTER §14's row no longer says the owner may change it.
+  - **Tests:** `FinancialSummaryTest` (an undo lowering the count; a month with undos and nothing paid showing 0, not
+    −2; the year's total as the months' sum; a saved year's months read back never below zero; the five columns),
+    `FinancialServiceTest` (which Payments rows carry `closedYear`, either side of midnight in Chicago, and not after a
+    late re-payment), `FinancialApiTest` (the header), `AttendanceApiTest` (`thisYear`, no `closedYear` this year),
+    `Payments.test.tsx` (the dialog asks, *Cancel* sends nothing, *Undo payment* undoes; another paid row undoes at once).
+  - **Settled while applying (owner may override):** the row carries the closed year (a number) rather than a
+    boolean, and the view carries this year, so the dialog can name both without the page working out either. The
+    header's apostrophe is a plain `'` (spreadsheet apps can garble a curly one in a CSV); the page's text keeps
+    curly ones. The dialog's button is the primary style, not the danger one Waive uses, as an undo can be redone. A
+    `CLOSEDYEAR#` item saved by the earlier build of this branch (only the local `bladebook-b26check` table) holds a
+    count not lowered by undos; nothing on AWS has one. No gap is opened for the dialog: the Harbor design has no
+    such dialog, but it reuses the Waive dialog's parts, so it's recorded as settled rather than for drawing.
+  - **Checked in the running app** (api-coach on :8104, Vite on :5192, table `bladebook-b26check`): Ava's Dec 8, 2025
+    lesson put back as paid on Dec 9, 2025 → Payments lists it with `closedYear` 2025 and `thisYear` 2026 → *Undo* opens
+    the dialog (headless Chrome at 1280px, and at 390px inside a 390px-wide frame: no sideways scroll) → undone: the
+    2025 download unchanged (*"2025 total,1,50.00,0.00,0.00"*); 2026's November, with this undo and the earlier run's,
+    reads *"0,-100.00,0.00,100.00"* (count 0, not −2).
 - **Checked in the running app (APIs on :8104 and :8105, Vite on :5192; table `bladebook-b26check`):** a coach signs up
   and saves a schedule, a family signs up and is approved and books a lesson → the lesson time and seat were moved to Dec
   8, 2025 in DynamoDB Local and marked paid Dec 9, 2025 → nothing saved yet → the 2025 download (*"2025 total,1,50.00,0.00"*)

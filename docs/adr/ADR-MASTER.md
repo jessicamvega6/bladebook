@@ -1108,13 +1108,18 @@ happens (§18).
   closed year.
 - **A correction to a closed year counts in the year it's made** (2026-11-16): a payment undone after
   the year it counted in has closed writes a `PAYCORRECTION#` item with the seat, in one
-  transaction. Its amount comes off the month it's undone, flagged as for an earlier year; the count
-  of paid lessons isn't lowered, and the download's earlier-years column is net of it.
+  transaction. Its amount comes off the month it's undone, flagged as for an earlier year. *Owner,
+  2026-11-16:* it lowers that month's count of paid lessons too, never below zero (the year's count
+  is the sum of the months'), and the download shows it in a column of its own. Payments asks before
+  *Undo* on a payment that counted in a closed year; the server marks those rows (`closedYear`).
 - **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
   developer sets. The coach can't edit terms, override a month or type in what they paid. How the
   fee is calculated is undecided (§25).
 - **Download:** a CSV of monthly gross and paid-lesson counts for this year or last, with a column for the part paid for
-  earlier years' lessons (2026-11-13). **No names or personal data.**
+  earlier years' lessons (2026-11-13) and, since 2026-11-16, one for the part taken off for earlier years' lessons
+  marked unpaid. Five columns: *Month*, *Paid lessons*, *Gross received* (net of undos), *Of which for lessons in
+  earlier years* (late payments only, never negative), *Taken off for earlier years' lessons marked unpaid* (positive).
+  **No names or personal data.**
   Reads live data only, filtered on `expiresAt`; a closed year's comes from its saved figures (2026-11-16).
 - This year's figures are a range query on the coach's `SEAT#<date>` items (this year's and last
   year's) and `PAYCORRECTION#` items (made this year); a closed year's are one `GetItem`.
@@ -1192,7 +1197,7 @@ notified.
 | `sched-drift-check` | Nightly | §19. Read-only. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
-| `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule (Batch 26, settled while building; the owner may make it its own function).* |
+| `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
 
 - **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no
   recorded outcome shows as *Not recorded* on Payments and the lesson list, and as "attendance

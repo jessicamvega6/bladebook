@@ -73,11 +73,22 @@ What counts as gross (decided by the owner, 2026-10-12):
     The figures are saved in the first days of January for every coach, or by the first download of last year, or
       by the first undo of one of last year's payments, whichever comes first. Saved once; never changed.
     A paid lesson whose year has closed and that is undone on Payments comes off the gross of the month it's undone,
-      labelled under the month and the year's total: "Less $50 for 2025 lessons marked unpaid". It doesn't lower
-      the count of paid lessons. A month whose only entry is such an undo is listed, and its gross can be below
+      labelled under the month and the year's total: "Less $50 for 2025 lessons marked unpaid". ~~It doesn't lower
+      the count of paid lessons.~~ A month whose only entry is such an undo is listed, and its gross can be below
       zero ("−$50").
-    The download's "Of which for lessons in earlier years" column is what was paid for earlier years' lessons less
-      what was undone, so it can be negative ("-50.00"); "Gross received" already has it taken off.
+    ~~The download's "Of which for lessons in earlier years" column is what was paid for earlier years' lessons less
+      what was undone, so it can be negative ("-50.00"); "Gross received" already has it taken off.~~
+  *Ruled 2026-11-16 by the owner (G-48 closed):*
+    The wording stays as built: "Less $50 for 2025 lessons marked unpaid".
+    Such an undo lowers that month's count of paid lessons too, but a month's count never goes below zero: a month
+      whose only entry is an undo shows "0 lessons". The year's count is the sum of the months'. The same holds for a
+      closed year read from its saved figures, and in the download.
+    The download has a fifth column, "Taken off for earlier years' lessons marked unpaid", as a positive amount.
+      "Of which for lessons in earlier years" is late payments only, never net of undos, so never negative.
+      "Gross received" is still net of undos.
+    Payments asks before Undo on a payment that counted in a closed year: "Undo a payment from 2025?" — "2025 is
+      closed, so its figures won't change. Undoing this takes $50 off 2026's figures, in this month." (Cancel /
+      Undo payment). BladeBook works out which payments those are; other paid lessons' Undo doesn't ask.
     Marking that lesson paid again later counts as a late payment, so the undo and the new payment cancel out.
     Undoing a late payment (a December lesson paid in January, then undone in February) just takes it back out of
       the year it was paid in; the closed year never had it.
@@ -111,7 +122,10 @@ Export (decided by the owner, 2026-10-12):
   MVP: a summary export. A Download button saves a comma-separated values (CSV) file for a chosen calendar
     year, this year or last: one row per month with gross received ~~, rink fees and net~~ and the number of paid
     lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. *2026-11-13:* each row
-    also says how much of its gross was paid for lessons in earlier years. It has
+    also says how much of its gross was paid for lessons in earlier years. *2026-11-16:* and how much was taken
+    off for earlier years' lessons marked unpaid. The columns: Month, Paid lessons, Gross received, Of which for
+    lessons in earlier years, Taken off for earlier years' lessons marked unpaid (amounts in the coach's
+    currency). It has
     no skater names and no personal data. It covers what a tax preparer needs and lets the coach keep their own
     copy before records age out.
   Phase 2: past years on screen.

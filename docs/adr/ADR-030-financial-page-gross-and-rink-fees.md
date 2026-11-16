@@ -33,10 +33,12 @@ the job hasn't. The page and the summary download read the saved figures, so nei
 payment nor old records being deleted (ADR-017; about 16 months after payment) changes a closed
 year. **A payment undone after the year it counted in has closed counts in the year and month it's
 undone**, as a late payment does: its amount comes off that month's gross, flagged as for an
-earlier year (*"Less $50 for 2025 lessons marked unpaid"*), and the download's earlier-years
-column is net of it. The undo writes a correction (`PAYCORRECTION#`) in the same transaction as
-the seat. An undo doesn't lower the count of paid lessons (decision 4; implementation plan,
-Batch 26).
+earlier year (*"Less $50 for 2025 lessons marked unpaid"*), ~~and the download's earlier-years
+column is net of it~~ *(ruled 2026-11-16: the download gives it a fifth column of its own,
+decision 7)*. The undo writes a correction (`PAYCORRECTION#`) in the same transaction as
+the seat. ~~An undo doesn't lower the count of paid lessons~~ *Ruled by the owner 2026-11-16: an
+undo lowers that month's count of paid lessons too, but a month's count never goes below zero*
+(decision 4; implementation plan, Batch 26).
 
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
@@ -124,10 +126,15 @@ year) and an undo of one of its payments saves it. "Still unpaid" is this year's
 it isn't saved. **A correction to a closed year counts in the year it's made:** a payment undone
 after the year it counted in has closed writes a `PAYCORRECTION#<undoneAt>#<seatKey>` item
 (`lessonDate`, `amountMinor`, `currency`, `forYear`, …) in the same transaction as the seat; it
-takes its amount off that month's gross, flagged as for an earlier year, and doesn't lower the
-count of paid lessons. Marking the lesson paid again later counts as a late payment, so the two
+takes its amount off that month's gross, flagged as for an earlier year, and ~~doesn't lower the
+count of paid lessons~~ *(ruled by the owner 2026-11-16)* lowers that month's count of paid lessons
+by one, never below zero; the year's count is the sum of its months', on a saved year as on a live
+one. Marking the lesson paid again later counts as a late payment, so the two
 cancel out. A payment counts in its lesson's year, or the next year when paid during it; one paid
-later still counted in no year (G-39), and undoing it changes nothing.
+later still counted in no year (G-39), and undoing it changes nothing. *Ruled by the owner
+2026-11-16:* the Payments page asks before *Undo* on a payment that counted in a closed year
+(*"Undo a payment from 2025?"*); the server marks those rows, working the year out in the coach's
+time zone, so the page never does.
 
 ### 5. The page says what the figures are based on
 
@@ -152,6 +159,11 @@ What the export holds, and what is MVP or Phase 2, is product content — see
   read under [ADR-012](ADR-012-pii-access-logging.md). It reads live data only, filtered on
   `expiresAt` ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 1). *Since
   2026-11-16 (Batch 26), a closed year's download comes from its saved figures (decision 4).*
+  *Amended 2026-11-16 by the owner:* **five columns**, one row per month and a totals row:
+  *Month*, *Paid lessons* (net of undos, never below zero in a month), *Gross received* (net of
+  undos), *Of which for lessons in earlier years* (late payments only, never net of undos, so
+  never negative) and *Taken off for earlier years' lessons marked unpaid* (the undone amounts,
+  as a positive figure). Amounts are in the coach's currency.
 - **Phase 2: a detailed export** with skater names. It is mostly children's data leaving
   BladeBook in a file, so it is decided with the privacy rules; every such export would be a
   logged PII read (ADR-012).

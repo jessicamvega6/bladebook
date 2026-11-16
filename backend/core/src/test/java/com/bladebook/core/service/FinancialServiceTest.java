@@ -114,10 +114,10 @@ class FinancialServiceTest {
         service.markPaid(dana, MONDAY, SIX, ava, "");
         FinancialService.Download d = finances.download(dana, 2026);
         assertThat(d.fileName()).isEqualTo("bladebook-summary-2026.csv");
-        assertThat(d.csv()).contains("November 2026 (to Nov 16),1,50.00,0.00\r\n2026 to date,1,50.00,0.00\r\n");
+        assertThat(d.csv()).contains("November 2026 (to Nov 16),1,50.00,0.00,0.00\r\n2026 to date,1,50.00,0.00,0.00\r\n");
         assertThat(d.csv()).doesNotContain("Ava");
         FinancialService.Download last = finances.download(dana, 2025);
-        assertThat(last.csv()).contains("December 2025,0,0.00,0.00\r\n2025 total,0,0.00,0.00\r\n");
+        assertThat(last.csv()).contains("December 2025,0,0.00,0.00,0.00\r\n2025 total,0,0.00,0.00,0.00\r\n");
         assertThatThrownBy(() -> finances.download(dana, 2024)).hasMessage("Pick this year or last year.");
         assertThatThrownBy(() -> finances.year(dana, 2027)).hasMessage("Pick this year or last year.");
     }
@@ -191,7 +191,7 @@ class FinancialServiceTest {
         now.set(Instant.parse("2027-01-05T15:00:00Z"));
         assertThat(figures.savedYear(dana, 2026)).isEmpty();
         FinancialService.Download d = finances.download(dana, 2026);
-        assertThat(d.csv()).contains("November 2026,1,50.00,0.00\r\n").endsWith("2026 total,1,50.00,0.00\r\n");
+        assertThat(d.csv()).contains("November 2026,1,50.00,0.00,0.00\r\n").endsWith("2026 total,1,50.00,0.00,0.00\r\n");
         assertThat(figures.savedYear(dana, 2026).orElseThrow().savedBy()).isEqualTo(FinancialRepository.SavedBy.READ);
         assertThat(job.run(LocalDate.of(2027, 1, 6))).isEqualTo(new ClosedYearJob.Result(1, 0, 1, 0));
     }
@@ -212,7 +212,7 @@ class FinancialServiceTest {
         assertThat(feb.undoneGross()).containsExactly(Map.entry("USD", 5000L));
         assertThat(feb.paidLessons()).isZero();
         assertThat(y.gross()).containsExactly(Map.entry("USD", -5000L));
-        assertThat(finances.download(dana, 2027).csv()).contains("February 2027 (to Feb 3),0,-50.00,-50.00\r\n");
+        assertThat(finances.download(dana, 2027).csv()).contains("February 2027 (to Feb 3),0,-50.00,0.00,50.00\r\n");
 
         // Marked paid again later: it counts as a late payment, so this year nets to nothing.
         now.set(Instant.parse("2027-03-03T15:00:00Z"));
@@ -277,5 +277,34 @@ class FinancialServiceTest {
     void aCoachWhoHasntFinishedSettingUpIsToldSo() {
         AccessContext stranger = new AccessContext(UUID.randomUUID().toString());
         assertThatThrownBy(() -> finances.year(stranger, 2026)).hasMessage("Finish setting up your account first.");
+    }
+
+    // ------------------------------------------------------------- Owner, 2026-11-16: Payments warns before such an undo
+
+    private PaymentService.Row row(LocalTime start, String studentId) {
+        return service.list(dana, MONDAY, MONDAY).rows().stream()
+                .filter(r -> r.startTime().equals(start) && r.studentId().equals(studentId)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void paymentsSaysWhichPaidLessonsCountedInAClosedYear() {
+        service.markPaid(dana, MONDAY, SIX, ava, "");
+        assertThat(row(SIX, ava).closedYear()).isNull();                       // 2026 is open
+        assertThat(service.list(dana, MONDAY, MONDAY).thisYear()).isEqualTo(2026);
+
+        now.set(JAN_1_2027_CHICAGO.minusSeconds(1));                          // 11:59:59 PM on Dec 31 in Chicago
+        assertThat(row(SIX, ava).closedYear()).isNull();
+        service.markPaid(dana, MONDAY, SIX_30, jack, "");                     // paid just before 2026 closed
+
+        now.set(JAN_1_2027_CHICAGO);
+        assertThat(service.list(dana, MONDAY, MONDAY).thisYear()).isEqualTo(2027);
+        assertThat(row(SIX, ava).closedYear()).isEqualTo(2026);
+        assertThat(row(SIX_30, jack).closedYear()).isEqualTo(2026);
+        assertThat(row(LocalTime.of(7, 30), ava).closedYear()).isNull();     // unpaid: nothing to undo
+
+        service.undo(dana, MONDAY, SIX_30, jack);
+        service.markPaid(dana, MONDAY, SIX_30, jack, "");                     // paid late, in 2027: 2027's
+        assertThat(row(SIX_30, jack).closedYear()).isNull();
+        assertThat(service.undo(dana, MONDAY, SIX, ava).closedYear()).isNull();
     }
 }
