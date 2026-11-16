@@ -23,9 +23,9 @@ show my phone and my business email to approved families. Batch 14 — the busin
 email with a link that works once for 3 days, the confirm page it opens (the coach signs in, then chooses Confirm),
 Resend link and Change address, and Profile → Business email.
 Batch 23 — the rinkside Week tab: the lessons left this week, cancelling one lesson or a whole day (release or hold
-each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal. Everything runs on
-this computer only; nothing is
-deployed.
+each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal.
+Batch 17a — the AWS infrastructure's first part in CDK, written and tested; in dev only `bladebook-dev-identity` is
+deployed so far (see `infra/README.md`). The app itself still runs on this computer only.
 
 ## Running it locally
 

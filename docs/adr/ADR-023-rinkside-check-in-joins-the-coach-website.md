@@ -106,6 +106,16 @@ Alternatives weighed: `amazon-cognito-identity-js` (little active development), 
 client with hand-written SRP (custom cryptography on the most sensitive path), and plain password
 sign-in, `USER_PASSWORD_AUTH` (the password would leave the browser, reversing decision 11's SRP).
 
+**Amended — 2026-11-16.** *Decided by the owner.* **The two websites are on separate hosts:** the
+coach website at `app.bladebook.org`, with the rinkside page at `app.bladebook.org/rinkside`, and
+the family website at `family.bladebook.org` (in dev, `app.dev.bladebook.org` and
+`family.dev.bladebook.org`; [ADR-027](ADR-027-on-demand-dev-environment.md) amendment of the same
+day). This replaces `<domain>/coach` and `<domain>/coach/rinkside` above, and settles where the
+family website lives (Open). Separate hosts let the browser keep a coach's tokens out of reach of
+the family site's pages. The coaches are the older users, so they get the plain `app.` address,
+and the bare domain redirects there. The Vite builds move each site to the root of its own host,
+and the rinkside service worker's scope becomes `/rinkside/`, with the deploy (Batch 17b).
+
 ---
 
 ## Context
@@ -503,11 +513,11 @@ OAuth; a wrong password and an unknown email get the same answer.
   refuse a token without the `Coach` group. Whether `api-client` should refuse one without
   the `Client` group isn't yet written down.~~ **Settled 2026-10-21 by the owner:** yes.
   `api-client` refuses a token without the `Client` group with 403 (decision 7).
-- **Where the family website lives.** *Added 2026-10-22.* The coach website is at
+- ~~**Where the family website lives.** *Added 2026-10-22.* The coach website is at
   `<domain>/coach` and the rinkside page at `<domain>/coach/rinkside`, but no ADR says where
   the family website is served: `<domain>/`, `<domain>/family`, or a domain of its own. The
-  answer sets its CloudFront path~~, its sign-in redirect addresses,~~ and the links in family
-  emails. *(No sign-in redirects since decision 11, 2026-11-09.)*
+  answer sets its CloudFront path, its sign-in redirect addresses, and the links in family
+  emails. *(No sign-in redirects since decision 11, 2026-11-09.)*~~ *Settled 2026-11-16 by the owner: `family.bladebook.org`, a host of its own (amendment above).*
 - ~~**Which browser library does the Secure Remote Password (SRP) sign-in** for decision 11's
   forms, for example AWS Amplify's Auth module or `amazon-cognito-identity-js`. *Added
   2026-11-09.* It runs on both websites and the rinkside page, so its size and how it stores the
