@@ -1092,6 +1092,11 @@ The full list, with what closes each one, is in the root `README.md`.
      stacks below 980px, times first, in the app (`family.css`) and the design (`screens-booking.css`).
      **Not changed:** the schedule editor's overlap message (*"Morning ice (6–8 AM) and Block 2 (7–9 AM) overlap in
      time."*), which `core` words (`ScheduleRules.range`) and the website repeats; and the emails' times.
+  5. **The Calendar week page no longer scrolls sideways on a phone** (owner, 2026-11-16): at 760px and under, a page
+     head's buttons wrap their text (`.phead__actions .btn` in `web/src/coach/coach.css` and the design's
+     `coach/app.css`, rebuilt), so *Cancel rest of week: …* takes two lines instead of pushing the page to 543px. The
+     week grid still scrolls inside its card, as designed. The schedule's overlap error keeps its short times
+     (*"6–8 AM"*), and email times weren't checked (owner, 2026-11-16).
 - **Settled while building (owner may override):**
   - *(Ruled otherwise 2026-11-16: the card is back on Today.)* **The coach code card leaves Today**, as the design draws it (Batch 1 had put it there while Today had little else).
     The code stays on Profile → Details, sign-up's last steps and the empty *Waiting for approval* tab; the root `README.md`

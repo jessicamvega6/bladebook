@@ -35,6 +35,8 @@
 @media (max-width: 760px) {
   .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
   .bb .phead__actions { width: 100%; }
+  /* Phone: a page head's buttons wrap their text instead of pushing the page sideways (owner, 2026-11-16). */
+  .bb .phead__actions .btn { white-space: normal; height: auto; min-height: 40px; padding-top: 8px; padding-bottom: 8px; text-align: left; max-width: 100%; }
   .bb .wmain { padding: 20px 16px 40px; }
   .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .bb .wbar__right { width: 100%; }
