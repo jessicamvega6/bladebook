@@ -1084,11 +1084,16 @@ happens (§18).
 - **Gross is money received:** seats marked paid, at their share, plus missed-lesson fees actually
   collected (in MVP, a no-show marked paid). Waived and unpaid are left out. **A lesson counts in
   the year and month of its lesson date.**
-- **A finished year is closed**; a lesson from it marked paid later counts in no year.
+- **A finished year is closed** at midnight starting January 1 in the coach's time zone; a late
+  payment doesn't change it. ~~A lesson from it marked paid later counts in no year.~~ **A lesson
+  from a closed year marked paid later counts in the year and month it was marked paid, flagged as
+  for an earlier year:** the page labels it and the download gives it its own column (owner,
+  2026-11-13; ADR-030 amended). The page reads this year's lessons and last year's.
 - **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
   developer sets. The coach can't edit terms, override a month or type in what they paid. How the
   fee is calculated is undecided (§25).
-- **Download:** a CSV of monthly gross and paid-lesson counts for this year or last. **No names or personal data.**
+- **Download:** a CSV of monthly gross and paid-lesson counts for this year or last, with a column for the part paid for
+  earlier years' lessons (2026-11-13). **No names or personal data.**
   Reads live data only, filtered on `expiresAt`.
 - Year figures are a range query on the coach's `SEAT#<date>` items.
 
