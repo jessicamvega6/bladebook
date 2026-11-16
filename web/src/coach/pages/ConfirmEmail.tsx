@@ -4,7 +4,7 @@
  * changes nothing: it only says which address the link is for, and the coach chooses Confirm, so a mail scanner that
  * follows links can't confirm an address.
  *
- * The Harbor design has no screen for this page (gap G-40): it's built from sign-up step 4's card.
+ * The Harbor design has no screen for this page: it's built from sign-up step 4's card, accepted as is by the owner (G-40, 2026-11-16).
  */
 import { useEffect, useState } from 'react';
 import { ApiError } from '../../shared/api/client';
