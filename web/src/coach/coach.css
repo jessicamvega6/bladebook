@@ -144,6 +144,10 @@
 .bb .field--error .ctl { border-color: var(--danger); }
 .bb .wbar__right:empty { display: none; }
 .bb .nav__item.is-disabled, .bb .tabs__t.is-disabled { opacity: .5; cursor: not-allowed; }
+/* Today's "Go to": Email templates is Phase 2, shown but not a link (as on the family Home). */
+.bb .quick__item.is-disabled { opacity: .5; cursor: not-allowed; }
+/* Today with no lessons: the design's empty state sits inside the card, so it gets room below as well as above. */
+.bb .card__body > .pempty { margin: 40px 16px 32px; }
 .bb button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--link); text-decoration: underline; cursor: pointer; }
 .bb button.link:disabled { opacity: .6; cursor: default; }
 .bb .card + .card, .bb .card + form, .bb form > .card + .card { margin-top: 16px; }

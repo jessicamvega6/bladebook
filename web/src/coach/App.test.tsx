@@ -14,6 +14,14 @@ const PENDING: Profile = {
   paymentTypes: [], showPhone: false, showEmail: false,
 };
 
+/** GET /api/coach/today (Batch 22): one lesson, booked and still to come. */
+const TODAY = {
+  coachTimezone: 'America/New_York', currency: 'USD', today: '2026-11-16', now: '08:15', weekStart: '2026-11-15', weekEnd: '2026-11-21',
+  lessons: [{ startTime: '09:00', durationMinutes: 30, held: false, next: true,
+    skaters: [{ studentId: 'ava', name: 'Ava Park', amountMinor: 5000, currency: 'USD', attendance: 'BOOKED' }] }],
+  nextLessonDate: null, week: { count: 1, amounts: { USD: 5000 } }, unpaid: { count: 0, amounts: {} },
+};
+
 function json(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
 }
@@ -87,7 +95,7 @@ test('a coach with a profile lands on Today with the pending-code banner', async
   window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
     ? json(200, { active: [], pending: [] })
-    : json(200, PENDING)));
+    : url === '/api/coach/today' ? json(200, TODAY) : json(200, PENDING)));
 
   render(<App />);
 
@@ -106,7 +114,7 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
     ? json(200, { active: [], pending: [kid('a', 'Ava Park'), kid('j', 'Jack Park')] })
-    : json(200, profile)));
+    : url === '/api/coach/today' ? json(200, TODAY) : json(200, profile)));
 
   render(<App />);
 
@@ -130,22 +138,24 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
 
   // New families to approve
   expect(screen.getByRole('heading', { name: 'New families to approve' })).toBeInTheDocument();
-  expect(screen.getByText('Sarah Park')).toBeInTheDocument();
+  expect(screen.getByText('Sarah Park', { selector: '.row__title' })).toBeInTheDocument();
   expect(screen.getByText('Ava Park & Jack Park · signed up Nov 9')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Review sign-ups' })).toHaveAttribute('href', '#/students/pending');
 
-  // Coach code
-  expect(screen.getByRole('heading', { name: 'Your coach code' })).toBeInTheDocument();
-  expect(screen.getByLabelText('Coach code 7 K 2 Q - M 9 X T')).toBeInTheDocument();
-  expect(screen.getByText('Families enter this to sign up with you.')).toBeInTheDocument();
+  // The figures (Batch 22).
+  expect(await screen.findByText('$50 booked')).toBeInTheDocument();
+  expect(screen.getByText('Waiting for approval').closest('.stat')).toHaveTextContent('2 skatersSarah Park');
 
   // The way to the rinkside page (Batch 7).
   expect(screen.getByText('Heading to the rink?')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Open the rinkside page' })).toHaveAttribute('href', '/coach/rinkside/');
   // Today's lessons
   expect(screen.getByRole('heading', { name: 'Today’s lessons' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'calendar' })).toHaveAttribute('href', '#/calendar');
-  expect(screen.getByRole('link', { name: 'edit your teaching week' })).toHaveAttribute('href', '#/schedule/weekly');
+  expect(screen.getByText('1 lesson · Pelham Civic Center')).toBeInTheDocument();
+  expect(screen.getByText('Ava Park', { selector: '.row__title' })).toBeInTheDocument();
+  expect(screen.getByText('Next')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Day view' })).toHaveAttribute('href', '#/calendar/day/2026-11-16');
+  expect(screen.getByRole('link', { name: 'Edit weekly schedule' })).toHaveAttribute('href', '#/schedule/weekly');
 });
 
 test('opening the plain address starts at sign-in, signed out, even after a coach signed in', () => {
