@@ -2,8 +2,9 @@
  * Today, the coach's home page (design: coach/static/today.html and today-code-pending.html; FeatureDecriptions/Coach
  * Dashboard on website.md). Batch 14's "code not working yet" banner, Batch 7's "Heading to the rink?" card (one of the
  * coach's two ways to the rinkside page; the other is the morning email), and Batch 22 (G-6): the week, unpaid and
- * waiting figures, today's lessons with each skater's attendance and the next one marked, new families to approve, and
- * a link to every page.
+ * waiting figures (the week counts lesson times, a shared lesson once: owner, 2026-11-16), the coach code card under them
+ * (owner, 2026-11-16, over the design's leaving it off), today's lessons with each skater's attendance and the next one
+ * marked, new families to approve, and a link to every page. Times read "1:00 PM" (owner, 2026-11-16).
  *
  * Lessons and figures come from GET /api/coach/today, in the coach's time zone. The waiting figure counts the Students
  * list the app already loads for the nav. A failed load says so on the page and leaves the rest of it working.
@@ -12,9 +13,9 @@ import { useEffect, useState } from 'react';
 import { ApiError } from '../../shared/api/client';
 import { Avatar, Badge, Banner, Card, Icon } from '../../shared/components/harbor';
 import { plural } from '../../shared/logic/booking';
-import { DAYS_LONG, dayOfWeek, formatClock, formatMoney, longDate, shortDate, toMinutes, todayIn } from '../../shared/logic/schedule';
+import { DAYS_LONG, dayOfWeek, formatMoney, formatTime, longDate, shortDate, toMinutes, todayIn } from '../../shared/logic/schedule';
 import type { Profile, StudentDto, TodayApi, TodayDto, TodayLessonDto, TodaySkaterDto } from '../api';
-import { CodePendingBanner } from '../components/CodeCard';
+import { CodeCard, CodePendingBanner } from '../components/CodeCard';
 
 /** The design's attendance badges (shared.js STATUS_BADGE). */
 const ATTEND: Record<TodaySkaterDto['attendance'], [string, string, string?]> = {
@@ -47,7 +48,7 @@ function LessonRow({ l, started }: { l: TodayLessonDto; started: boolean }) {
   return (
     <div className={`row${started && !l.next ? ' row--muted' : ''}`}>
       <div className="row__main">
-        <span className="tlist__t num">{formatClock(l.startTime)}</span>
+        <span className="tlist__t num">{formatTime(l.startTime)}</span>
         {l.held ? <span className="roundicon"><Icon name="lock" size={14} /></span> : <Avatar name={l.skaters[0]!.name} size="sm" />}
         <div className="row__title">{l.held ? 'Held slot' : l.skaters.map((s) => s.name).join(' & ')}</div>
         <div className="row__sub">{sub}</div>
@@ -123,6 +124,7 @@ export function Today({ profile, api, onUseLogin, onResend, onError, note, busy,
         <Stat label="Waiting for approval" value={pending ? plural(pending.length, 'skater') : '…'}
           sub={pending ? (families.length ? families.map((k) => k[0]!.clientName).join(', ') : 'Nobody waiting') : ''} icon="users" />
       </div>
+      <CodeCard profile={profile} />
       <div className="split split--today">
         <Card title="Today’s lessons" sub={data ? `${plural(booked, 'lesson')} · Pelham Civic Center` : 'Loading…'} flush
           action={<a className="link" href={`#/calendar/day/${today}`}>Day view</a>}>

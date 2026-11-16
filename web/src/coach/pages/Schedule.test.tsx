@@ -119,7 +119,7 @@ test('a saved block with no end opens ending at 7:00 PM, and clicking a slot wit
   await screen.findByRole('heading', { name: 'Edit Morning ice' });
 
   const monday = screen.getAllByRole('button', { name: /^Mon .* on$/ }).map((b) => b.textContent);
-  expect(monday).toEqual(['6:00', '6:30']);
+  expect(monday).toEqual(['6:00 PM', '6:30 PM']);
 
   await userEvent.click(screen.getByRole('button', { name: 'Mon 6:30 PM on' }));
 
@@ -284,7 +284,7 @@ test('a special schedule shows one column per date and switches a time off on th
   expect(await screen.findByRole('heading', { name: 'Holiday camp week' })).toBeInTheDocument();
   expect(screen.getByLabelText('Start date')).toHaveValue('2026-12-21');
   expect(screen.queryByRole('group', { name: 'Days' })).not.toBeInTheDocument();
-  expect(screen.getByText(/Every date · 9am–4pm · 60 min · \$80/)).toBeInTheDocument();
+  expect(screen.getByText(/Every date · 9:00 AM – 4:00 PM · 60 min · \$80/)).toBeInTheDocument();
   expect(screen.getByText('7 dates · 49 lessons')).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole('button', { name: 'Tue 22 10:00 AM on' }));

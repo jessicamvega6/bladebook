@@ -51,7 +51,7 @@
 .bb .bk-share__sibs { display: flex; flex-direction: column; gap: 6px; }
 .bb .bk-share__sibs .listbox { background: var(--surface); border-radius: var(--r-md); }
 .bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
-@media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 980px) { .bb .bk-split, .bb .split--tl { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
   .bb .bk-optfield { padding-left: 4px; }

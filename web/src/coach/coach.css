@@ -14,7 +14,7 @@
 .bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
 .bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
-.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .tlist__t { width: 66px; flex: none; white-space: nowrap; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
 .bb .card__foot { padding: 14px 20px 18px; }
 .bb .card--attn { border-color: var(--warning-border); }
 .bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

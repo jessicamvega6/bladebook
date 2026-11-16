@@ -43,9 +43,9 @@ test('the week shows each open time, greys the past ones, and asks for exactly t
 
   expect(await screen.findByRole('heading', { name: 'Week of Nov 8' })).toBeInTheDocument();
   expect(f).toHaveBeenCalledWith('/api/coach/calendar?from=2026-11-08&to=2026-11-14', expect.anything());
-  const past = screen.getByText('6:00').closest('.wl');
+  const past = screen.getByText('6:00 AM').closest('.wl');
   expect(past).toHaveClass('wl--open', 'wl--past');
-  expect(screen.getByText('7:00 · 60m').closest('.wl')).not.toHaveClass('wl--past');
+  expect(screen.getByText('7:00 AM · 60m').closest('.wl')).not.toHaveClass('wl--past');
   expect(screen.getByText('It’s Monday 6:40 AM. Past lessons are greyed and can’t be cancelled.')).toBeInTheDocument();
   // Only open times: nothing to cancel on its own, but the rest of the week can be held closed.
   expect(screen.queryByRole('button', { name: 'Cancel day' })).not.toBeInTheDocument();

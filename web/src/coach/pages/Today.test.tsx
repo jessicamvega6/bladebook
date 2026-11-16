@@ -57,7 +57,7 @@ test('today’s lessons: who, length and share, attendance per skater, the next 
   const rows = card.querySelectorAll('.row');
   expect(rows).toHaveLength(4);
 
-  expect(rows[0]).toHaveTextContent('6:00');
+  expect(rows[0]).toHaveTextContent('6:00 AM');
   expect(within(rows[0] as HTMLElement).getByText('Sam Rivera & Leo Martin')).toBeInTheDocument();
   expect(rows[0]).toHaveTextContent('30 min · $25 + $25 · shared lesson');
   expect([...rows[0]!.querySelectorAll('.sh-badge')].map((b) => b.textContent)).toEqual(['SamAttended', 'LeoAttended']);
@@ -66,11 +66,30 @@ test('today’s lessons: who, length and share, attendance per skater, the next 
   expect(rows[1]).toHaveTextContent('Mia Chen30 min · $50No-show');
   expect(rows[2]).toHaveTextContent('Owen Brooks30 min · $50NextBooked');
   expect(rows[2]).not.toHaveClass('row--muted');
-  expect(rows[3]).toHaveTextContent('11:00Held slot30 min · not bookable');
+  expect(rows[3]).toHaveTextContent('11:00 AMHeld slot30 min · not bookable');
   expect(rows[3]).not.toHaveTextContent('Booked');
 
   expect(within(card).getByText(/Attendance comes from the rinkside app/)).toBeInTheDocument();
   expect(within(card).getByRole('link', { name: 'Lessons' })).toHaveAttribute('href', '#/lessons');
+});
+
+test('the coach code card sits under the figures (owner, 2026-11-16)', async () => {
+  show(DAY);
+  await screen.findByText('This week');
+  const code = screen.getByText('7K2Q-M9XT').closest('.codecard')!;
+  expect(code).toHaveTextContent('Your coach code7K2Q-M9XTFamilies enter this to sign up with you.');
+  expect(within(code as HTMLElement).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+  expect(document.querySelector('.stats')!.nextElementSibling).toBe(code);
+});
+
+test('the coach code card says it isn’t working yet until the business email is confirmed', async () => {
+  render(<Today profile={{ ...PROFILE, codeWorks: false, pendingBusinessEmail: 'dana@whitfieldskating.com' }} api={api(DAY)}
+    onUseLogin={vi.fn()} onError={vi.fn()} busy={false} pending={[]} />);
+  await screen.findByText('This week');
+  const code = screen.getByText('7K2Q-M9XT').closest('.codecard')!;
+  expect(code).toHaveClass('codecard--pending');
+  expect(code).toHaveTextContent('Not working yet');
+  expect(code).toHaveTextContent('Starts working once you confirm your business email.');
 });
 
 test('the greeting and date are the coach’s own, with a way to the week view', async () => {

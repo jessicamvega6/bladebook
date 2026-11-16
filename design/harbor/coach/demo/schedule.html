@@ -956,7 +956,7 @@ function builder() {
       const on = x.id === b.id;
       const days = temp ? 'Every date' : (x.days.map((v, i) => v ? DAYS[i] : null).filter(Boolean).join(' · ') || 'No days yet');
       return `<div class="block${on ? ' is-editing' : ''}"><span class="block__bar${on ? '' : ' block__bar--other'}"></span>
-        <button type="button" class="block__text" onclick="set(()=>cur().active=${x.id})" aria-pressed="${on}"><span class="block__name">${label(x)} ${on ? '<span class="badge badge--primary">Editing</span>' : ''}</span><span class="block__meta">${days} · ${short(x.sod)}–${short(x.eod)} · ${x.len} min · ${money(x.cost)} · ${skatersText(x.maxSkaters)} · ${iceShort(x.ice) || 'No ice type yet'}</span></button>
+        <button type="button" class="block__text" onclick="set(()=>cur().active=${x.id})" aria-pressed="${on}"><span class="block__name">${label(x)} ${on ? '<span class="badge badge--primary">Editing</span>' : ''}</span><span class="block__meta">${days} · ${fmt(x.sod)} – ${fmt(x.eod)} · ${x.len} min · ${money(x.cost)} · ${skatersText(x.maxSkaters)} · ${iceShort(x.ice) || 'No ice type yet'}</span></button>
         ${blks().length > 1 ? `<button type="button" class="iconbtn iconbtn--sm" onclick="delBlock(${x.id})" aria-label="Delete ${label(x)}">${ic('trash', 15)}</button>` : ''}</div>`;
     }).join('')}
     <button type="button" class="addrow" onclick="addBlock()">${ic('plus', 16)}Add a block with a different length or price</button>`,
@@ -1015,11 +1015,11 @@ function column(c, i, temp) {
   let body = '';
   runs.forEach((b, k) => {
     const act = b.id === cur().active;
-    if (k > 0 && b.sod > runs[k - 1].eod) body += `<span class="wk__break">Break ${short(runs[k - 1].eod)}–${short(b.sod)}</span>`;
+    if (k > 0 && b.sod > runs[k - 1].eod) body += `<span class="wk__break">Break ${fmt(runs[k - 1].eod).replace(' ', '&nbsp;')} – ${fmt(b.sod).replace(' ', '&nbsp;')}</span>`;
     body += `<div class="wk__tag${act ? ' wk__tag--edit' : ''}">${b.len} min · ${money(b.cost)}</div>`;
     body += slotsOf(b).map(t => {
       const off = isOff(b, i, t);
-      return `<button type="button" class="wslot${off ? ' wslot--off' : act ? ' wslot--edit' : ''}${b.len >= 60 ? ' wslot--60' : ''}" aria-pressed="${!off}" aria-label="${fmt(t)} ${off ? 'switched off' : 'on'}" onclick="toggleSlot(${b.id},${i},${t})">${hm(t)}</button>`;
+      return `<button type="button" class="wslot${off ? ' wslot--off' : act ? ' wslot--edit' : ''}${b.len >= 60 ? ' wslot--60' : ''}" aria-pressed="${!off}" aria-label="${fmt(t)} ${off ? 'switched off' : 'on'}" onclick="toggleSlot(${b.id},${i},${t})">${fmt(t)}</button>`;
     }).join('');
   });
   return `<div class="wk__col"><div class="wk__dow">${headTxt}</div>${body}<div class="wk__foot num">${ct.n} · ${money(ct.cash)}</div></div>`;
