@@ -1546,8 +1546,10 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 - **Two AWS accounts in one Organization:** production and dev. Sign-in through **IAM Identity
   Center with MFA**.
-- The domain's zone is in production; **`dev.<domain>` is delegated** to a hosted zone in the dev
-  account.
+- The domain's DNS is in **Cloudflare**, where it's registered. **`dev.<domain>` is delegated** to a hosted zone in the dev
+  account, and **a production subdomain** (named when production is built) to a hosted zone in the production
+  account, so CDK manages the records under each (ADR-027 d8, amended 2026-11-16). The management account is
+  `307202557124`.
 - **Production is the only long-running environment.**
 
 ### Dev
