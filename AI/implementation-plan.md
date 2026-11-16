@@ -1,6 +1,6 @@
 # BladeBook — Implementation Plan
 
-**Last checked:** 2026-11-16, against `main` after PR #53.
+**Last checked:** 2026-11-16, against `main` after PR #54.
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor screen designs in
 `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16), `docs/Blockers-Before-Coding.md`, and the feature
 notes in `FeatureDecriptions/`.
@@ -56,8 +56,9 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [22](batch-logs/batch-22.md) | Today's lessons and figures | #53 |
 | [23](batch-logs/batch-23.md) | The rinkside Week tab | #51 |
 | [26](batch-logs/batch-26.md) | Saving a closed year's figures | #52 |
+| [17a](../infra/README.md) | Infrastructure, part 1: `infra/` in CDK (no batch log; its record is `infra/README.md`) | #54 |
 
-**Under way:** Batch 17a, the first half of the infrastructure, on `feature/batch-17a-infra` (PR #54).
+**Under way:** nothing. Next is Batch 27 (§4).
 
 **What that means for the code:**
 
@@ -66,14 +67,18 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 - `web/` has three Vite entry points (coach, rinkside and family) and the rinkside page's service worker.
   `web/src/shared/auth` holds the local sign-in stand-in (Question 3, SC-1).
 - **Still disabled on screen:** the coach Profile's *Account* tab (Batch 18).
-- `infra/` isn't on `main` yet; Batch 17a adds it. Nothing is deployed.
+- `infra/` holds the CDK (TypeScript) app from Batch 17a. In dev, only `bladebook-dev-identity` (the Cognito user
+  pool, its groups and both app clients) is deployed, and nothing uses it yet. `bladebook-dev-app` waits for AWS
+  Support's CloudFront verification (§3), and `bladebook-dev-deploy-access` waits for Batch 17b's deploy workflow.
+  The app itself still runs locally only.
 
 ## 3. Blocked outside this work
 
 | Blocker | Effect on this plan |
 |---|---|
-| Infrastructure as Code (IaC) is chosen (CDK, TypeScript, 2026-11-12) and Batch 17 is writing it; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | Nothing is deployed. "End to end" means **running locally**. |
-| The Amazon Cognito user pool isn't deployed | Signing in locally uses a stand-in (Question 3). The sign-in library is chosen: AWS Amplify's Auth module with Secure Remote Password (SRP) (ADR-023, 2026-11-12). The real sign-in forms are Batch 18. |
+| Batch 17b (the table, API, functions and events) isn't built; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | The app isn't deployed. "End to end" means **running locally**. |
+| Dev's AWS account can't create CloudFront distributions until AWS Support verifies it (asked 2026-11-16, case 179485860000682; `infra/README.md`) | `bladebook-dev-app` (both websites) can't deploy. Production's account needs the same step as soon as it exists. |
+| The Amazon Cognito user pool is deployed in dev, but nothing signs in through it until Batch 18 | Signing in locally uses a stand-in (Question 3). The sign-in library is chosen: AWS Amplify's Auth module with Secure Remote Password (SRP) (ADR-023, 2026-11-12). The real sign-in forms are Batch 18. |
 | Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | Called in-process or on a local timer, each a listed shortcut (Question 4). |
 | Rink-fee calculation undecided (`docs/Q_Rink-Fees.md`) | **Phase 2** (owner, 2026-11-12). The financial page shows gross only and says rink fee calculation is coming. |
 | The family read allowlist and the gate-test rows for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4 (Blockers 23, 24) | DynamoDB Local ignores Identity and Access Management (IAM) rules, so the per-tenant credential rules are a listed shortcut until the gate tests pass on real AWS (Batch 17). |
@@ -87,8 +92,7 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 | # | Batch | Waits on |
 |---|---|---|
 | 27 | **Lessons from before last year are view only** (G-39; owner, 2026-11-15). On Payments, a lesson dated before January 1 of last year, in the coach's time zone, can be seen but not changed: no *Mark paid*, no change to how they paid, no *Waive* and no *Undo*. The server refuses each one (wording settled when built), and the page shows the lesson's status without its buttons (the Harbor design has no read-only row yet; drawn when built). This year's and last year's lessons stay editable, so a December lesson paid in January still counts (ADR-030 amendment of 2026-11-13). It closes the one case the financial page leaves out: a lesson from two or more years back marked paid now, which counts in no year. ADR-030, ADR-MASTER §12 and `FeatureDecriptions/Coach Payment Section on Dashboard.md` are amended when it's built. | Nothing: Batch 26 is merged. Before Batch 17b, which turns on deleting old records |
-| 17a | **Infrastructure, part 1** (split by the owner 2026-11-16 so it could start alongside 22, 23 and 26; **under way**, PR #54). Only the parts that touch no `backend/` or `.github/workflows/` file: `infra/` in CDK, the account stack (user pool, groups, both app clients), both websites on their own hosts (`app.dev.bladebook.org`, `family.dev.bladebook.org`; ADR-027 amended 2026-11-16) with certificates and DNS, the data buckets, the access log and its Firehose archive, SES for `dev.bladebook.org`, the Web Application Firewall (WAF, off in dev), the GitHub deploy role, and `cdk-nag` with tests. | — |
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job), the tenant roles and the gate tests re-run on AWS (Blockers 23, 24, G-26), the drift check and TTL archiver, the Vite builds moved to each host's root, the website upload, and the deploy workflow with ADR-032's security setup (Blocker 3). With 17a, it closes every shortcut and gap the root `README.md` gives to Batch 17: SC-3, SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22, SC-27 and G-26. | Batch 17a merged; Batch 27 first |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job), the tenant roles and the gate tests re-run on AWS (Blockers 23, 24, G-26), the drift check and TTL archiver, the Vite builds moved to each host's root, the website upload, and the deploy workflow with ADR-032's security setup (Blocker 3). With 17a, it closes every shortcut and gap the root `README.md` gives to Batch 17: SC-3, SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22, SC-27 and G-26. | Batch 27 first. The website upload also needs `bladebook-dev-app` deployed (§3) |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
 | 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in. | Batch 18 |
