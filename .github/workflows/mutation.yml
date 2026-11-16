@@ -1,0 +1,58 @@
+# Mutation testing (PIT) on backend/core only — ADR-013 decision 3, run by CI per ADR-032.
+#
+# Runs on all of core, nightly and by hand only (owner, 2026-11-16): not on pull requests or pushes to main,
+# so a pull request never waits on it or fails because of it. A run fails below the threshold in
+# backend/core/pom.xml (pit.mutationThreshold), which is the score for all of core together. It shows the
+# classes with the most missed mutations on the run's page (.github/scripts/pit-summary.py) and keeps the
+# HTML report as a download. GitHub emails a failed scheduled run to whoever last changed the cron line.
+# PIT 1.30 has no free incremental history (it moved to the paid Arcmutate add-on), so every run re-tests
+# all of core; speed comes from 4 threads (backend/core/pom.xml).
+
+name: Mutation testing
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 08:00 UTC, the middle of the night in the US
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  all-of-core:
+    name: PIT on all of core
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'   # must match <maven.compiler.release> in backend/pom.xml
+          cache: maven
+
+      - name: Run PIT on all of core
+        run: ./mvnw -B -pl core test-compile pitest:mutationCoverage
+
+      - name: Show the top offenders on the run page
+        if: always()
+        run: python3 ../.github/scripts/pit-summary.py core/target/pit-reports/mutations.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report
+          path: backend/core/target/pit-reports/
+          retention-days: 30
+          if-no-files-found: ignore

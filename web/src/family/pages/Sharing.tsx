@@ -203,7 +203,7 @@ export function InvitePage({ api, inviteId, onError }: { api: FamilyApi; inviteI
     }
   };
 
-  const crumb = <div className="crumb"><a href="#/home"><Icon name="chevL" size={14} />Home</a></div>;
+  const crumb = <div className="crumb"><a className="link" href="#/home"><Icon name="arrowL" size={14} /> Home</a></div>;
   if (inv === undefined) return <p className="muted" aria-busy="true">Loading…</p>;
   if (inv === null) {
     return (

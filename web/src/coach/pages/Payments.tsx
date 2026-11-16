@@ -4,7 +4,7 @@
  *
  * Every skater's lesson that has happened in a date range, at their share of the price. Unpaid or All; Mark paid with
  * how they paid (optional, changeable afterwards), Waive (always confirms; final, R7), and Undo on paid lessons.
- * Not yet: the Financial summary (Batch 12) and Send reminders (Phase 2), both shown disabled.
+ * Financial summary opens the financial page (Batch 12). Not yet: Send reminders (Phase 2), shown disabled.
  */
 import { useEffect, useId, useState } from 'react';
 import { ApiError } from '../../shared/api/client';
@@ -75,7 +75,7 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
     <div className="phead">
       <div className="phead__text"><h1 className="h1">Payments</h1><p className="lede">Track who has paid. BladeBook doesn’t take payments; you mark them here.</p></div>
       <div className="phead__actions">
-        <button type="button" className="btn btn--secondary" disabled title="Comes in a later batch"><Icon name="trend" /><span>Financial summary</span></button>
+        <a className="btn btn--secondary" href="#/finances"><Icon name="trend" /><span>Financial summary</span></a>
         <span className="mp-phase"><button type="button" className="btn btn--secondary" disabled><Icon name="mail" /><span>Send reminders</span></button><Badge tone="neutral">Phase 2</Badge></span>
       </div>
     </div>

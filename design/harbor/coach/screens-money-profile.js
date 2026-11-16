@@ -178,7 +178,7 @@ SCREENS.finances = () => {
   return shell(`
     ${pageHead('Financial summary', `Your ${FIN_YEAR} figures so far, for your taxes. Gross is money you’ve received.`,
       `${B('Download summary', 'secondary', 'finExportOpen', { icon: 'arrowR' })}<span class="mp-phase">${B('Past years', 'secondary', '', { icon: 'calendar', disabled: true })}${badge('Phase 2', 'neutral')}</span>`, crumb('payments', 'Payments'))}
-    ${banner('info', 'Based on lessons you’ve marked as paid', 'These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: marking one of its lessons paid later doesn’t change it.')}
+    ${banner('info', 'Based on lessons you’ve marked as paid', 'These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: a lesson from it marked paid later counts in the month you mark it, labelled with its year.')}
     <div class="stats">
       ${stat(`Gross, ${FIN_YEAR} to date`, money(gross), `${plural(lessons, 'lesson')} marked paid`, 'card')}
       ${stat('Still unpaid', money(unpaid), 'Not in gross until marked paid', 'alert')}
