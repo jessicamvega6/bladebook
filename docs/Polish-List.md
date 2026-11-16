@@ -18,7 +18,8 @@ prefer if you know.
 
 ## Family app
 
-- [ ]
+- [ ] Home page: add padding to the bottom of the **Today** and **Coming up** cards
+  (`web/src/family/pages/Home.tsx`).
 
 ## Rinkside app
 
