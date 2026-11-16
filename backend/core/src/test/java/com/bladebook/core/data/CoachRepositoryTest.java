@@ -65,7 +65,7 @@ class CoachRepositoryTest {
 
     @Test
     void aProfileWaitingForItsBusinessEmailWritesNoCode() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmails(java.util.Map.of("lessons@dana.com", com.bladebook.core.domain.BusinessEmails.Link.none())).build();
         repo.create(ctx, p);
 
         assertThat(repo.find(ctx)).contains(p);
@@ -136,7 +136,7 @@ class CoachRepositoryTest {
 
     @Test
     void renamingWhileTheCodeIsNotWorkingWritesNoCode() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmails(java.util.Map.of("lessons@dana.com", com.bladebook.core.domain.BusinessEmails.Link.none())).build();
         repo.create(ctx, p);
         repo.updateDetails(ctx, p.toBuilder().firstName("Danielle").build());
 
@@ -203,7 +203,7 @@ class CoachRepositoryTest {
 
     @Test
     void rotatingANotYetWorkingCodeOnlyChangesTheProfile() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmails(java.util.Map.of("lessons@dana.com", com.bladebook.core.domain.BusinessEmails.Link.none())).build();
         repo.create(ctx, p);
 
         repo.replaceCode(ctx, p, CoachCode.parse("AAAA-BBBB"));
@@ -242,28 +242,60 @@ class CoachRepositoryTest {
         assertThat(codeItem("CCCC-DDDD")).isEmpty();
     }
 
-    // ---- business email ----
+    // ---- business email (ADR-016, amended 2026-11-12) ----
+
+    private static final java.time.Instant NOW = java.time.Instant.parse("2026-11-16T14:00:00Z");
+    private static final String HASH = com.bladebook.core.domain.LinkToken.hash("token-one");
+
+    private static com.bladebook.core.domain.BusinessEmails.Link link() {
+        return com.bladebook.core.domain.BusinessEmails.Link.sentAt(HASH, NOW);
+    }
+
+    private CoachProfile waiting(String code) {
+        return profile(code).pendingBusinessEmails(Map.of("lessons@dana.com", link())).build();
+    }
 
     @Test
-    void activatingTheBusinessEmailWritesTheCode() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+    void aWaitingAddressIsStoredWithOnlyItsTokensHashAndExpiry() {
+        CoachProfile p = profile("7K2Q-M9XT").businessEmail("dana@gmail.com").build();
         repo.create(ctx, p);
+        CoachProfile next = p.toBuilder().businessEmails(p.businessEmails().add("lessons@dana.com", link()))
+                .businessEmailsVersion(1).build();
 
-        repo.activateBusinessEmail(ctx, p, "lessons@dana.com", CoachCode.parse("7K2Q-M9XT"));
+        repo.saveBusinessEmails(ctx, p, next);
+
+        assertThat(repo.find(ctx)).contains(next);
+        Map<String, AttributeValue> entry = raw(ctx.partitionKey(), "PROFILE").get("pendingBusinessEmails").m().get("lessons@dana.com").m();
+        assertThat(entry.get("tokenHash").s()).isEqualTo(HASH);
+        assertThat(entry.get("expiresAt").s()).isEqualTo("2026-11-19T14:00:00Z");
+        assertThat(entry.keySet()).containsExactlyInAnyOrder("tokenHash", "expiresAt");
+    }
+
+    @Test
+    void confirmingANewCoachsAddressWritesTheCode() {
+        CoachProfile p = waiting("7K2Q-M9XT");
+        repo.create(ctx, p);
+        CoachProfile next = p.toBuilder().businessEmails(p.businessEmails().confirm(HASH, NOW)).businessEmailsVersion(1).build();
+
+        repo.saveBusinessEmails(ctx, p, next);
 
         CoachProfile saved = repo.find(ctx).orElseThrow();
         assertThat(saved.businessEmail()).isEqualTo("lessons@dana.com");
-        assertThat(saved.pendingBusinessEmail()).isNull();
+        assertThat(saved.confirmedBusinessEmails()).containsExactly("lessons@dana.com");
+        assertThat(saved.pendingBusinessEmails()).isEmpty();
         assertThat(saved.codeWorks()).isTrue();
+        assertThat(raw(ctx.partitionKey(), "PROFILE")).doesNotContainKey("pendingBusinessEmails"); // an empty list is removed
         assertThat(codeItem("7K2Q-M9XT").get("coachId").s()).isEqualTo(ctx.coachId());
     }
 
     @Test
     void activatingWithANewCodeStoresThatCode() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+        CoachProfile p = waiting("7K2Q-M9XT");
         repo.create(ctx, p);
+        CoachProfile next = p.toBuilder().businessEmails(p.businessEmails().choose("dana@gmail.com"))
+                .coachCode(CoachCode.parse("AAAA-BBBB")).businessEmailsVersion(1).build();
 
-        repo.activateBusinessEmail(ctx, p, "dana@gmail.com", CoachCode.parse("AAAA-BBBB"));
+        repo.saveBusinessEmails(ctx, p, next);
 
         assertThat(repo.find(ctx).orElseThrow().coachCode()).isEqualTo(CoachCode.parse("AAAA-BBBB"));
         assertThat(codeItem("AAAA-BBBB")).isNotEmpty();
@@ -271,15 +303,31 @@ class CoachRepositoryTest {
     }
 
     @Test
-    void activatingTwiceIsAConflict() {
-        CoachProfile p = profile("7K2Q-M9XT").pendingBusinessEmail("lessons@dana.com").build();
+    void savingFromAStaleListIsAConflictSoALinkWorksOnce() {
+        CoachProfile p = waiting("7K2Q-M9XT");
         repo.create(ctx, p);
-        repo.activateBusinessEmail(ctx, p, "lessons@dana.com", CoachCode.parse("7K2Q-M9XT"));
+        CoachProfile next = p.toBuilder().businessEmails(p.businessEmails().confirm(HASH, NOW)).businessEmailsVersion(1).build();
+        repo.saveBusinessEmails(ctx, p, next);
 
-        assertThatThrownBy(() -> repo.activateBusinessEmail(ctx, p, "dana@gmail.com", CoachCode.parse("AAAA-BBBB")))
+        // a second tab confirming from the same read
+        assertThatThrownBy(() -> repo.saveBusinessEmails(ctx, p, next))
                 .isInstanceOf(DomainException.class)
                 .extracting("reason").isEqualTo(DomainException.Reason.CONFLICT);
-        assertThat(codeItem("AAAA-BBBB")).isEmpty();
+        assertThat(repo.find(ctx)).contains(next);
+    }
+
+    @Test
+    void aChangeOnceTheCodeWorksLeavesTheCodeAlone() {
+        CoachProfile p = profile("7K2Q-M9XT").businessEmail("dana@gmail.com").build();
+        repo.create(ctx, p);
+        CoachProfile added = p.toBuilder().businessEmails(p.businessEmails().add("lessons@dana.com", link())).businessEmailsVersion(1).build();
+        repo.saveBusinessEmails(ctx, p, added);
+        CoachProfile switched = added.toBuilder().businessEmails(added.businessEmails().confirm(HASH, NOW)).businessEmailsVersion(2).build();
+
+        repo.saveBusinessEmails(ctx, added, switched);
+
+        assertThat(repo.find(ctx)).contains(switched);
+        assertThat(codeItem("7K2Q-M9XT").keySet()).containsExactlyInAnyOrder("PK", "SK", "coachId", "coachFirstName", "coachLastName");
     }
 
     @Test
@@ -287,13 +335,30 @@ class CoachRepositoryTest {
         repo.create(ctx, profile("7K2Q-M9XT").businessEmail("dana@gmail.com").build());
         AccessContext other = new AccessContext(UUID.randomUUID().toString());
         CoachProfile sam = CoachProfile.builder().coachId(other.coachId()).firstName("Sam").lastName("Lee")
-                .loginEmail("sam@gmail.com").pendingBusinessEmail("lessons@sam.com").coachTimezone("America/Denver")
+                .loginEmail("sam@gmail.com").pendingBusinessEmails(Map.of("lessons@sam.com", link())).coachTimezone("America/Denver")
                 .coachCode(CoachCode.parse("7K2Q-M9XT")).build();
         repo.create(other, sam);
+        CoachProfile next = sam.toBuilder().businessEmails(sam.businessEmails().confirm(HASH, NOW)).businessEmailsVersion(1).build();
 
-        assertThatThrownBy(() -> repo.activateBusinessEmail(other, sam, "lessons@sam.com", CoachCode.parse("7K2Q-M9XT")))
+        assertThatThrownBy(() -> repo.saveBusinessEmails(other, sam, next))
                 .isInstanceOf(CoachRepository.CodeTakenException.class);
-        assertThat(repo.find(other).orElseThrow().codeWorks()).isFalse();
+        assertThat(repo.find(other).orElseThrow()).isEqualTo(sam);
+    }
+
+    @Test
+    void anAddressLeftWaitingBeforeBatch14ReadsAsAnExpiredLinkAndGoesOnTheNextSave() {
+        Map<String, AttributeValue> item = new java.util.HashMap<>(CoachRepository.toItem(profile("7K2Q-M9XT").build()));
+        item.put("pendingBusinessEmail", AttributeValue.fromS("old@dana.com"));
+        f.clients.forSetup().putItem(r -> r.tableName(f.table).item(item));
+
+        CoachProfile p = repo.find(ctx).orElseThrow();
+        assertThat(p.pendingBusinessEmails()).containsExactly(Map.entry("old@dana.com", com.bladebook.core.domain.BusinessEmails.Link.none()));
+
+        CoachProfile next = p.toBuilder().businessEmails(p.businessEmails().resend("old@dana.com", link(), NOW)).businessEmailsVersion(1).build();
+        repo.saveBusinessEmails(ctx, p, next);
+
+        assertThat(raw(ctx.partitionKey(), "PROFILE")).doesNotContainKey("pendingBusinessEmail");
+        assertThat(repo.find(ctx)).contains(next);
     }
 
     // ---- isolation in code ----

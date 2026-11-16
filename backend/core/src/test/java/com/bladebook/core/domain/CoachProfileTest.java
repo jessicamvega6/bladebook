@@ -17,7 +17,23 @@ class CoachProfileTest {
     @Test
     void theCodeWorksOnlyOnceThereIsAConfirmedBusinessEmail() {
         assertThat(dana().businessEmail("dana@gmail.com").build().codeWorks()).isTrue();
-        assertThat(dana().pendingBusinessEmail("lessons@dana.com").build().codeWorks()).isFalse();
+        assertThat(dana().pendingBusinessEmails(java.util.Map.of("lessons@dana.com", com.bladebook.core.domain.BusinessEmails.Link.none())).build().codeWorks()).isFalse();
+    }
+
+    @Test
+    void theBusinessEmailListReadsAndWritesThroughTheProfile() {
+        java.time.Instant now = java.time.Instant.parse("2026-11-16T14:00:00Z");
+        CoachProfile p = dana().businessEmail("dana@gmail.com").build();
+        BusinessEmails next = p.businessEmails().add("lessons@dana.com", BusinessEmails.Link.sentAt(LinkToken.hash("t"), now));
+
+        CoachProfile after = p.toBuilder().businessEmails(next).build();
+
+        assertThat(after.businessEmail()).isEqualTo("dana@gmail.com");
+        assertThat(after.pendingBusinessEmails()).containsOnlyKeys("lessons@dana.com");
+        assertThat(after.pendingBusinessEmail()).isEqualTo("lessons@dana.com");
+        assertThat(after.businessEmails().login()).isEqualTo("dana@gmail.com");
+        assertThat(after).isNotEqualTo(p);
+        assertThat(p.pendingBusinessEmail()).isNull();
     }
 
     @Test

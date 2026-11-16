@@ -1,5 +1,6 @@
 package com.bladebook.core.data;
 
+import com.bladebook.core.domain.BusinessEmails;
 import com.bladebook.core.domain.CoachCode;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
@@ -17,10 +18,12 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 import software.amazon.awssdk.services.dynamodb.model.Update;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -191,20 +194,64 @@ public final class CoachRepository {
     }
 
     /**
-     * Makes {@code address} the business email and writes the {@code CODE#} item, so the code starts
-     * working. Only while no business email is confirmed yet.
+     * Saves a change to the business-email list ({@link CoachProfile#businessEmails}): the current address, the other
+     * confirmed ones, and the ones waiting for their link, with {@code next}'s version. Written only if the stored version
+     * is still {@code current}'s, so a link can't be used twice and two tabs can't both change the list. If the change
+     * gives a new coach its first confirmed address, the {@code CODE#} item is written in the same transaction, so the
+     * code starts working (ADR-016, amended 2026-11-06).
      *
-     * @param code the code to make work: the profile's own, or a new one after a collision
+     * @throws DomainException CONFLICT if the list changed since {@code current} was read
+     * @throws CodeTakenException if another coach has {@code next}'s code; the caller picks a new one
      */
-    public void activateBusinessEmail(AccessContext ctx, CoachProfile current, String address, CoachCode code) {
+    public void saveBusinessEmails(AccessContext ctx, CoachProfile current, CoachProfile next) {
         mustBeCaller(ctx, current);
-        transact(ctx, List.of(
-                TransactWriteItem.builder().update(Update.builder().tableName(table).key(profileKey(ctx))
-                        .conditionExpression("attribute_exists(PK) AND attribute_not_exists(businessEmail)")
-                        .updateExpression("SET businessEmail = :b, coachCode = :c REMOVE pendingBusinessEmail")
-                        .expressionAttributeValues(Map.of(":b", s(address), ":c", s(code.value()))).build()).build(),
-                TransactWriteItem.builder().put(putCode(code, current)).build()),
-                DomainException.conflict("Your business email is already confirmed."), 1);
+        mustBeCaller(ctx, next);
+        Map<String, AttributeValue> values = new HashMap<>();
+        List<String> set = new ArrayList<>();
+        List<String> remove = new ArrayList<>(List.of("pendingBusinessEmail")); // Batch 1's single address
+        if (next.businessEmail() != null) {
+            values.put(":b", s(next.businessEmail()));
+            set.add("businessEmail = :b");
+        } else {
+            remove.add("businessEmail");
+        }
+        if (next.confirmedBusinessEmails().isEmpty()) {
+            remove.add("confirmedBusinessEmails");
+        } else {
+            values.put(":c", confirmedValue(next));
+            set.add("confirmedBusinessEmails = :c");
+        }
+        if (next.pendingBusinessEmails().isEmpty()) {
+            remove.add("pendingBusinessEmails");
+        } else {
+            values.put(":p", pendingValue(next));
+            set.add("pendingBusinessEmails = :p");
+        }
+        values.put(":nv", AttributeValue.fromN(Long.toString(next.businessEmailsVersion())));
+        set.add("businessEmailsVersion = :nv");
+        String condition = "attribute_exists(PK) AND ";
+        if (current.businessEmailsVersion() == 0) {
+            condition += "attribute_not_exists(businessEmailsVersion)";
+        } else {
+            values.put(":ov", AttributeValue.fromN(Long.toString(current.businessEmailsVersion())));
+            condition += "businessEmailsVersion = :ov";
+        }
+        boolean activating = !current.codeWorks() && next.codeWorks();
+        if (activating) {
+            values.put(":oc", s(current.coachCode().value()));
+            values.put(":nc", s(next.coachCode().value()));
+            set.add("coachCode = :nc");
+            condition += " AND coachCode = :oc";
+        }
+        List<TransactWriteItem> writes = new ArrayList<>();
+        writes.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(profileKey(ctx))
+                .conditionExpression(condition)
+                .updateExpression("SET " + String.join(", ", set) + " REMOVE " + String.join(", ", remove))
+                .expressionAttributeValues(values).build()).build());
+        if (activating) {
+            writes.add(TransactWriteItem.builder().put(putCode(next.coachCode(), next)).build());
+        }
+        transact(ctx, writes, DomainException.conflict(CHANGED), 1);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -263,7 +310,15 @@ public final class CoachRepository {
         m.put("lastName", s(p.lastName()));
         m.put("loginEmail", s(p.loginEmail()));
         putIf(m, "businessEmail", p.businessEmail());
-        putIf(m, "pendingBusinessEmail", p.pendingBusinessEmail());
+        if (!p.confirmedBusinessEmails().isEmpty()) {
+            m.put("confirmedBusinessEmails", confirmedValue(p));
+        }
+        if (!p.pendingBusinessEmails().isEmpty()) {
+            m.put("pendingBusinessEmails", pendingValue(p));
+        }
+        if (p.businessEmailsVersion() > 0) {
+            m.put("businessEmailsVersion", AttributeValue.fromN(Long.toString(p.businessEmailsVersion())));
+        }
         putIf(m, "phone", p.phone());
         m.put("coachTimezone", s(p.coachTimezone()));
         m.put("currency", s(p.currency().name()));
@@ -299,7 +354,10 @@ public final class CoachRepository {
                 .lastName(str(m, "lastName"))
                 .loginEmail(str(m, "loginEmail"))
                 .businessEmail(str(m, "businessEmail"))
-                .pendingBusinessEmail(str(m, "pendingBusinessEmail"))
+                .confirmedBusinessEmails(m.containsKey("confirmedBusinessEmails")
+                        ? m.get("confirmedBusinessEmails").l().stream().map(AttributeValue::s).toList() : List.of())
+                .pendingBusinessEmails(pendingFrom(m))
+                .businessEmailsVersion(m.containsKey("businessEmailsVersion") ? Long.parseLong(m.get("businessEmailsVersion").n()) : 0)
                 .phone(str(m, "phone"))
                 .coachTimezone(str(m, "coachTimezone"))
                 .currency(CoachProfile.Currency.valueOf(str(m, "currency")))
@@ -311,6 +369,37 @@ public final class CoachRepository {
                 .displayEmailToClients(bool(m, "displayEmailToClients"))
                 .smsCancellationAlerts(bool(m, "smsCancellationAlerts"))
                 .build();
+    }
+
+    private static AttributeValue confirmedValue(CoachProfile p) {
+        return AttributeValue.fromL(p.confirmedBusinessEmails().stream().map(CoachRepository::s).toList());
+    }
+
+    /** address → {tokenHash, expiresAt}. An address from Batch 1's stand-in has no token: only its expiry is written. */
+    private static AttributeValue pendingValue(CoachProfile p) {
+        Map<String, AttributeValue> out = new HashMap<>();
+        p.pendingBusinessEmails().forEach((address, link) -> {
+            Map<String, AttributeValue> entry = new HashMap<>();
+            if (link.tokenHash() != null) {
+                entry.put("tokenHash", s(link.tokenHash()));
+            }
+            entry.put("expiresAt", s(link.expiresAt().toString()));
+            out.put(address, AttributeValue.fromM(entry));
+        });
+        return AttributeValue.fromM(out);
+    }
+
+    private static Map<String, BusinessEmails.Link> pendingFrom(Map<String, AttributeValue> m) {
+        Map<String, BusinessEmails.Link> out = new LinkedHashMap<>();
+        if (m.containsKey("pendingBusinessEmails")) {
+            m.get("pendingBusinessEmails").m().forEach((address, v) -> out.put(address,
+                    new BusinessEmails.Link(str(v.m(), "tokenHash"), Instant.parse(v.m().get("expiresAt").s()))));
+        }
+        String legacy = str(m, "pendingBusinessEmail"); // Batch 1's stand-in: no link was ever sent
+        if (legacy != null && !out.containsKey(legacy)) {
+            out.put(legacy, BusinessEmails.Link.none());
+        }
+        return out;
     }
 
     private static void putIf(Map<String, AttributeValue> m, String k, String v) {
