@@ -484,6 +484,21 @@ class ShareServiceTest {
     }
 
     @Test
+    void theCoachsCancelOfAnAcceptedInvitationRecordsBothSkatersEachAtTheirShare() {
+        miaAccepted(MON);
+        new CoachCancelService(scheduleRepo, cancelRepo, clock).cancel(dana, CoachCancelRequest.parse("LESSON",
+                List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "RELEASE")), null));
+
+        assertThat(cancelRepo.lines(dana))
+                .extracting(CancellationLine::studentId, CancellationLine::cancelledBy, CancellationLine::priceMinor)
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple(ava, ChangeBatch.By.COACH, 2500),
+                        org.assertj.core.groups.Tuple.tuple(mia, ChangeBatch.By.COACH, 2500));
+        assertThat(cancelRepo.batches(dana).get(0).clientCount()).isEqualTo(2);      // both families are told
+        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.OPEN);
+        assertThat(booking.myBookings(chen).upcoming()).isEmpty();
+    }
+
+    @Test
     void theCoachsCalendarNamesOnlySkatersInTheLessonNotOneStillInvited() {
         bookAva(miaCode, MON);
         CalendarService cal = new CalendarService(scheduleRepo, t.coaches, t.studentRepo, clock);
