@@ -50,7 +50,7 @@ Open **http://localhost:5173/coach/**. The first page is the local sign-in stand
 names and email. The same email always signs in as the same coach.
 
 Open **http://localhost:5173/family/** for the family website, and choose *Sign up with a coach code*.
-A coach's code is on their Profile → Details tab; it works once their business email is confirmed (*Use my login
+A coach's code is on their Today page and their Profile → Details tab; it works once their business email is confirmed (*Use my login
 email* makes it work at once). Nothing is emailed locally: the confirmation email, with its link, is in
 `api-coach`'s outbox at http://localhost:8080/api/coach/local/outbox (SC-21; send the coach's token). Open the
 link in the browser to reach the confirm page.

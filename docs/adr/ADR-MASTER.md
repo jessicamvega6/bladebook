@@ -502,6 +502,9 @@ messages are product: see `FeatureDecriptions/Schedule Creater.md`,
 - **Weeks run Sunday–Saturday in the coach's timezone.** The month marks every date with an
   override (one range query on `SCHEDULE#DATE#`).
 - **Every lesson time is shown in the coach's timezone**, for every family.
+- **A time is written "1:00 PM"**, hour, minutes and AM or PM, everywhere the coach and family websites show one,
+  ranges as *"3:00 PM – 7:00 PM"* (*amended 2026-11-16, owner: "use '1:00 PM' everywhere"*; the designs' shorter
+  *6:00* and *3pm* are retired).
 - The family's calendar shows only free or taken (§7); the coach's shows who is booked.
 - *The calendars' views, navigation and the empty-schedule state are product:
   `FeatureDecriptions/Coach Dashboard on website.md`, `FeatureDecriptions/C_Coach Schedule Hub.md`

@@ -1071,11 +1071,32 @@ The full list, with what closes each one, is in the root `README.md`.
 - **Closed:** G-6.
 - **Shortcuts:** none new.
 - **Gaps:** none new. Nothing in the design conflicted with an ADR.
+- **Owner rulings (2026-11-16)**, on the four questions in PR #53:
+  1. **The coach code card goes back on Today, under the three figures**, over the design. It is the same card as on
+     Profile → Details (`CodeCard`), so it says *Not working yet* until the business email is confirmed. The Harbor
+     Today design (`coach/app.js`, both Today pages) now draws it too, and the root `README.md` names Today first.
+  2. **This week counts lesson times, not skaters' lessons:** a shared lesson counts once, and a held or empty time
+     not at all (only times with at least one skater booked). The amount is still every skater's share, so a shared
+     lesson adds its whole price. Changed test first in `core` (`TodayBoard.booked`); the design's figure counts the
+     same way. The page's wording (*"5 lessons, $250 booked"*) didn't mention skaters, so it stays.
+  3. **Unpaid stays as built:** every lesson that has started and is still unpaid, the Payments page's rule.
+  4. **Times are written "1:00 PM" everywhere** on the coach and family websites (ADR-MASTER §6, amended
+     2026-11-16). `formatTime` replaces `formatClock` ("6:30") and `formatShort` ("3pm") in `coach/pages/Today.tsx`,
+     `Calendar.tsx` (the week grid), `Schedule.tsx` (each slot in the week view, each block's *"3:00 PM – 7:00 PM"*
+     and the *Break* note) and `family/pages/Book.tsx` (a slot's end time) and `Home.tsx`; the Harbor coach and
+     client designs the same (`fmtT` for `fmtShortT`, and `schedule.html`'s own short forms). The rinkside page
+     (`web/src/rinkside/`, `design/harbor/rinkside/`) is left to its own branch, so `formatClock` and `formatShort`
+     stay in `schedule.ts` for it. To fit at 390px: Today's time column is 66px and doesn't wrap; Home's *Coming up*
+     time column stays 64px on a phone; the *Break* note keeps each time on one line. **Book's *Pick your times*
+     had no phone layout** (the 340px picks column left the times about 24px at 390px, whatever the format): it now
+     stacks below 980px, times first, in the app (`family.css`) and the design (`screens-booking.css`).
+     **Not changed:** the schedule editor's overlap message (*"Morning ice (6–8 AM) and Block 2 (7–9 AM) overlap in
+     time."*), which `core` words (`ScheduleRules.range`) and the website repeats; and the emails' times.
 - **Settled while building (owner may override):**
-  - **The coach code card leaves Today**, as the design draws it (Batch 1 had put it there while Today had little else).
+  - *(Ruled otherwise 2026-11-16: the card is back on Today.)* **The coach code card leaves Today**, as the design draws it (Batch 1 had put it there while Today had little else).
     The code stays on Profile → Details, sign-up's last steps and the empty *Waiting for approval* tab; the root `README.md`
     now points to Profile → Details.
-  - **This week** is Sunday to Saturday in the coach's time zone and counts each skater's lesson, whatever happened at it
+  - *(Ruled otherwise 2026-11-16: it counts lesson times.)* **This week** is Sunday to Saturday in the coach's time zone and counts each skater's lesson, whatever happened at it
     (the design's `flatMap(skatersIn)`): a shared lesson is two lessons, each at that skater's share, and the amount is
     what they come to. A cancelled lesson isn't counted; a held time has no skater, so isn't either.
   - **Unpaid** counts every lesson that has **started** and is still unpaid, however old, no-shows included, at each
@@ -1083,7 +1104,7 @@ The full list, with what closes each one, is in the root `README.md`.
     isn't limited to this year: it reads back to the oldest unpaid lesson on GSI3.
   - **Waiting for approval** counts skaters and names their families (*"Sarah Park, Olivia Grant"*), or *Nobody waiting*.
     It counts the Students list the app already loads for the nav, so `/api/coach/today` doesn't read it again.
-  - **The time column is the design's `6:00`, with no AM or PM** (the design's `fmtShortT`).
+  - *(Ruled otherwise 2026-11-16: "6:00 AM".)* **The time column is the design's `6:00`, with no AM or PM** (the design's `fmtShortT`).
   - **A day with no lessons** says *"Your next lesson is on Wednesday, Nov 18."* (the design's *"…on Friday."*, with the date
     added, as the next lesson can be weeks away), or *"Nothing is booked after today yet."*. Only a coach with no lessons
     today pays for that read.
