@@ -16,7 +16,10 @@ export interface Profile {
   loginEmail: string;
   /** The confirmed business email, or null while one waits for its link. */
   businessEmail: string | null;
+  /** The waiting address whose link went out last, or null: what the "not working yet" banner names. */
   pendingBusinessEmail: string | null;
+  /** Profile → Business email's list: the login email, the other confirmed addresses, then those waiting for a link. */
+  emails: EmailRow[];
   phone: string | null;
   coachTimezone: string;
   currency: 'USD' | 'CAD';
@@ -30,6 +33,18 @@ export interface Profile {
   /** Profile → Visibility & texts: shown to approved families only. Both start off. */
   showPhone: boolean;
   showEmail: boolean;
+}
+
+/** One address on Profile → Business email's list (ADR-016, amended 2026-11-12). */
+export interface EmailRow {
+  address: string;
+  /** Families' replies go here now. */
+  current: boolean;
+  login: boolean;
+  /** Waiting for its confirmation link. */
+  waiting: boolean;
+  /** When a waiting address's link stops working (an instant); null otherwise. */
+  linkExpiresAt: string | null;
 }
 
 export interface SignupBody {
@@ -67,8 +82,18 @@ export function coachApi(token: string) {
     saveVisibility: (body: { showPhone: boolean; showEmail: boolean }) => call<Profile>('/profile/visibility', 'PUT', body),
     rotateCode: () => call<Profile>('/profile/code/rotate', 'POST'),
     useLoginEmail: () => call<Profile>('/profile/business-email/use-login', 'POST'),
-    /** LOCAL STAND-IN for clicking the business-email link (until batch 14). */
-    markBusinessEmailConfirmed: () => call<Profile>('/local/business-email/confirm', 'POST'),
+    /** "Use a new address"; with `replaces`, sign-up step 4's "Change address". Emails the confirmation link. */
+    addBusinessEmail: (address: string, replaces?: string) =>
+      call<Profile>('/profile/business-email', 'POST', { address, replaces: replaces ?? null }),
+    /** Profile → Business email's Save: a confirmed address becomes the business email. */
+    chooseBusinessEmail: (address: string) => call<Profile>('/profile/business-email', 'PUT', { address }),
+    /** A new link; the one sent before stops working. */
+    resendLink: (address: string) => call<Profile>('/profile/business-email/resend', 'POST', { address }),
+    removeBusinessEmail: (address: string) => call<Profile>('/profile/business-email/remove', 'POST', { address }),
+    /** Which address a confirmation link is for. Changes nothing. */
+    checkLink: (token: string) => call<{ address: string }>('/profile/business-email/check', 'POST', { token }),
+    /** The coach chose Confirm: the link's address becomes the business email. */
+    confirmLink: (token: string) => call<{ address: string; profile: Profile }>('/profile/business-email/confirm', 'POST', { token }),
   };
 }
 

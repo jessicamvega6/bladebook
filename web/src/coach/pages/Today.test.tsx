@@ -5,7 +5,7 @@ import { Today } from './Today';
 
 const PROFILE: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com', businessEmail: 'dana@gmail.com',
-  pendingBusinessEmail: null, phone: null, coachTimezone: 'America/Chicago', currency: 'USD', requiredNoticeHours: 24,
+  pendingBusinessEmail: null, emails: [], phone: null, coachTimezone: 'America/Chicago', currency: 'USD', requiredNoticeHours: 24,
   coachCode: '7K2Q-M9XT', codeWorks: true, paymentInstructions: null, paymentTypes: [], showPhone: false, showEmail: false,
 };
 
