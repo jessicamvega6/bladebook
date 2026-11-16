@@ -116,7 +116,7 @@ public final class CancellationService {
         if (!waiting.isEmpty()) {
             ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, ChangeBatch.Source.LESSON, ChangeBatch.By.CLIENT,
                     ctx.clientId(), waiting.get(0).lessonDate(), waiting.get(waiting.size() - 1).lessonDate(), waiting.size(), 1,
-                    ChangeBatch.Execution.PLANNED);
+                    ChangeBatch.Execution.PLANNED).withNotes(java.util.Map.of("kind", ChangeBatch.STAYING_CANCEL));
             cancels.startForFamily(ctx, skater, batch);
             for (Seat s : waiting) {
                 AvailableTime t = bookings.timesAt(ctx, skater.coach(), List.of(LessonTime.key(s.lessonDate(), s.startTime())))

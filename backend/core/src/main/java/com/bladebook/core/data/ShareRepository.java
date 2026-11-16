@@ -120,10 +120,13 @@ public final class ShareRepository {
         v.put(":at", FamilyItems.s(now.toString()));
         v.put(":g1", FamilyItems.s("CLIENT#" + invited.clientId()));
         v.put(":g1s", FamilyItems.s(SeatItems.SEAT + seat.lessonDate() + "#" + seat.startTime()));
+        SeatItems.dateIndex(seat.coachId(), seat.lessonDate(), seat.startTime()).forEach((k, val) -> v.put(":" + k, val));
+        SeatItems.unpaidIndex(seat.coachId(), seat.lessonDate(), invited.studentId()).forEach((k, val) -> v.put(":" + k, val));
         List<TransactWriteItem> items = new ArrayList<>();
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(seatKey(seat.coachId(), seat.key()))
                 .conditionExpression("seatStatus = :invited AND attribute_not_exists(clientId) AND invitedClientId = :me AND startsAtUtc > :now")
-                .updateExpression("SET clientId = :me, seatStatus = :booked, joinedAt = :at, GSI1PK = :g1, GSI1SK = :g1s"
+                .updateExpression("SET clientId = :me, seatStatus = :booked, joinedAt = :at, GSI1PK = :g1, GSI1SK = :g1s,"
+                        + " GSI2PK = :GSI2PK, GSI2SK = :GSI2SK, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK"
                         + " REMOVE GSI4PK, GSI4SK, dueKind, dueAt")
                 .expressionAttributeValues(v).build()).build());
         Map<String, AttributeValue> lv = new HashMap<>();
@@ -482,8 +485,14 @@ public final class ShareRepository {
         m.put("endedBy", FamilyItems.s(endedBy));
         m.put("studentId", FamilyItems.s(s.studentId()));
         m.put("studentName", FamilyItems.s(s.studentName()));
-        if (clientId != null) {
-            m.put("clientId", FamilyItems.s(clientId));
+        // The invited family: given, or as consumer-invite copied it onto the seat (a withdrawal knows only the seat).
+        String invitedFamily = clientId != null ? clientId : s.share().invitedClientId();
+        if (invitedFamily != null) {
+            m.put("clientId", FamilyItems.s(invitedFamily));
+        }
+        // Batch 13: who invited, for the "declined" email to them (not in the ADR's list).
+        if (s.share().invitedByClientId() != null) {
+            m.put("invitedByClientId", FamilyItems.s(s.share().invitedByClientId()));
         }
         if (s.share().inviteId() != null) {
             m.put("inviteId", FamilyItems.s(s.share().inviteId()));

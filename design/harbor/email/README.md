@@ -152,5 +152,9 @@ default, it sends from Cognito's own address with a low daily limit.
 - **Phase 2:** the coach's daily report (owner, 2026-11-11; its MVP draft is `coach-daily-report` in `templates.mjs` at commit `fc93e38`); "just booked, then cancelled"; the missed-lesson fee reminder; coach-chosen cancellation reasons.
 - **Phase 2, shared lessons (ADR-033 d6):** the consent-link invitation, the two "not yet accepted" warnings,
   "expired, not yet accepted", "invited skater not accepted", "no longer available after the coach's Accept".
-- **Undecided (ADR-031):** a "kept at full price" confirmation; a confirmation for cancelling one freed date;
-  whether a shared series that loses a skater sends one email per date or one per series.
+- **Undecided (ADR-031):** a "kept at full price" confirmation; a confirmation for cancelling one freed date.
+  ~~Whether a shared series that loses a skater sends one email per date or one per series.~~ *Ruled 2026-11-13 by the
+  owner (G-38): one per series. The invitation, joined, declined, withdrawn, no longer available, keep or cancel and
+  the coach's late-cancellation emails each list every date they cover (`lessons`, with `oneLesson`, `lessonCount`
+  and the first `date` and `time` for the one-date wording). The day-of reminder is one per family per coach per
+  day (G-37).*

@@ -45,6 +45,11 @@ final class CancellationItems {
         m.put("clientCount", n(b.clientCount()));
         m.put("planStatus", FamilyItems.s(planStatus));
         m.put("executionStatus", FamilyItems.s(b.executionStatus().name()));
+        if (!b.notes().isEmpty()) {
+            Map<String, AttributeValue> notes = new HashMap<>();
+            b.notes().forEach((k, v) -> notes.put(k, FamilyItems.s(v)));
+            m.put("notes", AttributeValue.fromM(notes));
+        }
         return m;
     }
 
@@ -54,7 +59,17 @@ final class CancellationItems {
                 FamilyItems.str(m, "actedBy"),
                 m.containsKey("affectedFrom") ? LocalDate.parse(FamilyItems.str(m, "affectedFrom")) : null,
                 m.containsKey("affectedTo") ? LocalDate.parse(FamilyItems.str(m, "affectedTo")) : null,
-                i(m, "lessonCount"), i(m, "clientCount"), ChangeBatch.Execution.valueOf(FamilyItems.str(m, "executionStatus")));
+                i(m, "lessonCount"), i(m, "clientCount"), ChangeBatch.Execution.valueOf(FamilyItems.str(m, "executionStatus")),
+                notes(m));
+    }
+
+    private static Map<String, String> notes(Map<String, AttributeValue> m) {
+        if (!m.containsKey("notes") || m.get("notes").m() == null) {
+            return Map.of();
+        }
+        Map<String, String> out = new HashMap<>();
+        m.get("notes").m().forEach((k, v) -> out.put(k, v.s()));
+        return out;
     }
 
     static Map<String, AttributeValue> line(String coachId, CancellationLine l) {
