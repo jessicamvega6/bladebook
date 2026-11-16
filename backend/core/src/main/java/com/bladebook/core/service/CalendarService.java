@@ -98,7 +98,8 @@ public final class CalendarService {
             }
             List<Booked> booked = new ArrayList<>();
             for (Seat s : seats) {
-                if (s.lessonDate().equals(d)) {
+                // A skater still invited hasn't joined: the coach's views show the skaters in the lesson (design; Batch 11).
+                if (s.lessonDate().equals(d) && s.seatStatus() != Seat.Status.INVITED) {
                     StudentRecord r = records.get(s.studentId());
                     booked.add(new Booked(s.startTime(), s.studentId(), s.studentName(),
                             r == null ? s.studentName() : r.studentName(), r == null ? null : r.clientName(), s.clientId(),

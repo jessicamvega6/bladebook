@@ -397,12 +397,14 @@ public final class ScheduleRepository {
         return m;
     }
 
-    private static LessonTime lessonFrom(Map<String, AttributeValue> m) {
+    static LessonTime lessonFrom(Map<String, AttributeValue> m) {
         return new LessonTime(LocalDate.parse(m.get("lessonDate").s()), LocalTime.parse(m.get("startTime").s()),
                 Instant.parse(m.get("startsAtUtc").s()), m.get("coachTz").s(), i(m, "durationMinutes"), i(m, "priceMinor"),
                 m.get("currency").s(), i(m, "missedLessonFeeMinor"), i(m, "requiredNoticeHours"), i(m, "maxSkaters"),
                 i(m, "seatsTaken"), i(m, "blockSeq"), IceType.valueOf(m.get("iceType").s()),
-                Long.parseLong(m.get("scheduleVersion").n()), LessonTime.Status.valueOf(m.get("lessonStatus").s()));
+                Long.parseLong(m.get("scheduleVersion").n()), LessonTime.Status.valueOf(m.get("lessonStatus").s()),
+                m.containsKey("shareCount") ? i(m, "shareCount") : 0,
+                m.containsKey("joinOrder") ? m.get("joinOrder").l().stream().map(AttributeValue::s).toList() : List.of());
     }
 
     // ---------------------------------------------------------------- helpers

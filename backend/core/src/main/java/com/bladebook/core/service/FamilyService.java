@@ -37,9 +37,10 @@ public final class FamilyService {
     /**
      * A skater, and their status with each coach they're with or waiting for. The IDs are the family's own:
      * booking sends them back, and {@code ClientLinks.requireActive} checks them against the family's links.
+     * {@code shareCode} is null until {@code consumer-family-sync} has issued it (G-17).
      */
     public record SkaterView(String studentId, String name, boolean isMinor, SkatingOrg skatingOrg, String registrationNumber,
-                             List<CoachStatus> coaches) {
+                             List<CoachStatus> coaches, String shareCode) {
     }
 
     public record CoachStatus(String coachId, String firstName, String lastName, StudentStatus status) {
@@ -72,7 +73,7 @@ public final class FamilyService {
                     with.add(new CoachStatus(l.coachId(), l.coachFirstName(), l.coachLastName(), l.status()));
                 }
             }
-            skaters.add(new SkaterView(k.studentId(), k.name(), k.isMinor(), k.skatingOrg(), k.registrationNumber(), with));
+            skaters.add(new SkaterView(k.studentId(), k.name(), k.isMinor(), k.skatingOrg(), k.registrationNumber(), with, k.shareCode()));
         }
         skaters.sort(Comparator.comparing(SkaterView::name, String.CASE_INSENSITIVE_ORDER));
 

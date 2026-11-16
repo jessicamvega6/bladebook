@@ -87,7 +87,7 @@ public final class FamilyDtos {
     }
 
     public record SkaterDto(String studentId, String name, boolean isMinor, String skatingOrg, String registrationNumber,
-                            List<CoachStatusDto> coaches) {
+                            List<CoachStatusDto> coaches, String shareCode) {
     }
 
     public record ContactDto(String firstName, String lastName, String email, String phone, String relationship) {
@@ -98,7 +98,8 @@ public final class FamilyDtos {
             FamilyService.Contact c = v.contact();
             List<SkaterDto> skaters = v.skaters().stream().map(s -> new SkaterDto(s.studentId(), s.name(), s.isMinor(), s.skatingOrg().name(),
                     s.registrationNumber(), s.coaches().stream()
-                    .map(x -> new CoachStatusDto(activeOnly(x.coachId(), x.status()), x.firstName(), x.lastName(), x.status().name())).toList())).toList();
+                    .map(x -> new CoachStatusDto(activeOnly(x.coachId(), x.status()), x.firstName(), x.lastName(), x.status().name())).toList(),
+                    s.shareCode())).toList();
             List<CoachDto> coaches = v.coaches().stream().map(x -> new CoachDto(activeOnly(x.coachId(), x.status()), x.firstName(), x.lastName(), x.status().name(),
                     x.skaterNames(), x.waitingNames(), CoachDetailsDto.of(x.details()))).toList();
             return new FamilyResponse(new ContactDto(c.firstName(), c.lastName(), c.email(), c.phone(), c.relationship().name()),

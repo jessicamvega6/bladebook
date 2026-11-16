@@ -37,6 +37,7 @@ class CalendarServiceTest {
     private ScheduleService schedules;
     private ScheduleChangeService change;
     private AccessContext ctx;
+    private TempScheduleService temps;
 
     @BeforeEach
     void setUp() {
@@ -47,6 +48,7 @@ class CalendarServiceTest {
         schedules = new ScheduleService(repo, coaches);
         change = new ScheduleChangeService(repo, coaches, clock);
         calendar = new CalendarService(repo, coaches, new StudentRepository(f.clients, f.table), clock);
+        temps = new TempScheduleService(repo, coaches, change, clock);
         ctx = new AccessContext(UUID.randomUUID().toString());
         ScheduleTestSupport.signUp(coaches, ctx);
     }
@@ -118,5 +120,24 @@ class CalendarServiceTest {
         assertThat(monday.lessons()).filteredOn(l -> l.startTime().equals(LocalTime.of(7, 0)))
                 .singleElement().satisfies(l -> assertThat(l.lessonStatus()).isEqualTo(LessonTime.Status.BOOKED));
         assertThat(v.days().get(2).booked()).isEmpty();
+    }
+
+    @Test
+    void timeOffShowsOnlyOnTheDaysItCovers() {
+        schedules.save(ctx, 0, List.of(mondayMornings(5000)));
+        change.apply(ctx);
+        temps.save(ctx, new com.bladebook.core.domain.TempSchedule(null, com.bladebook.core.domain.TempSchedule.Kind.TIME_OFF, "Away",
+                LocalDate.of(2026, 11, 11), LocalDate.of(2026, 11, 12), List.of(), java.util.Map.of()));
+
+        CalendarService.CalendarView v = calendar.range(ctx, SUNDAY, SUNDAY.plusDays(6));
+
+        assertThat(v.days()).extracting(d -> d.special() == null ? "-" : d.special().name())
+                .containsExactly("-", "-", "-", "Away", "Away", "-", "-");
+    }
+
+    @Test
+    void aCoachWhoHasntFinishedSettingUpIsToldSo() {
+        assertThatThrownBy(() -> calendar.range(new AccessContext(UUID.randomUUID().toString()), SUNDAY, SUNDAY.plusDays(6)))
+                .hasMessage("Finish setting up your account first.");
     }
 }

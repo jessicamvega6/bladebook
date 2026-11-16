@@ -12,7 +12,6 @@ import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.LessonTimes;
 import com.bladebook.core.domain.PriceChange;
-import com.bladebook.core.domain.PriceShare;
 import com.bladebook.core.domain.RepriceLine;
 import com.bladebook.core.domain.ScheduleBlock;
 import com.bladebook.core.domain.ScheduleChange;
@@ -129,15 +128,15 @@ public final class ScheduleChangeService {
             List<Seat> in = bookedIn(seats, c.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             cancelLines.put(c.time().key(), in.stream().map(s -> CancellationLine.of(batch, s,
-                    PriceShare.of(c.time().priceMinor(), in.size(), order, s.studentId()), c.time().currency(), now)
+                    c.time().shareFor(c.time().priceMinor(), s.studentId(), order), c.time().currency(), now)
                     .withStatus(ChangeBatch.Execution.PLANNED)).toList());
         }
         for (ScheduleChange.Reprice r : plan.reprice()) {
             List<Seat> in = bookedIn(seats, r.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             repriceLines.put(r.time().key(), in.stream().map(s -> RepriceLine.planned(batch, s,
-                    PriceShare.of(r.time().priceMinor(), in.size(), order, s.studentId()),
-                    PriceShare.of(r.newPriceMinor(), in.size(), order, s.studentId()), r.time().currency())).toList());
+                    r.time().shareFor(r.time().priceMinor(), s.studentId(), order),
+                    r.time().shareFor(r.newPriceMinor(), s.studentId(), order), r.time().currency())).toList());
         }
         batches.plan(ctx, batch, cancelLines.values().stream().flatMap(List::stream).toList(),
                 repriceLines.values().stream().flatMap(List::stream).toList());
