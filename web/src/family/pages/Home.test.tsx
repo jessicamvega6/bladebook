@@ -55,11 +55,11 @@ test('an approved family can book from Home, and sees what’s coming up', () =>
   expect(screen.getAllByRole('link', { name: 'Book a lesson' }).map((a) => a.getAttribute('href'))).toEqual(['#/book', '#/book']);
   const today = screen.getByRole('heading', { name: 'Today' }).closest('section')!;
   expect(today).toHaveTextContent('No lessons today');
-  expect(today).toHaveTextContent('Next: Ava, Mon, Nov 16 at 7am');
+  expect(today).toHaveTextContent('Next: Ava, Mon, Nov 16 at 7:00 AM');
   const next = screen.getByRole('heading', { name: 'Coming up' }).closest('section')!;
   // The date sits to the right of the name, not under the time (owner, 2026-11-11).
   expect(within(next).getByText('Ava Park').closest('.row__title')).toHaveTextContent('Ava ParkMon, Nov 16');
-  expect(next.querySelector('.ac-when')).toHaveTextContent(/^7am$/);
+  expect(next.querySelector('.ac-when')).toHaveTextContent(/^7:00 AM$/);
   expect(next).toHaveTextContent('30 min · $50');
   expect(within(next).getByRole('link', { name: 'All bookings' })).toHaveAttribute('href', '#/bookings');
   expect(next).not.toHaveTextContent('Coach Dana');

@@ -16,11 +16,14 @@ import { signInLocally } from '../../shared/auth/localAuth';
 import { Badge, Banner, Button, Card, Dialog, Icon } from '../../shared/components/harbor';
 import {
   DAYS, LESSON_LENGTHS, MAX_NAME, MAX_SKATERS, MAX_SPECIAL_DAYS, QUARTER_HOURS, addDays, dateRange, datesBetween, dayOfWeek, forDate,
-  formatClock, formatMoney, formatShort, formatTime, isOff, label, lessonsOn, longDate, nextSeq, oddCentsWarning, parseMoney, problems,
+  formatMoney, formatTime, isOff, label, lessonsOn, longDate, nextSeq, oddCentsWarning, parseMoney, problems,
   shortDate, slots, specialProblems, tempProblems, todayIn, toMinutes, type Template, type TempSummary,
 } from '../../shared/logic/schedule';
 import { scheduleApi, type PreviewDto, type Profile, type ScheduleApi, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
 import { ChangeReview } from './ScheduleReview';
+
+/** "11:30 AM" kept on one line, for the narrow break note in the week view. */
+const unbroken = (t: string) => formatTime(t).replace(' ', '\u00a0');
 
 /** Pelham Civic Center's ice types (ADR-MASTER section 6). Families never see them. */
 const ICE_TYPES = [
@@ -482,7 +485,7 @@ export function ScheduleEditor({ api, profile, special, onSaved, onToken, onErro
           <Card title="Blocks" sub="Each block has one lesson length, price and ice type.">
             {drafts.map((d) => {
               const t = toTemplate(d), on = d.seq === current.seq;
-              const times = d.startTime ? `${formatShort(d.startTime)}–${formatShort(d.endTime ?? '19:00')}` : 'No times yet';
+              const times = d.startTime ? `${formatTime(d.startTime)} – ${formatTime(d.endTime ?? '19:00')}` : 'No times yet';
               return (
                 <div key={d.seq} className={`block${on ? ' is-editing' : ''}`}>
                   <span className={`block__bar${on ? '' : ' block__bar--other'}`} />
@@ -661,14 +664,14 @@ function WeekColumn({ name, head, day, drafts, totals, activeSeq, onToggle }: {
         const act = d.seq === activeSeq;
         return (
           <div key={d.seq} style={{ display: 'contents' }}>
-            {prevEnd && toMinutes(d.startTime!) > toMinutes(prevEnd) && <span className="wk__break">Break {formatShort(prevEnd)}–{formatShort(d.startTime!)}</span>}
+            {prevEnd && toMinutes(d.startTime!) > toMinutes(prevEnd) && <span className="wk__break">Break {unbroken(prevEnd)} – {unbroken(d.startTime!)}</span>}
             <div className={`wk__tag${act ? ' wk__tag--edit' : ''}`}>{d.lessonMinutes ?? 30} min · {t.priceMinor != null ? formatMoney(t.priceMinor) : '—'}</div>
             {slots(d.startTime, end, d.lessonMinutes).map((s) => {
               const off = isOff(t, day, s);
               return (
                 <button key={s} type="button" className={`wslot${off ? ' wslot--off' : act ? ' wslot--edit' : ''}${(d.lessonMinutes ?? 30) >= 60 ? ' wslot--60' : ''}`}
                   aria-pressed={!off} aria-label={`${name} ${formatTime(s)} ${off ? 'switched off' : 'on'}`} onClick={() => onToggle(d.seq, day, s)}>
-                  {formatClock(s)}
+                  {formatTime(s)}
                 </button>
               );
             })}

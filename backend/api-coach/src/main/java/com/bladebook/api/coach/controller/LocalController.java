@@ -4,6 +4,7 @@ import com.bladebook.api.coach.config.LocalJobs;
 import com.bladebook.api.coach.security.LocalTokenStub;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.ProfileRules;
+import com.bladebook.core.service.ClosedYearJob;
 import com.bladebook.core.service.LocalOutbox;
 import com.bladebook.core.service.ScheduledJobs;
 import org.springframework.context.annotation.Profile;
@@ -24,7 +25,7 @@ import java.util.Map;
  * <ul>
  *   <li>{@code POST /api/coach/local/token} stands in for Cognito's sign-up and sign-in;</li>
  *   <li>{@code POST /api/coach/local/jobs/{day-reminder,unpaid-reminder,lesson-roller}?date=} runs a scheduled job for a
- *       date, as the Scheduler would (SC-22);</li>
+ *       date, as the Scheduler would (SC-22); {@code /jobs/year-close?date=} saves closed years' figures (SC-27);</li>
  *   <li>{@code GET /api/coach/local/outbox} lists the emails this API would have sent (SC-21).</li>
  * </ul>
  * None of these routes exist outside the local profile. The job and outbox routes are a developer's tools: any signed-in
@@ -67,6 +68,12 @@ public class LocalController {
     @PostMapping("/jobs/lesson-roller")
     public ScheduledJobs.Rolled lessonRoller(@RequestParam(required = false) String date) {
         return jobs.roll(date(date));
+    }
+
+    /** {@code sched-year-close} (Batch 26, SC-27): saves the year before {@code date}'s for every coach whose year has closed. */
+    @PostMapping("/jobs/year-close")
+    public ClosedYearJob.Result yearClose(@RequestParam(required = false) String date) {
+        return jobs.closeYear(date(date));
     }
 
     @GetMapping("/outbox")

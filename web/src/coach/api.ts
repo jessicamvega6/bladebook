@@ -269,6 +269,8 @@ export interface PaymentRowDto {
   date: string; startTime: string; durationMinutes: number; studentId: string; fullName: string; familyName: string | null;
   relationship: 'SELF' | 'GUARDIAN' | null; attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
   amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
+  /** On a paid lesson whose payment counted in a year that has closed, that year (worked out by the server); else null. */
+  closedYear: number | null;
 }
 
 /** Totals per currency, never across. */
@@ -279,6 +281,8 @@ export interface PaymentsDto {
   /** The Mark paid dialog's choices: the coach's payment types, then Other. */
   choices: PaidVia[];
   currency: string;
+  /** The year it is now in the coach's time zone: an undo of a closed year's payment counts in it. */
+  thisYear: number;
 }
 
 export function paymentsApi(token: string) {
@@ -303,13 +307,15 @@ export type PaymentsApi = ReturnType<typeof paymentsApi>;
 export interface FinanceMonthDto {
   month: string; hasLessons: boolean; paidLessons: number; gross: Record<string, number>; unpaid: Record<string, number>;
   earlierLessons: number; earlierGross: Record<string, number>;
+  /** Earlier years' payments undone this month, already taken off {@code gross} (Batch 26). */
+  undoneLessons: number; undoneGross: Record<string, number>;
 }
 
 /** A year's figures (Batch 12): gross only; rink fees are Phase 2. {@code today}: the coach's date. */
 export interface FinanceYearDto {
   year: number; closed: boolean; today: string; months: FinanceMonthDto[]; paidLessons: number;
   gross: Record<string, number>; unpaid: Record<string, number>; earlierLessons: number; earlierGross: Record<string, number>;
-  currency: string;
+  undoneLessons: number; undoneGross: Record<string, number>; currency: string;
 }
 
 export function financesApi(token: string) {
@@ -321,3 +327,32 @@ export function financesApi(token: string) {
 }
 
 export type FinancesApi = ReturnType<typeof financesApi>;
+
+// ------------------------------------------------------------- Batch 22
+
+/** One skater in one of today's lessons, at their share of the price. */
+export interface TodaySkaterDto {
+  studentId: string; name: string; amountMinor: number; currency: string;
+  attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
+}
+
+/** A booked lesson time (skaters in the order they joined) or a held one (no skaters). {@code next}: the next to start. */
+export interface TodayLessonDto { startTime: string; durationMinutes: number; held: boolean; next: boolean; skaters: TodaySkaterDto[] }
+
+/** A count of skaters' lessons and their amounts per currency, never added across. */
+export interface FiguresDto { count: number; amounts: Record<string, number> }
+
+/**
+ * The Today page (G-6): dates and times are the coach's own. {@code nextLessonDate}: only when today has no lessons.
+ * {@code week}: every lesson booked Sunday to Saturday; {@code unpaid}: every lesson that has started and is still unpaid.
+ */
+export interface TodayDto {
+  coachTimezone: string; currency: string; today: string; now: string; weekStart: string; weekEnd: string;
+  lessons: TodayLessonDto[]; nextLessonDate: string | null; week: FiguresDto; unpaid: FiguresDto;
+}
+
+export function todayApi(token: string) {
+  return { today: () => apiFetch<TodayDto>('/api/coach/today', { token }) };
+}
+
+export type TodayApi = ReturnType<typeof todayApi>;

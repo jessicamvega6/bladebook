@@ -5,8 +5,13 @@ import com.bladebook.core.domain.Seat;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.Update;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.time.Instant;
@@ -15,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Payment on seats, in the coach's partition (ADR-MASTER section 12). Each write is conditional on the status the
@@ -55,6 +61,19 @@ public final class PaymentRepository {
         return out;
     }
 
+    /**
+     * The date of the coach's oldest unpaid lesson, from the sparse unpaid index (GSI3, access pattern 11:
+     * {@code GSI3PK = COACH#<coachId>}, {@code GSI3SK = UNPAID#<date>#<studentId>}, oldest first). Only the sort key is
+     * read. The Today page's unpaid figure starts its range here (Batch 22). An index read is eventually consistent, so a
+     * payment made a moment ago can still be on it; the seats themselves are then read consistently.
+     */
+    public Optional<LocalDate> oldestUnpaid(AccessContext ctx) {
+        QueryResponse r = db(ctx).query(QueryRequest.builder().tableName(table).indexName(LocalTable.GSI3)
+                .keyConditionExpression("GSI3PK = :pk").expressionAttributeValues(Map.of(":pk", FamilyItems.s(ctx.partitionKey())))
+                .projectionExpression("GSI3SK").limit(1).build());
+        return r.items().stream().findFirst().map(m -> LocalDate.parse(m.get("GSI3SK").s().split("#")[1]));
+    }
+
     /** Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy} and {@code paidVia}. */
     public boolean markPaid(AccessContext ctx, String seatKey, Payment.Status was, Payment.Via via, Instant now) {
         Map<String, AttributeValue> v = new HashMap<>(Map.of(":paid", FamilyItems.s("PAID"), ":by", FamilyItems.s(ctx.coachId())));
@@ -78,11 +97,36 @@ public final class PaymentRepository {
 
     /** A paid lesson back to unpaid. */
     public boolean undo(AccessContext ctx, String seatKey) {
+        return update(ctx, seatKey, Payment.Status.PAID, UNDO, undoValues(ctx, seatKey));
+    }
+
+    /**
+     * A paid lesson back to unpaid when the year its payment counted in has closed (Batch 26): the seat and its
+     * correction ({@code PAYCORRECTION#}) are written in one transaction, or neither is.
+     */
+    public boolean undo(AccessContext ctx, String seatKey, FinancialRepository.Undone correction) {
+        Map<String, AttributeValue> v = undoValues(ctx, seatKey);
+        v.put(":was", FamilyItems.s(Payment.Status.PAID.name()));
+        try {
+            db(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(
+                    TransactWriteItem.builder().update(Update.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), seatKey))
+                            .conditionExpression("attribute_exists(SK) AND paymentStatus = :was").updateExpression(UNDO)
+                            .expressionAttributeValues(v).build()).build(),
+                    TransactWriteItem.builder().put(Put.builder().tableName(table).item(FinancialRepository.correctionItem(ctx, correction))
+                            .conditionExpression("attribute_not_exists(SK)").build()).build()).build());
+            return true;
+        } catch (TransactionCanceledException e) {
+            return false;
+        }
+    }
+
+    private static final String UNDO = "SET paymentStatus = :u, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK REMOVE paidAt, markedPaidBy, paidVia";
+
+    private static Map<String, AttributeValue> undoValues(AccessContext ctx, String seatKey) {
         String[] k = seatKey.split("#"); // SEAT#<date>#<startTime>#<studentId>
         Map<String, AttributeValue> v = new HashMap<>(Map.of(":u", FamilyItems.s("UNPAID")));
         SeatItems.unpaidIndex(ctx.coachId(), java.time.LocalDate.parse(k[1]), k[3]).forEach((n, val) -> v.put(":" + n, val));
-        return update(ctx, seatKey, Payment.Status.PAID,
-                "SET paymentStatus = :u, GSI3PK = :GSI3PK, GSI3SK = :GSI3SK REMOVE paidAt, markedPaidBy, paidVia", v);
+        return v;
     }
 
     /** One conditional update: the seat must exist and still have the status the coach saw. */

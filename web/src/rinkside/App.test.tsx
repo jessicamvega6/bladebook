@@ -53,7 +53,7 @@ test('today shows each lesson: recorded, under way with buttons, later with its 
   server();
   render(<App />);
   expect(await screen.findByText('1 of 3 recorded')).toBeInTheDocument();
-  expect(screen.getByText('Next: Mia C. 6:30am')).toBeInTheDocument();
+  expect(screen.getByText('Next: Mia C. 6:30 AM')).toBeInTheDocument();
   expect(screen.getByText('Sam R.').closest('.rl')).toHaveTextContent(/Present · 6:02/);
   expect(screen.getByText('Mia C.').closest('.rl')).toHaveClass('rl--now');
   expect(within(screen.getByText('Mia C.').closest('.rl') as HTMLElement).getByRole('button', { name: /Present/ })).toBeInTheDocument();

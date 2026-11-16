@@ -118,7 +118,7 @@ SCREENS['calendar-week'] = () => {
       const kind = !l ? 'open' : l.sid ? '' : 'held';
       const cls = `wl${kind ? ' wl--' + kind : ''}${past ? ' wl--past' : ''}`;
       const name = !l ? 'Open' : l.sid ? esc(whoIn(l)) : 'Held';
-      const inner = `<span class="wl__t">${fmtShortT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
+      const inner = `<span class="wl__t">${fmtT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
       return calCancellable(l)
         ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(whoIn(l, false))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
         : `<div class="${cls}">${inner}</div>`;

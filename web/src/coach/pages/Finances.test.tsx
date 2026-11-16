@@ -7,11 +7,13 @@ import { Finances } from './Finances';
 afterEach(() => vi.unstubAllGlobals());
 
 const month = (m: number, o: Partial<FinanceMonthDto> = {}): FinanceMonthDto => ({
-  month: `2026-${String(m).padStart(2, '0')}`, hasLessons: false, paidLessons: 0, gross: {}, unpaid: {}, earlierLessons: 0, earlierGross: {}, ...o,
+  month: `2026-${String(m).padStart(2, '0')}`, hasLessons: false, paidLessons: 0, gross: {}, unpaid: {}, earlierLessons: 0, earlierGross: {},
+  undoneLessons: 0, undoneGross: {}, ...o,
 });
 
 const YEAR: FinanceYearDto = {
-  year: 2026, closed: false, today: '2026-11-13', paidLessons: 3, gross: { USD: 12500 }, unpaid: { USD: 5000 }, earlierLessons: 0, earlierGross: {}, currency: 'USD',
+  year: 2026, closed: false, today: '2026-11-13', paidLessons: 3, gross: { USD: 12500 }, unpaid: { USD: 5000 }, earlierLessons: 0, earlierGross: {},
+  undoneLessons: 0, undoneGross: {}, currency: 'USD',
   months: [...Array.from({ length: 8 }, (_, i) => month(i + 1)),
     month(9, { hasLessons: true, paidLessons: 2, gross: { USD: 7500 } }),
     month(10, { hasLessons: true, paidLessons: 1, gross: { USD: 5000 }, unpaid: { USD: 5000 } }),
@@ -91,4 +93,25 @@ test('a lesson from last year paid this year counts in the month it was paid, la
   expect(rows[2]).not.toHaveTextContent('Includes');
   expect(screen.getByText('4 lessons marked paid · $30 for 2025 lessons')).toBeInTheDocument();
   expect(rows[rows.length - 1]).toHaveTextContent('Includes $30 for 2025 lessons');
+});
+
+test('a closed year’s payment undone this year is taken off the month it was undone, labelled with its year', async () => {
+  // Batch 26: 2025's own figures stay as saved; the undo counts in 2026 (ADR-030 decision 4, amended 2026-11-16).
+  const year: FinanceYearDto = {
+    ...YEAR, paidLessons: 3, gross: { USD: 7500 }, undoneLessons: 1, undoneGross: { USD: 5000 },
+    months: [month(1, { gross: { USD: -5000 }, undoneLessons: 1, undoneGross: { USD: 5000 } }), ...YEAR.months.slice(1)],
+  };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(year), { status: 200 }))));
+  render(<Finances api={financesApi('t')} year={2026} onError={vi.fn()} />);
+  const rows = await screen.findAllByRole('row');
+  // January has no lessons of its own but is listed, since a 2025 payment was undone in it.
+  expect(rows[1]).toHaveTextContent('January');
+  expect(rows[1]).toHaveTextContent('0 lessons');
+  expect(rows[1]).toHaveTextContent('−$50');
+  expect(rows[1]).toHaveTextContent('Less $50 for 2025 lessons marked unpaid');
+  expect(rows[1]).not.toHaveTextContent('Includes');
+  expect(rows[2]).not.toHaveTextContent('Less');
+  expect(screen.getByText('3 lessons marked paid · less $50 for 2025 lessons marked unpaid')).toBeInTheDocument();
+  expect(rows[rows.length - 1]).toHaveTextContent('$75');
+  expect(rows[rows.length - 1]).toHaveTextContent('Less $50 for 2025 lessons marked unpaid');
 });

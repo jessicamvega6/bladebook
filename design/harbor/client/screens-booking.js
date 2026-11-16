@@ -131,11 +131,11 @@ function bkSlotState(cid, iso, s, k) {
   return { st: 'open' };
 }
 function bkSlot(cid, iso, s, k) {
-  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len).replace(' AM', '').replace(' PM', '');
+  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len);
   const price = priceAt(cid, k.id, s), cl = (st === 'open' || st === 'sel') && bkClash(cid, k.id, iso, s.t, s.len);
   const label = st === 'yours' ? `${esc(firstName(who.name))}’s lesson` : st === 'taken' ? 'Taken' : st === 'past' ? 'Past' : money(price);
   const cls = `slot slot--${s.len} ${st === 'sel' ? 'slot--mine' : st === 'taken' || st === 'past' ? 'slot--taken' : st === 'yours' ? 'slot--taken bk-yours' : 'slot--open'}${cl ? ' bk-clash' : ''}`;
-  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtShortT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
+  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
   const inner = `<span class="slot__time">${fmtT(s.t)}<small> – ${end}</small></span>${len}<span class="slot__price">${label}</span><span class="slot__mark">${st === 'sel' ? ic('check', 14) : st === 'yours' ? ic('check', 12) : ''}</span>`;
   if (st === 'open' || st === 'sel') return `<button type="button" class="${cls}"${actAttr('bkToggle', [iso, s.t, cid])} aria-pressed="${st === 'sel'}">${inner}</button>`;
   return `<div class="${cls}">${inner}</div>`;

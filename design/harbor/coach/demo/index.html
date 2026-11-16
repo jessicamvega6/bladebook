@@ -696,7 +696,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
 .bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
-.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .tlist__t { width: 66px; flex: none; white-space: nowrap; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
 .bb .card__foot { padding: 14px 20px 18px; }
 .bb .card--attn { border-color: var(--warning-border); }
 .bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -717,6 +717,8 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 @media (max-width: 760px) {
   .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
   .bb .phead__actions { width: 100%; }
+  /* Phone: a page head's buttons wrap their text instead of pushing the page sideways (owner, 2026-11-16). */
+  .bb .phead__actions .btn { white-space: normal; height: auto; min-height: 40px; padding-top: 8px; padding-bottom: 8px; text-align: left; max-width: 100%; }
   .bb .wmain { padding: 20px 16px 40px; }
   .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .bb .wbar__right { width: 100%; }
@@ -2013,11 +2015,12 @@ Object.assign(ACTIONS, {
 SCREENS.today = () => {
   const today = lessonsOn(TODAY);
   const ws = weekStart(TODAY), we = addDays(ws, 6);
-  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we).flatMap(skatersIn);
+  // This week counts lesson times with a skater booked: a shared lesson once (owner, 2026-11-16); the amount is every share.
+  const weekTimes = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we), week = weekTimes.flatMap(skatersIn);
   const unpaid = state.lessons.filter(l => l.sid && isPast(l)).flatMap(skatersIn).filter(p => p.pay === 'UNPAID');
   const pend = pending();
   const next = today.find(l => l.sid && !isStarted(l));
-  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
+  const lessonRow = l => row(`<span class="tlist__t num">${fmtT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
     `${l === next ? badge('Next', 'primary') : ''}${l.sid ? skaterBadges(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
   const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since);
   return shell(`
@@ -2025,10 +2028,11 @@ SCREENS.today = () => {
     ${codePendingBanner()}
     ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
     <div class="stats">
-      ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
+      ${stat('This week', plural(weekTimes.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
       ${stat('Unpaid', money(unpaid.reduce((s, l) => s + l.price, 0)), plural(unpaid.length, 'past lesson'), 'card')}
       ${stat('Waiting for approval', plural(pend.length, 'skater'), pend.length ? families(pend).join(', ') : 'Nobody waiting', 'users')}
     </div>
+    ${codeCardA()}
     <div class="split split--today">
       ${card(today.length ? today.map(lessonRow).join('') + `<div class="card__note">${ic('info', 14)} Attendance comes from the rinkside app. Fix a mistake on ${A_('lessons', 'Lessons')}.</div>`
         : `<div class="pempty"><span class="pempty__icon">${ic('calendar', 22)}</span><b>No lessons today</b><span class="muted">Your next lesson is on Friday.</span></div>`,
@@ -2055,8 +2059,8 @@ PRESETS.push(
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm. The coach code is shown as Not working yet: it starts working once the link is clicked (ADR-016, amended 2026-11-06).', setup: st => { st.screen = 'signup'; st.auth.signup = 3; st.profile.codePending = true; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachTodayCodePending', file: 'today-code-pending', group: 'Dashboard', title: 'Today — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). Dana chose a different business email at sign-up and went to her dashboard without clicking the link. Her coach code doesn’t work until she does: the CODE# item is written only once the address is confirmed. The banner says so, with Resend link, Change address and Use my login email instead (which makes the code work at once).', setup: st => { st.screen = 'today'; st.profile.codePending = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve, and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachTodayCodePending', file: 'today-code-pending', group: 'Dashboard', title: 'Today — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). Dana chose a different business email at sign-up and went to her dashboard without clicking the link. Her coach code doesn’t work until she does: the CODE# item is written only once the address is confirmed. The banner says so, with Resend link, Change address and Use my login email instead (which makes the code work at once). The coach code card under the figures says Not working yet (owner, 2026-11-16).', setup: st => { st.screen = 'today'; st.profile.codePending = true; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks (This week counts lesson times, a shared lesson once; owner, 2026-11-16), the coach code card under them (owner, 2026-11-16), new families to approve, and a button to every page, including the financial summary. Times read 1:00 PM (owner, 2026-11-16).', setup: st => { st.screen = 'today'; } },
 );
 
 
@@ -2181,7 +2185,7 @@ SCREENS['calendar-week'] = () => {
       const kind = !l ? 'open' : l.sid ? '' : 'held';
       const cls = `wl${kind ? ' wl--' + kind : ''}${past ? ' wl--past' : ''}`;
       const name = !l ? 'Open' : l.sid ? esc(whoIn(l)) : 'Held';
-      const inner = `<span class="wl__t">${fmtShortT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
+      const inner = `<span class="wl__t">${fmtT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
       return calCancellable(l)
         ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(whoIn(l, false))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
         : `<div class="${cls}">${inner}</div>`;
