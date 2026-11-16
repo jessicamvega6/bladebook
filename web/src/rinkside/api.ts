@@ -38,11 +38,16 @@ export function rinkApi(token: string) {
       }),
     /** Read with signal only: the phone keeps today's lessons and nothing else (R5). */
     week: () => apiFetch<RinkWeek>('/api/coach/rinkside/week', { token }),
-    /** Lessons picked on the Week tab, each released or held, as one batch: one email per family (ADR-009 d5a). */
-    cancelPicked: (picks: Array<{ date: string; startTime: string; hold: boolean }>) =>
+    /** The Week tab's cancels (owner, 2026-11-16: only a lesson, a whole day or the week). One lesson, released or held. */
+    cancelLesson: (l: { date: string; startTime: string }, hold: boolean) =>
+      apiFetch<CancelResult>('/api/coach/rinkside/cancel', {
+        method: 'POST', token, body: { scope: 'LESSON', picks: [{ date: l.date, startTime: l.startTime, after: hold ? 'HOLD' : 'RELEASE' }] },
+      }),
+    /** A whole day: every lesson left that day, each released or held (S9), as one DAY batch. */
+    cancelDay: (lessons: Array<{ date: string; startTime: string; hold: boolean }>) =>
       apiFetch<CancelResult>('/api/coach/rinkside/cancel', {
         method: 'POST', token,
-        body: { scope: 'SELECTION', picks: picks.map((p) => ({ date: p.date, startTime: p.startTime, after: p.hold ? 'HOLD' : 'RELEASE' })) },
+        body: { scope: 'DAY', picks: lessons.map((p) => ({ date: p.date, startTime: p.startTime, after: p.hold ? 'HOLD' : 'RELEASE' })) },
       }),
     /** Cancel rest of week: sends only its Sunday; the server holds every booked lesson and open time left (S8). */
     cancelWeek: (weekStart: string) =>

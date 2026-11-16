@@ -250,13 +250,13 @@ class AttendanceApiTest {
         assertThat(lesson.get("skaters").get(0).get("familyName").asString()).isEqualTo("Sarah Park");
         assertThat(lesson.get("skaters").get(0).get("familyId").asString()).isEqualTo(family.clientId());
 
-        // Picks from two weeks are refused; the picked lesson is cancelled and held.
-        Res twoWeeks = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"SELECTION\",\"picks\":["
+        // Only a lesson, a day or the week (owner, 2026-11-16): lessons on two days are refused; one lesson is cancelled and held.
+        Res twoDays = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"SELECTION\",\"picks\":["
                 + "{\"date\":\"" + today + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"},"
-                + "{\"date\":\"" + sunday.plusDays(7) + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"}]}");
-        assertThat(twoWeeks.status()).isEqualTo(400);
-        assertThat(twoWeeks.s("message")).isEqualTo("Pick lessons from one week at a time.");
-        Res done = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"SELECTION\",\"picks\":["
+                + "{\"date\":\"" + today.plusDays(1) + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"}]}");
+        assertThat(twoDays.status()).isEqualTo(400);
+        assertThat(twoDays.s("message")).isEqualTo("Choose a lesson, a day or the rest of the week.");
+        Res done = call("POST", "/api/coach/rinkside/cancel", token, "{\"scope\":\"LESSON\",\"picks\":["
                 + "{\"date\":\"" + today + "\",\"startTime\":\"" + later + "\",\"after\":\"HOLD\"}]}");
         assertThat(done.status()).isEqualTo(200);
         assertThat(done.body().get("cancelled").asInt()).isEqualTo(1);

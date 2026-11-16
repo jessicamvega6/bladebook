@@ -1,24 +1,30 @@
 /**
- * The rinkside Week tab (Batch 23, G-28; design: rinkside/screens-rink.js "Week: cancel several lessons", presets week,
- * week-offline, week-confirm and week-all-confirm; ADR-MASTER section 10 "From the rinkside page"; ADR-009 d5a;
+ * The rinkside Week tab (Batch 23, G-28; design: rinkside/screens-rink.js "Week: cancel lessons", presets week,
+ * week-offline, week-lesson, week-day and week-all-confirm; ADR-MASTER section 10 "From the rinkside page"; ADR-009 d5a;
  * FeatureDecriptions/C_Rinkside Cancel Several Lessons.md).
  *
- * - Each day from today to Saturday with the lessons that can still be cancelled. Pick lessons, choose Release or Hold
- *   closed for each (S9), confirm once: they're cancelled as one batch, so each family gets one email.
+ * Three ways to cancel, and only three (owner, 2026-11-16): one lesson, a whole day, or the rest of the week. Lessons on
+ * different days are cancelled one by one.
+ * - Each lesson's *Cancel* asks release or hold for that lesson (S9) and is sent as LESSON.
+ * - A day with two or more lessons has *Cancel whole day*: one confirmation asking release or hold for each lesson (S9),
+ *   sent as DAY.
  * - *Cancel rest of week*, at the top, holds every booked lesson and open time left, with no release-or-hold question
  *   (S8). Its confirmation lists everything it closes.
  * - With no signal the tab shows no lessons, only "The week needs a connection" (R5): the phone keeps today's lessons
  *   only, and cancelling needs signal anyway.
  *
- * Both cancels are the website's cancel (CoachCancelService), on the rinkside session.
+ * All three are the website's cancel (CoachCancelService), on the rinkside session.
  */
 import { Badge, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
 import { DAYS, dayOfWeek, formatTime, shortDate } from '../shared/logic/schedule';
 import type { OpenTime, RinkWeek, WeekLesson } from './api';
 
-export type WeekSheet = { kind: 'picked' | 'all'; error: string; busy: boolean };
-export type Picks = Record<string, boolean>;
+/** The open confirmation: one lesson, a whole day (each lesson's hold choice by pickKey), or the rest of the week. */
+export type WeekSheet =
+  | { kind: 'lesson'; lesson: WeekLesson; hold: boolean; error: string; busy: boolean }
+  | { kind: 'day'; date: string; holds: Record<string, boolean>; error: string; busy: boolean }
+  | { kind: 'all'; error: string; busy: boolean };
 
 export const pickKey = (l: { date: string; startTime: string }) => `${l.date}#${l.startTime}`;
 const dDow = (date: string) => `${DAYS[dayOfWeek(date)]}, ${shortDate(date)}`;
@@ -55,24 +61,37 @@ export function WeekOffline() {
   );
 }
 
-export function WeekTab({ week, picks, onPicks, sheet, onSheet, onCancelPicked, onCancelAll }: {
-  week: RinkWeek; picks: Picks; onPicks: (p: Picks) => void; sheet: WeekSheet | null; onSheet: (s: WeekSheet | null) => void;
-  onCancelPicked: (picked: Array<WeekLesson & { hold: boolean }>) => void; onCancelAll: () => void;
+/** Release or hold for one lesson (S9). */
+function AfterChoice({ hold, label, onHold, long }: { hold: boolean; label: string; onHold: (hold: boolean) => void; long?: boolean }) {
+  return (
+    <div className="seg seg--block" role="group" aria-label={label}>
+      {(long ? ['Release for rebooking', 'Hold it closed'] : ['Release', 'Hold closed']).map((o, i) => (
+        <button key={o} type="button" className={`seg__opt${hold === (i === 1) ? ' is-on' : ''}`} aria-pressed={hold === (i === 1)}
+          onClick={() => onHold(i === 1)}>{o}</button>
+      ))}
+    </div>
+  );
+}
+
+const lessonLine = (l: WeekLesson) => (
+  <>
+    <span className="num rk-pick__t">{formatTime(l.startTime)}</span>
+    <span className="rk-pick__n">{rkName(l)}{l.skaters.length > 1 && <small>Shared · cancels both skaters</small>}</span>
+    <span className="rl__len">{l.durationMinutes} min</span>
+  </>
+);
+
+export function WeekTab({ week, sheet, onSheet, onCancelLesson, onCancelDay, onCancelAll }: {
+  week: RinkWeek; sheet: WeekSheet | null; onSheet: (s: WeekSheet | null) => void;
+  onCancelLesson: (l: WeekLesson, hold: boolean) => void;
+  onCancelDay: (lessons: Array<WeekLesson & { hold: boolean }>) => void;
+  onCancelAll: () => void;
 }) {
-  const listed = week.days.flatMap((d) => d.lessons);
-  const picked = listed.filter((l) => pickKey(l) in picks).map((l) => ({ ...l, hold: picks[pickKey(l)]! }));
   const all = restOfWeek(week);
   const when = (x: { date: string; startTime: string }) => `${x.date === week.today ? 'Today' : dDow(x.date)} · ${formatTime(x.startTime)}`;
-  const toggle = (l: WeekLesson) => {
-    const next = { ...picks };
-    if (pickKey(l) in next) delete next[pickKey(l)]; else next[pickKey(l)] = false;
-    onPicks(next);
-  };
-  const selectDay = (ls: WeekLesson[], on: boolean) => {
-    const next = { ...picks };
-    ls.forEach((l) => { if (on) next[pickKey(l)] = next[pickKey(l)] ?? false; else delete next[pickKey(l)]; });
-    onPicks(next);
-  };
+  const dayName = (date: string) => (date === week.today ? `today, ${shortDate(date)}` : dDow(date));
+  const lessonsOn = (date: string) => week.days.find((d) => d.date === date)?.lessons ?? [];
+  const emailed = (ls: WeekLesson[]) => `${families(ls).join(', ')} will be emailed.`;
 
   return (
     <>
@@ -83,62 +102,69 @@ export function WeekTab({ week, picks, onPicks, sheet, onSheet, onCancelPicked, 
             <Icon name="calOff" size={16} /><span>Cancel rest of week</span></button>
         </section>
       )}
-      <p className="fine">Or pick lessons to cancel. For each one, choose whether the time can be booked again.</p>
+      <p className="fine">Or cancel one lesson, or a whole day. Lessons on different days are cancelled one at a time.</p>
       {week.days.map((d) => {
         const head = d.date === week.today ? (d.lessons.length ? `Today, ${shortDate(d.date)}` : 'Today') : dDow(d.date);
         if (!d.lessons.length) {
           return <section key={d.date} className="rk-day"><div className="rk-day__head"><b>{head}</b><span className="muted-sm">{d.started ? 'Nothing left to cancel' : 'No lessons'}</span></div></section>;
         }
-        const whole = d.lessons.every((l) => pickKey(l) in picks);
         return (
           <section key={d.date} className="rk-day" aria-label={head}>
             <div className="rk-day__head"><b>{head}</b>
-              <button type="button" className="link" onClick={() => selectDay(d.lessons, !whole)}>{whole ? 'Clear day' : 'Select whole day'}</button></div>
-            {d.lessons.map((l) => {
-              const on = pickKey(l) in picks;
-              return (
-                <div key={pickKey(l)} className={`rk-pick${on ? ' is-on' : ''}`}>
-                  <label className="rk-pick__row">
-                    <input type="checkbox" className="check__input" checked={on} onChange={() => toggle(l)} />
-                    <span className="num rk-pick__t">{formatTime(l.startTime)}</span>
-                    <span className="rk-pick__n">{rkName(l)}{l.skaters.length > 1 && <small>Shared · cancels both skaters</small>}</span>
-                    <span className="rl__len">{l.durationMinutes} min</span>
-                  </label>
-                  {on && (
-                    <div className="seg seg--block" role="group" aria-label={`After cancelling ${rkName(l)} at ${formatTime(l.startTime)}`}>
-                      {['Release', 'Hold closed'].map((o, i) => (
-                        <button key={o} type="button" className={`seg__opt${picks[pickKey(l)] === (i === 1) ? ' is-on' : ''}`} aria-pressed={picks[pickKey(l)] === (i === 1)}
-                          onClick={() => onPicks({ ...picks, [pickKey(l)]: i === 1 })}>{o}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+              {d.lessons.length > 1 && (
+                <button type="button" className="link rk-day__cancel"
+                  onClick={() => onSheet({ kind: 'day', date: d.date, holds: Object.fromEntries(d.lessons.map((l) => [pickKey(l), false])), error: '', busy: false })}>
+                  Cancel whole day</button>
+              )}</div>
+            {d.lessons.map((l) => (
+              <div key={pickKey(l)} className="rk-pick">
+                <div className="rk-pick__row rk-pick__row--plain">{lessonLine(l)}
+                  <button type="button" className="btn btn--danger-outline btn--sm" aria-label={`Cancel ${rkName(l)} at ${formatTime(l.startTime)}`}
+                    onClick={() => onSheet({ kind: 'lesson', lesson: l, hold: false, error: '', busy: false })}>Cancel</button></div>
+              </div>
+            ))}
             {d.started > 0 && <p className="fine">{plural(d.started, 'lesson')} already started and can’t be cancelled.</p>}
           </section>
         );
       })}
-      <div className="rk-sticky">
-        <Button variant="danger" block lg disabled={!picked.length} onClick={() => onSheet({ kind: 'picked', error: '', busy: false })}>
-          {picked.length ? `Cancel ${plural(picked.length, 'lesson')}` : 'Pick lessons to cancel'}</Button>
-      </div>
 
       {sheet && (
         <>
           <div className="scrim" onClick={() => !sheet.busy && onSheet(null)} />
-          {sheet.kind === 'picked' ? (() => {
-            const held = picked.filter((p) => p.hold).length, fams = families(picked);
+          {sheet.kind === 'lesson' ? (() => {
+            const l = sheet.lesson;
             return (
-              <div className="sheet" role="dialog" aria-modal="true" aria-label="Confirm cancellation"><span className="sheet__grab" />
-                <h2 className="h2">Cancel {plural(picked.length, 'lesson')}?</h2>
-                <ul className="rk-confirm">{picked.map((p) => (
-                  <li key={pickKey(p)}><span className="num">{when(p)}</span><b>{rkName(p)}</b>
-                    {p.hold ? <Badge tone="warning" icon="lock">Hold</Badge> : <Badge>Release</Badge>}</li>))}</ul>
-                <p className="fine">{fams.join(', ')} will be emailed.{held ? ` ${plural(held, 'held time')} stay${held === 1 ? 's' : ''} closed for good.` : ''} This can’t be undone.</p>
+              <div className="sheet" role="dialog" aria-modal="true" aria-label="Cancel lesson"><span className="sheet__grab" />
+                <h2 className="h2">Cancel {rkName(l)} · {l.date === week.today ? 'Today, ' : ''}{dDow(l.date)} · {formatTime(l.startTime)}?</h2>
+                <p className="fine">{l.skaters.length > 1 ? 'It’s a shared lesson, so both skaters are cancelled. ' : ''}{emailed([l])} This can’t be undone.</p>
+                <div className="fieldset"><div className="label">After cancelling</div>
+                  <AfterChoice long hold={sheet.hold} label="After cancelling" onHold={(hold) => onSheet({ ...sheet, hold })} />
+                  <div className="hint">{sheet.hold ? 'A held time stays closed for good. Nobody can book it.' : 'Another family can book this time.'}</div></div>
                 {sheet.error && <Banner tone="danger">{sheet.error}</Banner>}
-                <Button variant="danger" block lg disabled={sheet.busy} onClick={() => onCancelPicked(picked)}>
-                  {sheet.busy ? 'Cancelling…' : `Cancel ${plural(picked.length, 'lesson')}`}</Button>
+                <Button variant="danger" block lg disabled={sheet.busy} onClick={() => onCancelLesson(l, sheet.hold)}>
+                  {sheet.busy ? 'Cancelling…' : 'Cancel lesson'}</Button>
+                <Button variant="secondary" block lg disabled={sheet.busy} onClick={() => onSheet(null)}>Keep lesson</Button>
+              </div>
+            );
+          })() : sheet.kind === 'day' ? (() => {
+            const ls = lessonsOn(sheet.date).filter((l) => pickKey(l) in sheet.holds);
+            const held = ls.filter((l) => sheet.holds[pickKey(l)]).length;
+            return (
+              <div className="sheet" role="dialog" aria-modal="true" aria-label="Cancel day"><span className="sheet__grab" />
+                <h2 className="h2">Cancel all of {dayName(sheet.date)}?</h2>
+                <p className="fine">{plural(ls.length, 'lesson')}. For each one, choose whether the time can be booked again.</p>
+                {ls.map((l) => (
+                  <div key={pickKey(l)} className="rk-pick">
+                    <div className="rk-pick__row rk-pick__row--plain">{lessonLine(l)}</div>
+                    <AfterChoice hold={sheet.holds[pickKey(l)]!} label={`After cancelling ${rkName(l)} at ${formatTime(l.startTime)}`}
+                      onHold={(hold) => onSheet({ ...sheet, holds: { ...sheet.holds, [pickKey(l)]: hold } })} />
+                  </div>
+                ))}
+                <p className="fine">{emailed(ls)}{held ? ` ${plural(held, 'held time')} stay${held === 1 ? 's' : ''} closed for good.` : ''} This can’t be undone.</p>
+                {sheet.error && <Banner tone="danger">{sheet.error}</Banner>}
+                <Button variant="danger" block lg disabled={sheet.busy || !ls.length}
+                  onClick={() => onCancelDay(ls.map((l) => ({ ...l, hold: sheet.holds[pickKey(l)]! })))}>
+                  {sheet.busy ? 'Cancelling…' : `Cancel ${plural(ls.length, 'lesson')}`}</Button>
                 <Button variant="secondary" block lg disabled={sheet.busy} onClick={() => onSheet(null)}>Keep them</Button>
               </div>
             );

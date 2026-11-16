@@ -12,7 +12,7 @@
  * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/coach/rinkside/sw.js)
  * keeps the page itself.
  *
- * Batch 23, the Week tab (G-28; WeekTab.tsx): the week's lessons, cancelling several, and Cancel rest of week (S8); with
+ * Batch 23, the Week tab (G-28; WeekTab.tsx): the week's lessons; cancel one lesson, a whole day, or the rest of the week (S8); with
  * no signal only "The week needs a connection" (R5).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,7 +22,7 @@ import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
 import { DAYS, MONTHS, dayOfWeek, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
 import { rinkApi, type CancelResult, type Contact, type RinkApi, type RinkDay, type RinkLesson, type RinkSkater, type RinkWeek } from './api';
-import { WeekOffline, WeekTab, pickKey, weekRange, type Picks, type WeekSheet } from './WeekTab';
+import { WeekOffline, WeekTab, weekRange, type WeekSheet } from './WeekTab';
 import {
   addUnsent, dequeue, enqueue, goesTomorrow, queue, queuedFor, removeUnsent, saveDay, savedDay, unsent, type Queued, type Unsent,
 } from './offline';
@@ -253,15 +253,11 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
 
   /** The Week tab (Batch 23): read with signal each time it opens; never kept on the phone (R5). */
   const [week, setWeek] = useState<RinkWeek | null>(null);
-  const [picks, setPicks] = useState<Picks>({});
   const [weekSheet, setWeekSheet] = useState<WeekSheet | null>(null);
   const loadWeek = useCallback(async () => {
     try {
       const w = await api.week();
       setWeek(w); setError('');
-      // A lesson that's gone since (started, or cancelled elsewhere) can't stay picked.
-      const listed = new Set(w.days.flatMap((d) => d.lessons).map(pickKey));
-      setPicks((p) => Object.fromEntries(Object.entries(p).filter(([k]) => listed.has(k))));
     } catch (e) {
       if (isNetwork(e)) setOnline(false); else fail(e);
     }
@@ -270,15 +266,16 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
   useEffect(() => { if (tab !== 'week') setWeekSheet(null); }, [tab]);
 
   const left = (r: CancelResult) => (r.skipped ? ` ${plural(r.skipped, 'lesson')} had already started or gone, so ${r.skipped === 1 ? 'it was' : 'they were'} left alone.` : '');
+  const cancelled = (r: CancelResult) => `${plural(r.cancelled, 'lesson')} cancelled${r.held ? `, ${r.held} held closed` : ''}.`;
   const emailed = (n: number) => (n ? ` ${plural(n, 'family', 'families')} will be emailed.` : '');
-  /** Both of the Week tab's cancels: a refusal (nothing left) stays in the sheet; anything else closes it. */
+  /** The Week tab's cancels: a refusal (nothing left) stays in the sheet; anything else closes it. */
   const weekCancel = async (send: () => Promise<CancelResult>, said: (r: CancelResult) => string) => {
     if (!weekSheet) return;
     setWeekSheet({ ...weekSheet, busy: true, error: '' });
     setToast('');
     try {
       const r = await send();
-      setWeekSheet(null); setPicks({});
+      setWeekSheet(null);
       setToast(`${said(r)}${emailed(r.families)}${left(r)}`);
       void loadWeek(); void load();
     } catch (e) {
@@ -320,9 +317,9 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         {tab === 'week' ? (
           !online ? <WeekOffline />
             : !week ? <p className="muted" aria-busy="true">Loading this week’s lessons…</p>
-              : <WeekTab week={week} picks={picks} onPicks={setPicks} sheet={weekSheet} onSheet={setWeekSheet}
-                  onCancelPicked={(picked) => void weekCancel(() => api.cancelPicked(picked), (r) =>
-                    `${plural(r.cancelled, 'lesson')} cancelled${r.held ? `, ${r.held} held closed` : ''}.`)}
+              : <WeekTab week={week} sheet={weekSheet} onSheet={setWeekSheet}
+                  onCancelLesson={(l, hold) => void weekCancel(() => api.cancelLesson(l, hold), cancelled)}
+                  onCancelDay={(ls) => void weekCancel(() => api.cancelDay(ls), cancelled)}
                   onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), (r) =>
                     `${plural(r.cancelled, 'lesson')} cancelled and ${plural(r.openHeld, 'open time')} closed.`)} />
         ) : tab === 'account' ? (

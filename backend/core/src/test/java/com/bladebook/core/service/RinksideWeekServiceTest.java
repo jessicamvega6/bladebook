@@ -38,8 +38,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The rinkside Week tab (Batch 23, G-28; ADR-MASTER section 10 "From the rinkside page"; ADR-009 d5a): the lessons
- * left this week that can still be cancelled, the open times *Cancel rest of week* would hold, and cancelling several
- * picked lessons as one batch.
+ * left this week that can still be cancelled, the open times *Cancel rest of week* would hold, and the tab's three
+ * cancels: one lesson, a whole day, or the rest of the week (owner, 2026-11-16).
  */
 class RinksideWeekServiceTest {
 
@@ -218,32 +218,43 @@ class RinksideWeekServiceTest {
     // ------------------------------------------- cancelling from the Week tab
 
     @Test
-    void lessonsPickedOnTwoDaysAreOneBatchAndOneEmailPerFamily() {
-        CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("SELECTION", List.of(
-                new PickInput(MONDAY.toString(), "07:00", "HOLD"),
-                new PickInput(WEDNESDAY.toString(), "07:30", "RELEASE"),
-                new PickInput(WEDNESDAY.toString(), "06:00", "RELEASE")), null));
+    void oneLessonFromTheWeekIsALessonBatch() {
+        CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(
+                new PickInput(WEDNESDAY.toString(), "07:30", "HOLD")), null));
 
-        assertThat(r).isEqualTo(new CoachCancelService.Result(3, 1, 0, 2, 0));
-        assertThat(status(MONDAY, "07:00")).isEqualTo(LessonTime.Status.HELD);
-        assertThat(status(WEDNESDAY, "07:30")).isEqualTo(LessonTime.Status.OPEN);
-        assertThat(status(WEDNESDAY, "06:00")).isEqualTo(LessonTime.Status.OPEN);
+        assertThat(r).isEqualTo(new CoachCancelService.Result(1, 1, 0, 1, 0));
+        assertThat(status(WEDNESDAY, "07:30")).isEqualTo(LessonTime.Status.HELD);
         assertThat(cancelRepo.batches(dana)).singleElement().satisfies(b -> {
-            assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.SELECTION);
+            assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.LESSON);
             assertThat(b.cancelledBy()).isEqualTo(ChangeBatch.By.COACH);
-            assertThat(b.executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
-            assertThat(b.affectedFrom()).isEqualTo(MONDAY);
+        });
+        assertThat(day(service.week(dana), WEDNESDAY).lessons()).extracting(WeekLesson::startTime).containsExactly(LocalTime.of(6, 0));
+    }
+
+    @Test
+    void aWholeDayIsOneDayBatchWithEachLessonsOwnChoice() {
+        WeekDay wednesday = day(service.week(dana), WEDNESDAY);
+        CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("DAY", wednesday.lessons().stream()
+                .map(l -> new PickInput(l.date().toString(), l.startTime().toString(), l.startTime().equals(LocalTime.of(6, 0)) ? "HOLD" : "RELEASE"))
+                .toList(), null));
+
+        assertThat(r).isEqualTo(new CoachCancelService.Result(2, 1, 0, 2, 0));
+        assertThat(status(WEDNESDAY, "06:00")).isEqualTo(LessonTime.Status.HELD);
+        assertThat(status(WEDNESDAY, "07:30")).isEqualTo(LessonTime.Status.OPEN);
+        assertThat(cancelRepo.batches(dana)).singleElement().satisfies(b -> {
+            assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.DAY);
+            assertThat(b.affectedFrom()).isEqualTo(WEDNESDAY);
             assertThat(b.affectedTo()).isEqualTo(WEDNESDAY);
-            assertThat(b.lessonCount()).isEqualTo(3);
+            assertThat(b.lessonCount()).isEqualTo(2);
             assertThat(b.clientCount()).isEqualTo(2);
         });
     }
 
     @Test
-    void aPickedLessonThatHasStartedIsLeftAndCounted() {
-        CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("SELECTION", List.of(
+    void todaysWholeDayLeavesALessonThatStartedMeanwhileAndCountsIt() {
+        CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(
                 new PickInput(MONDAY.toString(), "06:30", "HOLD"),
-                new PickInput(WEDNESDAY.toString(), "06:00", "HOLD")), null));
+                new PickInput(MONDAY.toString(), "07:00", "HOLD")), null));
 
         assertThat(r.cancelled()).isEqualTo(1);
         assertThat(r.skipped()).isEqualTo(1);

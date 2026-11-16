@@ -43,7 +43,7 @@ class ChangeBatchTest {
     @Test
     void theStatusesAreTheMastersLists() {
         assertThat(ChangeBatch.Source.values()).extracting(Enum::name)
-                .containsExactly("DEFAULT", "DATE_OVERRIDE", "LESSON", "DAY", "WEEK", "SELECTION", "RECURRENCE", "RECONCILE");
+                .containsExactly("DEFAULT", "DATE_OVERRIDE", "LESSON", "DAY", "WEEK", "RECURRENCE", "RECONCILE");
         assertThat(ChangeBatch.By.values()).extracting(Enum::name).containsExactly("CLIENT", "COACH", "SCHEDULE_CHANGE", "NO_ANSWER");
         assertThat(ChangeBatch.Execution.values()).extracting(Enum::name).containsExactly("PLANNED", "EXECUTED", "SKIPPED");
     }

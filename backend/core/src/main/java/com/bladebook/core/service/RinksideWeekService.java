@@ -12,6 +12,7 @@ import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.StudentRecord;
+import com.bladebook.core.domain.Weeks;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -87,7 +88,7 @@ public final class RinksideWeekService {
         Instant now = clock.instant();
         ZonedDateTime local = now.atZone(ZoneId.of(coach.coachTimezone()));
         LocalDate today = local.toLocalDate();
-        LocalDate sunday = CoachCancelRequest.sunday(today);
+        LocalDate sunday = Weeks.sunday(today);
         LocalDate saturday = sunday.plusDays(6);
 
         List<LessonTime> times = schedules.lessonTimes(ctx, today, saturday);

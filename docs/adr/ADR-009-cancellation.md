@@ -62,17 +62,21 @@ release-or-hold still applies to *this lesson* and *this day*, never once for a 
 Decision 6 still holds: the weekly schedule isn't touched, so the following week is unaffected.
 Decision 7's button still states the range and count, now of booked lessons and open times.
 **The rinkside page's whole week (decision 5a) works the same way.** A whole day, part of a day
-or week, specific lessons and the check-in list still ask release-or-hold per lesson.
+or week, specific lessons and the check-in list still ask release-or-hold per lesson. *(2026-11-16:
+"part of a day or week" was dropped; see that day's amendment.)*
 
-**Amended — 2026-11-16.** *Settled while building Batch 23 (the rinkside Week tab); the owner may
-override.* Decision 5a's "part of a week" — lessons picked on more than one day — is written as
-**one batch** with a new `batchSource`, **`SELECTION`**, so each family gets one email (decision 9)
-however many days the picks cover. The picks must fall in one Sunday–Saturday week, each with its
-own release-or-hold answer; everything else is decision 5a as written (same header, lines and
-`cancelledBy = COACH`). The tab lists, for each day from today to Saturday, the lessons that can
-still be cancelled and the open times, worked out by the same plan *Cancel rest of week* carries
-out, so the whole-week confirmation shows exactly what it holds. ADR-MASTER §3 (`batchSource`) and
-`architecture.md` (the entity diagram) amended the same day.
+**Amended — 2026-11-16.** *Decided by the owner while reviewing Batch 23 (the rinkside Week tab).*
+**The rinkside page cancels one lesson, a whole day, or the rest of the week, and nothing in
+between.** Decision 5a's "part of a day" and "part of a week" (a multi-select of lessons) are
+dropped: to cancel lessons on different days, the coach cancels each one on its own. So
+`batchSource` keeps its values (`LESSON`, `DAY`, `WEEK`); a lesson cancelled on its own is a
+`LESSON` batch and a whole day a `DAY` batch, and a family with two lessons cancelled separately
+gets two emails (decision 9, once per batch). A whole day still asks release-or-hold for each
+lesson (S9); the rest of the week still holds everything with no question (S8). The Week tab lists,
+for each day from today to Saturday, the lessons that can still be cancelled and the open times,
+worked out by the same plan *Cancel rest of week* carries out, so the whole-week confirmation shows
+exactly what it holds. (Built first with a fourth value, `SELECTION`, for picks across days; the
+owner ruled it out the same day, and it was never merged.)
 
 ---
 
@@ -334,10 +338,12 @@ preview-then-accept step (decision 8), and it notifies clients once per batch (d
 A cancel from the check-in list is a batch of one, like a single-lesson cancel from the
 week view.
 
-**"Part of a day" and "part of a week" are a multi-select of *this lesson*** (product rule,
+~~**"Part of a day" and "part of a week" are a multi-select of *this lesson*** (product rule,
 owner 2026-09-22 — see `FeatureDecriptions/cancelation.md`, "Coach cancelation"), so they need no
 new machinery: the same batch header, the same lines, the same release-or-hold answer per lesson,
-the same preview. Kept slots become ~~`COACH_HELD`~~ *held lesson times (`HELD`, ADR-031 decision
+the same preview.~~ *Amended 2026-11-16 (owner): there is no "part of" a day or week. The rinkside
+page cancels one lesson, a whole day or the rest of the week; lessons on different days are
+cancelled one by one.* Kept slots become ~~`COACH_HELD`~~ *held lesson times (`HELD`, ADR-031 decision
 1, 2026-10-13)*.
 
 **Cancellation is never queued offline** (product rule, owner 2026-09-30 — the rinkside app
@@ -504,7 +510,8 @@ scoping rules. They must share the impact computation, or they will diverge.
   accumulating faster.
 - ~~What do "part of a day" and "part of a week" mean in the rinkside app?~~ **Settled
   2026-09-22: a multi-select of lessons**, release-or-hold per lesson — see decision 5a and
-  `FeatureDecriptions/cancelation.md`.
+  `FeatureDecriptions/cancelation.md`. *Re-settled 2026-11-16 (owner): neither exists; one lesson,
+  a whole day or the rest of the week only.*
 - **Cancellation in the rinkside app widens ADR-014's open question.** A check-in-only Lambda
   could have a role limited to a `Query` on GSI2 plus a conditional `UpdateItem`.
   Cancellation needs the batch writes and the notification path too. It also means a

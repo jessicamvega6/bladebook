@@ -485,7 +485,7 @@ erDiagram
         string batchId
         enum   cancelledBy "CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable"
         string cancelledById "the acting identity"
-        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|SELECTION|RECURRENCE|RECONCILE"
+        enum   batchSource "DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE"
         date   affectedFrom
         date   affectedTo
         int    lessonCount
@@ -1296,9 +1296,9 @@ cancel is an ordinary leave of a shared lesson, in time or late (ADR-033 d4).
 
 **A coach cancels from two surfaces** (ADR-009 d5a): the week view on the website, and the
 rinkside check-in page, also through `api-coach` (ADR-023). The page has a cancel section and a cancel action on each
-lesson in the check-in list. "Part of a day" or "part of a week" is a multi-select of single
-lessons, not a new scope, and **release-or-hold is asked once per lesson** because a hold is
-permanent. Both surfaces write the same records and share the same preview. **A cancel
+lesson in the check-in list. Both cancel **one lesson, a whole day or the rest of the week** and
+nothing in between (owner, 2026-11-16: lessons on different days are cancelled one by one), and
+**release-or-hold is asked once per lesson** because a hold is permanent. Both surfaces write the same records and share the same preview. **A cancel
 from the rinkside check-in list always confirms, even for a single lesson** — the button sits
 beside check-in and no-show, and a cancel cannot be undone (ADR-009 d5a).
 
@@ -1329,7 +1329,7 @@ sequenceDiagram
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,<br/>"Cancelling needs a connection" (d5a)
-        C->>AK: cancel a lesson, a day, a week, or a multi-select —<br/>release or hold - asked once for a day or week,<br/>per lesson for a multi-select (d5, d5a)
+        C->>AK: cancel a lesson, a day, or the rest of the week —<br/>release or hold - asked per lesson for a lesson or a day,<br/>never for the week, which holds everything (d5, d5a)
         opt more than one lesson, or any cancel from the check-in list
             AK-->>C: preview or confirmation - names the lessons,<br/>says families will be emailed (d5a, d8)
             C->>AK: accept

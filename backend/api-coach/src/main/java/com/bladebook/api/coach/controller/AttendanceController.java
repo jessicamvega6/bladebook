@@ -72,8 +72,8 @@ public class AttendanceController {
     }
 
     /**
-     * The check-in list's cancel ({@code LESSON}) and the Week tab's ({@code SELECTION}, or {@code WEEK} for Cancel rest of
-     * week): the same cancel as the website's, on the rinkside session.
+     * The check-in list's cancel ({@code LESSON}) and the Week tab's: one lesson ({@code LESSON}), a whole day ({@code DAY})
+     * or Cancel rest of week ({@code WEEK}). The same cancel as the website's, on the rinkside session.
      */
     @PostMapping("/api/coach/rinkside/cancel")
     public CancelResponse cancel(@AuthenticationPrincipal Jwt jwt, @RequestBody CancelRequest body) {

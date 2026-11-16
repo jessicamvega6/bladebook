@@ -22,8 +22,8 @@ returns, *Not sent*, the family-cancelled card, and logging out keeps what's wai
 show my phone and my business email to approved families. Batch 14 — the business email: BladeBook's confirmation
 email with a link that works once for 3 days, the confirm page it opens (the coach signs in, then chooses Confirm),
 Resend link and Change address, and Profile → Business email.
-Batch 23 — the rinkside Week tab: the lessons left this week, picking several to cancel (release or hold each),
-*Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal. Everything runs on
+Batch 23 — the rinkside Week tab: the lessons left this week, cancelling one lesson or a whole day (release or hold
+each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal. Everything runs on
 this computer only; nothing is
 deployed.
 

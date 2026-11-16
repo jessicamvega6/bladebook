@@ -233,7 +233,7 @@ GSI1 keys only from `consumer-invite` (§8).
 | `paymentStatus` | `UNPAID` \| `PAID` \| `WAIVED` |
 | `paidVia` | `CASH` \| `CASHAPP` \| `VENMO` \| `PAYPAL` \| `OTHER` |
 | `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` |
-| `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `SELECTION` \| `RECURRENCE` \| `RECONCILE`. *`SELECTION` added 2026-11-16 (Batch 23): lessons picked on the rinkside Week tab across one Sunday–Saturday week, each released or held, cancelled as one batch (ADR-009 d5a).* |
+| `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `RECURRENCE` \| `RECONCILE` |
 | `planStatus` | `WRITING` \| `COMPLETE` |
 | `executionStatus` | `PLANNED` \| `EXECUTED` \| `SKIPPED` |
 | `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` |
@@ -950,12 +950,12 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   2026-11-08).
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
-- **From the rinkside page**, two places: a **cancel section** (whole or part of a day, whole or
-  part of a week, specific lessons — "part of" is a multi-select) and a **cancel action on each
-  lesson in the check-in list**.
+- **From the rinkside page**, two places: a **cancel section**, the Week tab (one lesson, a whole
+  day, or the rest of the week; nothing in between, so lessons on different days are cancelled one
+  by one — owner, 2026-11-16, ADR-009) and a **cancel action on each lesson in the check-in list**.
   - **The whole week works like *Cancel rest of week*:** from now to Saturday, every booked
-    lesson and open time is held, with no release-or-hold question. A whole day, part of a day or
-    week, specific lessons and the check-in list still ask release-or-hold per lesson (ADR-009,
+    lesson and open time is held, with no release-or-hold question. A whole day, one lesson
+    and the check-in list still ask release-or-hold per lesson (ADR-009,
     2026-11-08).
   - **Disabled with no signal:** *"Cancelling needs a connection."* The Week tab shows no lessons
     offline: *"The week needs a connection. Cancelling needs signal too. Today's lessons are on the

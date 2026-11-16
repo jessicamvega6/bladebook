@@ -982,7 +982,7 @@ erDiagram
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|SELECTION|RECURRENCE|RECONCILE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
@@ -1048,7 +1048,7 @@ erDiagram
         string batchId
         enum   cancelledBy &quot;CLIENT|COACH|SCHEDULE_CHANGE|NO_ANSWER; NO_ANSWER never chargeable&quot;
         string cancelledById &quot;the acting identity&quot;
-        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|SELECTION|RECURRENCE|RECONCILE&quot;
+        enum   batchSource &quot;DEFAULT|DATE_OVERRIDE|LESSON|DAY|WEEK|RECURRENCE|RECONCILE&quot;
         date   affectedFrom
         date   affectedTo
         int    lessonCount
@@ -1646,7 +1646,7 @@ sequenceDiagram
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
-        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold - asked once for a day or week,&lt;br/&gt;per lesson for a multi-select (d5, d5a)
+        C-&gt;&gt;AK: cancel a lesson, a day, or the rest of the week —&lt;br/&gt;release or hold - asked per lesson for a lesson or a day,&lt;br/&gt;never for the week, which holds everything (d5, d5a)
         opt more than one lesson, or any cancel from the check-in list
             AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
             C-&gt;&gt;AK: accept
@@ -1694,7 +1694,7 @@ sequenceDiagram
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,&lt;br/&gt;&quot;Cancelling needs a connection&quot; (d5a)
-        C-&gt;&gt;AK: cancel a lesson, a day, a week, or a multi-select —&lt;br/&gt;release or hold - asked once for a day or week,&lt;br/&gt;per lesson for a multi-select (d5, d5a)
+        C-&gt;&gt;AK: cancel a lesson, a day, or the rest of the week —&lt;br/&gt;release or hold - asked per lesson for a lesson or a day,&lt;br/&gt;never for the week, which holds everything (d5, d5a)
         opt more than one lesson, or any cancel from the check-in list
             AK--&gt;&gt;C: preview or confirmation - names the lessons,&lt;br/&gt;says families will be emailed (d5a, d8)
             C-&gt;&gt;AK: accept
