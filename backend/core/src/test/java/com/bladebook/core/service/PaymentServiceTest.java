@@ -9,6 +9,7 @@ import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.domain.Attendance;
 import com.bladebook.core.domain.BookingRequest;
+import com.bladebook.core.domain.ClientRelationship;
 import com.bladebook.core.domain.Payment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -114,5 +115,52 @@ class PaymentServiceTest {
         assertThatThrownBy(() -> service.markPaid(dana, MONDAY, LocalTime.of(7, 30), ava, null)).hasMessage("That lesson hasn’t happened yet.");
         assertThatThrownBy(() -> service.list(dana, MONDAY, MONDAY.minusDays(1))).hasMessage("The end date is before the start date.");
         assertThatThrownBy(() -> service.waive(dana, MONDAY, LocalTime.of(9, 0), ava)).hasMessage("That lesson couldn’t be found.");
+    }
+
+    @Test
+    void theTotalsCountPaidUnpaidNoShowsAndNotRecordedSeparately() {
+        now.set(Instant.parse("2026-11-16T16:00:00Z")); // 10:00 AM: all three lessons are over
+        attendance.record(dana, MONDAY, SIX_30, jack, "NO_SHOW", "2026-11-16T12:31:00Z");
+        service.markPaid(dana, MONDAY, SIX_30, jack, "");
+        PaymentService.View v = service.list(dana, MONDAY, MONDAY);
+        assertThat(v.rows()).hasSize(3);
+        assertThat(v.totals().paidCount()).isEqualTo(1);
+        assertThat(v.totals().paid()).containsExactly(Map.entry("USD", 5000L));
+        assertThat(v.totals().unpaidCount()).isEqualTo(2);
+        assertThat(v.totals().unpaid()).containsExactly(Map.entry("USD", 10000L));
+        assertThat(v.totals().noShows()).isEqualTo(1);
+        assertThat(v.totals().noShowsUnpaid()).isEmpty();   // the no-show was paid
+        assertThat(v.totals().notRecorded()).isEqualTo(2);
+    }
+
+    @Test
+    void markPaidReturnsTheLessonItChangedAndChangingHowKeepsWhenTheyPaid() {
+        Instant first = now.get();
+        PaymentService.Row r = service.markPaid(dana, MONDAY, SIX_30, jack, "VENMO");
+        assertThat(r.studentId()).isEqualTo(jack);
+        assertThat(r.relationship()).isEqualTo(ClientRelationship.GUARDIAN);
+        assertThat(r.currency()).isEqualTo("USD");
+        assertThat(r.paidAt()).isEqualTo(first);
+        now.set(first.plusSeconds(600));
+        assertThat(service.markPaid(dana, MONDAY, SIX_30, jack, "OTHER").paidAt()).isEqualTo(first);
+    }
+
+    @Test
+    void aPaidLessonCantBeWaived() {
+        service.markPaid(dana, MONDAY, SIX, ava, "");
+        assertThatThrownBy(() -> service.waive(dana, MONDAY, SIX, ava))
+                .hasMessage("This lesson is marked paid. Undo that first if it wasn’t paid.");
+    }
+
+    @Test
+    void theListIsUpToAYearAtATime() {
+        assertThat(service.list(dana, MONDAY.minusDays(365), MONDAY).rows()).hasSize(2);
+        assertThatThrownBy(() -> service.list(dana, MONDAY.minusDays(366), MONDAY)).hasMessage("Pick up to a year at a time.");
+    }
+
+    @Test
+    void aCoachWhoHasntFinishedSettingUpIsToldSo() {
+        AccessContext stranger = new AccessContext(UUID.randomUUID().toString());
+        assertThatThrownBy(() -> service.list(stranger, MONDAY, MONDAY)).hasMessage("Finish setting up your account first.");
     }
 }
