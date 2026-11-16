@@ -1,0 +1,163 @@
+# BladeBook — Implementation plan history
+
+Rulings and answered questions from `AI/implementation-plan.md`, moved here on 2026-11-16 so the plan itself holds
+only what's current. Nothing here is open: every conflict below was ruled, and every ruling that changed an ADR
+changed it at the time, so **the ADRs and `docs/adr/ADR-MASTER.md` win** if this file and they ever disagree.
+
+Code comments and ADR amendments still cite these by their old names, which are kept:
+
+- **Conflict IDs** (A1–A11, S1–S12, B1–B12, R1–R10), cited as *"implementation plan §4"*: [Conflicts](#conflicts-between-the-adrs-and-the-screens-was-4).
+- **Question 2** (how conflicts are ruled), **Question 3** (signing in locally) and **Question 4** (events and scheduled
+  jobs locally): [Decisions](#decisions-and-answered-questions-was-6).
+  All three are still in force, so `AI/implementation-plan.md` repeats them.
+- **§7** and each batch's log: `AI/batch-logs/`.
+
+## Conflicts between the ADRs and the screens (was §4)
+
+
+Four read-only reviews compared the in-force ADRs with the Harbor screens. Where the two
+disagree, the conflicting part is **not** built. Only real conflicts are listed; mismatches with
+superseded ADR text are left out. `M` = `docs/adr/ADR-MASTER.md`. **Resolution** is the owner's
+ruling (ADR or screen) and any ADR it changed; a conflict marked *Not ruled yet* stays out of
+its batch. The accounts and people conflicts were ruled on 2026-11-06.
+
+### Accounts and people
+
+| ID | Conflict | ADR | Screen | Resolution |
+|---|---|---|---|---|
+| A1 | Profile photo upload is drawn for MVP; the ADRs make photos Phase 2 | M:294, M:1695 | `coach/app.js:134`, `coach/screens-money-profile.js:222-224` | ADR: initials only, no upload |
+| A2 | The sign-up banner says families can't reach the coach until the business email is confirmed; the ADR says replies go to the login email until then | ADR-016:59-61 | `coach/app.js:141` | Screen: at sign-up, families can't reach the coach until a different business email is confirmed. **The coach code doesn't work until then**: `CODE#` is written only once the address is confirmed, or at once if the coach uses the login email. **Drawn 2026-11-06:** `today-code-pending`, `profile-details-code-pending`, and a "Not working yet" code card on `signup-4-confirm-email`. *ADR updated: ADR-016, ADR-MASTER §4.* |
+| A3 | The SMS-alerts switch should be on the sign-up form; the screen has it on the profile only | ADR-016:189 | `coach/app.js:123-135` | Screen: on the profile only. *ADR updated: ADR-016, ADR-MASTER §4.* |
+| A4 | The coach can edit a family's contact details; the family's profile is the source of truth and `coach-tenant` can't write `CLIENT#` | M:209-210, M:374-376 | `coach/screens-students.js:25,52-61` | ADR: read-only for the coach |
+| A5 | "Texts on / Email only" shown for families; family SMS is Phase 2 | M:203 | `coach/screens-students.js:16,24,40` | ADR: left out |
+| A6 | Coach cards show "rink · sport"; the code lookup returns only the name and photo key, and no such field exists | M:192, M:1267 | `client/screens-account.js:66,110,183,259,266` | ADR: coach name only |
+| A7 | A guardian can add an adult skater; skaters a guardian adds are minors | M:335-336 | `client/screens-account.js:149,154,297` | ADR: guardians add minors only |
+| A8 | US Figure Skating / Learn to Skate USA number: the ADR says digits only within a loose length range; the screen allows letters and digits, up to 20 | M:392-393 | `client/screens-account.js:19-28` | Screen: letters and digits, 1 to 20 characters. *ADR updated: ADR-029, ADR-MASTER §5.* |
+| A9 | When adding a coach, a new skater can't join only that coach; the ADR lets the family choose new or existing skaters | M:370-371 | `client/screens-account.js:271,301,409` | Option (b): *Add a skater* always asks which coaches and allows "None of my coaches yet"; the skater then joins a coach through *Add a coach*. **Drawn 2026-11-06:** `profile-add-skater-no-coach`, `profile-add-skater-one-coach`, `profile-skater-no-coach`, `profile-add-coach-new-skater`. *ADR updated: ADR-025, ADR-MASTER §5.* |
+| A10 | The screens promise an "approved" email that no ADR defines | M:1101-1117 | `client/screens-account.js:168,212,272,300` | **Phase 2.** MVP sends none, and the six MVP messages are reworded so they don't promise an email (for example "You can book once Coach Dana approves"). **Drawn 2026-11-08:** no family page promises an approval email. *ADR updated: ADR-002, ADR-MASTER §24.* |
+| A11 | ADR-022's read allowlist lists `displayPaymentTypesToClients` but not the `accepts*` flags, so the coach card's payment types can't be read (defect inside the ADRs) | ADR-022:231-238 | `client/screens-account.js:181` | Fix the ADR: replace `displayPaymentTypesToClients` with the four `accepts*` flags. The gate-test row must be re-run on real AWS before the coach card's payment types count as done. *ADR updated: ADR-022, ADR-MASTER §16, gate-test script and runbook.* |
+
+### Coach schedule and calendar
+
+| ID | Conflict | ADR | Screen | Resolution |
+|---|---|---|---|---|
+| S1 | Price is whole dollars, USD only, with $0 allowed; the ADR wants the coach's currency and an odd-cents warning (e.g. $45.01) | M:487-489 | `coach/schedule.html:977` | ADR: the price is in the coach's currency, with the odd-cents warning when a block allows 2 or more skaters (ruled 2026-11-08) |
+| S2 | Block labels are numbered by position; the ADR requires a stored `seq` that is never reused | M:482-484 | `coach/schedule.html:763,970` | ADR: each block gets a stored `seq` when created, never renumbered or reused; an unnamed block is labelled *Block N* from it (ruled 2026-11-08) |
+| S3 | Times run 5:00am–11:00pm; the ADR says 12:00am–11:45pm | M:471-472 | `coach/schedule.html:871` | ADR: 12:00 AM to 11:45 PM in 15-minute steps (ruled 2026-11-08) |
+| S4 | A new block is prefilled (6–8pm, 30 min, $50); the ADR says start, end, length and days are cleared | M:476-477 | `coach/schedule.html:1074` | ADR: a new block starts with start, end, length and days cleared (ruled 2026-11-08). **Amended 2026-11-09 by the owner:** start defaults to 5:00 AM and end to 7:00 PM; the time lists have no blank choice, so the times shown are the times saved |
+| S5 | The block Name field always shows; the ADR asks for it only once a second block exists | M:484-485 | `coach/schedule.html:969-970` | Screen: the block Name field always shows, in a special schedule too (ruled 2026-11-08). *ADR updated: ADR-008, ADR-MASTER (The editor).* |
+| S6 | The 7pm default end, length defaulting to 30, and slots past the end time are in the ADR but not on screen | M:479-481 | `coach/schedule.html:762,1016-1019` | ADR: the slots run to 7:00 PM when the end is blank, length becomes 30 when a slot is clicked with none set, and no slot runs past the end time (ruled 2026-11-08) |
+| S7 | Clicking a month date opens the day view; the ADR says it opens that week | M:497 | `coach/screens-calendar.js:79` | Screen: on the coach's month calendar, clicking a date opens that day (ruled 2026-11-08). *ADR updated: ADR-006, ADR-MASTER (Calendars).* |
+| S8 | "Cancel rest of week" doesn't state the range and count | M:931-932 | `coach/screens-calendar.js:118` | Neither: *Cancel rest of week* closes the rest of the Sunday–Saturday week from now on (all of a future week). Booked lessons and open lesson times all become `HELD`, with no release-or-hold question; the weekly schedule is unchanged. The button still states the range and count (ruled 2026-11-08). *ADR updated: ADR-009, ADR-MASTER (By the coach).* |
+| S9 | "Release all" answers release-or-hold for the whole selection; the ADR asks per lesson | M:928-929 | `coach/screens-calendar.js:46,164` | ADR: release-or-hold is asked per lesson, never once for a selection, for *this lesson* and *this day* (*this week* always holds, S8) (ruled 2026-11-08) |
+| S10 | The large-price-change warning is red and below the figures; the ADR says warning colours, at the top | M:833-835 | `coach/schedule.html:427-433,1039` | ADR: the warning sits at the top of the review page, in the warning colours (ruled 2026-11-08). **Redrawn 2026-11-08:** `coach/static/schedule-review.html` |
+| S11 | Coach cancel: an unanswered invitation becomes `EXPIRED` on screen; the ADR moves seats to `CANCELLED#` | M:682-688, M:927 | `coach/screens-calendar.js:54` | Neither: in MVP the coach's cancel deletes the unanswered invited seat with no record and no email, and a later answer writes nothing. Recording it and telling the family is Phase 2 (ruled 2026-11-08). *ADR updated: ADR-031, ADR-MASTER (Seats; Ending an invitation; §24).* |
+| S12 | The day view has no ADR (gap, not a conflict) | — | `coach/screens-calendar.js:124-144` | Screen: the day view as drawn (ruled 2026-11-08). Batch 2 builds it; its cancel buttons come with Batch 5. *No ADR text yet.* |
+
+### Family booking and shared lessons
+
+| ID | Conflict | ADR | Screen | Resolution |
+|---|---|---|---|---|
+| B1 | **The result page gives separate reasons ("taken", "no longer exists", "away"); the ADR requires one merged message so no family learns about another's booking** | M:575-576 | `client/screens-booking.js:514-515,631` | ADR: one merged message, *"That time was taken or no longer exists."* (ruled 2026-11-08; wording 2026-11-09) |
+| B2 | Answer-by ignores the "7 days after the leave" limit | M:726-727 | `client/screens-booking.js:338-339` | ADR: answer by whichever comes first, the start of the notice period or 7 days after the leave (ruled 2026-11-11). **Redrawn 2026-11-11:** `client/screens-booking.js` (`bkAnswerBy`; new page `home-share-left-series`). *Feature notes already match: `cancelation.md`, `Schedule lesson split`.* |
+| B3 | The staying family gets one card per lesson; the ADR wants one card per series with Keep all / Cancel all remaining | M:740-751 | `client/screens-booking.js:348-351` | ADR: one card per series, each date with its answer-by time, *Keep all* / *Cancel all remaining dates* (which confirms) and a choice per date (ruled 2026-11-11). **Redrawn 2026-11-11:** `client/screens-booking.js` (new pages `home-share-left-series`, `home-share-left-cancel-all`). *Feature notes already match: `cancelation.md`, `C_Client My Bookings.md`.* |
+| B4 | A shared series still offers "end earlier" and "make less frequent" | M:758-762 | `client/screens-booking.js:413,455-463,597` | ADR: while any lesson still to come in the series is shared (joined or invited), the change page offers only *Cancel all future lessons*, with a note saying why; *End it earlier* and *Make it less frequent* come back once nothing is shared (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-booking.js` (new `recurrence-shared`). |
+| B5 | The day view can step outside the booking window | M:544-549 | `client/screens-booking.js:155,159` | Neither, a new rule: the family's day view shows only days inside the booking window; previous and next stop at its edges (ruled 2026-11-08). *ADR updated: ADR-031 decision 3, ADR-MASTER (The booking window).* |
+| B6 | Coaches have different notice periods; MVP fixes it at 24 hours (ADR-025 also says notice differs by coach, so the ADRs disagree with each other) | M:292, M:1687 vs M:608-610 | `client/app.js:31`, `client/screens-booking.js:23,424` | ADR, for MVP: 24 hours for every coach. Per-coach notice periods, and the *"Coaches can have different…"* pop-up line, are Phase 2 (ruled 2026-11-08). *ADR updated: ADR-025 d, ADR-MASTER (Booking with more than one coach; §24).* |
+| B7 | The clash list stops at six; the ADR lists every clashing date | M:615-616 | `client/screens-booking.js:284` | ADR: every clashing date is listed (ruled 2026-11-11). **Redrawn 2026-11-11:** `client/screens-booking.js` (new page `book-confirm-many-clashes`). *Feature note already matches: `Bookings:`.* |
+| B8 | Expired and "cancelled, no answer" come from stored status, not from the clock | M:774-775 | `client/screens-account.js:193,332-335,432-435` | ADR: the pages work out *expired* and *cancelled, no answer* from the clock, without waiting for the hourly sweep (ruled 2026-11-11). **Redrawn 2026-11-11:** `client/app.js` (`invStatus`), `client/screens-booking.js` (`bkNoAnswer`), `client/screens-account.js`; new pages `invite-expired` and `bookings-share-no-answer`. |
+| B9 | The recurrence change doesn't name the late lessons | M:916-917 | `client/screens-booking.js:466` | Rule (`cancelation.md`): the warning names each cancelled lesson inside the notice period (*"Thu, Oct 15 · 4:15 PM is less than 24 hours away. Cancelling it may incur a late cancellation fee from Coach Ben."*), and the date list marks it *Cancelled · late* (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-booking.js` (new `recurrence-late`). |
+| B10 | Shared-price wording reveals the seat count (low) | M:635-636 | `client/screens-booking.js:254` | ADR: a share is the price divided by the number of skaters, odd cents to the earliest joiners; no page says "half" (ruled 2026-11-11). **Redrawn 2026-11-11:** `shared.js` (`shareOf`, `splitPrice`), `client/screens-booking.js` (share box, cancel pop-up), `client/screens-account.js` (invitation price). *Feature note: `Schedule lesson split`.* |
+| B11 | Invitation buttons say Go ahead / Decline; the ADR says Go ahead / Cancel (low) | M:671 | `client/screens-account.js:342` | Screen: the buttons stay **Go ahead** / **Decline**; ADR-025 d5 and the feature note now say decline (ruled 2026-11-11). *No redraw needed. Feature note: `FeatureDecriptions/Schedule lesson split`.* |
+| B12 | Home says "repeats weekly" for any series; series repeat every 1–4 weeks (low) | M:580-581 | `client/screens-account.js:188` | ADR: Home says how often the series repeats (*"repeats weekly"* or *"repeats every N weeks"*), matching My bookings; the coach's day view is fixed the same way (ruled 2026-11-09). **Redrawn 2026-11-09:** `client/screens-account.js`, `client/screens-booking.js` (new `home-every-2-weeks`), `coach/screens-calendar.js`. |
+
+### Attendance and money
+
+| ID | Conflict | ADR | Screen | Resolution |
+|---|---|---|---|---|
+| R1 | **The rinkside page has Undo on a recorded outcome; correction is website-only** | ADR-014:337-339, M:1005 | `rinkside/screens-rink.js:29,72-77` | ADR: no Undo on the phone; a recorded outcome is corrected on the website's Lessons page (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js`, `rinkside/app.js`. *Feature note: `FeatureDecriptions/Coach App`.* |
+| R2 | Logging out deletes queued check-ins; M says they survive a sign-out (ADR-023 leaves explicit logout open) | M:1213 | `rinkside/screens-rink.js:19,194-196` | ADR: the queue survives a logout and sends after the same coach signs in again; each entry carries the coach's ID; logging out warns that they'll send at the next log-in (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js` (log-out sheet, sign-in banner, new pages `signout-waiting` and `signin-waiting`). *Feature notes: `FeatureDecriptions/C_Rinkside Offline.md`, `C_Rinkside Account.md`.* |
+| R3 | The "Not sent" list has only Dismiss; the ADR wants Record on the website / Done, 7-day removal and the wrong-clock case | M:997-1001 | `rinkside/screens-rink.js:58,135` | ADR: each entry has *Record on the website* and *Done*, is marked a day before it goes, and is removed after 7 days; only a wrong-clock entry is listed (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js`. *Feature note: `FeatureDecriptions/C_Rinkside Offline.md`.* |
+| R4 | A family cancellation is shown as a failure the coach must dismiss; the ADR says report it and clear it | ADR-014:194-199 | `rinkside/app.js:128-130` | ADR: a family's cancellation is reported and cleared, not listed as a failure; the lesson shows as cancelled on Today (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/app.js`. *Feature note: `FeatureDecriptions/C_Rinkside Offline.md`.* |
+| R5 | The offline Week tab shows the whole week; only today is cached | M:968-969 | `rinkside/screens-rink.js:149-159` | ADR: the phone keeps today's lessons only; with no signal the Week tab shows no lessons, just "The week needs a connection" (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js` (new page `week-offline`). *Feature notes: `FeatureDecriptions/C_Rinkside Cancel Several Lessons.md`, `Coach App`.* |
+| R6 | The cancel dialog leaves out the date | M:940-941 | `rinkside/screens-rink.js:123` | ADR: the dialog names the skater, date and time, e.g. *"Cancel Leo M. · Today, Wed, Oct 14 · 10:00 AM?"* (ruled 2026-11-09). **Redrawn 2026-11-09:** `rinkside/screens-rink.js` (`today-cancel`, `today-shared-cancel`). |
+| R7 | Payments lets a waived lesson be undone; waived is final | ADR-003:207-210, M:1030 | `coach/screens-money-profile.js:83,115` | ADR: waived is final. No Undo on a waived lesson, and *Waive* always asks for confirmation first; Undo stays on paid lessons (ruled 2026-11-09). **Redrawn 2026-11-09:** `coach/screens-money-profile.js` (new `payments-waive`). |
+| R8 | The example late-cancellation text adds words the fixed template doesn't have | M:1128 | `coach/screens-money-profile.js:263` | ADR: the fixed template, *"BladeBook: Mia C. cancelled Fri 16 Oct 8:30am. See email."*, without *"inside your notice period"* (ruled 2026-11-12). **Redrawn 2026-11-12:** `coach/screens-money-profile.js` (Profile → Visibility & texts example). The text itself still waits on ADR-007 d8 (§3). |
+| R9 | Copy says rinkside "can only see today's lessons" | M:1174-1185 | `coach/app.js:81`, `rinkside/screens-rink.js:191` | ADR: the text says what the page is for, not what it can see: *"…shows today's lessons, attendance and cancelling"* and *"This page is for today's lessons, attendance and cancelling"*. The rinkside sign-in reaches every coach route (ADR-023 d2–3) (ruled 2026-11-09). **Redrawn 2026-11-09:** `coach/app.js`, `coach/screens-money-profile.js` (Profile → Account), `rinkside/screens-rink.js`. |
+| R10 | MVP email wording differs: weekly unpaid reminder, end-of-day report, the Payments footnote, the financial-page caveat | M:1044, M:1061, M:1152-1160, M:1075 | `coach/screens-money-profile.js:100,178,388-393` | **R10b ruled 2026-11-11:** the end-of-day report is Phase 2 (owner), so its wording leaves MVP. ADR-MASTER §14 and §24, ADR-014, ADR-010, ADR-001 and architecture.md §6.4 updated. **Redrawn 2026-11-11:** `coach/screens-money-profile.js` (the Daily report gets a Phase 2 tag and a sample matching its subject); `email/templates.mjs` drops it from the MVP emails. *Feature notes: `Email templates Needed:`, `C_Coach Email Templates.md`.* **R10a ruled 2026-11-12:** ADR wording for the weekly unpaid email (*"You have unpaid lessons from more than 7 days ago. Please mark each one as paid or waived."*, each line with date, time, skater and amount, no-shows labelled, *attendance not recorded* where it applies, and a link to Payments); the threshold is **7 days**, and a lesson is listed **every Monday until it is marked paid or waived** (ADR-018 amended). **R10c ruled 2026-11-12:** ADR, a no-show shows what that skater owes (their share), not the full lesson price. **R10d ruled 2026-11-12:** screen, the page keeps *"Gross is money you've received."* With rink fees moved to Phase 2 the same day, the page and its download show gross only and say rink fee calculation is coming (ADR-030 amended). **Redrawn 2026-11-12:** `coach/screens-money-profile.js` (Payments note, financial page, download, the unpaid sample), `email/templates.mjs` (`coach-unpaid-weekly`). |
+
+## Decisions and answered questions (was §6)
+
+
+**Answered by the owner, 2026-11-06:**
+
+- **Conflicts (Question 2):** before each batch, Claude lists only that batch's conflicts and the owner rules ADR or screen for each one. Anything unruled stays out and is listed as a gap.
+- **Signing in locally (Question 3):** a token stub that exists only in the local profile. It issues tokens with the right group and app-client claims, the real group and app-client checks run against it, and it's listed as a shortcut until Cognito exists.
+- **Events locally (Question 4):** consumer handlers are written for real, with tests. A local dispatcher calls them in-process after the write. Emails go to a log. Listed as a shortcut.
+
+**Answered by the owner, 2026-11-12:**
+
+- **Scheduled jobs locally:** the same as events. Each job is triggered by hand or by a local timer, and listed as a shortcut.
+- **Shared lessons (Batch 11):** built locally, with the family read allowlist and gate-test rows listed as a shortcut until they pass on real AWS.
+- **Rink fees:** Phase 2. They need answers from outside BladeBook that aren't available yet. MVP's financial page shows gross only and says rink fee calculation is coming.
+- **Sign-in library:** AWS Amplify's Auth module with SRP, wrapped behind `web/src/shared/auth`, pinned, tokens in tab storage (ADR-023 amendment).
+
+**Open, found in the plan review of 2026-11-12:**
+
+- ~~**Where Batches 17 and 18 go.**~~ *Ruled 2026-11-12 by the owner: after Batch 16, 17 then 18.*
+- ~~**Where the unplaced gaps go.**~~ *Ruled 2026-11-12 by the owner: each gets its own batch after 18: G-22 is Batch 19, G-7 Batch 20, G-30 Batch 21. G-29 and G-31 aren't built in MVP (below).*
+- ~~**G-13, changing the time zone after lesson times exist.**~~ *Ruled 2026-11-12 by the owner: changing a coach's time zone is a **Phase 3** feature; how it treats lesson times already made is decided then. In MVP the time zone is set at sign-up.*
+- ~~**G-29: what the coach sees of cancellations afterwards.**~~ *Ruled 2026-11-12 by the owner: Phase 2, with the family's cancellation history. In MVP the emails at the time are the only record people see.*
+- ~~**G-30: editing time off.**~~ *Ruled 2026-11-12 by the owner: add Edit to time off (Batch 21).*
+- ~~**G-31: reporting a skaters-per-lesson change on the review page.**~~ *Ruled 2026-11-12 by the owner: left as it is. The review page doesn't report it in MVP; booked lessons keep their setting, as already ruled.*
+
+**Found in the plan assessment of 2026-11-13, ruled the same day by the owner:**
+
+- ~~**Where Batches 22–25 go.**~~ *Ruled: 22 and 23 go straight after Batch 14, before the infrastructure; 24 and 25 stay after 21.* Four gaps still said *"Not yet placed"* in the root `README.md`:
+  G-6, G-20, G-28 and G-32. G-28 was marked *"Batch 7"* there, but Batch 7 built only the cancel
+  on each lesson in Today's list; the Week tab was never built. Following the 2026-11-12 ruling
+  (every unplaced gap gets its own batch, after 18), they're proposed as Batches 22–25.
+  **Recommendation:** move 22 (Today's lessons) and 23 (rinkside Week tab) up to just after
+  Batch 14. Both are MVP features a coach uses every day, both have Harbor screens, and neither
+  needs AWS. 24 and 25 stay after 21, since each waits on a screen or on Batch 17.
+- ~~**G-18, *Which coaches?* on *Add a skater*.**~~ *Ruled: redraw the design to list only coaches who have approved one of the family's skaters. Redrawn 2026-11-13: `client/screens-account.js` (the list, and a hint naming each waiting coach); feature note `FeatureDecriptions/ClientProfileView`.* Batch 15 lists approved coaches only (the design
+  lists every coach) so that a waiting family is never given a coach's ID. The root `README.md`
+  marks it *"Owner's call"*: keep it as built, or redraw the design to match.
+
+**Found while wiring mutation testing into CI, ruled 2026-11-13 by the owner:**
+
+- ~~**What PIT covers in `core/`.**~~ *Ruled: keep all of `core/` (ADR-013 amended 2026-11-13).
+  If runs get too slow, give service tests in-memory fakes rather than narrowing PIT.* ADR-013
+  decision 3 scoped PIT to `core/` because it was "pure logic with no input or output", so PIT
+  would run fast. That was never true: ADR-001 puts DynamoDB access in `core/`, so it holds
+  `core.data` (the repositories) and `core.service`, and 35 of its 96 test files start
+  DynamoDB Local in Docker. A full run on the owner's Mac on 2026-11-13 took 39 minutes on one thread and 16 on four. As wired today, PIT covers all
+  of `core/`, with 4 threads and pull-request runs limited to changed classes (PIT 1.30's incremental history is now a paid add-on, so it isn't used).
+  **Option:** limit PIT to `core.domain` and `core.events` (the block expansion, conflict, money
+  and idempotency logic ADR-013 names) and leave out the tests that need DynamoDB Local. That's
+  much faster, but repository and service code goes untested by PIT. Either way, ADR-013 needs a
+  line recording the choice.
+
+**Found in Batch 12 (2026-11-13):**
+
+- ~~**When a finished year closes.**~~ *Ruled 2026-11-13 by the owner: a lesson from a closed year marked paid later
+  counts in the year and month it was marked paid, flagged as for an earlier year. Built on the Batch 12 branch;
+  ADR-030 amended, ADR-MASTER §12 and `FeatureDecriptions/Coach Financial Page.md` updated.*
+- ~~**G-36: a closed year can still drop**~~ when one of its paid lessons is undone on Payments, and (from Batch 17)
+  when its paid lessons are deleted about 16 months after payment. *Ruled 2026-11-13 by the owner: save each year's
+  figures when it closes (option c). Planned as Batch 26, after 23 and before 17. ~~Nothing closes a year today: it's
+  only a date rule, and the figures are added up from the seats on every visit.~~ Built in Batch 26 (2026-11-16; §7):
+  a closed year is saved once as `CLOSEDYEAR#<year>`, and an undo after its year closed counts in this year.*
+- ~~**A lesson from two or more years back marked paid now counts in no year**~~ (the financial page reads only this
+  year's and last year's lessons). *Ruled 2026-11-15 by the owner: lessons from over a year back are view only.
+  Planned as Batch 27 (G-39), after 26 and before 17. Read as lessons dated before January 1 of last year, so it
+  lines up with the year the financial page reads; the owner may override.*
+
+- **Java 17**, chosen over the ADRs' Java 25. Code uses nothing newer than Java 17: no pattern-matching `switch`, no record patterns, no sequenced-collection methods, no unnamed `_` variables.
+
+**Java 17 follow-ups, done 2026-11-06 with the owner's approval:** ADR-001 amendment A10
+(`java17.al2023`, the Java 17 runtime on Amazon Linux 2023, deprecated 2029-06-30, the same date
+as `java25`), ADR-MASTER §1, `architecture.md` §2 and the glossary. SnapStart was already
+withdrawn (ADR-001 A1), so nothing needs re-measuring. **Batch 1 (2026-11-08):**
+`aws-serverless-java-container` 3.0.4 builds and starts on Java 17. Its Lambda handler isn't
+exercised until something is deployed.
