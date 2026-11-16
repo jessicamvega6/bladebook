@@ -42,6 +42,17 @@ group with 403, and refuses a token from the other website's app client with 403
 carries the right group. *Amended 2026-10-24:* decision 10 adds that a new account gets only the
 group of the app client it signed up through.
 
+**Amended — 2026-11-13.** *Decided by the owner.* Decision 3's reason for scoping PIT to
+`core/`, that it is "pure logic with no input or output", was never accurate: ADR-001 puts
+DynamoDB access in `core/` too (`core.data`), and `core.service` reads and writes through it, so
+35 of `core/`'s 96 test files run against DynamoDB Local. **PIT still covers all of `core/`.**
+Narrowing it to `core.domain` would drop the code with the weakest tests (2026-11-13 baseline:
+`domain` 95%, `data` 84%, `service` 77%), including price totals, the schedule-change review and
+tenant access. CI runs it as `.github/workflows/mutation.yml`: on a pull request only the changed
+`core/` classes, on `main` and nightly all of `core/`, failing below 85% (`pit.mutationThreshold`
+in `backend/core/pom.xml`, raised as tests improve). If runs get too slow, the next step is
+in-memory fakes for service tests, keeping DynamoDB Local for the repository tests.
+
 ---
 
 ## Decision

@@ -1,6 +1,6 @@
 # BladeBook — Open & Pending
 
-**As of:** ~~2026-10-24~~ 2026-11-12
+**As of:** ~~2026-10-24~~ ~~2026-11-12~~ 2026-11-13
 **Purpose:** Everything not yet decided or done, in one place. Questions for a coach are
 collected in `Items to ask Kim About.md`. Each bullet is a pointer, not the
 full argument; the source in parentheses has the detail. When an item is settled, record it in
@@ -330,12 +330,16 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   received. That means lessons marked paid, plus missed-lesson fees actually collected. Waived
   and unpaid lessons are left out. The year is the calendar year (the tax year for individuals
   in both the US and Canada). Past years on screen are **Phase 2**. A paid lesson counts by its
-  **lesson date**, and a finished year is **closed** for now. (ADR-030,
+  **lesson date**, and a finished year is **closed** for now. *2026-11-13 (owner): a lesson from a closed year marked
+  paid later counts in the year and month it was paid, flagged as for an earlier year; a year closes at midnight
+  starting January 1 in the coach's time zone. Each closed year's figures will be saved when it closes (Batch 26).*
+  (ADR-030,
   `FeatureDecriptions/Coach Financial Page.md`)
 - **Decided 2026-10-12 by the owner: a summary export is in MVP.** A **Download** button on the
   financial page saves a CSV for a chosen calendar year (this year or last): one row per month
   with gross received, rink fees and net, plus year totals. *2026-11-12: MVP's download is monthly gross and
-  paid-lesson counts; rink fees and net are Phase 2.* It has no skater names and no
+  paid-lesson counts; rink fees and net are Phase 2. 2026-11-13: it also has a column for the part paid for earlier
+  years' lessons.* It has no skater names and no
   personal data, so it isn't a PII read under ADR-012. It covers what the coach's tax preparer
   needs, and lets the coach keep their own copy before records pass the 16-month floor (§8).
   Rows read live data only, filtered on `expiresAt` (ADR-017 decision 1).
@@ -839,6 +843,15 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   schedule?** (ADR-032 Open) *Added 2026-10-15.*
 - **Pending decision: How long to keep CI run logs, and whether to copy them anywhere.**
   (ADR-032 Open) *Added 2026-10-15.*
+- **To-do: Find out what's still running on Node.js 20, which GitHub Actions has deprecated.**
+  The warning shows on the mutation-testing workflow's runs in GitHub Actions. The likely cause
+  is the `@v4` actions, which run on Node 20: `actions/checkout`, `actions/setup-java` and
+  `actions/upload-artifact` in `mutation.yml` (branch `ci/mutation-testing`), and
+  `actions/checkout`, `actions/setup-java` and `actions/setup-node` in `ci.yml`. Bump each to
+  a release that runs on Node 24, pinned to a full commit hash (§1 lock-down). *Added 2026-11-13.*
+- **To-do: Move off `actions/setup-java@v4`, which is deprecated.** Used in `ci.yml` and in
+  `mutation.yml` (branch `ci/mutation-testing`). Likely the same fix as the Node 20 item above.
+  *Added 2026-11-13.*
 
 ## 12. Feature descriptions — gaps to fill
 

@@ -11,6 +11,7 @@ import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
 import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.FinancialService;
 import com.bladebook.core.service.PaymentService;
 import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.CoachProfileService;
@@ -80,6 +81,12 @@ public class CoreConfig {
     PaymentService paymentService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
                                   StudentRepository students, CoachRepository coaches, Clock clock) {
         return new PaymentService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
+    }
+
+    /** The financial page and its download (Batch 12), built on the Payments page's rows. */
+    @Bean
+    FinancialService financialService(PaymentService payments, CoachRepository coaches, Clock clock) {
+        return new FinancialService(payments, coaches, clock);
     }
 
     /** Attendance: the rinkside page and the Lessons page (Batch 7). */
