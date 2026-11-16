@@ -22,6 +22,9 @@ prefer if you know.
   (`web/src/family/pages/Home.tsx`).
 - [ ] My bookings: remove the **Shared lesson** badge from a lesson once the original invitee
   has left it, so it's no longer shared.
+- [ ] Home page, **Today** card: remove any text about upcoming lessons (e.g. "Next: Sully, Wed,
+  Nov 18 at 5am" under "No lessons today"). The Today card is only about what's happening
+  today; upcoming lessons belong in **Coming up** (`web/src/family/pages/Home.tsx:144`).
 
 ## Rinkside app
 
