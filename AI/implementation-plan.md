@@ -1088,11 +1088,12 @@ The full list, with what closes each one, is in the root `README.md`.
      `Calendar.tsx` (the week grid), `Schedule.tsx` (each slot in the week view, each block's *"3:00 PM – 7:00 PM"*
      and the *Break* note) and `family/pages/Book.tsx` (a slot's end time) and `Home.tsx`; the Harbor coach and
      client designs the same (`fmtT` for `fmtShortT`, and `schedule.html`'s own short forms). The rinkside page
-     (`web/src/rinkside/`, `design/harbor/rinkside/`) is left to its own branch, so `formatClock` and `formatShort`
-     stay in `schedule.ts` for it. To fit at 390px: Today's time column is 66px and doesn't wrap; Home's *Coming up*
-     time column stays 64px on a phone; the *Break* note keeps each time on one line. **Book's *Pick your times*
-     had no phone layout** (the 340px picks column left the times about 24px at 390px, whatever the format): it now
-     stacks below 980px, times first, in the app (`family.css`) and the design (`screens-booking.css`).
+     (`web/src/rinkside/`, `design/harbor/rinkside/`) was left to its own branch (Batch 23, which made the same
+     change); once it merged, `formatClock` and `formatShort` were removed from `schedule.ts`. To fit at 390px:
+     Today's time column is 66px and doesn't wrap; Home's *Coming up* time column stays 64px on a phone; the *Break*
+     note keeps each time on one line. **Book's *Pick your times* had no phone layout** (the 340px picks column left
+     the times about 24px at 390px, whatever the format): it now stacks below 980px, times first, in the app
+     (`family.css`) and the design (`screens-booking.css`).
      **Not changed:** the schedule editor's overlap message (*"Morning ice (6–8 AM) and Block 2 (7–9 AM) overlap in
      time."*), which `core` words (`ScheduleRules.range`) and the website repeats; and the emails' times.
   5. **The Calendar week page no longer scrolls sideways on a phone** (owner, 2026-11-16): at 760px and under, a page

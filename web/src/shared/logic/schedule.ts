@@ -54,10 +54,6 @@ const clock = (m: number) => (m % 60 === 0 ? `${hour12(m)}` : `${hour12(m)}:${St
 
 /** "6:30 AM". */
 export const formatTime = (t: string): string => { const m = toMinutes(t); return `${hour12(m)}:${String(m % 60).padStart(2, '0')} ${meridiem(m)}`; };
-/** "6:30" with no meridiem, for dense grids. */
-export const formatClock = (t: string): string => { const m = toMinutes(t); return `${hour12(m)}:${String(m % 60).padStart(2, '0')}`; };
-/** "6am", "11:30am". */
-export const formatShort = (t: string): string => { const m = toMinutes(t); return `${clock(m)}${meridiem(m).toLowerCase()}`; };
 
 /** "6–11:30 AM", "10 AM–5 PM": the first meridiem is dropped when both match. */
 export function range(a: string, b: string): string {
