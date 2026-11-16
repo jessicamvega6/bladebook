@@ -87,8 +87,29 @@ class FinancialApiTest {
         Res last = call("/api/coach/finances/download?year=" + (thisYear - 1), token);
         assertThat(last.status()).isEqualTo(200);
         assertThat(last.s("fileName")).isEqualTo("bladebook-summary-" + (thisYear - 1) + ".csv");
-        assertThat(last.s("csv")).startsWith("Month,Paid lessons,Gross received (USD),Of which for lessons in earlier years (USD)\r\nJanuary " + (thisYear - 1) + ",0,0.00,0.00\r\n")
-                .endsWith((thisYear - 1) + " total,0,0.00,0.00\r\n");
+        assertThat(last.s("csv")).startsWith("Month,Paid lessons,Gross received (USD),Of which for lessons in earlier years (USD),"
+                        + "Taken off for earlier years' lessons marked unpaid (USD)\r\nJanuary " + (thisYear - 1) + ",0,0.00,0.00,0.00\r\n")
+                .endsWith((thisYear - 1) + " total,0,0.00,0.00,0.00\r\n");
+    }
+
+    @Test
+    void theJanuaryJobSavesLastYearOnceAndThePageCarriesTheUndoneFigures() throws Exception {
+        String token = coach();
+        int thisYear = LocalDate.now(ZoneId.of("America/Chicago")).getYear();
+        Res first = call("POST", "/api/coach/local/jobs/year-close?date=" + thisYear + "-01-02", token, null);
+        assertThat(first.status()).isEqualTo(200);
+        assertThat(first.body().get("saved").asInt()).isGreaterThanOrEqualTo(1);    // the table is shared by this class's tests
+        Res again = call("POST", "/api/coach/local/jobs/year-close?date=" + thisYear + "-01-03", token, null);
+        assertThat(again.body().get("saved").asInt()).isZero();
+        assertThat(again.body().get("alreadySaved").asInt()).isEqualTo(again.body().get("coaches").asInt());
+        assertThat(call("POST", "/api/coach/local/jobs/year-close?date=soon", token, null).status()).isEqualTo(400);
+
+        Res page = call("/api/coach/finances?year=" + thisYear, token);
+        assertThat(page.body().get("undoneLessons").asInt()).isZero();
+        assertThat(page.body().get("months").get(0).has("undoneGross")).isTrue();
+        Res last = call("/api/coach/finances?year=" + (thisYear - 1), token);
+        assertThat(last.body().get("closed").asBoolean()).isTrue();
+        assertThat(last.body().get("months")).hasSize(12);
     }
 
     @Test

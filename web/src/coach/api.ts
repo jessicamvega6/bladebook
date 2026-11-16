@@ -269,6 +269,8 @@ export interface PaymentRowDto {
   date: string; startTime: string; durationMinutes: number; studentId: string; fullName: string; familyName: string | null;
   relationship: 'SELF' | 'GUARDIAN' | null; attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
   amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
+  /** On a paid lesson whose payment counted in a year that has closed, that year (worked out by the server); else null. */
+  closedYear: number | null;
 }
 
 /** Totals per currency, never across. */
@@ -279,6 +281,8 @@ export interface PaymentsDto {
   /** The Mark paid dialog's choices: the coach's payment types, then Other. */
   choices: PaidVia[];
   currency: string;
+  /** The year it is now in the coach's time zone: an undo of a closed year's payment counts in it. */
+  thisYear: number;
 }
 
 export function paymentsApi(token: string) {
@@ -303,13 +307,15 @@ export type PaymentsApi = ReturnType<typeof paymentsApi>;
 export interface FinanceMonthDto {
   month: string; hasLessons: boolean; paidLessons: number; gross: Record<string, number>; unpaid: Record<string, number>;
   earlierLessons: number; earlierGross: Record<string, number>;
+  /** Earlier years' payments undone this month, already taken off {@code gross} (Batch 26). */
+  undoneLessons: number; undoneGross: Record<string, number>;
 }
 
 /** A year's figures (Batch 12): gross only; rink fees are Phase 2. {@code today}: the coach's date. */
 export interface FinanceYearDto {
   year: number; closed: boolean; today: string; months: FinanceMonthDto[]; paidLessons: number;
   gross: Record<string, number>; unpaid: Record<string, number>; earlierLessons: number; earlierGross: Record<string, number>;
-  currency: string;
+  undoneLessons: number; undoneGross: Record<string, number>; currency: string;
 }
 
 export function financesApi(token: string) {

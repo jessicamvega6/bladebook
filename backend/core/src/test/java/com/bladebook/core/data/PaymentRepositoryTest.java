@@ -84,6 +84,26 @@ class PaymentRepositoryTest {
     }
 
     @Test
+    void anUndoAfterItsYearClosedWritesItsCorrectionInTheSameTransaction() {
+        FinancialRepository finances = new FinancialRepository(f.clients, f.table);
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.CASH, NOW);
+        Instant at = Instant.parse("2027-02-01T15:00:00Z");
+        FinancialRepository.Undone u = new FinancialRepository.Undone(at, seatKey, MONDAY, LocalTime.of(6, 0), seat().seat().studentId(),
+                5000, "USD", 2026);
+        assertThat(payments.undo(dana, seatKey, u)).isTrue();
+        assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
+        assertThat(finances.corrections(dana, Instant.parse("2027-01-01T06:00:00Z"), Instant.parse("2028-01-01T06:00:00Z")))
+                .containsExactly(new com.bladebook.core.domain.FinancialSummary.Correction(at, MONDAY, 5000, "USD"));
+
+        // From a stale view (already unpaid) neither the seat nor a second correction is written.
+        assertThat(payments.undo(dana, seatKey, u)).isFalse();
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW);
+        assertThat(payments.undo(dana, seatKey, u)).isFalse();            // the same correction can't be written twice
+        assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
+        assertThat(finances.corrections(dana, Instant.parse("2027-01-01T06:00:00Z"), Instant.parse("2028-01-01T06:00:00Z"))).hasSize(1);
+    }
+
+    @Test
     void aSeatThatIsGoneCantBePaid() {
         assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, NOW)).isFalse();
         assertThat(Map.<String, AttributeValue>of()).isEmpty();

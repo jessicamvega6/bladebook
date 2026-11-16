@@ -30,6 +30,11 @@ function save(fileName: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Money with a minus sign below zero; formatMoney is for amounts of zero or more. */
+function signedMoney(minor: number): string {
+  return minor < 0 ? `−${formatMoney(-minor)}` : formatMoney(minor);
+}
+
 /** Phase 1 coaches teach at one rink (ADR-MASTER section 6). */
 const RINK = 'Pelham Civic Center';
 
@@ -60,11 +65,14 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
   if (!data) return <>{head}<p className="muted" aria-busy="true">Loading…</p></>;
 
   const cur = data.currency;
-  const money = (m: Record<string, number>) => formatMoney(m[cur] ?? 0);
+  /** Gross can be below zero in a month where only a closed year's payment was undone (Batch 26). */
+  const money = (m: Record<string, number>) => signedMoney(m[cur] ?? 0);
   const thisMonth = data.today.slice(0, 7);
-  const first = data.months.findIndex((m) => m.hasLessons || m.earlierLessons > 0);
+  const first = data.months.findIndex((m) => m.hasLessons || m.earlierLessons > 0 || m.undoneLessons > 0);
   /** Only last year's lessons are read, so "earlier" is always the year before (FinancialService). */
   const earlier = (m: Record<string, number>) => `${formatMoney(m[cur] ?? 0)} for ${data.year - 1} lessons`;
+  /** A closed year's payment undone this year counts in the month it's undone (ADR-030 d4, amended 2026-11-16). */
+  const undone = (m: Record<string, number>) => `${formatMoney(m[cur] ?? 0)} for ${data.year - 1} lessons marked unpaid`;
   const monthName = (ym: string) => MONTHS_LONG[Number(ym.slice(5, 7)) - 1];
   const upTo = MONTHS_LONG[data.months.length - 1];
   const rows = data.months.slice(Math.max(first, 0)).map((m) => {
@@ -73,7 +81,7 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
       <tr key={m.month}>
         <td><b>{monthName(m.month)}</b>{m.month === thisMonth && <small className="mp-sub">To {MONTHS[Number(data.today.slice(5, 7)) - 1]} {Number(data.today.slice(8))}</small>}</td>
         <td className="num">{plural(m.paidLessons, 'lesson')}{unpaid > 0 && <small className="mp-sub">{formatMoney(unpaid)} still unpaid</small>}</td>
-        <td className="r money">{money(m.gross)}{m.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(m.earlierGross)}</small>}</td>
+        <td className="r money">{money(m.gross)}{m.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(m.earlierGross)}</small>}{m.undoneLessons > 0 && <small className="mp-sub">Less {undone(m.undoneGross)}</small>}</td>
       </tr>
     );
   });
@@ -84,7 +92,7 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
       {head}
       <Banner tone="info" title="Based on lessons you’ve marked as paid">These figures are calculated from the lessons you’ve marked as paid. A lesson you haven’t marked paid isn’t included. A finished year is closed: a lesson from it marked paid later counts in the month you mark it, labelled with its year.</Banner>
       <div className="stats">
-        <Stat label={`Gross, ${data.year} to date`} value={money(data.gross)} sub={`${plural(data.paidLessons, 'lesson')} marked paid${data.earlierLessons > 0 ? ` · ${earlier(data.earlierGross)}` : ''}`} icon="card" />
+        <Stat label={`Gross, ${data.year} to date`} value={money(data.gross)} sub={`${plural(data.paidLessons, 'lesson')} marked paid${data.earlierLessons > 0 ? ` · ${earlier(data.earlierGross)}` : ''}${data.undoneLessons > 0 ? ` · less ${undone(data.undoneGross)}` : ''}`} icon="card" />
         <Stat label="Still unpaid" value={money(data.unpaid)} sub="Not in gross until marked paid" icon="alert" />
       </div>
       <div className="split fin-split">
@@ -96,7 +104,7 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
               {first < 0 && <tr className="fin-none"><td>{data.months.length > 1 ? `${MONTHS_LONG[0]} – ${upTo}` : upTo}</td><td colSpan={2} className="muted">No lessons in BladeBook</td></tr>}
               {first >= 0 && rows}
             </tbody>
-            <tfoot><tr><td><b>{data.year} to date</b></td><td className="num">{plural(data.paidLessons, 'lesson')}</td><td className="r money">{money(data.gross)}{data.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(data.earlierGross)}</small>}</td></tr></tfoot>
+            <tfoot><tr><td><b>{data.year} to date</b></td><td className="num">{plural(data.paidLessons, 'lesson')}</td><td className="r money">{money(data.gross)}{data.earlierLessons > 0 && <small className="mp-sub">Includes {earlier(data.earlierGross)}</small>}{data.undoneLessons > 0 && <small className="mp-sub">Less {undone(data.undoneGross)}</small>}</td></tr></tfoot>
           </table></div>
           <div className="card__note"><Icon name="info" size={14} /> Gross counts lessons marked paid, including a missed-lesson fee once you’ve collected it (mark the no-show paid). Unpaid and waived lessons aren’t counted. A lesson counts in the month it was taught; one from last year marked paid this year counts in the month you marked it. Amounts are in {cur}.</div>
         </Card>

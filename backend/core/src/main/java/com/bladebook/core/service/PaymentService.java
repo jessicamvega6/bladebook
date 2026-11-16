@@ -2,6 +2,7 @@ package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CoachRepository;
+import com.bladebook.core.data.FinancialRepository;
 import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.PaymentRepository.PaidSeat;
 import com.bladebook.core.data.ScheduleRepository;
@@ -10,6 +11,7 @@ import com.bladebook.core.domain.Attendance;
 import com.bladebook.core.domain.ClientRelationship;
 import com.bladebook.core.domain.CoachProfile;
 import com.bladebook.core.domain.DomainException;
+import com.bladebook.core.domain.FinancialSummary;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Payment;
 import com.bladebook.core.domain.Seat;
@@ -19,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 /**
  * The coach's Payments page (ADR-MASTER section 12; FeatureDecriptions/Coach Payment Section on Dashboard.md): every
@@ -34,10 +38,14 @@ import java.util.Map;
  */
 public final class PaymentService {
 
-    /** One skater's lesson. {@code amountMinor}: the skater's share of the lesson time's price. {@code paidAt} only when paid. */
+    /**
+     * One skater's lesson. {@code amountMinor}: the skater's share of the lesson time's price. {@code paidAt} only when
+     * paid. {@code closedYear}: on a paid lesson whose payment counted in a year that has closed, that year, so the page
+     * can warn before an undo (owner, 2026-11-16); otherwise null.
+     */
     public record Row(LocalDate date, LocalTime startTime, int durationMinutes, String studentId, String fullName, String familyName,
                       ClientRelationship relationship, Attendance.Shown attendance, int amountMinor, String currency,
-                      Payment.Status status, Payment.Via paidVia, List<String> sharedWith, Instant paidAt) {
+                      Payment.Status status, Payment.Via paidVia, List<String> sharedWith, Instant paidAt, Integer closedYear) {
     }
 
     /** Totals per currency: unpaid, paid, and unpaid no-shows; with the counts the page's figures show. */
@@ -45,7 +53,8 @@ public final class PaymentService {
                          int noShows, Map<String, Long> noShowsUnpaid, int notRecorded) {
     }
 
-    public record View(List<Row> rows, Totals totals, List<Payment.Via> choices, String currency) {
+    /** {@code thisYear}: the year it is now in the coach's time zone, which an undo of a closed year's payment counts in. */
+    public record View(List<Row> rows, Totals totals, List<Payment.Via> choices, String currency, int thisYear) {
 
         public View {
             rows = List.copyOf(rows);
@@ -62,6 +71,7 @@ public final class PaymentService {
     private final StudentRepository students;
     private final CoachRepository coaches;
     private final Clock clock;
+    private volatile ClosedYears closedYears;
 
     public PaymentService(PaymentRepository payments, ScheduleRepository schedules, StudentRepository students, CoachRepository coaches,
                           Clock clock) {
@@ -81,6 +91,8 @@ public final class PaymentService {
         }
         CoachProfile coach = coach(ctx);
         Instant now = clock.instant();
+        ZoneId zone = ZoneId.of(coach.coachTimezone());
+        int thisYear = LocalDate.ofInstant(now, zone).getYear();
         Map<String, LessonTime> times = new HashMap<>();
         schedules.lessonTimes(ctx, from, to).forEach(t -> times.put(t.key(), t));
         Map<String, StudentRecord> records = records(ctx);
@@ -95,11 +107,11 @@ public final class PaymentService {
             in.sort(Comparator.comparing(s -> s.seat().joinedAt()));
             List<String> order = in.stream().map(s -> s.seat().studentId()).toList();
             for (PaidSeat s : in) {
-                rows.add(row(s, times.get(key), in, order, records, now, coach));
+                rows.add(row(s, times.get(key), in, order, records, now, coach, closedYear(s, zone, thisYear)));
             }
         });
         rows.sort(Comparator.comparing(Row::date).thenComparing(Row::startTime).thenComparing(Row::fullName));
-        return new View(rows, totals(rows), Payment.choices(coach.payments()), coach.currency().name());
+        return new View(rows, totals(rows), Payment.choices(coach.payments()), coach.currency().name(), thisYear);
     }
 
     /** Marks paid, or on a paid lesson changes how they paid. {@code paidVia} blank for none. */
@@ -124,17 +136,55 @@ public final class PaymentService {
         return reread(ctx, date, start, studentId);
     }
 
-    /** A paid lesson back to unpaid. */
+    /**
+     * A paid lesson back to unpaid. When the year its payment counted in has closed, that year's figures are saved first
+     * (if nothing has saved them yet), and the undo is written with a correction that counts in this year, flagged as
+     * for an earlier year, so the closed year doesn't change (Batch 26; ADR-030 decision 4, amended 2026-11-16).
+     */
     public Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkUndo(s.status());
-        if (!payments.undo(ctx, s.seat().key())) {
+        Instant now = clock.instant();
+        ZoneId zone = ZoneId.of(coach(ctx).coachTimezone());
+        OptionalInt counted = FinancialSummary.countedIn(date, s.paidAt(), zone);
+        boolean done;
+        if (closedYear(s, zone, LocalDate.ofInstant(now, zone).getYear()) != null) {
+            if (closedYears == null) {
+                throw new IllegalStateException("A closed year's payment can't be undone before its figures can be saved.");
+            }
+            closedYears.saveBeforeUndo(ctx, counted.getAsInt());
+            Row was = reread(ctx, date, start, studentId);
+            done = payments.undo(ctx, s.seat().key(), new FinancialRepository.Undone(now, s.seat().key(), date, start, studentId,
+                    was.amountMinor(), was.currency(), counted.getAsInt()));
+        } else {
+            done = payments.undo(ctx, s.seat().key());
+        }
+        if (!done) {
             throw DomainException.conflict(CHANGED);
         }
         return reread(ctx, date, start, studentId);
     }
 
+    /** Saves a closed year's figures, if nothing has yet, before one of its payments is undone (Batch 26). */
+    public interface ClosedYears {
+        void saveBeforeUndo(AccessContext ctx, int year);
+    }
+
+    /** Set by {@link FinancialService}, which reads this service to add a year up. */
+    void closedYears(ClosedYears closedYears) {
+        this.closedYears = closedYears;
+    }
+
     // ---------------------------------------------------------------------- helpers
+
+    /** The closed year a paid lesson's payment counted in, or null: unpaid, counted in this year, or in no year (G-39). */
+    private static Integer closedYear(PaidSeat s, ZoneId zone, int thisYear) {
+        if (s.status() != Payment.Status.PAID) {
+            return null;
+        }
+        OptionalInt counted = FinancialSummary.countedIn(s.seat().lessonDate(), s.paidAt(), zone);
+        return counted.isPresent() && counted.getAsInt() < thisYear ? counted.getAsInt() : null;
+    }
 
     private PaidSeat happened(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         String key = Seat.key(date, start, studentId);
@@ -152,7 +202,7 @@ public final class PaymentService {
     }
 
     private static Row row(PaidSeat s, LessonTime t, List<PaidSeat> in, List<String> order, Map<String, StudentRecord> records,
-                           Instant now, CoachProfile coach) {
+                           Instant now, CoachProfile coach, Integer closedYear) {
         StudentRecord r = records.get(s.seat().studentId());
         int amount = t == null ? 0 : t.shareFor(t.priceMinor(), s.seat().studentId(), order);
         List<String> others = in.stream().filter(o -> o != s).map(o -> o.seat().studentName()).toList();
@@ -160,7 +210,7 @@ public final class PaymentService {
                 r == null ? s.seat().studentName() : r.studentName(), r == null ? null : r.clientName(),
                 r == null ? null : r.relationship(),
                 Attendance.statusOf(s.seat().seatStatus(), s.seat().startsAtUtc(), s.seat().durationMinutes(), now),
-                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), others, s.paidAt());
+                amount, t == null ? coach.currency().name() : t.currency(), s.status(), s.paidVia(), others, s.paidAt(), closedYear);
     }
 
     private static Totals totals(List<Row> rows) {
