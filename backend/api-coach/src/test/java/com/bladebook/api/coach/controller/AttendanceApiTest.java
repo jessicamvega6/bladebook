@@ -149,6 +149,30 @@ class AttendanceApiTest {
                 + "\",\"outcomeAt\":\"" + at + "\"}";
     }
 
+    /** The coach website's Today page (Batch 22): the same lesson, with its price, counted this week and as unpaid. */
+    @Test
+    void theTodayPageListsTheLessonAndCountsItThisWeekAndUnpaid() throws Exception {
+        Res day = call("GET", "/api/coach/today", token, null);
+        assertThat(day.status()).isEqualTo(200);
+        assertThat(day.s("today")).isEqualTo(today.toString());
+        assertThat(day.s("currency")).isEqualTo("USD");
+        assertThat(day.s("nextLessonDate")).isNull();
+        JsonNode lesson = day.body().get("lessons").get(0);
+        assertThat(lesson.get("startTime").asString()).isEqualTo(started.toString());
+        assertThat(lesson.get("held").asBoolean()).isFalse();
+        assertThat(lesson.get("next").asBoolean()).isFalse();   // it has started
+        JsonNode skater = lesson.get("skaters").get(0);
+        assertThat(skater.get("name").asString()).isEqualTo("Ava Park");
+        assertThat(skater.get("amountMinor").asInt()).isEqualTo(5000);
+        assertThat(skater.get("attendance").asString()).isEqualTo("BOOKED");
+        assertThat(day.body().get("week").get("count").asInt()).isEqualTo(1);
+        assertThat(day.body().get("week").get("amounts").get("USD").asLong()).isEqualTo(5000);
+        assertThat(day.body().get("unpaid").get("count").asInt()).isEqualTo(1);
+        assertThat(day.body().get("unpaid").get("amounts").get("USD").asLong()).isEqualTo(5000);
+
+        assertThat(call("GET", "/api/coach/today", null, null).status()).isEqualTo(401);
+    }
+
     @Test
     void todayRecordAndTheLessonsPageCorrection() throws Exception {
         Res day = call("GET", "/api/coach/rinkside/today", token, null);

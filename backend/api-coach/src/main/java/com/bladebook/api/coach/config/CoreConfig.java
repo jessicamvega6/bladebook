@@ -21,6 +21,7 @@ import com.bladebook.core.service.ScheduleService;
 import com.bladebook.core.service.StudentLinkService;
 import com.bladebook.core.service.StudentService;
 import com.bladebook.core.service.TempScheduleService;
+import com.bladebook.core.service.TodayService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -87,6 +88,13 @@ public class CoreConfig {
     PaymentService paymentService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
                                   StudentRepository students, CoachRepository coaches, Clock clock) {
         return new PaymentService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
+    }
+
+    /** The Today page's lessons and figures (Batch 22, G-6). */
+    @Bean
+    TodayService todayService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
+                              StudentRepository students, CoachRepository coaches, Clock clock) {
+        return new TodayService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
     }
 
     /** The financial page and its download (Batch 12), built on the Payments page's rows. */

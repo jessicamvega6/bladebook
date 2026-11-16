@@ -84,6 +84,19 @@ class PaymentRepositoryTest {
     }
 
     @Test
+    void theOldestUnpaidLessonIsFoundOnTheCoachsUnpaidIndexAndGoesWhenPaidOrWaived() {
+        assertThat(payments.oldestUnpaid(dana)).contains(MONDAY);
+        AccessContext sam = FamilyTestData.coach(f, "Sam", "8M3R-P2WX");
+        assertThat(payments.oldestUnpaid(sam)).isEmpty();
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW);
+        assertThat(payments.oldestUnpaid(dana)).isEmpty();
+        payments.undo(dana, seatKey);
+        assertThat(payments.oldestUnpaid(dana)).contains(MONDAY);
+        payments.waive(dana, seatKey, NOW);
+        assertThat(payments.oldestUnpaid(dana)).isEmpty();
+    }
+
+    @Test
     void aSeatThatIsGoneCantBePaid() {
         assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, NOW)).isFalse();
         assertThat(Map.<String, AttributeValue>of()).isEmpty();

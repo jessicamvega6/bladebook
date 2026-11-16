@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Payment on seats, in the coach's partition (ADR-MASTER section 12). Each write is conditional on the status the
@@ -53,6 +54,19 @@ public final class PaymentRepository {
             start = r.hasLastEvaluatedKey() && !r.lastEvaluatedKey().isEmpty() ? r.lastEvaluatedKey() : null;
         } while (start != null);
         return out;
+    }
+
+    /**
+     * The date of the coach's oldest unpaid lesson, from the sparse unpaid index (GSI3, access pattern 11:
+     * {@code GSI3PK = COACH#<coachId>}, {@code GSI3SK = UNPAID#<date>#<studentId>}, oldest first). Only the sort key is
+     * read. The Today page's unpaid figure starts its range here (Batch 22). An index read is eventually consistent, so a
+     * payment made a moment ago can still be on it; the seats themselves are then read consistently.
+     */
+    public Optional<LocalDate> oldestUnpaid(AccessContext ctx) {
+        QueryResponse r = db(ctx).query(QueryRequest.builder().tableName(table).indexName(LocalTable.GSI3)
+                .keyConditionExpression("GSI3PK = :pk").expressionAttributeValues(Map.of(":pk", FamilyItems.s(ctx.partitionKey())))
+                .projectionExpression("GSI3SK").limit(1).build());
+        return r.items().stream().findFirst().map(m -> LocalDate.parse(m.get("GSI3SK").s().split("#")[1]));
     }
 
     /** Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy} and {@code paidVia}. */
