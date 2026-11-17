@@ -1750,7 +1750,9 @@ database-gate tests; reproducing an incident (masked build).
 - **Playwright, two flows only:** (1) book a lesson end to end; (2) save a schedule change that
   cancels bookings. Flow 2 is also the post-deploy check (§19).
 - **Database-gate tests run against real AWS (dev)**, never DynamoDB Local (which ignores IAM),
-  from `docs/runbooks/database-gate-tests.md`. They prove each tenant role reaches only its own
+  from `docs/runbooks/database-gate-tests.md`, **against dev's real table and tenant roles**
+  (read from the stack's outputs), with the test records in the seed file and, in dev only, a
+  gate-test role the tenant roles trust (owner, 2026-11-17, I11; ADR-021). They prove each tenant role reaches only its own
   partition, transactions spanning two tenants are refused whole, untagged sessions can't be
   made, execution roles hold no DynamoDB actions, pending families read nothing of the coach,
   the read allowlist holds, `ALL_OLD` is refused, the lookups return only their allowed

@@ -2,6 +2,11 @@
 
 **Status:** Run 2026-10-05: all checks passed, twice. Blockers #4 and #5 are cleared. Re-run whenever a tenant role's policy changes.
 
+**Changing in Batch 17c** (*owner, 2026-11-17, I11; ADR-021 amended*): the script will run against **dev's real
+table and tenant roles**, read from the stack's outputs, instead of building its own table and roles with copied
+policies in a sandbox account. Its test records move into dev's seed file, and in dev only the tenant roles trust a
+gate-test role you sign into. Until then, the steps below describe the old sandbox run.
+
 **Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
 `client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
 
