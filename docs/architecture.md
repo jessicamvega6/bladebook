@@ -2533,7 +2533,7 @@ event-driven.
 
 *Timezone:* `Coach.coachTimezone` is a required IANA identifier stored from the first write,
 and every lesson time carries `startsAtUtc` and `coachTz` (ADR-001 decision 4). MVP runs one
-Scheduler rule per job pinned to the launch timezone using Scheduler's native IANA
+Scheduler rule per job pinned to the launch timezone (Central, `America/Chicago`) using Scheduler's native IANA
 support, which handles DST. A second timezone is one more rule — no migration, no key
 redesign.
 

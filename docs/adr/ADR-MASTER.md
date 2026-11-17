@@ -92,9 +92,10 @@ bladebook/
 - **Lambda aliases** for versioning and rollback are recommended, not required.
 - **The web app retries once** on a server error: an idempotent GET as is, a booking with the
   same idempotency key (§7).
-- **Scheduler rules** are one per job, pinned to the launch timezone (`America/New_York`) with
+- **Scheduler rules** are one per job, pinned to the launch timezone (`America/Chicago`, Central; owner, 2026-11-17, I7) with
   Scheduler's IANA timezone support. A second timezone is one more rule per job; the data
-  already carries each coach's timezone. Verify one rule across a daylight-saving boundary
+  already carries each coach's timezone. Until then a Pacific coach's families get the 7am
+  reminder at 5 AM their time, and a Mountain coach's at 6 AM (root `README.md`, G-33). Verify one rule across a daylight-saving boundary
   before relying on it.
 
 ---

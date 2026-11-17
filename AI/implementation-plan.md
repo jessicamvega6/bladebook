@@ -127,14 +127,13 @@ Each is the owner's. The full wording, and every decision that's been settled fo
 New ones go here until the owner rules, then move to `AI/plan-history.md`.
 
 **Batch 17b and 17c conflicts (listed 2026-11-17).** Claude's recommendation follows each. Ruled ones move to
-`AI/plan-history.md` (I2, I3, I5, I8, I10, I15, I18, I19 and I20 so far).
+`AI/plan-history.md` (I2, I3, I5, I7, I8, I10, I15, I18, I19 and I20 so far).
 
 | ID | Conflict | Batch | Recommended |
 |---|---|---|---|
 | I1 | The firewall is on the API's stage (ADR-MASTER §17, ADR-019), but each API is now reached through CloudFront under `/api/*` (ADR-027, 2026-11-16), so its per-address limits would see CloudFront's addresses | 17b | A second firewall on CloudFront for the API rules; lock the API to CloudFront |
 | I4 | A past lesson time "expires with the last of its seats", but a TTL delete runs no code; the lesson time holds the only price | 17b | Raise the lesson time's `expiresAt` to its latest seat's or line's, like the change-batch header |
 | I6 | Four events unnamed (ADR-MASTER §3, §25), and no document says how a stream record becomes a named event | 17b | One Pipe forwards raw records; EventBridge rules match on key prefix and images; names kept as rule names |
-| I7 | Launch time zone: New York in the docs, Chicago in the code and root `README.md`; one 7am rule reaches Pacific families at 4–5 AM | 17b | Chicago everywhere; Pacific's early reminder listed as a gap |
 | I9 | `api-coach` sends the business-email confirmation, but ADR-MASTER §2 gives it no SES | 17b | `ses:SendEmail` on that one template; amend §2 |
 | I11 | Gate tests: ADR-021 says the real dev stack; the runbook says a sandbox account with hand-copied roles, and has no GSI4 | 17c | The real dev stack |
 | I12 | No document says how access-log lines reach their own group on Lambda, or how "3 in 15 minutes per family" is counted | 17b | `core.data` writes them straight to the group; Contributor Insights for the per-family count |

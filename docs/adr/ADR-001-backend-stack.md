@@ -593,7 +593,10 @@ time** (`LESSON#`), written when it is created from the schedule. The rule is un
 
 **Keep unchanged:** `SLOT#<date>#<startTime>#<slotId>` and `GSI2PK = DATE#<yyyy-mm-dd>` remain the coach's *local* date. "Everyone with a lesson today" means the coach's today; that is the correct partition and it does not change.
 
-**MVP behavior:** one EventBridge Scheduler rule per job, pinned to the launch timezone using Scheduler's native IANA timezone support (`America/New_York`), which handles DST transitions for you — you will never write DST arithmetic. The reminder and report Lambdas read `booking.coachTz` and filter, rather than assuming.
+**MVP behavior:** one EventBridge Scheduler rule per job, pinned to the launch timezone using Scheduler's native IANA timezone support (`America/Chicago`), which handles DST transitions for you — you will never write DST arithmetic. The reminder and report Lambdas read `booking.coachTz` and filter, rather than assuming.
+*Revised 2026-11-17 (owner, I7): the launch timezone is Central (`America/Chicago`), as the code
+and the sign-up default already were; it was written as New York here before. Families of a
+coach further west get the 7am reminder early (5 AM Pacific) until a second rule is added.*
 
 **Generalization when a second timezone appears:** add one Scheduler rule per timezone group. Each fires at 7am/9pm local and queries `DATE#<today-in-that-tz>`, filtering results on `coachTz`. At tens of bookings/day globally, over-fetching a shared date partition and filtering client-side is free. **No data migration, no key redesign, no backfill.**
 
