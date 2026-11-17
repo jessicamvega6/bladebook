@@ -1426,7 +1426,16 @@ same coach (held by `LinkedSkater` and the ownership condition).
 *Sources: ADR-019, ADR-027 (dev), ADR-033.*
 
 - **One web access control list (ACL)**, attached to the **REST API's stage** and to the **Cognito
-  user pool**. CloudFront serves only the static site and has none.
+  user pool**. ~~CloudFront serves only the static site and has none.~~ CloudFront has no ACL; it
+  serves the sites and the API under `/api/*` (owner, 2026-11-17, I1; ADR-019):
+  - a **CloudFront Function** on `/api/*` writes the visitor's address into a BladeBook header,
+    overwriting any sent value, and **the API's rate rules count by that header**;
+  - **the API accepts only CloudFront**, by a secret origin header (in Secrets Manager) that the
+    firewall and the API check;
+  - the **IP reputation list** protects Cognito only (accepted; revisit with a CloudFront ACL when
+    its cost is small beside the bill);
+  - **both sites allow visitors from the United States only** (CloudFront geographic
+    restriction). Cognito's own address isn't covered.
 - **Rules:**
 
 | Rule | Limit |

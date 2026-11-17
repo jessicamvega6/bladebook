@@ -52,6 +52,31 @@ option, a check in each API's code, to keep coach and family tokens apart. It ne
 authorizer. The objection recorded against it (ADR-014 decision 11) concerned a rinkside token
 reaching the website, which no longer exists.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I1 in `AI/plan-history.md`).* **The API is
+reached through CloudFront** (`/api/*` on each site's host, ADR-027, 2026-11-16), so a firewall on the API's stage
+sees CloudFront's addresses, and every per-address limit would count everyone together. Decided:
+- **Still one regional web ACL**, on the API's stage and the Cognito user pool. No second ACL on CloudFront.
+- **A CloudFront Function on `/api/*`** (viewer request) writes the visitor's address (`event.viewer.ip`) into a
+  BladeBook header, **overwriting** any value the visitor sent. The API's rate rules count by that header
+  (`forwardedIPConfig` on it), not by the connection's address. Cognito's rules are unchanged: the browser calls
+  Cognito directly, so its firewall sees real addresses.
+- **The API accepts only CloudFront.** CloudFront adds a secret header to origin requests; the API refuses any
+  request without it (a firewall rule and a check in the API), so API Gateway's own address can't be used to skip
+  the firewall. The secret is in Secrets Manager and can be rotated.
+- **Accepted:** AWS's IP reputation list checks only the connection's address, so it no longer protects the API
+  (it still protects Cognito). The API's routes either need a signed-in account or are the rate-limited public
+  lookups, and the cost of a second ACL (about $7–11 a month) is large against BladeBook's budget. *Revisit* when
+  that cost is small beside the bill, or if the firewall logs show abuse on signed-in routes; moving the rules to a
+  CloudFront ACL then is a contained change.
+- **Both CloudFront sites accept visitors from the United States only** (CloudFront's geographic restriction,
+  free). A visitor elsewhere, including a BladeBook family travelling abroad, gets a refusal page until back in the
+  US. It also cuts most bot traffic before the firewall. Cognito's own address isn't behind CloudFront, so this
+  does not cover sign-in calls made directly to Cognito.
+- Rejected: taking the API off CloudFront (reverses ADR-027's 2026-11-16 decision and brings CORS back), dropping
+  per-address limits (API Gateway's throttling is shared by everyone), and counting by `X-Forwarded-For` or
+  CloudFront's viewer-address header (the first can be faked; the second includes the port, so it counts
+  connections).
+
 ---
 
 ## Context

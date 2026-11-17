@@ -59,8 +59,8 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [17a](../infra/README.md) | Infrastructure, part 1: `infra/` in CDK (no batch log; its record is `infra/README.md`) | #54 |
 | [27](batch-logs/batch-27.md) | Lessons from before last year are view only (an unpaid one can still be waived) | #57 |
 
-**Under way:** Batch 17b, on `feature/batch-17b-infra`. Its conflicts (I1–I20) are listed and wait for the owner's
-rulings (§6). Batch 17 is split into 17b and 17c (owner, 2026-11-17).
+**Under way:** Batch 17b, on `feature/batch-17b-infra`. Its conflicts (I1–I20) are all ruled
+(2026-11-17, `AI/plan-history.md`); building waits on the owner's go and the CloudFront verification. Batch 17 is split into 17b and 17c (owner, 2026-11-17).
 
 **What that means for the code:**
 
@@ -93,7 +93,7 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it needs that stack's CloudFront verification (§3). Every conflict is ruled (2026-11-17) |
 | 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, the Figtree font served from BladeBook's own files, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
@@ -126,9 +126,5 @@ Each is the owner's. The full wording, and every decision that's been settled fo
 
 New ones go here until the owner rules, then move to `AI/plan-history.md`.
 
-**Batch 17b and 17c conflicts (listed 2026-11-17).** Claude's recommendation follows each. Ruled ones move to
-`AI/plan-history.md` (I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19 and I20 so far).
-
-| ID | Conflict | Batch | Recommended |
-|---|---|---|---|
-| I1 | The firewall is on the API's stage (ADR-MASTER §17, ADR-019), but each API is now reached through CloudFront under `/api/*` (ADR-027, 2026-11-16), so its per-address limits would see CloudFront's addresses | 17b | A second firewall on CloudFront for the API rules; lock the API to CloudFront |
+**Batch 17b and 17c conflicts (listed 2026-11-17): all twenty ruled the same day** (I1–I20), recorded in
+`AI/plan-history.md`. None open.
