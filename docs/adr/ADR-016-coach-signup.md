@@ -72,7 +72,8 @@ sends its one built-in verification message for every code: sign-up, forgot pass
 and a family's changed email. Cognito fills in only the code, so that email names no coach or
 family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). Its
 wording is product (see `FeatureDecriptions/Email templates Needed:`). BladeBook stays at seventeen functions. The user
-pool sends through SES, from the same domain as BladeBook's other email.
+pool sends through SES, from the same domain as BladeBook's other email. *(Production only, 2026-11-17: dev's
+pool uses Cognito's own sender, because dev's SES stays in the sandbox; `infra/README.md`.)*
 
 **Amended — 2026-11-12.** *Decided by the owner (implementation plan, Batch 14).* The
 business-email confirmation link carries a random token that works **once** and lasts **3 days**

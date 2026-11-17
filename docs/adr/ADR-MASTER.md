@@ -222,6 +222,9 @@ the skater is. The coach's `STUDENT#` record holds copies.
 | **GSI3** (sparse) | `GSI3PK = COACH#<coachId>`, `GSI3SK = UNPAID#<date>#<studentId>` | Seats (and, from Phase 2, chargeable cancellation lines) while `UNPAID` | `api-coach`, `sched-unpaid-reminder` |
 | **GSI4** (sparse) | `GSI4PK = DUE`, `GSI4SK = <dueAtUtc>#<coachId>#<itemKey>` | Records with a pending deadline | `sched-deadline-sweep` only |
 
+**Every index projects all attributes** (`ALL`), as the local table does. The family reads its own
+seats' details from GSI1 (§16), and the 7am job reads the seat's copies through GSI2.
+
 Held lesson times and `INVITED` seats write no GSI2 keys. An invited seat gets
 GSI1 keys only from `consumer-invite` (§8).
 
@@ -259,7 +262,7 @@ number had opted out, so no SMS was attempted.
 | `CheckInRecorded` | Attendance write, `CHECKED_IN` | `consumer-payment-reminder` |
 | `NoShowRecorded` | Attendance write, `NO_SHOW` | Payment reminder — Phase 2 |
 | `StudentChanged` | `STUDENT#` modified (`studentStatus`, `studentName`) or removed | `consumer-student-link` |
-| `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` modified | `consumer-family-sync` |
+| `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` created or modified (a new skater needs its share code, §5) | `consumer-family-sync` |
 | *(name to be set)* | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
 | `DailyReminderDue`, `UnpaidReminderDue`, `DriftCheckDue`, and the roller's and sweep's (names to be set) | Scheduler | The matching `sched-*` function |
 
@@ -1269,8 +1272,9 @@ notified.
   app client, and the website refreshes its tokens before the first signed-in request.
 - **One code email for everything Cognito sends** (ADR-016, amended 2026-11-06): sign-up, forgot
   password and a changed email all get Cognito's built-in verification message. There is **no
-  custom message trigger**, so the email names no coach or family and states no expiry. The user
-  pool sends through SES.
+  custom message trigger**, so the email names no coach or family and states no expiry.
+  **Production's** user pool sends through SES; **dev's** uses Cognito's own sender, because dev's
+  SES stays in the sandbox (`infra/README.md`, 2026-11-16).
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
@@ -1473,7 +1477,7 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | `sched-day-reminder` | `remindedOn`, `morningEmailSentOn` | **Discard** once the date has passed |
 | `sched-unpaid-reminder` | `settleReminderSentOn` | Discard |
 | `sched-drift-check` | Read-only | Discard |
-| `sched-lesson-roller`, `sched-deadline-sweep` | Re-check / create-if-missing | No queue |
+| `sched-lesson-roller`, `sched-deadline-sweep`, `sched-year-close` | Re-check / create-if-missing | No queue |
 | `consumer-ttl-archiver` | Object key from item key | No queue; stream-age alarm, point-in-time recovery |
 
 - **Operator commands:**
@@ -1501,10 +1505,13 @@ times and seats in that window.
 - **Scheduled jobs:** a **dead man's switch** — `Invocations` `Sum < 1` over the window, with
   **`treatMissingData: breaching`**. The sweep and roller use their completion metrics
   (`DeadlineSweepCompleted`): the sweep pages after **2 hours** without a completed run; the
-  roller shows on the dashboard after one missed night and pages after **3**.
+  roller shows on the dashboard after one missed night and pages after **3**. **`sched-year-close`**
+  reports its own completion metric: a missed January morning shows on the dashboard (the next
+  morning's run catches up, since it's safe to run twice), and it pages if no run has completed by
+  **January 7**, its last day.
 - **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
-  notifier's and the schedule-change consumer's queue depth above 0; a batch unfinished over an
-  hour; a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
+  notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
+  couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
   sweep or roller as above; **DynamoDB Streams iterator age climbing** on the Pipe or the
   archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
 - **Pages go by SNS to the owner's phone**, never email.
