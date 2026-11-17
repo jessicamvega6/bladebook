@@ -93,7 +93,7 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1, I4, I6–I9, I12, I13, I15, I16, I18–I20). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1, I4, I6, I7, I9, I12, I13, I15, I16, I18–I20). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
 | 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b; the owner's rulings on I11, I14 and I17 |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
@@ -127,7 +127,7 @@ Each is the owner's. The full wording, and every decision that's been settled fo
 New ones go here until the owner rules, then move to `AI/plan-history.md`.
 
 **Batch 17b and 17c conflicts (listed 2026-11-17).** Claude's recommendation follows each. Ruled ones move to
-`AI/plan-history.md` (I2, I3, I5 and I10 so far).
+`AI/plan-history.md` (I2, I3, I5, I8 and I10 so far).
 
 | ID | Conflict | Batch | Recommended |
 |---|---|---|---|
@@ -135,7 +135,6 @@ New ones go here until the owner rules, then move to `AI/plan-history.md`.
 | I4 | A past lesson time "expires with the last of its seats", but a TTL delete runs no code; the lesson time holds the only price | 17b | Raise the lesson time's `expiresAt` to its latest seat's or line's, like the change-batch header |
 | I6 | Four events unnamed (ADR-MASTER §3, §25), and no document says how a stream record becomes a named event | 17b | One Pipe forwards raw records; EventBridge rules match on key prefix and images; names kept as rule names |
 | I7 | Launch time zone: New York in the docs, Chicago in the code and root `README.md`; one 7am rule reaches Pacific families at 4–5 AM | 17b | Chicago everywhere; Pacific's early reminder listed as a gap |
-| I8 | A multi-lesson cancel that fails part-way is never resumed (SC-14) | 17b | The drift check calls `reconcile-schedule` to finish unfinished batches |
 | I9 | `api-coach` sends the business-email confirmation, but ADR-MASTER §2 gives it no SES | 17b | `ses:SendEmail` on that one template; amend §2 |
 | I11 | Gate tests: ADR-021 says the real dev stack; the runbook says a sandbox account with hand-copied roles, and has no GSI4 | 17c | The real dev stack |
 | I12 | No document says how access-log lines reach their own group on Lambda, or how "3 in 15 minutes per family" is counted | 17b | `core.data` writes them straight to the group; Contributor Insights for the per-family count |

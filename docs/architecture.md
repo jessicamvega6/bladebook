@@ -1218,9 +1218,10 @@ complete message. The cost is that notification waits for the whole batch to run
   **`reconcile-schedule --coach <id> [--dry-run]`** instead of redriving: it first finishes the
   coach's unfinished batches, then checks the current schedule against every upcoming lesson
   time and fixes what doesn't match. It is also the recovery for an event lost outright.
-- **A nightly, read-only drift check** runs the same checks for every coach with lessons in
-  the next 30 days and alerts — paging for a stuck batch or a lesson that should have been
-  cancelled, a dashboard entry for outstanding re-prices. It changes nothing.
+- **A nightly drift check** runs the same checks for every coach with lessons in the next 30
+  days. A batch stuck for over an hour it hands to `consumer-schedule-change` to finish, paging
+  only if that fails (owner, 2026-11-17); a lesson that should have been cancelled pages; outstanding
+  re-prices go to the dashboard. It writes nothing to the table itself.
 - **The coach website shows the change's status** — applying, emailing families, done, or
   *"we're having trouble applying this change"* after an hour — read from the batch header
   (ADR-010 d5l, in MVP).
@@ -1962,7 +1963,7 @@ sequenceDiagram
 | `DailyReminderDue` (scheduled) | Scheduler | Day-of reminder λ |
 | `DailyReportDue` (scheduled) — *Phase 2 (owner, 2026-11-11)* | Scheduler | End-of-day report λ |
 | `UnpaidReminderDue` (scheduled) | Scheduler, weekly | Unpaid-lesson reminder λ (ADR-018) |
-| `DriftCheckDue` (scheduled) | Scheduler, nightly | Drift check λ (ADR-010 d5k) — read-only, alerts only |
+| `DriftCheckDue` (scheduled) | Scheduler, nightly | Drift check λ (ADR-010 d5k) — reads only; finishes a stuck batch through `consumer-schedule-change` (2026-11-17) |
 | *(name to be set)* (scheduled) | Scheduler, nightly | Lesson roller λ (`sched-lesson-roller`, ADR-031 d1) — keeps lesson times stored to the end of the booking window plus 12 months |
 | *(name to be set)* (scheduled) | Scheduler, every hour | Deadline sweep λ (`sched-deadline-sweep`, ADR-031 d12) — acts on `EXPIRE` deadlines (invited seats) and `ANSWER` deadlines (lesson times) through GSI4; replaces the Invite λ's nightly run; emits `DeadlineSweepCompleted` (ADR-031 d14) |
 
@@ -2513,7 +2514,7 @@ Because a coach's roster can mix both, the safe default is to treat a student as
 | Day-of reminders | EventBridge Scheduler, ~7:00am (coach timezone) | Query `DATE#today` on GSI2, notify each seat's client by email (SMS is Phase 2). *Since 2026-10-13 (ADR-023):* also email each coach with lessons that day one list of them, at their login email, with the rinkside link first; no lessons, no email. |
 | End-of-day report — *Phase 2 (owner, 2026-11-11)* | EventBridge Scheduler, ~9:00pm | Query `DATE#today` on GSI2, split the seats into checked-in, no-show and pending (§6.4), archive to S3 (writes nothing to the table), email the coach. |
 | Unpaid-lesson reminder | EventBridge Scheduler, weekly (Monday morning) | Scan GSI3 for seats unpaid for more than 7 days, email each coach one list asking them to mark each paid or waived, and stamp `settleReminderSentOn` with that Monday so a re-run doesn't list it twice. A lesson is listed every Monday until it is settled (ADR-018, amended 2026-11-12). |
-| Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for lesson times that don't match the current schedule. **Read-only**: pages for a batch stuck over an hour or a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
+| Drift check | EventBridge Scheduler, nightly | For every coach with lessons in the next 30 days (found through GSI2), check for unfinished change batches and for lesson times that don't match the current schedule. Writes nothing itself: a batch stuck over an hour goes to `consumer-schedule-change` to finish, paging only if that fails (2026-11-17); pages for a lesson that should have been cancelled; dashboard for outstanding re-prices (ADR-010 d5k). |
 | **Lesson roller** (`sched-lesson-roller`) | EventBridge Scheduler, nightly | Keeps lesson times stored to the end of the booking window **plus 12 months** — about 15 months ahead — so every date a series can reach already exists, creating only lesson times that don't exist (ADR-031 d1). Reports a completion metric: a missed night shows on the dashboard after one night and pages after **3** (defaults that can be changed). No dead-letter queue (ADR-031 d12). |
 | **Deadline sweep** (`sched-deadline-sweep`) | EventBridge Scheduler, **every hour** | Queries GSI4 for invited seats and lesson times whose deadline is due, re-checks each, and acts: expires invitations not accepted by the lesson's start (`EXPIRE`), cancels the staying seat with no charge where the staying family didn't answer a pending leave by `answerBy`. Sets each record's next deadline or removes it. Its `DeadlineSweepCompleted` metric drives ADR-010's missed-run alarm, which pages after **2 hours** with no completed run (a default that can be changed). Its no-answer cancellations go through a change batch with `cancelledBy = NO_ANSWER`. No dead-letter queue (§6.10, ADR-031 d12, d14, ADR-033 d5). |
 

@@ -78,6 +78,17 @@ worked out by the same plan *Cancel rest of week* carries out, so the whole-week
 exactly what it holds. (Built first with a fourth value, `SELECTION`, for picks across days; the
 owner ruled it out the same day, and it was never merged.)
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I8 in `AI/plan-history.md`).*
+**A coach's cancel of more than one lesson writes its whole plan before carrying any of it out**,
+the way a schedule save does (ADR-MASTER §9): the change-batch header, then a `PLANNED`
+`CANCELLED#` line for every seat it cancels and a planned hold for every open time it closes, each
+carrying the coach's release-or-hold choice; then each lesson in turn, marking its lines
+`EXECUTED`; then the header. A failure part-way leaves every remaining lesson written down, so it
+can be finished: `sched-drift-check` hands a batch unfinished for over an hour to
+`consumer-schedule-change`, which carries out the remaining lines (ADR-010 d5k, amended the same
+day). Before this, the lines were written `EXECUTED` one lesson at a time, so a failure left the
+rest of the coach's choice recorded nowhere (root `README.md` SC-14).
+
 ---
 
 ## Context

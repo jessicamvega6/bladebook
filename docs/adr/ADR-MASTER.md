@@ -112,7 +112,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `api-client` | API Gateway | Every family-website route, plus the coach-code lookup before sign-in. |
 | `consumer-booking-confirmation` | `LessonBooked` | Confirmation email per seat. |
 | `consumer-payment-reminder` | `CheckInRecorded` | Payment-reminder email. |
-| `consumer-schedule-change` | `ScheduleChanged` (and direct invocation by `reconcile-schedule`) | Adds, removes, cancels and re-prices lesson times (§9). |
+| `consumer-schedule-change` | `ScheduleChanged` (and direct invocation by `reconcile-schedule` and `sched-drift-check`) | Adds, removes, cancels and re-prices lesson times (§9); finishes a stuck change batch, including a coach's multi-lesson cancel (§10, §19). |
 | `consumer-change-notifier` | `LessonsChanged` | One message per family (or to the coach) per change batch; the coach's late-cancellation SMS. |
 | `consumer-student-link` | `StudentChanged` | Keeps the family's link item in step with the coach's `STUDENT#` item; sends the decline email. |
 | `consumer-family-sync` | `FamilyChanged` | Copies family and skater details to every coach's `STUDENT#` record and upcoming seats; issues share codes. |
@@ -120,7 +120,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `consumer-ttl-archiver` | DynamoDB Stream, Time to Live (TTL) removals only | Copies expired items to the archive bucket. |
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
-| `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
+| `sched-drift-check` | Scheduler, nightly | Checks for unfinished or missing schedule changes; hands a stuck batch to `consumer-schedule-change` to finish (2026-11-17). Writes nothing to the table itself. |
 | `sched-lesson-roller` | Scheduler, nightly; and January 1–7 (2026-11-16) | Keeps lesson times stored ~15 months ahead. Its second rule, `sched-year-close`, saves last year's figures for every coach (§12, §14). |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
 | `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
@@ -151,7 +151,7 @@ what its single-item actions allow.
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
-| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
+| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17); `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
@@ -955,6 +955,10 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   future week closes all of it. The weekly schedule isn't changed, so the next week is untouched.
   The button states the range and how many booked lessons and open times it closes (ADR-009,
   2026-11-08).
+- **More than one lesson is planned before it's carried out** (ADR-009, 2026-11-17): the
+  change-batch header and a `PLANNED` line for every lesson (with its release-or-hold choice) are
+  written first, then each lesson, then the header. A cancel that fails part-way is finished by
+  `sched-drift-check` through `consumer-schedule-change` (§19).
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
 - **From the rinkside page**, two places: a **cancel section**, the Week tab (one lesson, a whole
@@ -1205,7 +1209,7 @@ notified.
 |---|---|---|
 | `sched-day-reminder` | ~7:00am | Query `DATE#today` on GSI2; email each seat's family; email each coach with lessons their morning list. |
 | `sched-unpaid-reminder` | Weekly, Monday morning | §12. Threshold 7 days; lists every Monday until settled. |
-| `sched-drift-check` | Nightly | §19. Read-only. |
+| `sched-drift-check` | Nightly | §19. Reads only; finishes a stuck batch through `consumer-schedule-change`. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
 | `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
@@ -1475,13 +1479,13 @@ same coach (held by `LinkedSkater` and the ownership condition).
 
 ### Drift check
 
-`sched-drift-check`, nightly, read-only: for every coach with lessons in the **next 30 days**
+`sched-drift-check`, nightly, reading only: for every coach with lessons in the **next 30 days**
 (found through GSI2), checks recent batch headers and the evaluator's verdict on stored lesson
 times and seats in that window.
 
 | Finding | Response |
 |---|---|
-| A batch unfinished for more than an hour | Page |
+| A batch unfinished for more than an hour | **Finish it:** invoke `consumer-schedule-change` for that batch and wait; **page only if that fails** (owner, 2026-11-17, ADR-010) |
 | A lesson that should have been cancelled and wasn't | Page |
 | Only re-prices outstanding | Dashboard |
 
