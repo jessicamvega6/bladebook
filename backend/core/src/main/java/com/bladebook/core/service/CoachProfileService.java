@@ -91,7 +91,8 @@ public final class CoachProfileService {
      * How the business-email confirmation link is sent (ADR-016, amended 2026-11-12): straight from {@code api-coach}
      * through the {@link Mailer}, as the SES template {@code business-email-confirmation}.
      *
-     * @param site   the website's address; the link is {@code <site>/coach/#/confirm-email/<token>}
+     * @param site   the coach website's address (production {@code https://app.bladebook.org}; I14); the link is
+     *               {@code <site>/#/confirm-email/<token>}
      * @param tokens where new link tokens come from; {@link #randomTokens()} outside tests
      */
     public record ConfirmationMail(Mailer mailer, String site, Clock clock, Supplier<String> tokens) {
@@ -101,7 +102,7 @@ public final class CoachProfileService {
         }
 
         String link(String token) {
-            return site + "/coach/#/confirm-email/" + token;
+            return site + "/#/confirm-email/" + token;
         }
     }
 

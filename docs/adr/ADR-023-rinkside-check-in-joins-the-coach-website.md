@@ -160,8 +160,8 @@ one that happens to be at the rink.
 
 ### 1. Rinkside check-in is a section of the coach website
 
-It lives at **`<domain>/coach/rinkside`**, under the coach website. Production and staging
-follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`; *`dev.<domain>/coach/rinkside` since ADR-027*). The coach signs in
+It lives at ~~**`<domain>/coach/rinkside`**~~ **`app.bladebook.org/rinkside/`** *(since the 2026-11-16 amendment; in the code 2026-11-17, I14)*, under the coach website. ~~Production and staging
+follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`; *`dev.<domain>/coach/rinkside` since ADR-027*).~~ Dev's is `app.dev.bladebook.org/rinkside/`. The coach signs in
 once with the coach website's sign-in. There is no subdomain and no separate origin path.
 
 It is still built as **its own entry point** within `web/`'s coach site: a lightweight page
@@ -171,11 +171,11 @@ offline use without caching the whole coach website. It ships with the coach web
 on its own.
 
 **Offline loading is unchanged in substance** (ADR-014 d5). The service worker is
-registered with scope `/coach/rinkside/`, so it caches and serves only the rinkside page.
+registered ~~with scope `/coach/rinkside/`~~ at `/rinkside/sw.js` with scope `/rinkside/` *(I14, 2026-11-17)*, so it caches and serves only the rinkside page.
 The rest of the coach website and the family website still get none.
 
 ~~**Add to Home Screen still works.** The rinkside page carries its own web app manifest
-(`start_url` and `scope` set to `/coach/rinkside/`), so the coach can put a BladeBook icon on
+(`start_url` and `scope` set to the rinkside page's path), so the coach can put a BladeBook icon on
 the phone that opens straight to it, full-screen. *Platform note, to verify on a device:* on
 iPhones a home-screen web app keeps its own storage, separate from Safari, so the coach signs
 in once inside it even if Safari is already signed in.~~ *Withdrawn 2026-10-12:* coaches are
@@ -241,7 +241,7 @@ code rather than in API Gateway, so there is still no Lambda authorizer.*
 |---|---|---|
 | Coach website | **60 minutes** | the last time the person entered their password |
 | Family website | **60 minutes** | the same |
-| Rinkside page (`/coach/rinkside`) | **4 hours** | the same |
+| Rinkside page (`/rinkside/`; its API routes `/api/coach/rinkside/…`) | **4 hours** | the same |
 
 Both are measured from the `auth_time` claim, which Cognito sets when the password is entered
 and doesn't reset when a token is refreshed. So these are limits from sign-in, not from the

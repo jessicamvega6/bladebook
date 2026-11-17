@@ -59,7 +59,7 @@ public class CoreConfig {
 
     @Bean
     CoachProfileService coachProfileService(CoachRepository repo, Mailer mailer, Clock clock,
-                                            @Value("${bladebook.site-url:http://localhost:5173}") String site) {
+                                            @Value("${bladebook.coach-site-url:http://localhost:5173/coach}") String site) {
         // The business-email confirmation link is sent straight from api-coach (ADR-016, amended 2026-11-12).
         return new CoachProfileService(repo, CoachProfileService.randomCodes(),
                 new CoachProfileService.ConfirmationMail(mailer, site, clock, CoachProfileService.randomTokens()));
