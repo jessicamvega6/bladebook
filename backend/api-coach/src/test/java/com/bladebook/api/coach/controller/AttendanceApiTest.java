@@ -233,6 +233,8 @@ class AttendanceApiTest {
         assertThat(list.body().get("choices").get(0).asString()).isEqualTo("OTHER");
         assertThat(list.body().get("thisYear").asInt()).isEqualTo(java.time.LocalDate.now(java.time.ZoneId.of("America/Chicago")).getYear());
         assertThat(row.path("closedYear").isNumber()).isFalse();             // unpaid: no closed year to warn about
+        assertThat(row.get("viewOnly").isBoolean()).isTrue();
+        assertThat(row.get("viewOnly").asBoolean()).isFalse();                // today's lesson: editable (Batch 27)
 
         String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
         Res paid = call("POST", "/api/coach/payments/paid", token, seat);

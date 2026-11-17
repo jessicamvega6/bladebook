@@ -40,6 +40,16 @@ the seat. ~~An undo doesn't lower the count of paid lessons~~ *Ruled by the owne
 undo lowers that month's count of paid lessons too, but a month's count never goes below zero*
 (decision 4; implementation plan, Batch 26).
 
+**Amended — 2026-11-16.** *Ruled by the owner 2026-11-15 (G-39), with waive allowed 2026-11-16;
+built in Batch 27.* **A lesson dated before January 1 of last year, in the coach's time zone, is
+view only on Payments:** it can't be marked paid, have how they paid changed or be undone, so a
+payment can only ever be recorded for a lesson in a year this page reads, and no payment counts in
+no year. The server refuses each change (*"Lessons from before January 1, 2025 can be viewed but
+not changed."*) and marks each row view only; the page shows *View only* in place of *Undo* and
+hides *Change* on how they paid. **An unpaid one can still be waived** (it asks first, as always):
+a waive never touches these figures, and it settles the lesson so the weekly unpaid reminder
+(ADR-018) stops listing it and its record can expire (ADR-017).
+
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
 **Relies on** [ADR-003](ADR-003-lesson-pricing-and-payment.md) (price stamped on the booking,
@@ -131,7 +141,8 @@ count of paid lessons~~ *(ruled by the owner 2026-11-16)* lowers that month's co
 by one, never below zero; the year's count is the sum of its months', on a saved year as on a live
 one. Marking the lesson paid again later counts as a late payment, so the two
 cancel out. A payment counts in its lesson's year, or the next year when paid during it; one paid
-later still counted in no year (G-39), and undoing it changes nothing. *Ruled by the owner
+later still counted in no year (G-39), and undoing it changes nothing. *Closed by Batch 27
+(2026-11-16): such a lesson is view only, so it can't be marked paid or undone.* *Ruled by the owner
 2026-11-16:* the Payments page asks before *Undo* on a payment that counted in a closed year
 (*"Undo a payment from 2025?"*); the server marks those rows, working the year out in the coach's
 time zone, so the page never does.

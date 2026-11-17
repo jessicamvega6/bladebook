@@ -2,6 +2,7 @@ package com.bladebook.core.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +16,26 @@ class PaymentTest {
 
     private static final PaymentTypes VENMO_AND_CASH = PaymentTypes.of(Set.of(PaymentTypes.Type.VENMO, PaymentTypes.Type.CASH),
             Map.of(PaymentTypes.Type.VENMO, "@dana-skates"));
+
+    @Test
+    void aLessonFromBeforeJanuaryFirstOfLastYearIsViewOnly() {
+        LocalDate today = LocalDate.of(2026, 11, 16);
+        assertThat(Payment.viewOnly(LocalDate.of(2024, 12, 31), today)).isTrue();
+        assertThat(Payment.viewOnly(LocalDate.of(2025, 1, 1), today)).isFalse();     // last year stays editable
+        assertThat(Payment.viewOnly(LocalDate.of(2026, 11, 16), today)).isFalse();
+        // On New Year's Day the line moves a whole year: last year's December lessons stay editable.
+        assertThat(Payment.viewOnly(LocalDate.of(2025, 12, 31), LocalDate.of(2027, 1, 1))).isTrue();
+        assertThat(Payment.viewOnly(LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1))).isFalse();
+    }
+
+    @Test
+    void aViewOnlyLessonCantBeChangedAndTheRefusalNamesTheDate() {
+        LocalDate today = LocalDate.of(2026, 11, 16);
+        assertThatThrownBy(() -> Payment.checkChangeable(LocalDate.of(2024, 12, 31), today))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("Lessons from before January 1, 2025 can be viewed but not changed.");
+        assertThatNoException().isThrownBy(() -> Payment.checkChangeable(LocalDate.of(2025, 1, 1), today));
+    }
 
     @Test
     void aSeatWithNoStatusYetIsUnpaid() {

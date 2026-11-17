@@ -1060,6 +1060,12 @@ happens (§18).
 - **`paidVia`** (how the client paid): one of the payment types the coach has switched on, or
   *Other*; optional, editable afterwards, readable only on the coach path. A waived lesson has
   none. Stored on the seat, so turning a type off later doesn't change past records.
+- **A lesson dated before January 1 of last year is view only** (owner, 2026-11-15 and
+  2026-11-16; ADR-030 amended; Batch 27): it can't be marked paid, have `paidVia` changed or be
+  undone, because the financial page reads only this year's and last year's lessons. The server
+  refuses each (*"Lessons from before January 1, 2025 can be viewed but not changed."*), working
+  the date out in the coach's time zone, and marks each row `viewOnly`. **An unpaid one can still
+  be waived**, so an old debt can be settled and leave GSI3 and the weekly reminder.
 - **GSI3** holds a seat while `UNPAID`; paying or waiving removes it. A skater's unpaid lessons
   for the coach: GSI3 filtered on `studentId`.
 - **`paymentReminderSent`** guards the automatic reminder; it is not payment status.
