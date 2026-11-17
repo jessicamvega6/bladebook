@@ -1060,6 +1060,12 @@ happens (§18).
 - **`paidVia`** (how the client paid): one of the payment types the coach has switched on, or
   *Other*; optional, editable afterwards, readable only on the coach path. A waived lesson has
   none. Stored on the seat, so turning a type off later doesn't change past records.
+- **A lesson dated before January 1 of last year is view only** (owner, 2026-11-15 and
+  2026-11-16; ADR-030 amended; Batch 27): it can't be marked paid, have `paidVia` changed or be
+  undone, because the financial page reads only this year's and last year's lessons. The server
+  refuses each (*"Lessons from before January 1, 2025 can be viewed but not changed."*), working
+  the date out in the coach's time zone, and marks each row `viewOnly`. **An unpaid one can still
+  be waived**, so an old debt can be settled and leave GSI3 and the weekly reminder.
 - **GSI3** holds a seat while `UNPAID`; paying or waiving removes it. A skater's unpaid lessons
   for the coach: GSI3 filtered on `studentId`.
 - **`paymentReminderSent`** guards the automatic reminder; it is not payment status.
@@ -1580,7 +1586,9 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 ### Dev
 
 - **A full stack** from the same infrastructure code, **built when needed and destroyed after**.
-  One at a time. Domains `dev.<domain>` and `api.dev.<domain>`, not indexed.
+  One at a time. ~~Domains `dev.<domain>` and `api.dev.<domain>`~~ Hosts `app.dev.bladebook.org` (coach)
+  and `family.dev.bladebook.org` (family), each API under its own host's `/api/*` (ADR-027, amended
+  2026-11-16), not indexed.
 - **Built as two stacks:** the **account stack** (Cognito pools and test accounts:
   `coach-a@example.com`…, `client-1@example.com`…), then the **application stack**, whose table is
   **created by one import from one file**. Nothing is loaded into a dev table afterwards.

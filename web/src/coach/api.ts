@@ -271,6 +271,8 @@ export interface PaymentRowDto {
   amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
   /** On a paid lesson whose payment counted in a year that has closed, that year (worked out by the server); else null. */
   closedYear: number | null;
+  /** Dated before January 1 of last year: only Waive is offered, on an unpaid one (G-39, Batch 27). */
+  viewOnly: boolean;
 }
 
 /** Totals per currency, never across. */

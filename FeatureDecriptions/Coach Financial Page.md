@@ -92,10 +92,10 @@ What counts as gross (decided by the owner, 2026-10-12):
     Marking that lesson paid again later counts as a late payment, so the undo and the new payment cancel out.
     Undoing a late payment (a December lesson paid in January, then undone in February) just takes it back out of
       the year it was paid in; the closed year never had it.
-  *Decided 2026-11-15 by the owner (planned, Batch 27):* lessons from over a year back (dated before January 1 of
-    last year) are view only on Payments: they can't be marked paid, waived or undone. So a late payment can only
-    be for last year's lessons, which is all the page reads. Until Batch 27, one from further back can still be
-    marked paid, and it counts in no year.
+  *Decided 2026-11-15 by the owner, built in Batch 27:* lessons from over a year back (dated before January 1 of
+    last year) are view only on Payments: they can't be marked paid or undone, or have how they paid changed. So a
+    late payment can only be for last year's lessons, which is all the page reads. An unpaid one can still be
+    waived (owner, 2026-11-16): a waive isn't in these figures.
   *(from ADR-030 §2 and §4, moved 2026-11-08)*
 
 The note above the figures (decided by the owner, 2026-10-12):

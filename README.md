@@ -23,9 +23,11 @@ show my phone and my business email to approved families. Batch 14 — the busin
 email with a link that works once for 3 days, the confirm page it opens (the coach signs in, then chooses Confirm),
 Resend link and Change address, and Profile → Business email.
 Batch 23 — the rinkside Week tab: the lessons left this week, cancelling one lesson or a whole day (release or hold
-each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal. Everything runs on
-this computer only; nothing is
-deployed.
+each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal.
+Batch 27 — on Payments, lessons from before January 1 of last year are view only: no *Mark paid*, no change to how
+they paid and no *Undo*, though an unpaid one can still be waived.
+Batch 17a — the AWS infrastructure's first part in CDK, written and tested; in dev only `bladebook-dev-identity` is
+deployed so far (see `infra/README.md`). The app itself still runs on this computer only.
 
 ## Running it locally
 
@@ -117,7 +119,6 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-31 | **The schedule review doesn't say when skaters per lesson changes** (*"Lessons already booked keep their current setting"*): the evaluator leaves booked lessons' skater count alone (owner, 2026-11-12) and nothing reports the change. | Not planned: left as it is (owner, 2026-11-12) |
 | G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: the coach's Lessons page lists lessons that happened, as drawn, and a family's own cancellation history is Phase 2 (owner, 2026-10-12). | Phase 2, the coach's view and the family's (owner, 2026-11-12) |
 | G-32 | **Two parts of the rinkside page's offline behaviour aren't built.** The page doesn't say when Safari has cleared its offline copy (ADR-014 amendment of 2026-10-13; the design has no screen for it, and a cleared page can't tell a first visit from a cleared one). Nothing has been tried on a real iPhone at a rink: the copy of the page was checked in headless Chrome with the network cut, and the queue, *Not sent* and the family-cancelled card in tests. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 25 (owner, 2026-11-13); the iPhone check after Batch 17 |
-| G-39 | **A lesson from before last year can still be changed.** Payments lets the coach mark paid, waive or undo a lesson of any age, but the financial page reads only this year's and last year's lessons, so a payment for an older lesson counts in no year. | Batch 27 (owner, 2026-11-15): lessons from over a year back are view only |
 
 ## Repository
 
