@@ -1560,7 +1560,7 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Date override | Written | Its date + date-override window (30 days) |
 | Temp header | Written or edited | Its `endDate` + date-override window |
 | Held lesson time | Written | Its date + date-override window |
-| Past lesson time | Its last seat and line have gone (or, never booked, on the date-override window) | With the last of them |
+| Lesson time (`LESSON#`) | Created; **removed** when a seat is booked; **raised** when a seat settles and none is left unsettled (one transaction, conditioned on the other seats; I4, 2026-11-17) | Its date + date-override window (30 days) if never booked; otherwise **never earlier than its latest seat** (only ever raised while set) |
 | Seat, `PAID` or `WAIVED` | **Settled** | Settlement + lesson-record window (16 months) |
 | Seat, `UNPAID` | **Never** while unpaid | — |
 | `SEATEND#` | Written | Cancellation window |

@@ -48,6 +48,23 @@ for MVP:
   three-month window a family books within (ADR-031 d3); read that way, a paid seat would have expired about three
   months after it was settled, under the 16-month floor.
 
+**Amended — 2026-11-17, later.** *Decided by the owner* (Batch 17b, conflict I4 in `AI/plan-history.md`). **A
+lesson time's expiry works like a change-batch header's** (decision 3). A TTL delete runs no code, so "expires with
+the last of its seats" has to be written ahead, on the lesson time itself. The lesson time holds the only price
+(`priceMinor`, `shareCount`), so a seat that outlived it would lose its amount.
+- **Created:** `expiresAt` = its date + the date-override window, as for a time that is never booked.
+- **A seat is booked:** the same transaction that raises `seatsTaken` **removes** the lesson time's `expiresAt`. A
+  lesson time with an unsettled seat has none, as an unpaid seat has none.
+- **A seat settles** (paid or waived): the same transaction **raises** the lesson time's `expiresAt` to at least the
+  seat's — only once none of its other seats (`SEAT#<date>#<time>#…`, at most `maxSkaters`) is still unsettled. The
+  settling code reads those seats first, and the transaction conditions on each one's state as read, so two seats
+  settling at once can't both leave it unset: the later one fails its check, rereads and raises. A seat moving back
+  to unpaid removes it again. Like the header, the value is only ever raised while it is set.
+- **Lines don't count.** Cancellation, re-price and `SEATEND#` lines carry their own date, time and price, so none
+  of them needs the lesson time.
+- **Built in Batch 17b**, with the rest of the TTL writes. Today's code writes no `expiresAt` on lesson or seat
+  items, so there is nothing to backfill.
+
 ---
 
 ## Context
@@ -131,7 +148,8 @@ erasure request.
 
 ### 3. Parent records never expire before their children
 
-Two item types summarise others, and a summary that vanishes first misleads:
+Two item types summarise others, and a summary that vanishes first misleads. *A third, the lesson time, which holds its
+seats' price, follows the same rule (amendment of 2026-11-17, I4).*
 
 - **A cancellation batch header** is raised to at least the latest `expiresAt` of its lines,
   whenever a line's expiry is set — including a chargeable line that settles months later.

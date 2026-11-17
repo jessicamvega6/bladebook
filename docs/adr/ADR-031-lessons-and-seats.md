@@ -603,7 +603,9 @@ stateDiagram-v2
 - **Gate tests** (ADR-021, ADR-022) need rows for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4.
 - **Retention** (ADR-017): a past lesson time is kept as long as any seat or line for it is kept,
   and expires with the last of them. A past lesson time that never had a seat expires on the
-  date-override window.
+  date-override window. *How, ruled 2026-11-17 (I4, ADR-017 amendment): like a change-batch header —
+  booking a seat removes the lesson time's `expiresAt`, and settling the last unsettled seat raises it to
+  at least that seat's.*
 
 ## Open
 
