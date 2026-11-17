@@ -97,6 +97,11 @@ where the coach chooses Confirm, as decided above.
   profile. No route runs without sign-in, and a forwarded email can't be confirmed by anyone
   else. The cost is one sign-in step when the email is opened on another device.*
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I9 in `AI/plan-history.md`).* `api-coach`
+sends the business-email confirmation itself, during the coach's request, so **its role gets `ses:SendEmail` for
+that one template** (`business-email-confirmation`) from the environment's sending address, and nothing else in
+SES. ADR-MASTER §2 had given it no SES at all. Every other email still comes from the event consumers.
+
 **Amended — 2026-11-16.** *Settled while building Batch 14 (implementation plan §7; the owner may override).* Next to
 `pendingBusinessEmails`, the profile keeps the coach's other confirmed addresses (`confirmedBusinessEmails`, the list on
 Profile → Business email, which is product) and `businessEmailsVersion`, a counter every change to the three is
