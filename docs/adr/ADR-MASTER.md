@@ -1155,6 +1155,11 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 - **Every family gets email.** In MVP there is **no SMS to families**.
 - **Every client-facing email sets `Reply-To: businessEmail`.** The sender stays the app's verified
   domain.
+- **The sending addresses are settings, per environment** (owner, 2026-11-17): the From address
+  (`lessons@<domain>`) and the Reply-To for emails to the coach (`no-reply@<domain>`). Dev uses
+  `lessons@dev.bladebook.org` and `no-reply@dev.bladebook.org`. A family's email is from
+  *"<Coach name> via BladeBook"*, a coach's from *"BladeBook"* (`design/harbor/email/templates.mjs`).
+  Production's addresses wait on its email domain.
 - **Emails to the coach about their own account and lessons go to `loginEmail`**: the morning email
   and the weekly unpaid reminder (and, from Phase 2, the daily report).
 - Coach-authored free text (`paymentInstructions`, block names) is HTML-escaped.
