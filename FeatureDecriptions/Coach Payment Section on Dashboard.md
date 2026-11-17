@@ -8,7 +8,9 @@ The coach will need the following abilities:
  to mark a payment as waived.
  to filter by unpaid *(Design: an Unpaid / All switch.)*
  *Design: to undo a ~~paid or waived~~ paid lesson back to unpaid. A waived lesson is final: no Undo, and Waive always asks first ("Waive this lesson? … This can't be undone."). Ruled by the owner 2026-11-09 (R7).*
- *Decided 2026-11-15 by the owner (planned, Batch 27): lessons from over a year back (dated before January 1 of last year, in the coach's time zone) are view only. They're listed with their status, but can't be marked paid, waived, undone or have how they paid changed. This year's and last year's lessons stay editable. See Coach Financial Page.md.*
+ *Ruled 2026-11-16 by the owner: Undo on a payment that counted in a year that has closed asks first ("Undo a payment from 2025?" — "2025 is closed, so its figures won't change. Undoing this takes $50 off 2026's figures, in this month."; Cancel / Undo payment). Other paid lessons undo at once. See Coach Financial Page.md.*
+ *Decided 2026-11-15 by the owner, built in Batch 27: lessons from over a year back (dated before January 1 of last year, in the coach's time zone) are view only. They're listed with their status, but can't be marked paid, ~~waived,~~ undone or have how they paid changed. A paid one shows "View only" where Undo would be (hover: "Lessons from before January 1, 2025 can be viewed but not changed."), and how they paid shows without Change. This year's and last year's lessons stay editable. See Coach Financial Page.md. Design: payments-view-only.html.*
+ *Ruled 2026-11-16 by the owner: an old unpaid lesson can still be waived (it asks first, as always), so it can be settled and leaves the Monday unpaid email. Its row shows Waive alone, with no Mark paid.*
  To record how the client paid (added 2026-10-07 from talking with Kim). The coach enters this.
    *Design: payments-mark-paid.html; how they paid shows under each Paid badge and can be changed.*
 

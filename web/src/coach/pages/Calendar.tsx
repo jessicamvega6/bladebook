@@ -12,7 +12,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Avatar, Banner, Icon } from '../../shared/components/harbor';
 import { plural, repeatsText } from '../../shared/logic/booking';
 import {
-  DAYS, DAYS_LONG, MONTHS_LONG, addDays, addMonths, dayOfWeek, formatClock, formatMoney, formatTime, longDate,
+  DAYS, DAYS_LONG, MONTHS_LONG, addDays, addMonths, dayOfWeek, formatMoney, formatTime, longDate,
   monthEnd, shortDate, toMinutes, weekStart,
 } from '../../shared/logic/schedule';
 import type { CalendarDto, LessonDto, ScheduleApi } from '../api';
@@ -195,7 +195,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
             const kind = l.lessonStatus === 'OPEN' ? 'open' : l.lessonStatus === 'HELD' ? 'held' : '';
             const cls = `wl${kind ? ` wl--${kind}` : ''}${isPast(data, date, l) ? ' wl--past' : ''}`;
             const inner = <>
-              <span className="wl__t">{formatClock(l.startTime)}{l.durationMinutes !== 30 ? ` · ${l.durationMinutes}m` : ''}</span>
+              <span className="wl__t">{formatTime(l.startTime)}{l.durationMinutes !== 30 ? ` · ${l.durationMinutes}m` : ''}</span>
               <span className="wl__n">{l.lessonStatus === 'OPEN' ? 'Open' : l.lessonStatus === 'HELD' ? 'Held' : whoIn(l)}</span>
             </>;
             return cancellable(data, date, l)

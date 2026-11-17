@@ -1,6 +1,7 @@
 package com.bladebook.api.coach.config;
 
 import com.bladebook.core.data.TenantClients;
+import com.bladebook.core.service.ClosedYearJob;
 import com.bladebook.core.service.LocalStreamRouter;
 import com.bladebook.core.service.ScheduledJobs;
 import org.slf4j.Logger;
@@ -18,7 +19,8 @@ import java.time.ZoneId;
  * <b>Local profile only; a listed shortcut (SC-22).</b> The local stand-in for EventBridge Scheduler (ADR-MASTER section
  * 14): {@code sched-day-reminder} at 7:00 AM, {@code sched-unpaid-reminder} on Monday at 8:00 AM, and
  * {@code sched-lesson-roller} at 2:30 AM, each in the launch time zone and given that day's date, as the Scheduler's
- * trigger carries it. {@code POST /api/coach/local/jobs/*} runs one by hand for any date.
+ * trigger carries it. Since Batch 26, {@code sched-year-close} at 8:00 AM on January 1 to 7 (a listed shortcut, SC-27).
+ * {@code POST /api/coach/local/jobs/*} runs one by hand for any date.
  */
 @Component
 @Profile("local")
@@ -33,12 +35,26 @@ public class LocalJobs {
     private final LocalStreamRouter router;
     private final TenantClients clients;
     private final Clock clock;
+    private final ClosedYearJob yearClose;
 
-    public LocalJobs(ScheduledJobs jobs, LocalStreamRouter router, TenantClients clients, Clock clock) {
+    public LocalJobs(ScheduledJobs jobs, LocalStreamRouter router, TenantClients clients, Clock clock, ClosedYearJob yearClose) {
         this.jobs = jobs;
         this.router = router;
         this.clients = clients;
         this.clock = clock;
+        this.yearClose = yearClose;
+    }
+
+    /** 8:00 AM Central is after midnight everywhere a coach can be, so on January 1 every coach's year has closed. */
+    @Scheduled(cron = "0 0 8 1-7 1 *", zone = "America/Chicago")
+    public void january() {
+        closeYear(today());
+    }
+
+    public ClosedYearJob.Result closeYear(LocalDate date) {
+        ClosedYearJob.Result r = yearClose.run(date);
+        LOG.info("sched-year-close (local) for {}: {}", date, r);
+        return r;
     }
 
     public LocalDate today() {

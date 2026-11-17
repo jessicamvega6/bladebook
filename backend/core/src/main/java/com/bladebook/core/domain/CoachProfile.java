@@ -1,14 +1,18 @@
 package com.bladebook.core.domain;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  * {@code COACH#<coachId> / PROFILE} (ADR-MASTER section 4). Values are already checked by
  * {@link ProfileRules}; this class only holds them.
  *
- * <p>{@code businessEmail} holds only a <b>confirmed</b> address, or the login email. While a
- * different address waits for its link it sits in {@code pendingBusinessEmail}, {@code businessEmail}
- * is empty, and the coach code doesn't work (ADR-016, amended 2026-11-06).
+ * <p>{@code businessEmail} holds only a <b>confirmed</b> address, or the login email. An address waiting for its link
+ * sits in {@code pendingBusinessEmails} with its token's hash and expiry (ADR-016, amended 2026-11-12); while a new
+ * coach's first address waits, {@code businessEmail} is empty and the coach code doesn't work (ADR-016, amended
+ * 2026-11-06). {@code confirmedBusinessEmails} are the other confirmed addresses on Profile → Business email's list.
  */
 public final class CoachProfile {
 
@@ -21,7 +25,9 @@ public final class CoachProfile {
     private final String lastName;
     private final String loginEmail;
     private final String businessEmail;
-    private final String pendingBusinessEmail;
+    private final List<String> confirmedBusinessEmails;
+    private final Map<String, BusinessEmails.Link> pendingBusinessEmails;
+    private final long businessEmailsVersion;
     private final String phone;
     private final String coachTimezone;
     private final Currency currency;
@@ -39,7 +45,9 @@ public final class CoachProfile {
         this.lastName = Objects.requireNonNull(b.lastName, "lastName");
         this.loginEmail = Objects.requireNonNull(b.loginEmail, "loginEmail");
         this.businessEmail = b.businessEmail;
-        this.pendingBusinessEmail = b.pendingBusinessEmail;
+        this.confirmedBusinessEmails = List.copyOf(b.confirmedBusinessEmails);
+        this.pendingBusinessEmails = Map.copyOf(b.pendingBusinessEmails);
+        this.businessEmailsVersion = b.businessEmailsVersion;
         this.phone = b.phone;
         this.coachTimezone = Objects.requireNonNull(b.coachTimezone, "coachTimezone");
         this.currency = Objects.requireNonNull(b.currency, "currency");
@@ -63,7 +71,9 @@ public final class CoachProfile {
         b.lastName = lastName;
         b.loginEmail = loginEmail;
         b.businessEmail = businessEmail;
-        b.pendingBusinessEmail = pendingBusinessEmail;
+        b.confirmedBusinessEmails = confirmedBusinessEmails;
+        b.pendingBusinessEmails = pendingBusinessEmails;
+        b.businessEmailsVersion = businessEmailsVersion;
         b.phone = phone;
         b.coachTimezone = coachTimezone;
         b.currency = currency;
@@ -93,7 +103,19 @@ public final class CoachProfile {
     public String loginEmail() { return loginEmail; }
     /** The confirmed business email, or {@code null} while one waits for its link. */
     public String businessEmail() { return businessEmail; }
-    public String pendingBusinessEmail() { return pendingBusinessEmail; }
+    /** The confirmed addresses on the list other than the login email (Profile → Business email). */
+    public List<String> confirmedBusinessEmails() { return confirmedBusinessEmails; }
+    /** The addresses waiting for their link: address → the token's hash and when the link stops working. */
+    public Map<String, BusinessEmails.Link> pendingBusinessEmails() { return pendingBusinessEmails; }
+    /** Goes up by one with each change to the list, so two changes at once can't both land (single-use links). */
+    public long businessEmailsVersion() { return businessEmailsVersion; }
+    /** The waiting address whose link went out last, or {@code null}: what the "not working yet" banner names. */
+    public String pendingBusinessEmail() { return businessEmails().newestPending().orElse(null); }
+
+    /** The whole list, for a change to it ({@link Builder#businessEmails}). */
+    public BusinessEmails businessEmails() {
+        return new BusinessEmails(loginEmail, businessEmail, confirmedBusinessEmails, pendingBusinessEmails);
+    }
     public String phone() { return phone; }
     public String coachTimezone() { return coachTimezone; }
     public Currency currency() { return currency; }
@@ -118,7 +140,9 @@ public final class CoachProfile {
                 && coachId.equals(p.coachId) && firstName.equals(p.firstName) && lastName.equals(p.lastName)
                 && loginEmail.equals(p.loginEmail)
                 && Objects.equals(businessEmail, p.businessEmail)
-                && Objects.equals(pendingBusinessEmail, p.pendingBusinessEmail)
+                && confirmedBusinessEmails.equals(p.confirmedBusinessEmails)
+                && pendingBusinessEmails.equals(p.pendingBusinessEmails)
+                && businessEmailsVersion == p.businessEmailsVersion
                 && Objects.equals(phone, p.phone)
                 && coachTimezone.equals(p.coachTimezone) && currency == p.currency
                 && coachCode.equals(p.coachCode)
@@ -143,7 +167,9 @@ public final class CoachProfile {
         private String lastName;
         private String loginEmail;
         private String businessEmail;
-        private String pendingBusinessEmail;
+        private List<String> confirmedBusinessEmails = List.of();
+        private Map<String, BusinessEmails.Link> pendingBusinessEmails = Map.of();
+        private long businessEmailsVersion;
         private String phone;
         private String coachTimezone;
         private Currency currency = Currency.USD;
@@ -163,7 +189,17 @@ public final class CoachProfile {
         public Builder lastName(String v) { lastName = v; return this; }
         public Builder loginEmail(String v) { loginEmail = v; return this; }
         public Builder businessEmail(String v) { businessEmail = v; return this; }
-        public Builder pendingBusinessEmail(String v) { pendingBusinessEmail = v; return this; }
+        public Builder confirmedBusinessEmails(List<String> v) { confirmedBusinessEmails = v; return this; }
+        public Builder pendingBusinessEmails(Map<String, BusinessEmails.Link> v) { pendingBusinessEmails = v; return this; }
+        public Builder businessEmailsVersion(long v) { businessEmailsVersion = v; return this; }
+
+        /** Takes the current address and both lists from {@code b}; the login email isn't changed. */
+        public Builder businessEmails(BusinessEmails b) {
+            businessEmail = b.current();
+            confirmedBusinessEmails = b.confirmed();
+            pendingBusinessEmails = new LinkedHashMap<>(b.pending());
+            return this;
+        }
         public Builder phone(String v) { phone = v; return this; }
         public Builder coachTimezone(String v) { coachTimezone = v; return this; }
         public Builder currency(Currency v) { currency = v; return this; }

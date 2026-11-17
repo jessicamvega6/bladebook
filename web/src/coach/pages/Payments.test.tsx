@@ -8,14 +8,14 @@ afterEach(() => vi.unstubAllGlobals());
 
 const row = (startTime: string, fullName: string, o: Partial<PaymentRowDto> = {}): PaymentRowDto => ({
   date: '2026-11-16', startTime, durationMinutes: 30, studentId: fullName, fullName, familyName: 'Sarah Park', relationship: 'GUARDIAN',
-  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], ...o,
+  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], closedYear: null, viewOnly: false, ...o,
 });
 
 const VIEW: PaymentsDto = {
   rows: [row('06:00', 'Ava Park'), row('06:30', 'Jack Park', { attendance: 'NO_SHOW' }), row('07:00', 'Mia Rossi', { status: 'PAID', paidVia: 'VENMO' }),
     row('07:30', 'Leo Martin', { status: 'WAIVED', attendance: 'NOT_RECORDED' })],
   totals: { unpaid: { USD: 10000 }, unpaidCount: 2, paid: { USD: 5000 }, paidCount: 1, noShows: 1, noShowsUnpaid: { USD: 5000 }, notRecorded: 1 },
-  choices: ['VENMO', 'OTHER'], currency: 'USD',
+  choices: ['VENMO', 'OTHER'], currency: 'USD', thisYear: 2026,
 };
 
 function serve(onPost: (path: string, body: Record<string, unknown>) => Response = (_p, b) =>
@@ -87,4 +87,67 @@ test('Waive always asks first, and a lesson changed elsewhere says so', async ()
   await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Waive lesson' }));
   expect(await screen.findByText('This lesson changed in another window. Reload the page and try again.')).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+});
+
+test('Undo on a payment that counted in a closed year asks first; other paid lessons undo at once', async () => {
+  // Owner, 2026-11-16: the server says which payments counted in a closed year; the page never works it out.
+  const view: PaymentsDto = { ...VIEW, rows: [row('06:00', 'Ava Park', { date: '2025-12-29', status: 'PAID', closedYear: 2025, amountMinor: 4500 }),
+    row('07:00', 'Mia Rossi', { status: 'PAID', paidVia: 'VENMO' })] };
+  const posts: string[] = [];
+  vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') {
+      const body = JSON.parse(init.body as string) as Record<string, unknown>;
+      posts.push(`${url} ${body.studentId as string}`);
+      return Promise.resolve(new Response(JSON.stringify(row(body.startTime as string, body.studentId as string)), { status: 200 }));
+    }
+    return Promise.resolve(new Response(JSON.stringify(view), { status: 200 }));
+  }));
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  await screen.findByRole('heading', { name: 'Unpaid lessons' });
+  await userEvent.click(screen.getByRole('button', { name: 'All' }));
+  const ava = (await screen.findByText('Ava Park')).closest('tr')!;
+  await userEvent.click(within(ava).getByRole('button', { name: 'Undo' }));
+  const dialog = screen.getByRole('dialog', { name: 'Undo a payment from 2025?' });
+  expect(dialog).toHaveTextContent('2025 is closed, so its figures won’t change. Undoing this takes $45 off 2026’s figures, in this month.');
+  expect(within(dialog).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancel', 'Undo payment']);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(posts).toEqual([]);
+  await userEvent.click(within(ava).getByRole('button', { name: 'Undo' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Undo payment' }));
+  expect(await screen.findByText('Ava Park, Dec 29: back to unpaid.')).toBeInTheDocument();
+  expect(posts).toEqual(['/api/coach/payments/undo Ava Park']);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+  await userEvent.click(within(screen.getByText('Mia Rossi').closest('tr')!).getByRole('button', { name: 'Undo' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(posts).toEqual(['/api/coach/payments/undo Ava Park', '/api/coach/payments/undo Mia Rossi']));
+});
+
+test('a lesson from before last year is view only: a paid one says so, an unpaid one offers Waive alone', async () => {
+  // G-39, Batch 27 (owner, 2026-11-15 and 2026-11-16): the server says which rows are view only.
+  const view: PaymentsDto = { ...VIEW, rows: [
+    row('06:00', 'Ava Park', { date: '2024-12-30', status: 'PAID', paidVia: 'VENMO', viewOnly: true }),
+    row('06:30', 'Jack Park', { date: '2024-12-30', viewOnly: true }),
+    row('07:00', 'Mia Rossi', { date: '2024-12-30', status: 'WAIVED', viewOnly: true }),
+    row('07:30', 'Leo Martin', { date: '2025-01-06', status: 'PAID', paidVia: 'VENMO' })] };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(view), { status: 200 }))));
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  await screen.findByRole('heading', { name: 'Unpaid lessons' });
+  await userEvent.click(screen.getByRole('button', { name: 'All' }));
+
+  const ava = (await screen.findByText('Ava Park')).closest('tr')!;
+  expect(within(ava).queryAllByRole('button')).toEqual([]);
+  expect(within(ava).getByText('View only')).toHaveAttribute('title', 'Lessons from before January 1, 2025 can be viewed but not changed.');
+  expect(within(ava).getByText('Venmo')).toBeInTheDocument();                 // how they paid still shows…
+  expect(within(ava).queryByRole('link')).not.toBeInTheDocument();              // …but can't be changed
+
+  const jack = screen.getByText('Jack Park').closest('tr')!;
+  expect(within(jack).getAllByRole('button').map((b) => b.textContent)).toEqual(['Waive']);
+  expect(within(screen.getByText('Mia Rossi').closest('tr')!).getByText('Final')).toBeInTheDocument();
+
+  const leo = screen.getByText('Leo Martin').closest('tr')!;                    // last year's lesson stays editable
+  expect(within(leo).getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+  expect(within(leo).getByRole('link', { name: 'Change' })).toBeInTheDocument();
 });

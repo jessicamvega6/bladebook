@@ -788,8 +788,9 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
   sign-in with multi-factor authentication, and `dev.<domain>` delegated to a hosted zone in the
   dev account. Before any infrastructure is built: tables and Cognito users can't move between
   accounts later.~~ **Done:** the accounts and Identity Center exist, and `dev.bladebook.org` is
-  delegated from Cloudflare to Route 53 in `bladebook-dev`. ADR-027 decision 8 still owes an
-  amendment: the domain's DNS stays in Cloudflare, and 307202557124 is the management account.
+  delegated from Cloudflare to Route 53 in `bladebook-dev`. ADR-027 decision 8 ~~still owes an
+  amendment~~ *was amended 2026-11-16*: the domain's DNS stays in Cloudflare, production gets a subdomain delegated
+  to a hosted zone in the production account (as dev does), and 307202557124 is the management account.
   (ADR-027 decision 8)
 - **To-do: Write the data-loading stack's cross-account permissions** — dev's table import reading
   the masked bucket, and dev's CloudTrail writing to the log bucket in production. (ADR-027

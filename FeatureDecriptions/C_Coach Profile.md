@@ -27,6 +27,11 @@ Business email:
   *Decided by the owner 2026-11-12:* the link works once and lasts 3 days. Resend sends a new link and the old one stops
     working. The coach signs in to confirm. (ADR-016, amendment 2026-11-12)
   Any address except the current one and the login email can be removed.
+  *Built 2026-11-16 (Batch 14; settled while building, owner may override):* an address waiting for its link shows when
+    the link stops working, with "Resend link" (where the design's demo has "I've clicked the link") and "Remove". Up to
+    10 addresses besides the login email. *Decided 2026-11-16 by the owner (G-41):* a confirmed address becomes the business
+    email the moment it's confirmed, as ADR-MASTER section 4 and architecture.md section 6.13 say; the design's "choose it
+    and Save" after confirming is superseded. The address it replaces stays on the list and can be chosen again.
   *Decided by the owner 2026-10-13 (Harbor design):* on the profile, the coach keeps a list of addresses and picks one.
     "Use a new address" sends a link, and the address can't be picked until it's confirmed. Any address except the
     current one and the login email can be removed. *(from ADR-016, amendment 2026-10-13, moved 2026-11-08)*

@@ -16,7 +16,10 @@ export interface Profile {
   loginEmail: string;
   /** The confirmed business email, or null while one waits for its link. */
   businessEmail: string | null;
+  /** The waiting address whose link went out last, or null: what the "not working yet" banner names. */
   pendingBusinessEmail: string | null;
+  /** Profile → Business email's list: the login email, the other confirmed addresses, then those waiting for a link. */
+  emails: EmailRow[];
   phone: string | null;
   coachTimezone: string;
   currency: 'USD' | 'CAD';
@@ -30,6 +33,18 @@ export interface Profile {
   /** Profile → Visibility & texts: shown to approved families only. Both start off. */
   showPhone: boolean;
   showEmail: boolean;
+}
+
+/** One address on Profile → Business email's list (ADR-016, amended 2026-11-12). */
+export interface EmailRow {
+  address: string;
+  /** Families' replies go here now. */
+  current: boolean;
+  login: boolean;
+  /** Waiting for its confirmation link. */
+  waiting: boolean;
+  /** When a waiting address's link stops working (an instant); null otherwise. */
+  linkExpiresAt: string | null;
 }
 
 export interface SignupBody {
@@ -67,8 +82,18 @@ export function coachApi(token: string) {
     saveVisibility: (body: { showPhone: boolean; showEmail: boolean }) => call<Profile>('/profile/visibility', 'PUT', body),
     rotateCode: () => call<Profile>('/profile/code/rotate', 'POST'),
     useLoginEmail: () => call<Profile>('/profile/business-email/use-login', 'POST'),
-    /** LOCAL STAND-IN for clicking the business-email link (until batch 14). */
-    markBusinessEmailConfirmed: () => call<Profile>('/local/business-email/confirm', 'POST'),
+    /** "Use a new address"; with `replaces`, sign-up step 4's "Change address". Emails the confirmation link. */
+    addBusinessEmail: (address: string, replaces?: string) =>
+      call<Profile>('/profile/business-email', 'POST', { address, replaces: replaces ?? null }),
+    /** Profile → Business email's Save: a confirmed address becomes the business email. */
+    chooseBusinessEmail: (address: string) => call<Profile>('/profile/business-email', 'PUT', { address }),
+    /** A new link; the one sent before stops working. */
+    resendLink: (address: string) => call<Profile>('/profile/business-email/resend', 'POST', { address }),
+    removeBusinessEmail: (address: string) => call<Profile>('/profile/business-email/remove', 'POST', { address }),
+    /** Which address a confirmation link is for. Changes nothing. */
+    checkLink: (token: string) => call<{ address: string }>('/profile/business-email/check', 'POST', { token }),
+    /** The coach chose Confirm: the link's address becomes the business email. */
+    confirmLink: (token: string) => call<{ address: string; profile: Profile }>('/profile/business-email/confirm', 'POST', { token }),
   };
 }
 
@@ -244,6 +269,10 @@ export interface PaymentRowDto {
   date: string; startTime: string; durationMinutes: number; studentId: string; fullName: string; familyName: string | null;
   relationship: 'SELF' | 'GUARDIAN' | null; attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
   amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
+  /** On a paid lesson whose payment counted in a year that has closed, that year (worked out by the server); else null. */
+  closedYear: number | null;
+  /** Dated before January 1 of last year: only Waive is offered, on an unpaid one (G-39, Batch 27). */
+  viewOnly: boolean;
 }
 
 /** Totals per currency, never across. */
@@ -254,6 +283,8 @@ export interface PaymentsDto {
   /** The Mark paid dialog's choices: the coach's payment types, then Other. */
   choices: PaidVia[];
   currency: string;
+  /** The year it is now in the coach's time zone: an undo of a closed year's payment counts in it. */
+  thisYear: number;
 }
 
 export function paymentsApi(token: string) {
@@ -278,13 +309,15 @@ export type PaymentsApi = ReturnType<typeof paymentsApi>;
 export interface FinanceMonthDto {
   month: string; hasLessons: boolean; paidLessons: number; gross: Record<string, number>; unpaid: Record<string, number>;
   earlierLessons: number; earlierGross: Record<string, number>;
+  /** Earlier years' payments undone this month, already taken off {@code gross} (Batch 26). */
+  undoneLessons: number; undoneGross: Record<string, number>;
 }
 
 /** A year's figures (Batch 12): gross only; rink fees are Phase 2. {@code today}: the coach's date. */
 export interface FinanceYearDto {
   year: number; closed: boolean; today: string; months: FinanceMonthDto[]; paidLessons: number;
   gross: Record<string, number>; unpaid: Record<string, number>; earlierLessons: number; earlierGross: Record<string, number>;
-  currency: string;
+  undoneLessons: number; undoneGross: Record<string, number>; currency: string;
 }
 
 export function financesApi(token: string) {
@@ -296,3 +329,32 @@ export function financesApi(token: string) {
 }
 
 export type FinancesApi = ReturnType<typeof financesApi>;
+
+// ------------------------------------------------------------- Batch 22
+
+/** One skater in one of today's lessons, at their share of the price. */
+export interface TodaySkaterDto {
+  studentId: string; name: string; amountMinor: number; currency: string;
+  attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
+}
+
+/** A booked lesson time (skaters in the order they joined) or a held one (no skaters). {@code next}: the next to start. */
+export interface TodayLessonDto { startTime: string; durationMinutes: number; held: boolean; next: boolean; skaters: TodaySkaterDto[] }
+
+/** A count of skaters' lessons and their amounts per currency, never added across. */
+export interface FiguresDto { count: number; amounts: Record<string, number> }
+
+/**
+ * The Today page (G-6): dates and times are the coach's own. {@code nextLessonDate}: only when today has no lessons.
+ * {@code week}: every lesson booked Sunday to Saturday; {@code unpaid}: every lesson that has started and is still unpaid.
+ */
+export interface TodayDto {
+  coachTimezone: string; currency: string; today: string; now: string; weekStart: string; weekEnd: string;
+  lessons: TodayLessonDto[]; nextLessonDate: string | null; week: FiguresDto; unpaid: FiguresDto;
+}
+
+export function todayApi(token: string) {
+  return { today: () => apiFetch<TodayDto>('/api/coach/today', { token }) };
+}
+
+export type TodayApi = ReturnType<typeof todayApi>;

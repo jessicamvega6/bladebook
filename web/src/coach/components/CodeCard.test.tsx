@@ -6,7 +6,7 @@ import { CodeCard, CodePendingBanner } from './CodeCard';
 
 export const DANA: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com',
-  businessEmail: 'dana@gmail.com', pendingBusinessEmail: null, phone: null, coachTimezone: 'America/Chicago',
+  businessEmail: 'dana@gmail.com', pendingBusinessEmail: null, emails: [], phone: null, coachTimezone: 'America/Chicago',
   currency: 'USD', requiredNoticeHours: 24, coachCode: '7K2Q-M9XT', codeWorks: true, paymentInstructions: null,
   paymentTypes: [], showPhone: false, showEmail: false,
 };
@@ -31,6 +31,20 @@ test('the banner names the address and offers the login email instead', async ()
   expect(screen.getByText('lessons@dana.com')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Use my login email instead' }));
   expect(onUseLogin).toHaveBeenCalled();
+});
+
+test('the banner offers Resend link and Change address, as designed', async () => {
+  const onResend = vi.fn();
+  render(<CodePendingBanner profile={PENDING} onUseLogin={vi.fn()} onResend={onResend} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Resend link' }));
+  expect(onResend).toHaveBeenCalled();
+  expect(screen.getByRole('link', { name: 'Change address' })).toHaveAttribute('href', '#/profile/email');
+});
+
+test('with no address waiting (all removed), the banner has nothing to resend', () => {
+  render(<CodePendingBanner profile={{ ...PENDING, pendingBusinessEmail: null }} onUseLogin={vi.fn()} onResend={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Resend link' })).not.toBeInTheDocument();
+  expect(screen.getByText(/Until you confirm an address/)).toBeInTheDocument();
 });
 
 test('no banner once the code works', () => {

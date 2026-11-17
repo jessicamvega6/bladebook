@@ -696,7 +696,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
 .bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
-.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .tlist__t { width: 66px; flex: none; white-space: nowrap; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
 .bb .card__foot { padding: 14px 20px 18px; }
 .bb .card--attn { border-color: var(--warning-border); }
 .bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -717,10 +717,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 @media (max-width: 760px) {
   .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
   .bb .phead__actions { width: 100%; }
+  /* Phone: a page head's buttons wrap their text instead of pushing the page sideways (owner, 2026-11-16). */
+  .bb .phead__actions .btn { white-space: normal; height: auto; min-height: 40px; padding-top: 8px; padding-bottom: 8px; text-align: left; max-width: 100%; }
   .bb .wmain { padding: 20px 16px 40px; }
   .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .bb .wbar__right { width: 100%; }
-  .bb .stepper { overflow-x: auto; }
+  .bb .stepper { gap: 6px; }
+  /* Phone: dots only, with the current step named; the other names stay for screen readers (owner, 2026-11-16). */
+  .bb .step:not(.step--current) .step__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bb .step--current .step__label { white-space: nowrap; }
+  .bb .step__line { flex: 1 1 12px; width: auto; min-width: 8px; }
   .bb .wcol > .card > .card__body { padding: 20px; }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }
@@ -900,7 +906,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook coach website · Harbor · Payments</span><b>Financial summary</b><span class="sp-bar__note">New, MVP feature 16. Year-to-date gross (money received) for 2026, month by month. Rink fees are Phase 2 (owner, 2026-11-12): the page says rink fee calculation is coming. Only September and October have sample lessons.</span><nav class="sp-bar__nav"><a href="payments-waive.html">← Payments — waive a lesson</a><a href="index.html">All pages</a><a href="finances-export.html">Financial summary — download →</a></nav></header>
+<header class="sp-bar"><span>BladeBook coach website · Harbor · Payments</span><b>Financial summary</b><span class="sp-bar__note">New, MVP feature 16. Year-to-date gross (money received) for 2026, month by month. Rink fees are Phase 2 (owner, 2026-11-12): the page says rink fee calculation is coming. Only September and October have sample lessons.</span><nav class="sp-bar__nav"><a href="payments-view-only.html">← Payments — lessons from before last year</a><a href="index.html">All pages</a><a href="finances-export.html">Financial summary — download →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="app app--coach">
     <header class="nav"><a class="brand" href="today-code-pending.html"><span class="brand__mark"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7"/><path d="M4 20h16"/><path d="M6.5 20v-2"/><path d="M17.5 20v-2.3"/></svg></span><span class="brand__name">BladeBook</span></a>
       <nav class="nav__items" aria-label="Main"><a class="nav__item" href="today-code-pending.html"><span>Today</span></a><a class="nav__item" href="calendar-week.html"><span>Calendar</span></a><a class="nav__item" href="schedule-hub.html"><span>Schedule</span></a><a class="nav__item" href="students.html"><span>Students</span><span class="navcount">3</span></a><a class="nav__item" href="lessons-empty.html"><span>Lessons</span></a><a class="nav__item is-active" href="payments-empty.html" aria-current="page"><span>Payments</span></a><a class="nav__item" href="profile-details.html"><span>Profile</span></a></nav>

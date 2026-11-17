@@ -121,7 +121,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
 | `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
-| `sched-lesson-roller` | Scheduler, nightly | Keeps lesson times stored ~15 months ahead. |
+| `sched-lesson-roller` | Scheduler, nightly; and January 1–7 (2026-11-16) | Keeps lesson times stored ~15 months ahead. Its second rule, `sched-year-close`, saves last year's figures for every coach (§12, §14). |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
 | `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
@@ -200,6 +200,8 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Change batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource`, `cancelledBy`, acting identity, `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount`, `planStatus`, `executionStatus` |
 | Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
 | Re-price line | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<seatKey>` | seat, skater, family, date and time, old and new price and fee, `direction`, `executionStatus`, `notificationStatus` |
+| Closed year's figures | `COACH#<coachId>` | `CLOSEDYEAR#<year>` | `year`, `months` (each `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`, `earlierGross`, `undoneLessons`, `undoneGross`; amounts per currency), `savedAt`, `savedBy` (`JOB` \| `READ` \| `UNDO`). Written once (§12; 2026-11-16) |
+| Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
 | Family profile | `CLIENT#<sub>` | `PROFILE` | `clientName`, `clientEmail`, `clientPhone`, `smsOptIn` (Phase 2) |
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
 | Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name |
@@ -290,7 +292,7 @@ archiver reads them.
 |---|---|
 | `firstName`, `lastName` | Required |
 | `loginEmail` | The Cognito username |
-| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used; the link opens a page the coach confirms on, so a mail scanner can't confirm it. The link carries a random token that works once and lasts 3 days; Resend issues a new one and the old one stops working (owner, 2026-11-12). Each pending address is held on the profile in `pendingBusinessEmails` (address → `tokenHash`, the token's SHA-256 hash, and `expiresAt`); the coach signs in to confirm, through `api-coach` like every coach route (ADR-016, 2026-11-12). **The `CODE#` item is written only once the coach has a confirmed business email**, or at once if the coach uses the login email, so no family email is sent without a confirmed `Reply-To` (ADR-016, 2026-11-06). On a change, the current confirmed address stays in use until the new one is confirmed. The address list and what the coach is told are product (`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md`, "Business email"). |
+| `businessEmail` | Optional; stored as `loginEmail` when blank. **A different address must be confirmed by a link** (BladeBook's own email, not Cognito's) before it is used; the link opens a page the coach confirms on, so a mail scanner can't confirm it. The link carries a random token that works once and lasts 3 days; Resend issues a new one and the old one stops working (owner, 2026-11-12). Each pending address is held on the profile in `pendingBusinessEmails` (address → `tokenHash`, the token's SHA-256 hash, and `expiresAt`); the coach signs in to confirm, through `api-coach` like every coach route (ADR-016, 2026-11-12). **The `CODE#` item is written only once the coach has a confirmed business email**, or at once if the coach uses the login email, so no family email is sent without a confirmed `Reply-To` (ADR-016, 2026-11-06). On a change, the current confirmed address stays in use until the new one is confirmed, and then becomes `businessEmail` (*amended 2026-11-16, Batch 14; the owner kept this over the design's "choose it and Save", G-41*). The other confirmed addresses are kept in `confirmedBusinessEmails`, and every change to the list is conditioned on `businessEmailsVersion`, so a link works once (ADR-016, 2026-11-16). The address list and what the coach is told are product (`FeatureDecriptions/Coach Sign Up` and `FeatureDecriptions/C_Coach Profile.md`, "Business email"). |
 | `phone` | |
 | `coachTimezone` | IANA, required |
 | `currency` | `USD` \| `CAD`, default `USD`; not changeable in MVP |
@@ -502,6 +504,9 @@ messages are product: see `FeatureDecriptions/Schedule Creater.md`,
 - **Weeks run Sunday–Saturday in the coach's timezone.** The month marks every date with an
   override (one range query on `SCHEDULE#DATE#`).
 - **Every lesson time is shown in the coach's timezone**, for every family.
+- **A time is written "1:00 PM"**, hour, minutes and AM or PM, everywhere the coach and family websites show one,
+  ranges as *"3:00 PM – 7:00 PM"* (*amended 2026-11-16, owner: "use '1:00 PM' everywhere"*; the designs' shorter
+  *6:00* and *3pm* are retired).
 - The family's calendar shows only free or taken (§7); the coach's shows who is booked.
 - *The calendars' views, navigation and the empty-schedule state are product:
   `FeatureDecriptions/Coach Dashboard on website.md`, `FeatureDecriptions/C_Coach Schedule Hub.md`
@@ -950,12 +955,12 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   2026-11-08).
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
-- **From the rinkside page**, two places: a **cancel section** (whole or part of a day, whole or
-  part of a week, specific lessons — "part of" is a multi-select) and a **cancel action on each
-  lesson in the check-in list**.
+- **From the rinkside page**, two places: a **cancel section**, the Week tab (one lesson, a whole
+  day, or the rest of the week; nothing in between, so lessons on different days are cancelled one
+  by one — owner, 2026-11-16, ADR-009) and a **cancel action on each lesson in the check-in list**.
   - **The whole week works like *Cancel rest of week*:** from now to Saturday, every booked
-    lesson and open time is held, with no release-or-hold question. A whole day, part of a day or
-    week, specific lessons and the check-in list still ask release-or-hold per lesson (ADR-009,
+    lesson and open time is held, with no release-or-hold question. A whole day, one lesson
+    and the check-in list still ask release-or-hold per lesson (ADR-009,
     2026-11-08).
   - **Disabled with no signal:** *"Cancelling needs a connection."* The Week tab shows no lessons
     offline: *"The week needs a connection. Cancelling needs signal too. Today's lessons are on the
@@ -1055,6 +1060,12 @@ happens (§18).
 - **`paidVia`** (how the client paid): one of the payment types the coach has switched on, or
   *Other*; optional, editable afterwards, readable only on the coach path. A waived lesson has
   none. Stored on the seat, so turning a type off later doesn't change past records.
+- **A lesson dated before January 1 of last year is view only** (owner, 2026-11-15 and
+  2026-11-16; ADR-030 amended; Batch 27): it can't be marked paid, have `paidVia` changed or be
+  undone, because the financial page reads only this year's and last year's lessons. The server
+  refuses each (*"Lessons from before January 1, 2025 can be viewed but not changed."*), working
+  the date out in the coach's time zone, and marks each row `viewOnly`. **An unpaid one can still
+  be waived**, so an old debt can be settled and leave GSI3 and the weekly reminder.
 - **GSI3** holds a seat while `UNPAID`; paying or waiving removes it. A skater's unpaid lessons
   for the coach: GSI3 filtered on `studentId`.
 - **`paymentReminderSent`** guards the automatic reminder; it is not payment status.
@@ -1097,13 +1108,30 @@ happens (§18).
   from a closed year marked paid later counts in the year and month it was marked paid, flagged as
   for an earlier year:** the page labels it and the download gives it its own column (owner,
   2026-11-13; ADR-030 amended). The page reads this year's lessons and last year's.
+- **A closed year's figures are saved once** (2026-11-16; ADR-030 d4 amended; Batch 26): its twelve
+  months (paid lessons, gross, the part for earlier years' lessons and the part undone, per
+  currency) on `CLOSEDYEAR#<year>`, written only if not there. `sched-year-close` saves them for
+  every coach on January 1–7 once the coach's year has closed; a read of the closed year, or an undo
+  of one of its payments, saves them first if the job hasn't. From then on the page and the
+  download read the saved figures, so neither *Undo* nor old records being deleted (§20) changes a
+  closed year.
+- **A correction to a closed year counts in the year it's made** (2026-11-16): a payment undone after
+  the year it counted in has closed writes a `PAYCORRECTION#` item with the seat, in one
+  transaction. Its amount comes off the month it's undone, flagged as for an earlier year. *Owner,
+  2026-11-16:* it lowers that month's count of paid lessons too, never below zero (the year's count
+  is the sum of the months'), and the download shows it in a column of its own. Payments asks before
+  *Undo* on a payment that counted in a closed year; the server marks those rows (`closedYear`).
 - **From Phase 2, rink fees are calculated by BladeBook** from the rink's terms, which the
   developer sets. The coach can't edit terms, override a month or type in what they paid. How the
   fee is calculated is undecided (§25).
 - **Download:** a CSV of monthly gross and paid-lesson counts for this year or last, with a column for the part paid for
-  earlier years' lessons (2026-11-13). **No names or personal data.**
-  Reads live data only, filtered on `expiresAt`.
-- Year figures are a range query on the coach's `SEAT#<date>` items.
+  earlier years' lessons (2026-11-13) and, since 2026-11-16, one for the part taken off for earlier years' lessons
+  marked unpaid. Five columns: *Month*, *Paid lessons*, *Gross received* (net of undos), *Of which for lessons in
+  earlier years* (late payments only, never negative), *Taken off for earlier years' lessons marked unpaid* (positive).
+  **No names or personal data.**
+  Reads live data only, filtered on `expiresAt`; a closed year's comes from its saved figures (2026-11-16).
+- This year's figures are a range query on the coach's `SEAT#<date>` items (this year's and last
+  year's) and `PAYCORRECTION#` items (made this year); a closed year's are one `GetItem`.
 
 ---
 
@@ -1178,6 +1206,7 @@ notified.
 | `sched-drift-check` | Nightly | §19. Read-only. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
+| `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
 
 - **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no
   recorded outcome shows as *Not recorded* on Payments and the lesson list, and as "attendance
@@ -1513,6 +1542,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Re-price line | Written | Cancellation window |
 | Cancellation line (chargeable, Phase 2) | Settled | Settlement + cancellation window |
 | Change batch header | With its lines | **Never earlier than its latest line** (only ever raised) |
+| Closed year's figures (`CLOSEDYEAR#`) | Never | Account lifecycle (2026-11-16; Phase 2's past years read them) |
+| Payment correction (`PAYCORRECTION#`) | Written | At least 16 months, like every payment record; set with the others in Batch 17. Once its year is saved, nothing reads it |
 | Recurrence header | Written, and when its end date moves | `endDate` + booking window |
 | Rejected `PENDING` skater | — | **Deleted immediately** |
 | Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle; erasure on request from Phase 2 |
@@ -1546,14 +1577,18 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 - **Two AWS accounts in one Organization:** production and dev. Sign-in through **IAM Identity
   Center with MFA**.
-- The domain's zone is in production; **`dev.<domain>` is delegated** to a hosted zone in the dev
-  account.
+- The domain's DNS is in **Cloudflare**, where it's registered. **`dev.<domain>` is delegated** to a hosted zone in the dev
+  account, and **a production subdomain** (named when production is built) to a hosted zone in the production
+  account, so CDK manages the records under each (ADR-027 d8, amended 2026-11-16). The management account is
+  `307202557124`.
 - **Production is the only long-running environment.**
 
 ### Dev
 
 - **A full stack** from the same infrastructure code, **built when needed and destroyed after**.
-  One at a time. Domains `dev.<domain>` and `api.dev.<domain>`, not indexed.
+  One at a time. ~~Domains `dev.<domain>` and `api.dev.<domain>`~~ Hosts `app.dev.bladebook.org` (coach)
+  and `family.dev.bladebook.org` (family), each API under its own host's `/api/*` (ADR-027, amended
+  2026-11-16), not indexed.
 - **Built as two stacks:** the **account stack** (Cognito pools and test accounts:
   `coach-a@example.com`…, `client-1@example.com`…), then the **application stack**, whose table is
   **created by one import from one file**. Nothing is loaded into a dev table afterwards.

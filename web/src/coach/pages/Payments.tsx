@@ -3,7 +3,10 @@
  * FeatureDecriptions/Coach Payment Section on Dashboard.md; ADR-MASTER section 12). Batch 8.
  *
  * Every skater's lesson that has happened in a date range, at their share of the price. Unpaid or All; Mark paid with
- * how they paid (optional, changeable afterwards), Waive (always confirms; final, R7), and Undo on paid lessons.
+ * how they paid (optional, changeable afterwards), Waive (always confirms; final, R7), and Undo on paid lessons. Undo on
+ * a payment that counted in a closed year asks first (owner, 2026-11-16): the server says which ones (closedYear).
+ * A lesson from before January 1 of last year is view only (G-39, Batch 27; the server says which, viewOnly): a paid
+ * one shows *View only*, and an unpaid one offers Waive alone (owner, 2026-11-16).
  * Financial summary opens the financial page (Batch 12). Not yet: Send reminders (Phase 2), shown disabled.
  */
 import { useEffect, useId, useState } from 'react';
@@ -33,7 +36,8 @@ function Stat({ label, value, sub, icon }: { label: string; value: string; sub: 
   return <div className="stat"><span className="stat__icon"><Icon name={icon} size={18} /></span><div className="stat__label">{label}</div><div className="stat__value">{value}</div><div className="stat__sub">{sub}</div></div>;
 }
 
-type Modal = { kind: 'paid'; r: PaymentRowDto; edit: boolean; via: PaidVia | null } | { kind: 'waive'; r: PaymentRowDto };
+type Modal = { kind: 'paid'; r: PaymentRowDto; edit: boolean; via: PaidVia | null } | { kind: 'waive'; r: PaymentRowDto }
+  | { kind: 'undo'; r: PaymentRowDto };
 
 export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unknown) => void }) {
   const [from, setFrom] = useState('');
@@ -98,15 +102,18 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
   const money = (m: Record<string, number>) => formatMoney(m[cur] ?? 0);
   const t = data.totals;
   const list = all ? data.rows : data.rows.filter((r) => r.status === 'UNPAID');
+  const undo = (r: PaymentRowDto) => void act(() => api.undo(r), () => `${r.fullName}, ${shortDate(r.date)}: back to unpaid.`);
+  const oldest = `Lessons from before January 1, ${data.thisYear - 1} can be viewed but not changed.`;
   const rows = list.map((r) => {
     const [at, atone, aicon] = ATTEND[r.attendance];
     const [pt, ptone, picon] = PAY[r.status];
     const acts = r.status === 'UNPAID'
       ? <><Button variant="ghost" sm onClick={() => setModal({ kind: 'waive', r })}>Waive</Button>
-          <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null })}>Mark paid</Button></>
-      // Waived is final (R7): no Undo. Paid can still be undone.
+          {!r.viewOnly && <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null })}>Mark paid</Button>}</>
+      // Waived is final (R7): no Undo. Paid can still be undone, unless it's from before last year.
       : r.status === 'WAIVED' ? <span className="muted">Final</span>
-        : <Button variant="ghost" sm icon="undo" onClick={() => void act(() => api.undo(r), () => `${r.fullName}, ${shortDate(r.date)}: back to unpaid.`)}>Undo</Button>;
+        : r.viewOnly ? <span className="muted" title={oldest}>View only</span>
+        : <Button variant="ghost" sm icon="undo" onClick={() => (r.closedYear != null ? setModal({ kind: 'undo', r }) : undo(r))}>Undo</Button>;
     return (
       <tr key={keyOf(r)} className={r.attendance === 'NOT_RECORDED' ? 'mp-attn' : undefined}>
         <td><span className="cellname"><Avatar name={r.fullName} size="sm" /><span>{r.fullName}
@@ -116,7 +123,8 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
         <td><Badge tone={atone} icon={aicon}>{at}</Badge></td>
         <td className="r money">{formatMoney(r.amountMinor)}</td>
         <td><Badge tone={ptone} icon={picon}>{pt}</Badge>
-          {r.status === 'PAID' && <small className="mp-how">{r.paidVia ? `${VIA[r.paidVia]} · ` : ''}
+          {r.status === 'PAID' && r.viewOnly && r.paidVia && <small className="mp-how">{VIA[r.paidVia]}</small>}
+          {r.status === 'PAID' && !r.viewOnly && <small className="mp-how">{r.paidVia ? `${VIA[r.paidVia]} · ` : ''}
             <a className="link" href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'paid', r, edit: true, via: r.paidVia }); }}>{r.paidVia ? 'Change' : 'Add how they paid'}</a></small>}</td>
         <td className="r"><span className="cellbtns">{acts}</span></td>
       </tr>
@@ -149,6 +157,7 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
           ? (a.paidVia ? `paid by ${VIA[a.paidVia]}.` : 'how they paid cleared.') : `marked paid${a.paidVia ? ` by ${VIA[a.paidVia]}` : ''}.`}`)} />}
       {modal?.kind === 'waive' && <WaiveDialog r={modal.r} onClose={() => setModal(null)}
         onWaive={() => void act(() => api.waive(modal.r), (a) => `${a.fullName}, ${shortDate(a.date)}: waived.`)} />}
+      {modal?.kind === 'undo' && <UndoClosedDialog r={modal.r} thisYear={data.thisYear} onClose={() => setModal(null)} onUndo={() => undo(modal.r)} />}
     </>
   );
 }
@@ -183,6 +192,23 @@ function WaiveDialog({ r, onClose, onWaive }: { r: PaymentRowDto; onClose: () =>
       <div className="dialog__what"><b>{r.fullName}</b><span>{dDow(r.date)} · {formatTime(r.startTime)} · {formatMoney(r.amountMinor)}</span></div>
       <p className="fine">The family won’t owe anything for it. This can’t be undone.</p>
       <div className="dialog__actions"><Button variant="secondary" onClick={onClose}>Keep it unpaid</Button><Button variant="danger" onClick={onWaive}>Waive lesson</Button></div>
+    </Dialog>
+  );
+}
+
+/**
+ * A payment that counted in a closed year: its year stays as it closed, and the undo comes off this year, in this month
+ * (ADR-030 decision 4, amended 2026-11-16). Asks first (owner, 2026-11-16).
+ */
+function UndoClosedDialog({ r, thisYear, onClose, onUndo }: { r: PaymentRowDto; thisYear: number; onClose: () => void; onUndo: () => void }) {
+  const id = useId();
+  return (
+    <Dialog onClose={onClose} labelledBy={id}>
+      <div className="dialog__icon"><Icon name="undo" size={22} /></div>
+      <h2 className="h2" id={id}>Undo a payment from {r.closedYear}?</h2>
+      <div className="dialog__what"><b>{r.fullName}</b><span>{dDow(r.date)} · {formatTime(r.startTime)} · {formatMoney(r.amountMinor)}</span></div>
+      <p className="fine">{r.closedYear} is closed, so its figures won’t change. Undoing this takes {formatMoney(r.amountMinor)} off {thisYear}’s figures, in this month.</p>
+      <div className="dialog__actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon="undo" onClick={onUndo}>Undo payment</Button></div>
     </Dialog>
   );
 }

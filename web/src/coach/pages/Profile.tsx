@@ -1,18 +1,19 @@
 /**
- * Profile → Details, Visibility & texts, and Payments (design: profile-details, profile-details-code-pending,
- * profile-visibility, profile-payments, profile-payments-verify). Business email and Account aren't built yet
- * (gaps G-2, G-4). The texts switch waits on ADR-007 d8 (G-3).
+ * Profile → Details, Business email, Visibility & texts, and Payments (design: profile-details,
+ * profile-details-code-pending, profile-email, profile-visibility, profile-payments, profile-payments-verify). Account
+ * isn't built yet (gap G-4). The texts switch waits on ADR-007 d8 (G-3).
  */
 import { useState, type FormEvent } from 'react';
-import { Badge, Banner, Button, Card, Dialog, Field, Icon, Select, TextArea, Toggle } from '../../shared/components/harbor';
+import { Badge, Banner, Button, Card, Dialog, Field, Help, Icon, Select, TextArea, Toggle } from '../../shared/components/harbor';
 import { TIMEZONES } from '../../shared/logic/timezones';
-import type { CoachApi, PaymentType, PaymentTypeName, Profile } from '../api';
+import type { CoachApi, EmailRow, PaymentType, PaymentTypeName, Profile } from '../api';
 import { CodeCard, CodePendingBanner } from '../components/CodeCard';
+import { linkExpired, linkTime } from '../components/linkTime';
 import { allTypes, PaymentTypeRows, PAY_TYPES } from '../components/PaymentTypeRows';
 import { fieldErrors, payErrors } from './SignupBusiness';
 
 const TABS: Array<[label: string, route: string | null]> = [
-  ['Details', '#/profile'], ['Business email', null], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', null],
+  ['Details', '#/profile'], ['Business email', '#/profile/email'], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', null],
 ];
 
 function ProfileHead({ tab }: { tab: string }) {
@@ -51,6 +52,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
   const [saved, setSaved] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [rotated, setRotated] = useState('');
+  const [resent, setResent] = useState('');
 
   const act = async (call: () => Promise<Profile>, after?: (p: Profile) => void) => {
     setBusy(true);
@@ -82,6 +84,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
       <ProfileHead tab="Details" />
       {error && <Banner tone="danger">{error}</Banner>}
       {rotated && <Banner tone="success">Your new code is {rotated}. The old one stopped working.</Banner>}
+      {resent && <Banner tone="success">We sent a new link to {resent}. The one sent before no longer works.</Banner>}
       <form onSubmit={save} noValidate>
         <Card title="About you">
           <div className="grid2">
@@ -109,7 +112,8 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
           </div>
         </Card>
         <Card title="Coach code">
-          <CodePendingBanner profile={profile} busy={busy} onUseLogin={() => act(api.useLoginEmail)} />
+          <CodePendingBanner profile={profile} busy={busy} onUseLogin={() => act(api.useLoginEmail)}
+            onResend={() => { const a = profile.pendingBusinessEmail ?? ''; act(() => api.resendLink(a), () => setResent(a)); }} />
           <CodeCard profile={profile} extra={<Button variant="ghost" icon="refresh" onClick={() => setRotating(true)}>Rotate code</Button>} />
           <p className="fine">Shared your code somewhere you didn’t mean to? Rotate it. The old code stops working for new sign-ups. Families already signed up aren’t affected.</p>
         </Card>
@@ -127,6 +131,117 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
           </div>
         </Dialog>
       )}
+    </>
+  );
+}
+
+/**
+ * Profile → Business email (design: profile-email; ADR-016, amended 2026-11-12). The list: the login email, the other
+ * confirmed addresses (pick one and Save), and the addresses waiting for their link, each with Resend link and Remove.
+ * "Use a new address" emails a confirmation link at once. In the design a waiting row has "I’ve clicked the link", the
+ * demo's stand-in for the email; here it's Resend link, and the link itself confirms (the confirm page, #/confirm-email/…).
+ */
+export function ProfileBusinessEmail({ api, profile, onChange }: PageProps) {
+  const [chosen, setChosen] = useState(profile.businessEmail);
+  const [adding, setAdding] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailErr, setEmailErr] = useState('');
+  const [flash, setFlash] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const act = async (call: () => Promise<Profile>, done: (p: Profile) => void, onField?: (message: string) => void) => {
+    setBusy(true);
+    setError('');
+    setFlash('');
+    setSaved(false);
+    try {
+      const p = await call();
+      onChange(p);
+      done(p);
+    } catch (e) {
+      const f = fieldErrors(e);
+      if (onField && f.address) onField(f.address);
+      else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const add = () => {
+    const a = newEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)) { setEmailErr('Enter an email address like you@example.com.'); return; }
+    setEmailErr('');
+    act(() => api.addBusinessEmail(a), () => { setAdding(false); setNewEmail(''); setFlash(`Confirmation link sent to ${a}.`); }, setEmailErr);
+  };
+  const resend = (a: string) => act(() => api.resendLink(a), () => setFlash(`Sent a new link to ${a}. The one sent before no longer works.`));
+  const remove = (a: string) => act(() => api.removeBusinessEmail(a), () => setFlash(`${a} is off your list.`));
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    if (!chosen || chosen === profile.businessEmail) { setSaved(true); return; }
+    act(() => api.chooseBusinessEmail(chosen), (p) => { setChosen(p.businessEmail); setSaved(true); });
+  };
+
+  const row = (r: EmailRow) => {
+    if (r.waiting) {
+      const expired = linkExpired(r.linkExpiresAt);
+      return (
+        <div key={r.address} className="rcard mp-rcard--pending">
+          <span className="rcard__icon"><Icon name="mail" size={20} /></span>
+          <div className="rcard__text"><div className="rcard__title">{r.address}</div>
+            <div className="rcard__sub">{expired
+              ? 'The link has expired. Resend it to get a new one.'
+              : <>Confirmation link sent. You can choose it once it’s confirmed. The link works until {linkTime(r.linkExpiresAt!, profile.coachTimezone)}.</>}</div></div>
+          <span className="cellbtns">
+            <Button variant="ghost" sm disabled={busy} onClick={() => resend(r.address)}>Resend link</Button>
+            <button type="button" className="link link--danger" disabled={busy} onClick={() => remove(r.address)}>Remove</button>
+          </span>
+        </div>
+      );
+    }
+    const on = r.address === chosen;
+    return (
+      <div key={r.address} className="mp-rrow">
+        <button type="button" className={`rcard${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => { setChosen(r.address); setSaved(false); }}>
+          <span className="rcard__icon"><Icon name="mail" size={20} /></span>
+          <span className="rcard__text"><span className="rcard__title">{r.address}</span>
+            <span className="rcard__sub">{on ? 'Current · confirmed' : r.login ? 'Your login email · verified' : 'Confirmed'}</span></span>
+          <span className={`radio${on ? ' is-on' : ''}`} />
+        </button>
+        {!on && !r.login && !r.current
+          && <button type="button" className="link link--danger mp-remove" disabled={busy} onClick={() => remove(r.address)}>Remove</button>}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <ProfileHead tab="Business email" />
+      {error && <Banner tone="danger">{error}</Banner>}
+      {flash && <Banner tone="success">{flash}</Banner>}
+      <form onSubmit={save} noValidate>
+        <Card title="Business email" sub="The reply address on lesson reminders and every other automatic email. Replies from families come here.">
+          <div className="mp-radios">{profile.emails.map(row)}</div>
+          {adding ? (
+            <div className="mp-add">
+              <Field label="New business email" type="email" value={newEmail} onChange={setNewEmail} placeholder="you@example.com" error={emailErr || undefined} />
+              <div className="cellbtns">
+                <Button variant="secondary" sm onClick={() => { setAdding(false); setEmailErr(''); }}>Cancel</Button>
+                <Button sm disabled={busy} onClick={add}>Send confirmation link</Button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="addrow" onClick={() => { setAdding(true); setNewEmail(''); setEmailErr(''); }}>
+              <Icon name="plus" size={16} />Use a new address
+            </button>
+          )}
+        </Card>
+        <Help title="Why a new address needs a link first">
+          A typo would send every family’s replies to a stranger. Families keep seeing your current address until the new one is confirmed.
+        </Help>
+        <SaveBar busy={busy} saved={saved} />
+      </form>
     </>
   );
 }
