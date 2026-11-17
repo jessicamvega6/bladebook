@@ -51,12 +51,12 @@ class ShareCodeIssueTest {
         var ava = t.familyService.view(family).skaters().get(0);
 
         ShareRepository shares = new ShareRepository(t.f.clients, t.f.table);
-        var found = shares.shareCode(ava.shareCode().toLowerCase().replace("-", ""));
+        var found = shares.shareCode(family, ava.shareCode().toLowerCase().replace("-", ""));
         assertThat(found).isPresent();
         assertThat(found.get().studentId()).isEqualTo(ava.studentId());
         assertThat(found.get().displayName()).isEqualTo("Ava P.");
-        assertThat(shares.shareCode("AVA-22222")).isEmpty();
-        assertThat(shares.shareCode("7K2Q-M9XT")).isEmpty();
+        assertThat(shares.shareCode(family, "AVA-22222")).isEmpty();
+        assertThat(shares.shareCode(family, "7K2Q-M9XT")).isEmpty();
     }
 
     @Test
