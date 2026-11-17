@@ -126,7 +126,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
 | `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
-**Outside the count**, not in the request path: the personal-data access-log aggregator; the
+**Outside the count**, not in the request path: the
 **dev scanner** (in dev's application stack); the **transform Lambda** (in the production
 account's data-loading stack).
 
@@ -158,7 +158,7 @@ what its single-item actions allow.
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
-access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
+access-log group (§18), with `logs:CreateLogStream` and `logs:PutLogEvents` on that group only. Every event consumer has a dead-letter queue (§19). Key-management
 permissions follow the keys that encrypt the table and buckets.
 
 **Cross-tenant indexes (GSI2, GSI3 scan, GSI4) are held only by scheduled jobs.** No function a
@@ -1400,7 +1400,9 @@ notified.
 | Never this family's | HTTP 404 | **Security event** in the access-log group: family ID, the ID asked for, operation, request ID, source address, time — never values. Written by `core.data` |
 
 - **Alarms (page):** one family with **3 or more** never-linked failures in **15 minutes**; **10
-  or more** across everyone in a **day**. Thresholds and windows are configuration.
+  or more** across everyone in a **day**. Thresholds and windows are configuration. The
+  one-family count is a Contributor Insights rule on the access-log group (by family ID, fixed
+  15-minute periods); the daily one a metric filter (I12, 2026-11-17; ADR-024).
 - **No family's action writes another family's records**, except answering an invitation
   addressed to its own skater (§8).
 
@@ -1457,6 +1459,9 @@ same coach (held by `LinkedSkater` and the ownership condition).
   restores (who, which coach and skater, reason, when), the link-check security events, the
   share-code lookup and the share-check route, which return a skater's display name (ADR-012, ADR-033).
 - **Not logged:** the financial page's summary export (no personal data).
+- **Written straight to that group by `core.data`** (`PutLogEvents`), one write per request before
+  the response; **if it fails, the request fails**. Nothing goes to the function's own log, and
+  there is no aggregator function (I12, 2026-11-17; ADR-012).
 - **Its own log group** with its own read policy. Only the owner's operator role can read it,
   through IAM Identity Center with MFA. Nothing logs reads of the access log.
 - **CloudTrail data events** on the table and the reports, archive and access-log buckets, in
