@@ -1800,7 +1800,10 @@ database-gate tests; reproducing an incident (masked build).
      `pull_request_target`; forks never get AWS credentials;
   7. separate least-privilege deploy roles per account. The production deploy role may read the
      one Secrets Manager secret with the test accounts' passwords. Deploy roles must not read the
-     table's data or the access log.
+     table's data or the access log: GitHub's role can't assume CDK's lookup role, and CDK's
+     execution role and GitHub's role carry an explicit deny on reading or exporting table items,
+     the access-log group and the data buckets (dev's seed bucket excepted, for the import)
+     (owner, 2026-11-17, I13; ADR-032).
 - **Building dev by hand** with `build-dev` and the owner's Identity Center sign-in is allowed
   before that setup exists.
 
@@ -1914,8 +1917,7 @@ technical.*
 - The production canary's test mailbox (dev's is settled: the owner's test mailbox, ADR-027, 2026-11-17).
 - How long dev may hold masked data; a teardown leftover check; whether an import produces stream
   records.
-- Dependabot for pinned actions; GitHub run-log retention; narrowing CDK's bootstrap role if CDK is
-  chosen.
+- Dependabot for pinned actions; GitHub run-log retention.
 
 **Legal review**
 

@@ -43,7 +43,8 @@ aws sso login --sso-session bladebook
 # Once per account, before the first deploy: ask AWS Support to verify the account for CloudFront
 # (see "New account: CloudFront verification" below).
 
-# Once per account: the roles CDK deploys through.
+# Once per account: the roles CDK deploys through. From Batch 17b, bootstrap with the execution
+# policy that denies reading table data, the access log and the data buckets (ADR-032, I13).
 npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
 
 npx cdk deploy bladebook-dev-identity bladebook-dev-app --profile bladebook-dev
