@@ -57,10 +57,10 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [23](batch-logs/batch-23.md) | The rinkside Week tab | #51 |
 | [26](batch-logs/batch-26.md) | Saving a closed year's figures | #52 |
 | [17a](../infra/README.md) | Infrastructure, part 1: `infra/` in CDK (no batch log; its record is `infra/README.md`) | #54 |
-| [27](batch-logs/batch-27.md) | Lessons from before last year are view only (an unpaid one can still be waived) | not merged yet |
+| [27](batch-logs/batch-27.md) | Lessons from before last year are view only (an unpaid one can still be waived) | #57 |
 
-**Under way:** Batch 27 is built on `feature/batch-27-view-only-old-lessons`, waiting for its pull request. Next is
-Batch 17b (§4).
+**Under way:** Batch 17b, on `feature/batch-17b-infra`. Its conflicts (I1–I20) are listed and wait for the owner's
+rulings (§6). Batch 17 is split into 17b and 17c (owner, 2026-11-17).
 
 **What that means for the code:**
 
@@ -78,7 +78,7 @@ Batch 17b (§4).
 
 | Blocker | Effect on this plan |
 |---|---|
-| Batch 17b (the table, API, functions and events) isn't built; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | The app isn't deployed. "End to end" means **running locally**. |
+| Batches 17b and 17c (the table, API, functions, events and the website upload) aren't built; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | The app isn't deployed. "End to end" means **running locally**. |
 | Dev's AWS account can't create CloudFront distributions until AWS Support verifies it (asked 2026-11-16, case 179485860000682; `infra/README.md`) | `bladebook-dev-app` (both websites) can't deploy. Production's account needs the same step as soon as it exists. |
 | The Amazon Cognito user pool is deployed in dev, but nothing signs in through it until Batch 18 | Signing in locally uses a stand-in (Question 3). The sign-in library is chosen: AWS Amplify's Auth module with Secure Remote Password (SRP) (ADR-023, 2026-11-12). The real sign-in forms are Batch 18. |
 | Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | Called in-process or on a local timer, each a listed shortcut (Question 4). |
@@ -93,7 +93,8 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job), the tenant roles and the gate tests re-run on AWS (Blockers 23, 24, G-26), the drift check and TTL archiver, the Vite builds moved to each host's root, the website upload, and the deploy workflow with ADR-032's security setup (Blocker 3). With 17a, it closes every shortcut and gap the root `README.md` gives to Batch 17: SC-3, SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22, SC-27 and G-26. | Batch 27 merged first, since 17b turns on deleting old records. The website upload also needs `bladebook-dev-app` deployed (§3) |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1, I4, I6–I10, I12, I13, I15, I16, I18–I20). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
+| 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b; the owner's rulings on I11, I14 and I17 |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
 | 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in. | Batch 18 |
@@ -123,4 +124,27 @@ Each is the owner's. The full wording, and every decision that's been settled fo
 
 ## 6. Open questions
 
-None. New ones go here until the owner rules, then move to `AI/plan-history.md`.
+New ones go here until the owner rules, then move to `AI/plan-history.md`.
+
+**Batch 17b and 17c conflicts (listed 2026-11-17).** Claude's recommendation follows each. Ruled ones move to
+`AI/plan-history.md` (I2, I3 and I5 so far).
+
+| ID | Conflict | Batch | Recommended |
+|---|---|---|---|
+| I1 | The firewall is on the API's stage (ADR-MASTER §17, ADR-019), but each API is now reached through CloudFront under `/api/*` (ADR-027, 2026-11-16), so its per-address limits would see CloudFront's addresses | 17b | A second firewall on CloudFront for the API rules; lock the API to CloudFront |
+| I4 | A past lesson time "expires with the last of its seats", but a TTL delete runs no code; the lesson time holds the only price | 17b | Raise the lesson time's `expiresAt` to its latest seat's or line's, like the change-batch header |
+| I6 | Four events unnamed (ADR-MASTER §3, §25), and no document says how a stream record becomes a named event | 17b | One Pipe forwards raw records; EventBridge rules match on key prefix and images; names kept as rule names |
+| I7 | Launch time zone: New York in the docs, Chicago in the code and root `README.md`; one 7am rule reaches Pacific families at 4–5 AM | 17b | Chicago everywhere; Pacific's early reminder listed as a gap |
+| I8 | A multi-lesson cancel that fails part-way is never resumed (SC-14) | 17b | The drift check calls `reconcile-schedule` to finish unfinished batches |
+| I9 | `api-coach` sends the business-email confirmation, but ADR-MASTER §2 gives it no SES | 17b | `ses:SendEmail` on that one template; amend §2 |
+| I10 | The share-code read runs as `code-lookup` in the code; ADR-022 puts it on `client-tenant` | 17b | Change the code to match the ADR |
+| I11 | Gate tests: ADR-021 says the real dev stack; the runbook says a sandbox account with hand-copied roles, and has no GSI4 | 17c | The real dev stack |
+| I12 | No document says how access-log lines reach their own group on Lambda, or how "3 in 15 minutes per family" is counted | 17b | `core.data` writes them straight to the group; Contributor Insights for the per-family count |
+| I13 | CDK's bootstrap policy is AdministratorAccess, so the deploy role could read table data (ADR-032 d2.7) | 17b | Deny the table's data actions and access-log reads now |
+| I14 | Rinkside is `/coach/rinkside/` (ADR-023, ADR-MASTER, the code) or `/rinkside/` (ADR-027, `infra/`); email links assume one host | 17c | `/rinkside/`; separate coach and family hosts in the email links; update the ADRs |
+| I15 | Test accounts are `@example.com`, but dev's SES sandbox only sends to verified addresses; their passwords and groups aren't settled | 17b | SES mailbox-simulator addresses; the stack sets groups, passwords in Secrets Manager; a refused send is a permanent failure |
+| I16 | Whether the identity stack is kept between dev builds (ADR-028 open; `infra/README.md` destroys it) | 17b | Keep it |
+| I17 | No Content Security Policy is settled; the coach page loads Google Fonts | 17c | Self-host Figtree; strict policy |
+| I18 | The dev scanner, monthly export and seed bucket are in the ADRs but in no batch | 17b | Seed bucket in 17b; scanner after launch; export with production |
+| I19 | Sending addresses undecided | 17b | A setting, `no-reply@dev.bladebook.org` in dev; production's later |
+| I20 | Wording only: `FamilyChanged` must include inserts; `sched-year-close` missing from §19's tables; index projection (all attributes) unstated; ADR-016 says Cognito sends through SES, but dev uses Cognito's sender | 17b | Fix the wording |

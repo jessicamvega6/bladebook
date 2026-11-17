@@ -718,8 +718,8 @@ the unpaid list (GSI3) with no filtering logic anywhere.
 
 **Items expire through Time to Live (TTL)** (ADR-017). One attribute, `expiresAt` (seconds
 since 1970), set per item from a per-item-type window held in configuration; an item without
-it never expires. Past date overrides, temp headers and held lesson times expire a few weeks
-after their dates. Seats and chargeable cancellation lines get an expiry only **when
+it never expires. Past date overrides, temp headers and held lesson times expire 30 days
+after their dates (the date-override window). Seats and chargeable cancellation lines get an expiry only **when
 settled**, so an unpaid lesson never disappears (ADR-017, applied to seats and lines as it
 was to bookings, ADR-031 d15). A past lesson time is kept as long as any seat or line for it
 is kept, and expires with the last of them; one that never had a seat expires on the
@@ -727,8 +727,9 @@ date-override window. `SEATEND#` records are kept for the same window as cancell
 (ADR-031 Consequences, d14). Profiles, links and codes are never on TTL — they end
 by account closure, or by erasure on request once it ships (Phase 2, owner 2026-10-20). Parent records never expire before their children:
 a batch header is raised to its latest line, and header repair (ADR-006 d4b) only runs for
-arrangements with an upcoming lesson. The windows for records about people wait on the
-legal review.
+arrangements with an upcoming lesson. For MVP (owner, 2026-11-17), lesson and payment records
+are kept 16 months after they settle (the lesson-record window); every other window for records
+about people has no value until the legal review, so those records are kept.
 
 **GSI1–GSI3 are written by seats** (ADR-031 d2) — the same roles they had on bookings.
 **GSI4 is written by invited seats and by lesson times with a pending leave** (d12). Lesson
@@ -2745,7 +2746,7 @@ amended.
 | [014](adr/ADR-014-check-in-app-and-offline-capture.md) | Attendance as an MVP surface; offline capture, device timestamps, idempotent replay, explicit no-show, `PENDING` report default | Accepted; amends 001 (A3); **d10–11 superseded by 023** (no separate app client or function); amended 2026-10-13 by 031; amended 2026-11-11 (end-of-day report to Phase 2) |
 | [015](adr/ADR-015-late-cancellation-and-no-show-charges.md) | Late cancellation and no-show both charged, one rule; fee per block, stamped on the booking | Accepted; **charge is Phase 2**; supersedes 009 d3 and d11 in part, amends 014 d3; amended 2026-09-29 (d1a — only the client's own late cancellation is charged, from any screen); d3 amended by 020; amended by 026 2026-10-13 (in a shared lesson, the leaver may be charged their share of the late-cancellation fee); d4 amended by 031 (the charge lives on the seat's cancellation line) |
 | [016](adr/ADR-016-coach-signup.md) | Coach signup — **ungated for now**, licence gate intended; Cognito-owned credentials; the coach profile | Accepted; closes §11's oldest open thread; extends 002; amended 2026-09-29 (`requiredNoticeHours` on the profile); amended 2026-10-01, 2026-10-05 (photo to Phase 2), 2026-10-12 (`acceptsCash`), 2026-11-12 (business-email link: single use, 3 days) |
-| [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f; amended 2026-10-12 (16-month floor for lesson and payment records; archived-history message; restores logged under 012); amended 2026-10-13 by 031 |
+| [017](adr/ADR-017-data-retention-ttl-and-archive.md) | Data retention — Time to Live on `expiresAt`, an archiver copying expired items to S3, and a lifecycle rule into Glacier Deep Archive | Accepted; **windows for records about people await the legal review**; constrains 006 d4b, extends 010 d5f; amended 2026-10-12 (16-month floor for lesson and payment records; archived-history message; restores logged under 012); amended 2026-10-13 by 031; amended 2026-11-17 (MVP windows: a 16-month lesson-record window, a 30-day date-override window, the rest kept until the legal review) |
 | [018](adr/ADR-018-unpaid-lesson-reminder-to-coach.md) | A weekly email telling each coach which lessons are still unpaid after a threshold, asking them to mark each paid or waived | Accepted; threshold 7 days, listed every Monday until settled (amended 2026-11-12); answers 017's open question; amended 2026-10-13 by 031 |
 | [019](adr/ADR-019-waf-in-mvp.md) | A Web Application Firewall in MVP, on the API and Cognito; API Gateway becomes a REST API | Accepted; idle budget restated 2026-09-30; d3's authorizer question closed by 023; amended 2026-10-15 (`/health` is rate-limited); *amended by 033*; amended 2026-10-20 (recounted to 7 rules, ~$12/month; the code-lookup rule also covers the share-code lookup and `/share-check`) |
 | [020](adr/ADR-020-repricing-booked-lessons.md) | Upcoming lessons follow the coach's current price: increases beyond the notice period, decreases at once, families told; renames the change batch, event and consumers | Accepted; amends 003 d2 and 015 d3; large-change warning at 50% or more of the old price, up or down (amended 2026-10-13); amended 2026-10-08 (booking counter checked at save, "just booked" email); amended 2026-10-09 ("just booked" email and its counter moved to Phase 2); amended by 031 (a re-price changes only the lesson time's total; every share follows it, a `REPRICED#` line per seat whose share changes) |

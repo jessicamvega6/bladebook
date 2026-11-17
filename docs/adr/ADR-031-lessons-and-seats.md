@@ -481,7 +481,7 @@ content, not an architecture decision.*
   upcoming `SEAT#` items and keeping the skater's (*owner, 2026-10-13*: no index access across
   families; name changes are rare enough that the extra reads don't matter); `consumer-invite` then refreshes `partnerName` on the seats sharing a lesson
   with them.
-- *Open:* the IAM roles of the two new jobs. (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
+- ~~*Open:* the IAM roles of the two new jobs.~~ *Written 2026-11-17 (owner): ADR-MASTER §2, Execution roles.* (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
   only `sched-deadline-sweep` should be able to read it.
 
 ### 15. Unchanged
@@ -613,7 +613,7 @@ stateDiagram-v2
 - ~~ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
   it becomes one more `dueKind`.~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson;
   an unanswered invitation expires at the lesson start (`EXPIRE`, decision 12). No new `dueKind`.
-- The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`; only the sweep may read GSI4.
+- ~~The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`; only the sweep may read GSI4.~~ *Written 2026-11-17 (owner): ADR-MASTER §2, Execution roles. The roller has no index; the sweep alone reads GSI4.*
 
 ## Revisit if
 

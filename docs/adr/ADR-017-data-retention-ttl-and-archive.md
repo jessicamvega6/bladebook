@@ -35,6 +35,19 @@ rows. The windows still wait on the legal review.
 reach into the archive, the monthly backups and point-in-time recovery, and the erased-ID list,
 is Phase 2.
 
+**Amended — 2026-11-17.** *Decided by the owner* (Batch 17b, conflict I3 in `AI/plan-history.md`). The windows
+for MVP:
+- **Every window holding lesson or payment records is 16 months**, the **lesson-record window**: a settled seat
+  (paid or waived), a payment correction (`PAYCORRECTION#`) and a recurrence header (from its `endDate`). The legal
+  review may lengthen it, never shorten it below the 2026-10-12 floor.
+- **The date-override window is 30 days** (confirmed). It also covers temporary-schedule headers, held lesson times
+  and past lesson times that were never booked.
+- **Every other window has no value yet**: ended invitations (`SEATEND#`), cancellation and re-price lines, and
+  chargeable cancellation lines. Those items get no `expiresAt`, so they are kept until the legal review sets one.
+- **"Booking window" in decisions 2 and 3 is renamed the lesson-record window.** There it never meant the
+  three-month window a family books within (ADR-031 d3); read that way, a paid seat would have expired about three
+  months after it was settled, under the 16-month floor.
+
 ---
 
 ## Context
@@ -88,19 +101,19 @@ differently enough to shape the design:
 
 | Item | `expiresAt` set when | Window | Needs legal review? |
 |---|---|---|---|
-| Date override `SCHEDULE#DATE#<date>` | Written | Its date + **30 days** (proposed) | No — schedule data, no person |
+| Date override `SCHEDULE#DATE#<date>` | Written | Its date + **30 days** (confirmed 2026-11-17) | No — schedule data, no person |
 | Temporary schedule header `SCHEDULE#TEMP#` | Written or edited | Its `endDate` + the date-override window | No |
 | ~~Held slot (`COACH_HELD` booking)~~ | Written | Its date + the date-override window | No — no student |
 | *Held lesson time (`LESSON#`, `HELD`) — ADR-031, 2026-10-13* | Written | Its date + the date-override window | No — no student |
 | *Past lesson time (`LESSON#`) ~~with no seats~~ — ADR-031, 2026-10-13* | ~~When it is past and has no seats~~ Once its last seat and line have gone; if it never had a seat, on the date-override window *(Revised 2026-10-13 (ADR-031))* | Its date + the date-override window (proposed, as for a held time) | No — holds nothing about who booked |
-| ~~Booking~~ *Seat (`SEAT#`, ADR-031)*, `PAID` or `WAIVED` | **When settled** | Settlement + booking window | **Yes** |
+| ~~Booking~~ *Seat (`SEAT#`, ADR-031)*, `PAID` or `WAIVED` | **When settled** | Settlement + ~~booking window~~ lesson-record window (**16 months**, 2026-11-17) | **Yes** |
 | ~~Booking~~ *Seat (`SEAT#`, ADR-031)*, `UNPAID` | **Never, while unpaid** | — | — |
 | *Ended invitation `SEATEND#` — ADR-031, 2026-10-13* | Written | Same window as cancellation lines — proposed; it names a student | **Yes** |
 | Cancellation line `CANCELLED#` — not chargeable (*since ADR-031, a moved seat*) | Written | Cancellation + cancellation window | **Yes** — and tax (ADR-006, ADR-009 Open) |
 | Re-price line `REPRICED#` (ADR-020) | Written | Same window as cancellation lines — proposed; they name students too | **Yes** |
 | Cancellation line — chargeable (ADR-015 decision 1a) | **When settled** | Settlement + cancellation window | **Yes** |
 | Cancellation batch header `CHANGEBATCH#` | With its lines | Never earlier than its latest line — see decision 3 | Derived |
-| Recurrence header `RECURRENCE#` | Written, and when its end date moves | Its `endDate` + booking window | Derived |
+| Recurrence header `RECURRENCE#` | Written, and when its end date moves | Its `endDate` + ~~booking window~~ lesson-record window (16 months, 2026-11-17) | Derived |
 | Rejected `PENDING` student | — | **Not retained: deleted immediately on rejection** (ADR-002 decision 2b, 2026-09-30) | — |
 | Coach, client and student profiles, links, `CODE#`, default schedule | **Never** | Account lifecycle and erasure on request — not TTL | — |
 
@@ -123,10 +136,10 @@ Two item types summarise others, and a summary that vanishes first misleads:
 - **A cancellation batch header** is raised to at least the latest `expiresAt` of its lines,
   whenever a line's expiry is set — including a chargeable line that settles months later.
   The update only ever raises the value.
-- **A recurrence header** expires at its `endDate` plus the booking window. Its lessons may
+- **A recurrence header** expires at its `endDate` plus the ~~booking window~~ lesson-record window *(renamed 2026-11-17)*. Its lessons may
   settle later and outlive it. That is made safe by constraining ADR-006 decision 4b's
   repair: **a header is only ever rebuilt for an arrangement with at least one upcoming
-  lesson.** An expired header's arrangement ended a full booking window ago, so repair never
+  lesson.** An expired header's arrangement ended a full ~~booking window~~ lesson-record window ago, so repair never
   sees it — and without that guard, a lesson outliving its header would trigger a rebuild
   from `bookedIntervalWeeks`, the stale interval the header exists to replace.
 
@@ -257,7 +270,7 @@ by construction, and the scanner is what confirms it.
   (decision 3) — is not yet decided.~~ *Settled 2026-10-13 (ADR-031 Consequences).*
 - **Every window marked "needs legal review" in decision 2**, plus the archive's own
   retention window. These go on the pre-launch legal review's agenda.
-- **The date-override window** — 30 days is proposed; confirm. It needs no legal input.
+- ~~**The date-override window** — 30 days is proposed; confirm. It needs no legal input.~~ *Confirmed 2026-11-17: 30 days.*
   *Deferred by the owner, 2026-09-30.* Raised with it: as written, each date record of a named
   temp expires counted from its own date, so a camp's first days vanish before its last. The
   alternative is to expire a temp's header and all its date records together, about 13 months

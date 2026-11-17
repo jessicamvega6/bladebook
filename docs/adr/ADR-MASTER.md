@@ -133,7 +133,9 @@ account's data-loading stack).
 
 IAM enforces the **actions**, **indexes** and **other services** below. It cannot tell item types
 apart inside one partition (there is no sort-key condition), so which items a function touches is
-held by code and tests.
+held by code and tests. Inside `TransactWriteItems`, IAM checks each write as its own action
+(`PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem`), so a role's transactions can do only
+what its single-item actions allow.
 
 | Function | DynamoDB | Indexes | Other services |
 |---|---|---|---|
@@ -150,8 +152,8 @@ held by code and tests.
 | `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
-| `sched-lesson-roller` | *Role not yet written* | — | — |
-| `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
+| `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
+| `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
@@ -1322,12 +1324,16 @@ notified.
 - **`client-tenant` policy:**
   - **own partition** (`CLIENT#<clientId>`): full item access;
   - **GSI1**: same `LeadingKeys` condition on the index;
-  - **coach's partition, reads**: `GetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
-    allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist covers schedule
-    items, the coach profile's public fields (the payment-type switches are `acceptsCash`,
-    `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022, 2026-11-06) and the lesson-time fields availability needs
-    (`priceMinor`, `shareCount`, `joinOrder`, never `pendingLeave`), the family's own seat read,
-    and `studentStatus` alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a).
+  - **coach's partition, reads**: `GetItem`/`BatchGetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
+    allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist (ADR-022 decision 3,
+    written 2026-11-17) covers schedule items, the coach profile's public fields (the payment-type
+    switches are `acceptsCash`, `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022,
+    2026-11-06), the lesson-time fields availability needs (`priceMinor`, `shareCount`, `joinOrder`,
+    never `pendingLeave`), **a seat's `idempotencyKey` only** (the retry check), and `studentStatus`
+    alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a). **A family can list
+    every key in the partition** (IAM can't hide `PK`/`SK`), so no listed attribute identifies a
+    person on any item type, and **the family's own seat details are read from GSI1** (owner,
+    2026-11-17).
     **It fails closed.**
   - **coach's partition, writes**: `PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem`,
     `ReturnValues` held to `NONE` — applies to `PENDING` sessions too. The booking's
@@ -1531,11 +1537,11 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 | Item | `expiresAt` set when | Window |
 |---|---|---|
-| Date override | Written | Its date + date-override window (30 days proposed) |
+| Date override | Written | Its date + date-override window (30 days) |
 | Temp header | Written or edited | Its `endDate` + date-override window |
 | Held lesson time | Written | Its date + date-override window |
 | Past lesson time | Its last seat and line have gone (or, never booked, on the date-override window) | With the last of them |
-| Seat, `PAID` or `WAIVED` | **Settled** | Settlement + booking window |
+| Seat, `PAID` or `WAIVED` | **Settled** | Settlement + lesson-record window (16 months) |
 | Seat, `UNPAID` | **Never** while unpaid | — |
 | `SEATEND#` | Written | Cancellation window |
 | Cancellation line (not chargeable) | Written | Cancellation window |
@@ -1543,13 +1549,15 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Cancellation line (chargeable, Phase 2) | Settled | Settlement + cancellation window |
 | Change batch header | With its lines | **Never earlier than its latest line** (only ever raised) |
 | Closed year's figures (`CLOSEDYEAR#`) | Never | Account lifecycle (2026-11-16; Phase 2's past years read them) |
-| Payment correction (`PAYCORRECTION#`) | Written | At least 16 months, like every payment record; set with the others in Batch 17. Once its year is saved, nothing reads it |
-| Recurrence header | Written, and when its end date moves | `endDate` + booking window |
+| Payment correction (`PAYCORRECTION#`) | Written | Lesson-record window (16 months). Once its year is saved, nothing reads it |
+| Recurrence header | Written, and when its end date moves | `endDate` + lesson-record window (16 months) |
 | Rejected `PENDING` skater | — | **Deleted immediately** |
 | Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle; erasure on request from Phase 2 |
 
-- **Every window holding lesson or payment records is at least 16 months.** The other windows wait
-  on the legal review.
+- **Every window holding lesson or payment records is the lesson-record window, 16 months** (owner,
+  2026-11-17), and never less. It is not the three-month booking window (§7). **The date-override
+  window is 30 days.** The other windows (`SEATEND#`, cancellation and re-price lines) have no value
+  until the legal review, so those items get no `expiresAt` and are kept.
 - **History screens say** lessons settled more than *N* months ago are archived and can be
   requested, *N* read from the retention setting.
 - **`consumer-ttl-archiver`** reads the stream, matches **only TTL removals** (`REMOVE` by the
@@ -1832,14 +1840,12 @@ technical.*
   projection allowed for an `ACTIVE` session, other `STUDENT#` attributes and `PENDING` sessions
   refused), and the share-code read's row (`studentId` and the display name only; any other
   attribute, no projection, or a `Query` refused).
-- **IAM roles** for `sched-lesson-roller` and `sched-deadline-sweep`.
 - **Event names** for `consumer-invite`'s trigger and the roller's and sweep's schedules.
 - **Which function sends the coach's SMS opt-in confirmation.**
 
 **Settings and details**
 
 - The rink-fee calculation, for Phase 2 (`docs/Q_Rink-Fees.md`).
-- The date-override window (30 days proposed).
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.

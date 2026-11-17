@@ -8,7 +8,7 @@ reason (ADR-032).
 **Status (Batch 17a, 2026-11-16):** written and tested. In dev, `bladebook-dev-identity` is
 deployed. `bladebook-dev-app` waits for the account's CloudFront verification (below), and
 `bladebook-dev-deploy-access` waits for the deploy workflow. The rest of Batch 17,
-including the table, API and functions, is Batch 17b (`AI/implementation-plan.md`).
+including the table, API and functions, is split into Batches 17b and 17c (`AI/implementation-plan.md`).
 
 ## Stacks
 
@@ -93,7 +93,7 @@ Change any of these in `lib/` and its test together.
   `nosniff`, no framing, `strict-origin-when-cross-origin`, and a `Permissions-Policy` that turns
   off the camera, microphone and location. Dev adds `X-Robots-Tag: noindex`.
 - **No Content Security Policy yet.** One written before the real build is served would likely
-  break it. Add it with Batch 17b's upload and test it there.
+  break it. Add it with Batch 17c's upload and test it there.
 - **The access-log archive moves to Deep Archive after 30 days**, to match ADR-017's archive.
   ADR-012 doesn't give a day.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**
