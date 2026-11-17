@@ -331,7 +331,7 @@ class NotificationServiceTest {
         Email morning = only(sent, "coach-morning");
         assertThat(morning.to()).isEqualTo("dana@gmail.com");
         assertThat(morning.data()).containsEntry("lessonCount", "3").containsEntry("firstTime", "6:00 AM").containsEntry("today", "Mon, Nov 16")
-                .containsEntry("rinksideUrl", "https://bladebook.test/coach/rinkside/");
+                .containsEntry("rinksideUrl", "https://bladebook.test/rinkside/");
         assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // a re-run for the same date
         assertThat(jobs.dayOf(MON.plusDays(1))).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // no lessons: no morning email
     }

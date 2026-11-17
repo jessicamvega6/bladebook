@@ -84,7 +84,7 @@ bladebook/
 
 - **`web/` builds two sites from one source tree:** the **coach website** and the **family
   website**. The **rinkside page** is a separate entry point inside the coach website at
-  `/coach/rinkside`, shipped with it. It loads only today's lessons, attendance, contact reveal
+  `/rinkside/` (`app.bladebook.org/rinkside/`; ADR-023, 2026-11-16; moved in the code 2026-11-17, I14), shipped with it. It loads only today's lessons, attendance, contact reveal
   and cancellation, never the schedule editor.
 - **Locally**, `api-coach` runs on `:8080` and `api-client` on `:8081` as ordinary `main()`
   processes, and Vite proxies `/api/coach/*` and `/api/client/*` to them.
@@ -1017,7 +1017,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 
 ### The page
 
-- **`<domain>/coach/rinkside`**, part of the coach website, signed in through the coach website's
+- **`app.bladebook.org/rinkside/`** (dev `app.dev.bladebook.org/rinkside/`; formerly `<domain>/coach/rinkside`), part of the coach website, signed in through the coach website's
   sign-in. Built and tested as an **ordinary browser tab**; nothing depends on Add to Home Screen.
 - **Only a signed-in coach can use it** (ADR-023 d7). Until the coach signs in, the page shows only
   the sign-in screen. Every rinkside route needs a valid token **and** the `Coach` group; a family's
@@ -1029,7 +1029,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 
 ### Offline
 
-- **A service worker scoped to `/coach/rinkside/`** caches the page and today's lessons (skater
+- **A service worker at `/rinkside/sw.js`, scoped to `/rinkside/`** (I14, 2026-11-17), caches the page and today's lessons (skater
   names and times, **no contact details**), fetched whenever the page opens with signal. No other
   part of either site has a service worker.
 - **If the page opens with signal and finds its offline copy gone** (Safari can clear site data),
@@ -1308,7 +1308,7 @@ notified.
 |---|---|
 | Coach website | **60 minutes** |
 | Family website | **60 minutes** |
-| Rinkside routes (`/coach/rinkside`) | **4 hours** |
+| The rinkside page (`/rinkside/`): its API routes, `/api/coach/rinkside/…` | **4 hours** |
 | Saving a schedule change | Sign-in within the last **15 minutes** |
 
 - Cognito's refresh-token lifetime is **4 hours** on the coach app client and **60 minutes** on the

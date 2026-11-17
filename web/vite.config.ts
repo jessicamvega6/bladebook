@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // One source tree, three entry points (ADR-MASTER section 1): the coach website, its rinkside
-// page at /coach/rinkside, and the family website. Where the family website is served is
+// page at /rinkside/ (ADR-023, 2026-11-16; I14), and the family website. Where the family website is served is
 // still open (ADR-023 Open); /family/ is the local path.
 export default defineConfig({
   plugins: [react()],
@@ -18,7 +18,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         coach: resolve(__dirname, 'coach/index.html'),
-        rinkside: resolve(__dirname, 'coach/rinkside/index.html'),
+        rinkside: resolve(__dirname, 'rinkside/index.html'),
         family: resolve(__dirname, 'family/index.html'),
       },
     },

@@ -68,7 +68,7 @@ public final class NotificationService {
         String calendar() { return site + "/coach/#/calendar"; }
         String lessons() { return site + "/coach/#/lessons"; }
         String payments() { return site + "/coach/#/payments"; }
-        String rinkside() { return site + "/coach/rinkside/"; }
+        String rinkside() { return site + "/rinkside/"; }
     }
 
     private static final Logger LOG = Logger.getLogger(NotificationService.class.getName());
