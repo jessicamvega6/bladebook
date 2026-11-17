@@ -2298,6 +2298,11 @@ const mpRangeBar = (fromPath, toPath, idp, extra = '') => {
 const PAY_BADGE = { PAID: ['Paid', 'success', 'check'], WAIVED: ['Waived', 'neutral'], UNPAID: ['Unpaid', 'warning'] };
 const payBadge = l => { const [t, v, i] = PAY_BADGE[l.pay]; return badge(t, v, i); };
 const mpLesson = id => state.lessons.find(l => l.id === id);
+/* A lesson dated before January 1 of last year is view only (G-39, Batch 27; owner 2026-11-15): no Mark paid, no change to how
+   they paid, no Undo. An unpaid one can still be waived (owner, 2026-11-16), so it can be settled. */
+const MP_EDITABLE_FROM = `${+TODAY.slice(0, 4) - 1}-01-01`;
+const mpViewOnly = l => l.iso < MP_EDITABLE_FROM;
+const MP_VIEW_ONLY_HINT = `Lessons from before January 1, ${MP_EDITABLE_FROM.slice(0, 4)} can be viewed but not changed.`;
 /** The object holding one skater's attendance and payment: the lesson itself (k = -1) or its entry in l.with. */
 const mpPart = (id, k = -1) => { const l = mpLesson(id); return !l ? null : k < 0 ? l : (l.with || [])[k] || null; };
 const mpSharedWith = p => isShared(p.lesson) ? `<small class="mp-sub">${ic('users', 12)} Shared with ${skatersIn(p.lesson).filter(x => x.sid !== p.sid).map(x => esc(shortName(student(x.sid).name))).join(', ')}</small>` : '';
@@ -2359,12 +2364,17 @@ SCREENS.payments = () => {
   const list = ui.filter === 0 ? unpaid : all;
   const rowsHtml = list.map(l => {
     const s = student(l.sid);
+    const old = mpViewOnly(l);
     const acts = l.pay === 'UNPAID'
-      ? `${B('Waive', 'ghost', 'mpWaiveAsk', { sm: true, args: [l.id, l.k] })}${B('Mark paid', 'secondary', 'mpPaidOpen', { sm: true, icon: 'check', args: [l.id, l.k] })}`
-      // Waived is final (ADR-003; R7, owner 2026-11-09): no Undo, and Waive always asks first. Paid can still be undone.
-      : l.pay === 'WAIVED' ? '<span class="muted">Final</span>' : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
-    // How they paid sits under the Paid badge and can be changed afterwards. Waived lessons have none.
-    const how = l.pay !== 'PAID' ? '' : `<small class="mp-how">${l.paidBy ? `${PAID_BY_LABEL[l.paidBy]} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
+      ? `${B('Waive', 'ghost', 'mpWaiveAsk', { sm: true, args: [l.id, l.k] })}${old ? '' : B('Mark paid', 'secondary', 'mpPaidOpen', { sm: true, icon: 'check', args: [l.id, l.k] })}`
+      // Waived is final (ADR-003; R7, owner 2026-11-09): no Undo, and Waive always asks first. Paid can still be undone,
+      // unless it's from before last year (Batch 27).
+      : l.pay === 'WAIVED' ? '<span class="muted">Final</span>'
+        : old ? `<span class="muted" title="${esc(MP_VIEW_ONLY_HINT)}">View only</span>`
+        : `${B('Undo', 'ghost', 'mpUndo', { sm: true, icon: 'undo', args: [l.id, l.k] })}`;
+    // How they paid sits under the Paid badge and can be changed afterwards. Waived lessons have none. A view-only
+    // lesson shows it without Change.
+    const how = l.pay !== 'PAID' ? '' : old ? (l.paidBy ? `<small class="mp-how">${PAID_BY_LABEL[l.paidBy]}</small>` : '') : `<small class="mp-how">${l.paidBy ? `${PAID_BY_LABEL[l.paidBy]} · ` : ''}<a class="link" data-act="mpHowOpen" data-arg='${esc(JSON.stringify([l.id, l.k]))}'>${l.paidBy ? 'Change' : 'Add how they paid'}</a></small>`;
     return `<tr${statusOf(l) === 'NOT_RECORDED' ? ' class="mp-attn"' : ''}><td><span class="cellname">${avatar(initials(s.name), 'sm')}<span>${esc(s.name)}${s.rel !== 'Self' ? `<small class="mp-sub">${esc(s.client)}</small>` : ''}${mpSharedWith(l)}</span></span></td>
       <td class="num">${dDow(l.iso)} · ${fmtT(l.t)}</td><td>${statusBadge(l)}</td><td class="r money">${money(l.price)}</td><td>${payBadge(l)}${how}</td><td class="r"><span class="cellbtns">${acts}</span></td></tr>`;
   }).join('');
@@ -2722,6 +2732,14 @@ PRESETS.push(
     st.screen = 'payments'; st.ui.pay = { from: '2026-09-01', to: '2026-10-14', filter: 0, how: -1 };
     const l = st.lessons.find(x => x.sid === 's5' && x.iso === '2026-10-09' && x.t === 360 && x.pay === 'UNPAID') || st.lessons.find(x => x.sid && isPast(x) && x.pay === 'UNPAID');
     st.modal = { kind: 'mpWaive', id: l.id, k: -1 };
+  } },
+  { id: 'CoachPaymentsViewOnly', file: 'payments-view-only', group: 'Payments', title: 'Payments — lessons from before last year', note: 'New (G-39, Batch 27; owner 2026-11-15 and 2026-11-16). Lessons dated before January 1 of last year are view only: Sam’s paid lesson shows View only (hover for why) and how they paid without Change; Mia’s unpaid one offers Waive alone, so it can still be settled; Priya’s waived one stays Final. Noah’s lesson from January of last year can still be undone.', setup: st => {
+    st.screen = 'payments'; st.ui.pay = { from: '2024-12-01', to: '2025-01-31', filter: 1 };
+    st.lessons.push(
+      { id: 'old1', sid: 's4', iso: '2024-12-02', t: 360, len: 30, price: 50, status: 'CHECKED_IN', pay: 'PAID', paidBy: 'VENMO' },
+      { id: 'old2', sid: 's1', iso: '2024-12-04', t: 390, len: 30, price: 50, status: 'CHECKED_IN', pay: 'UNPAID' },
+      { id: 'old3', sid: 's6', iso: '2024-12-09', t: 360, len: 30, price: 50, status: 'NO_SHOW', pay: 'WAIVED' },
+      { id: 'old4', sid: 's2', iso: '2025-01-06', t: 360, len: 30, price: 50, status: 'CHECKED_IN', pay: 'PAID', paidBy: 'CASH' });
   } },
   { id: 'CoachFinances', file: 'finances', group: 'Payments', title: 'Financial summary', note: 'New, MVP feature 16. Year-to-date gross (money received) for 2026, month by month. Rink fees are Phase 2 (owner, 2026-11-12): the page says rink fee calculation is coming. Only September and October have sample lessons.', setup: st => { st.screen = 'finances'; } },
   { id: 'CoachFinancesExport', file: 'finances-export', group: 'Payments', title: 'Financial summary — download', note: 'New state. The summary export (ADR-030 d7, MVP): a CSV for this year or last, one row per month, no skater names, so not a PII read.', setup: st => { st.screen = 'finances'; st.modal = { kind: 'finExport' }; st.ui.finYear = 0; } },

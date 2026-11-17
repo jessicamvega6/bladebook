@@ -102,6 +102,27 @@ class PaymentServiceTest {
     }
 
     @Test
+    void aLessonFromBeforeLastYearIsViewOnlyButAnUnpaidOneCanStillBeWaived() {
+        service.markPaid(dana, MONDAY, SIX, ava, "VENMO");
+        // 11:30 PM on December 31, 2027 in Chicago: 2026's lessons are still last year's, so still editable.
+        now.set(Instant.parse("2028-01-01T05:30:00Z"));
+        assertThat(service.list(dana, MONDAY, MONDAY).rows()).extracting(PaymentService.Row::viewOnly).containsExactly(false, false, false);
+
+        // Half past midnight on January 1, 2028 in Chicago: they're from before last year now.
+        now.set(Instant.parse("2028-01-01T06:30:00Z"));
+        assertThat(service.list(dana, MONDAY, MONDAY).rows()).extracting(PaymentService.Row::viewOnly).containsExactly(true, true, true);
+        String refused = "Lessons from before January 1, 2027 can be viewed but not changed.";
+        assertThatThrownBy(() -> service.undo(dana, MONDAY, SIX, ava)).hasMessage(refused);
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "OTHER")).hasMessage(refused);  // how they paid
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX_30, jack, "")).hasMessage(refused);
+        assertThat(service.list(dana, MONDAY, MONDAY).rows()).extracting(r -> r.status() + " " + r.paidVia())
+                .containsExactly("PAID VENMO", "UNPAID null", "UNPAID null");
+
+        // Waive still settles an old unpaid lesson (owner, 2026-11-16), so it leaves the reminders.
+        assertThat(service.waive(dana, MONDAY, SIX_30, jack).status()).isEqualTo(Payment.Status.WAIVED);
+    }
+
+    @Test
     void waivedIsFinal() {
         assertThat(service.waive(dana, MONDAY, SIX, ava).status()).isEqualTo(Payment.Status.WAIVED);
         assertThatThrownBy(() -> service.undo(dana, MONDAY, SIX, ava)).hasMessage("A waived lesson can’t be changed.");

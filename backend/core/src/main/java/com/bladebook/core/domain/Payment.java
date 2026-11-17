@@ -1,8 +1,11 @@
 package com.bladebook.core.domain;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -26,6 +29,29 @@ public final class Payment {
     /** A seat written before Batch 8 has no {@code paymentStatus}: it is unpaid. */
     public static Status of(String stored) {
         return stored == null ? Status.UNPAID : Status.valueOf(stored);
+    }
+
+    /**
+     * A lesson dated before January 1 of last year is view only (G-39; owner, 2026-11-15): it can't be marked paid, have
+     * how they paid changed or be undone, because the financial page reads only this year's and last year's lessons, so
+     * a payment for it would count in no year. {@code today} is the date in the coach's time zone. Waiving it is still
+     * allowed (owner, 2026-11-16), so an old unpaid lesson can be settled; a waive never touches the figures.
+     */
+    public static boolean viewOnly(LocalDate lessonDate, LocalDate today) {
+        return lessonDate.isBefore(firstEditable(today));
+    }
+
+    /** Refuses a change to a {@linkplain #viewOnly view-only} lesson. */
+    public static void checkChangeable(LocalDate lessonDate, LocalDate today) {
+        if (viewOnly(lessonDate, today)) {
+            throw DomainException.conflict("Lessons from before "
+                    + firstEditable(today).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.US))
+                    + " can be viewed but not changed.");
+        }
+    }
+
+    private static LocalDate firstEditable(LocalDate today) {
+        return LocalDate.of(today.getYear() - 1, 1, 1);
     }
 
     /** Mark paid: from unpaid, or on a paid lesson to change how they paid. */

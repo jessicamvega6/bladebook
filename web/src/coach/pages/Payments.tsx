@@ -5,6 +5,8 @@
  * Every skater's lesson that has happened in a date range, at their share of the price. Unpaid or All; Mark paid with
  * how they paid (optional, changeable afterwards), Waive (always confirms; final, R7), and Undo on paid lessons. Undo on
  * a payment that counted in a closed year asks first (owner, 2026-11-16): the server says which ones (closedYear).
+ * A lesson from before January 1 of last year is view only (G-39, Batch 27; the server says which, viewOnly): a paid
+ * one shows *View only*, and an unpaid one offers Waive alone (owner, 2026-11-16).
  * Financial summary opens the financial page (Batch 12). Not yet: Send reminders (Phase 2), shown disabled.
  */
 import { useEffect, useId, useState } from 'react';
@@ -101,14 +103,16 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
   const t = data.totals;
   const list = all ? data.rows : data.rows.filter((r) => r.status === 'UNPAID');
   const undo = (r: PaymentRowDto) => void act(() => api.undo(r), () => `${r.fullName}, ${shortDate(r.date)}: back to unpaid.`);
+  const oldest = `Lessons from before January 1, ${data.thisYear - 1} can be viewed but not changed.`;
   const rows = list.map((r) => {
     const [at, atone, aicon] = ATTEND[r.attendance];
     const [pt, ptone, picon] = PAY[r.status];
     const acts = r.status === 'UNPAID'
       ? <><Button variant="ghost" sm onClick={() => setModal({ kind: 'waive', r })}>Waive</Button>
-          <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null })}>Mark paid</Button></>
-      // Waived is final (R7): no Undo. Paid can still be undone.
+          {!r.viewOnly && <Button variant="secondary" sm icon="check" onClick={() => setModal({ kind: 'paid', r, edit: false, via: null })}>Mark paid</Button>}</>
+      // Waived is final (R7): no Undo. Paid can still be undone, unless it's from before last year.
       : r.status === 'WAIVED' ? <span className="muted">Final</span>
+        : r.viewOnly ? <span className="muted" title={oldest}>View only</span>
         : <Button variant="ghost" sm icon="undo" onClick={() => (r.closedYear != null ? setModal({ kind: 'undo', r }) : undo(r))}>Undo</Button>;
     return (
       <tr key={keyOf(r)} className={r.attendance === 'NOT_RECORDED' ? 'mp-attn' : undefined}>
@@ -119,7 +123,8 @@ export function Payments({ api, onError }: { api: PaymentsApi; onError: (e: unkn
         <td><Badge tone={atone} icon={aicon}>{at}</Badge></td>
         <td className="r money">{formatMoney(r.amountMinor)}</td>
         <td><Badge tone={ptone} icon={picon}>{pt}</Badge>
-          {r.status === 'PAID' && <small className="mp-how">{r.paidVia ? `${VIA[r.paidVia]} · ` : ''}
+          {r.status === 'PAID' && r.viewOnly && r.paidVia && <small className="mp-how">{VIA[r.paidVia]}</small>}
+          {r.status === 'PAID' && !r.viewOnly && <small className="mp-how">{r.paidVia ? `${VIA[r.paidVia]} · ` : ''}
             <a className="link" href="#" onClick={(e) => { e.preventDefault(); setModal({ kind: 'paid', r, edit: true, via: r.paidVia }); }}>{r.paidVia ? 'Change' : 'Add how they paid'}</a></small>}</td>
         <td className="r"><span className="cellbtns">{acts}</span></td>
       </tr>
