@@ -17,8 +17,8 @@ account doesn't exist yet, so only dev's are built.
 
 | Stack | Holds | Lifetime |
 |---|---|---|
-| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first; kept between dev builds (I16, ADR-028) |
-| `bladebook-dev-app` | Both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
+| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, the `coach-web` and `family-web` app clients, and in dev the test accounts (3 coaches, 10 families) and the seed file's bucket | Built first; kept between dev builds (I16, ADR-028) |
+| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
 | Website | Dev | Production |
@@ -31,7 +31,7 @@ account doesn't exist yet, so only dev's are built.
 ```sh
 cd infra
 npm ci
-npm test            # 23 tests, including a cdk-nag synth of dev and production
+npm test            # 31 tests, including a cdk-nag synth of dev and production
 npm run typecheck
 ```
 
@@ -53,6 +53,24 @@ npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the 
 # Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
 npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
+
+### The owner's test mailbox (dev's test accounts)
+
+Dev's test accounts are tagged addresses on the owner's test mailbox (ADR-027, I15). The repo is
+public, so the address is **never written into it**, including `cdk.json` and `cdk.context.json`.
+Give it to CDK as context instead: in your own `~/.cdk.json` (`{ "context": { "testMailbox": "…" } }`),
+or with `-c testMailbox=…` on each command. The deploy workflow passes it from a GitHub environment
+variable. Without it, the account stack builds no test accounts and synth prints a warning.
+
+After the first deploy with it set:
+
+- the accounts' shared password is in Secrets Manager (output `TestAccountsPasswordSecret`);
+- add the three DKIM CNAME records printed as `TestMailboxDkim1`–`3` on the mailbox's domain, by
+  hand, so dev's SES can send to the tagged addresses.
+
+**Build order (ADR-028 d4):** the identity stack, then the seed script writes `seed/current/` in the
+seed bucket, then the app stack, whose table is created from that file. Deploying the app stack
+before a seed file exists fails.
 
 ### New account: CloudFront verification
 

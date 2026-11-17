@@ -6,6 +6,7 @@
 import { CfnOutput, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import type * as cognito from 'aws-cdk-lib/aws-cognito';
+import type * as s3 from 'aws-cdk-lib/aws-s3';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
@@ -13,11 +14,14 @@ import { dataRemovalPolicy, resourcePrefix } from './config.ts';
 import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
+import { BladebookTable } from './table.ts';
 import { Website } from './website.ts';
 
 export interface AppStackProps extends StackProps {
   readonly cfg: EnvConfig;
   readonly userPool: cognito.IUserPool;
+  /** Dev: the account stack's seed bucket, which the table is imported from (ADR-028). */
+  readonly seedBucket?: s3.IBucket;
 }
 
 export class AppStack extends Stack {
@@ -25,6 +29,7 @@ export class AppStack extends Stack {
   readonly familySite: Website;
   readonly data: DataBuckets;
   readonly firewall?: Firewall;
+  readonly table: BladebookTable;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -64,6 +69,13 @@ export class AppStack extends Stack {
 
     this.data = new DataBuckets(this, 'Data', { prefix, removalPolicy });
 
+    if (cfg.seedImport && !props.seedBucket) throw new Error(`${id}: seedImport needs the account stack's seed bucket`);
+    this.table = new BladebookTable(this, 'Table', {
+      tableName: prefix,
+      removalPolicy,
+      ...(cfg.seedImport ? { seedBucket: props.seedBucket } : {}),
+    });
+
     if (cfg.emailDomain) {
       // DKIM records go in the zone; the identity starts in the SES sandbox.
       new ses.EmailIdentity(this, 'EmailIdentity', {
@@ -77,6 +89,7 @@ export class AppStack extends Stack {
       // The REST API's stage is associated in Batch 17b.
     }
 
+    new CfnOutput(this, 'TableName', { value: this.table.table.tableName });
     new CfnOutput(this, 'CoachSiteUrl', { value: `https://${cfg.sites.coach.host}/` });
     new CfnOutput(this, 'FamilySiteUrl', { value: `https://${cfg.sites.family.host}/` });
     new CfnOutput(this, 'CoachSiteBucket', { value: this.coachSite.bucket.bucketName });

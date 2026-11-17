@@ -17,8 +17,15 @@ export interface EnvStacks {
 export function addEnvironment(app: App, cfg: EnvConfig): EnvStacks {
   const env = { account: cfg.account, region: cfg.region };
   const prefix = resourcePrefix(cfg);
-  const identity = new IdentityStack(app, `${prefix}-identity`, { env, cfg });
-  const appStack = new AppStack(app, `${prefix}-app`, { env, cfg, userPool: identity.userPool });
+  // ADR-027 (I15): the owner's test mailbox is a deploy-time setting, never in the repo.
+  const testMailbox = app.node.tryGetContext('testMailbox') as string | undefined;
+  const identity = new IdentityStack(app, `${prefix}-identity`, { env, cfg, ...(testMailbox ? { testMailbox } : {}) });
+  const appStack = new AppStack(app, `${prefix}-app`, {
+    env,
+    cfg,
+    userPool: identity.userPool,
+    ...(identity.seedBucket ? { seedBucket: identity.seedBucket } : {}),
+  });
   const deployAccess = new DeployAccessStack(app, `${prefix}-deploy-access`, { env, cfg });
   for (const stack of [identity, appStack, deployAccess]) {
     Tags.of(stack).add('project', 'bladebook');

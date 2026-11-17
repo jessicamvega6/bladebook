@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
+import { testAccounts } from '../lib/test-accounts.ts';
 import { spaRoutingCode } from '../lib/website.ts';
-import { build, synthWithSecurityChecks, testDev, testProd } from './helpers.ts';
+import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
 
 const dev = build(testDev);
 const prod = build(testProd);
@@ -13,6 +14,8 @@ describe('security checks', () => {
       const err = synthWithSecurityChecks(cfgs);
       assert.equal(err, undefined, err?.message);
     }
+    const withAccounts = synthWithSecurityChecks([testDev], { testMailbox: TEST_MAILBOX });
+    assert.equal(withAccounts, undefined, withAccounts?.message);
   });
 });
 
@@ -210,3 +213,78 @@ describe('deploy access (ADR-032 d2)', () => {
     assert.equal(statements[0].Resource.length, 4);
   });
 });
+
+describe('the table (ADR-MASTER §3, §20)', () => {
+  const table = (b: typeof dev) => Object.values(b.app.findResources('AWS::DynamoDB::Table'))[0]!;
+  test('one table: PK and SK, on demand, stream with both images, TTL on expiresAt, recovery on', () => {
+    dev.app.resourceCountIs('AWS::DynamoDB::Table', 1);
+    dev.app.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'bladebook-dev',
+      KeySchema: [{ AttributeName: 'PK', KeyType: 'HASH' }, { AttributeName: 'SK', KeyType: 'RANGE' }],
+      BillingMode: 'PAY_PER_REQUEST',
+      StreamSpecification: { StreamViewType: 'NEW_AND_OLD_IMAGES' },
+      TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+    });
+  });
+  test('four indexes, each projecting ALL', () => {
+    const gsis = table(dev).Properties.GlobalSecondaryIndexes as { IndexName: string; Projection: unknown; KeySchema: unknown }[];
+    assert.deepEqual(gsis.map((g) => g.IndexName), ['GSI1', 'GSI2', 'GSI3', 'GSI4']);
+    for (const g of gsis) {
+      assert.deepEqual(g.Projection, { ProjectionType: 'ALL' });
+      assert.deepEqual(g.KeySchema, [
+        { AttributeName: `${g.IndexName}PK`, KeyType: 'HASH' },
+        { AttributeName: `${g.IndexName}SK`, KeyType: 'RANGE' },
+      ]);
+    }
+  });
+  test('production keeps the table, with deletion protection, and imports nothing', () => {
+    const t = table(prod);
+    assert.equal(t.DeletionPolicy, 'Retain');
+    assert.equal(t.Properties.DeletionProtectionEnabled, true);
+    assert.equal(t.Properties.ImportSourceSpecification, undefined);
+  });
+  test('dev deletes it, and creates it from the seed bucket (ADR-028 d1)', () => {
+    const t = table(dev);
+    assert.equal(t.DeletionPolicy, 'Delete');
+    assert.equal(t.Properties.DeletionProtectionEnabled, false);
+    const src = t.Properties.ImportSourceSpecification;
+    assert.equal(src.InputFormat, 'DYNAMODB_JSON');
+    assert.equal(src.InputCompressionType, 'GZIP');
+    assert.equal(src.S3BucketSource.S3KeyPrefix, 'seed/current/');
+  });
+});
+
+describe('dev test accounts and seed bucket (ADR-027 d3, ADR-028, I15, I18)', () => {
+  test('addresses are tags on the owner\'s mailbox', () => {
+    const accounts = testAccounts('box+dev@example.test', { coaches: 2, clients: 2 });
+    assert.deepEqual(accounts.map((a) => [a.email, a.group]), [
+      ['box+dev-coach-a@example.test', 'Coach'],
+      ['box+dev-coach-b@example.test', 'Coach'],
+      ['box+dev-client-1@example.test', 'Client'],
+      ['box+dev-client-2@example.test', 'Client'],
+    ]);
+    assert.equal(testAccounts('box@example.test', { coaches: 1, clients: 0 })[0]!.email, 'box+dev-coach-a@example.test');
+    assert.throws(() => testAccounts('not an address', { coaches: 1, clients: 0 }));
+  });
+  test('without the mailbox setting, no accounts are made', () => {
+    dev.identity.resourceCountIs('AWS::CloudFormation::CustomResource', 0);
+    dev.identity.resourceCountIs('AWS::SecretsManager::Secret', 0);
+  });
+  test('with it: three coaches and ten families, one password in Secrets Manager, the mailbox domain verified', () => {
+    const withMailbox = build(testDev, { testMailbox: TEST_MAILBOX });
+    const res = Object.values(withMailbox.identity.findResources('AWS::CloudFormation::CustomResource'));
+    assert.equal(res.length, 1);
+    const accounts = JSON.parse(res[0]!.Properties.Accounts as string) as { email: string; group: string }[];
+    assert.equal(accounts.filter((a) => a.group === 'Coach').length, 3);
+    assert.equal(accounts.filter((a) => a.group === 'Client').length, 10);
+    assert.ok(accounts.every((a) => a.email.endsWith('@mailbox.test')));
+    withMailbox.identity.resourceCountIs('AWS::SecretsManager::Secret', 1);
+    withMailbox.identity.hasResourceProperties('AWS::SES::EmailIdentity', { EmailIdentity: 'mailbox.test' });
+  });
+  test('the seed bucket is in the account stack, private, and dev only', () => {
+    dev.identity.resourceCountIs('AWS::S3::Bucket', 1);
+    prod.identity.resourceCountIs('AWS::S3::Bucket', 0);
+  });
+});
+
