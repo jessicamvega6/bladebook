@@ -1434,8 +1434,12 @@ same coach (held by `LinkedSkater` and the ownership condition).
     firewall and the API check;
   - the **IP reputation list** protects Cognito only (accepted; revisit with a CloudFront ACL when
     its cost is small beside the bill);
-  - **both sites allow visitors from the United States only** (CloudFront geographic
-    restriction). Cognito's own address isn't covered.
+  - **both sites allow visitors from the United States only**, by a CloudFront Function on
+    every request (not the built-in geographic restriction, whose 403 page would also replace
+    the API's 403s): a plain-language page on the site paths, a short JSON error on `/api/*`;
+  - **no country rule on Cognito's firewall for now** (owner, 2026-11-17): Cognito's address
+    isn't behind CloudFront, so sign-up and sign-in can be reached from abroad, under Cognito's
+    rate rules. Revisit if the logs show abuse from abroad.
 - **Rules:**
 
 | Rule | Limit |

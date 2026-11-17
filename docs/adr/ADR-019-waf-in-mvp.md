@@ -68,10 +68,19 @@ sees CloudFront's addresses, and every per-address limit would count everyone to
   lookups, and the cost of a second ACL (about $7–11 a month) is large against BladeBook's budget. *Revisit* when
   that cost is small beside the bill, or if the firewall logs show abuse on signed-in routes; moving the rules to a
   CloudFront ACL then is a contained change.
-- **Both CloudFront sites accept visitors from the United States only** (CloudFront's geographic restriction,
-  free). A visitor elsewhere, including a BladeBook family travelling abroad, gets a refusal page until back in the
-  US. It also cuts most bot traffic before the firewall. Cognito's own address isn't behind CloudFront, so this
-  does not cover sign-in calls made directly to Cognito.
+- **Both CloudFront sites accept visitors from the United States only.** A visitor elsewhere, including a
+  BladeBook family or coach travelling abroad, is refused until back in the US. It also cuts most bot traffic
+  before the firewall.
+  - **Done by a CloudFront Function on every request** (viewer request, reading `CloudFront-Viewer-Country`),
+    not CloudFront's built-in geographic restriction. The built-in one answers 403, and a custom page for 403
+    would also replace the API's own 403 answers. The function answers a visitor outside the US itself: a
+    **plain-language page** on the website paths (*"BladeBook is only available in the United States. If you're
+    travelling, you can use it again when you're back."*), and a short JSON error on `/api/*`. The API's own
+    403s are untouched. The function on `/api/*` is the same one that passes the visitor's address.
+  - **No country rule on Cognito's firewall, for now** (owner, 2026-11-17). Cognito's address isn't behind
+    CloudFront, so someone abroad can still reach sign-up and sign-in directly. They can't reach the sites or the
+    API, and Cognito's rate rules still apply. *Revisit* if the firewall logs show sign-in or sign-up abuse from
+    abroad; a country rule on the regional ACL is about $1 a month.
 - Rejected: taking the API off CloudFront (reverses ADR-027's 2026-11-16 decision and brings CORS back), dropping
   per-address limits (API Gateway's throttling is shared by everyone), and counting by `X-Forwarded-For` or
   CloudFront's viewer-address header (the first can be faked; the second includes the port, so it counts

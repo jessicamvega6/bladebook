@@ -110,8 +110,10 @@ Change any of these in `lib/` and its test together.
 - **The `/health` rate limit** (ADR-MASTER §21). The WAF has the other six rules.
 - **The API behind CloudFront** (I1, 2026-11-17; ADR-019): 17b adds the CloudFront Function that
   passes the visitor's address in a BladeBook header, the API's rate rules counting by it, the
-  secret origin header that locks the API to CloudFront, and US-only geographic restriction on
-  both distributions.
+  secret origin header that locks the API to CloudFront, and the US-only rule on both
+  distributions: a CloudFront Function answering visitors outside the US with a plain-language
+  page (JSON on `/api/*`), not the built-in geographic restriction, whose 403 page would replace
+  the API's own 403s. No country rule on Cognito's firewall for now.
 - **CloudTrail data events.** Dev's trail writes to production's data-loading stack (ADR-027 d4),
   so it is built with production.
 - **The archive's expiry** (legal review; at least 210 days) and **the reports bucket's lifecycle**.
