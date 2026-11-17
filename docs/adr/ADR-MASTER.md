@@ -1623,7 +1623,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
   and keeps the passwords in Secrets Manager; dev's SES verifies the mailbox's domain; owner,
   2026-11-17, ADR-027), and **the seed file's bucket** (ADR-028, 2026-11-17: the import reads it
   when the table is created, so it must exist first), then the **application stack**, whose table is
-  **created by one import from one file**. Nothing is loaded into a dev table afterwards.
+  **created by one import from one file**. The account stack **stays up between builds**; only
+  the application stack is destroyed (owner, 2026-11-17, I16, ADR-028). Nothing is loaded into a dev table afterwards.
 - **Two data sources, never mixed:**
   - `build-dev` — **seed data**; always before launch, the default after.
   - `build-dev --masked --coaches <id>,… [--clients <id>,…] [--as-of <timestamp>] --reason "…"` —
@@ -1891,7 +1892,7 @@ technical.*
   registration.
 - The production canary's test mailbox (dev's is settled: the owner's test mailbox, ADR-027, 2026-11-17).
 - How long dev may hold masked data; a teardown leftover check; whether an import produces stream
-  records; whether the account stack stays up between builds.
+  records.
 - Dependabot for pinned actions; GitHub run-log retention; narrowing CDK's bootstrap role if CDK is
   chosen.
 

@@ -17,7 +17,7 @@ account doesn't exist yet, so only dev's are built.
 
 | Stack | Holds | Lifetime |
 |---|---|---|
-| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first |
+| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first; kept between dev builds (I16, ADR-028) |
 | `bladebook-dev-app` | Both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
@@ -49,8 +49,8 @@ npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
 npx cdk deploy bladebook-dev-identity bladebook-dev-app --profile bladebook-dev
 npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the workflow is added
 
-# Tear down (deletes dev's data: ADR-027 d4's rules apply first)
-npx cdk destroy bladebook-dev-app bladebook-dev-identity --profile bladebook-dev
+# Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
+npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
 
 ### New account: CloudFront verification

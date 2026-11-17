@@ -28,6 +28,14 @@ accounts. A table import reads its file when the table is created, so the file m
 the application stack does; the account stack is built first. The bucket is private, encrypted
 and holds no real data. It is built in Batch 17b.
 
+**Amended — 2026-11-17, later.** *Decided by the owner (Batch 17b, conflict I16 in `AI/plan-history.md`).*
+**The account stack stays up between dev builds.** Only the application stack is destroyed when
+dev's work is done. The test accounts keep their `sub`s, so the seed file and any masked file
+remapped to them stay valid, and a rebuild doesn't create new accounts, new passwords or a new
+user pool. The stack holds no real data: test accounts on the owner's test mailbox and the seed
+file's bucket. It is destroyed only on purpose, for example to change something only a new user
+pool can take; the next build then writes a fresh seed file.
+
 ---
 
 ## Context
@@ -205,8 +213,9 @@ S3 counts whole days and removes expired files with some delay, so a file can la
 - ~~**How long the masked file is kept.** It is needed only until the build reads it. The export
   bucket deletes its contents after a day; the masked bucket has no rule yet.~~ **Settled
   2026-10-09 by the owner:** 24 hours (decision 6).
-- **Whether the account stack stays up between builds**, or is destroyed with the application
-  stack. It holds only test accounts, but their `sub`s are what the data file was remapped to.
+- ~~**Whether the account stack stays up between builds**, or is destroyed with the application
+  stack. It holds only test accounts, but their `sub`s are what the data file was remapped to.~~
+  **Settled 2026-11-17 by the owner:** it stays up (amendment above).
 
 ---
 

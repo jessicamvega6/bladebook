@@ -200,7 +200,9 @@ infrastructure test asserts that production's table and buckets are retained and
 That way a dev setting can't silently reach production.
 
 After a teardown, nothing tagged as dev should remain. A leftover bucket costs money and may
-hold masked data.
+hold masked data. *Revised 2026-11-17 (owner, I16): the account stack — test accounts and the
+seed file's bucket, no real data — is kept between builds (ADR-028); teardown destroys the
+application stack, and the leftover check ignores the account stack.*
 
 ### 6. What stays the same in dev
 
