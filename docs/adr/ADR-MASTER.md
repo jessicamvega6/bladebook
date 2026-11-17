@@ -92,6 +92,14 @@ bladebook/
 - **Lambda aliases** for versioning and rollback are recommended, not required.
 - **The web app retries once** on a server error: an idempotent GET as is, a booking with the
   same idempotency key (§7).
+- **The websites load nothing from other sites** (owner, 2026-11-17, I17). The Figtree font is
+  served from BladeBook's own files (`@font-face` in the shared stylesheet), not Google Fonts, so
+  all three pages (coach, family, rinkside) show it. Both CloudFront sites send a **strict Content
+  Security Policy**: `default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self';
+  img-src 'self' data:; connect-src 'self' https://cognito-idp.<region>.amazonaws.com;
+  frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. Batch 17c adds
+  it, runs it report-only in dev until a click-through of every page reports nothing, then enforces
+  it. Anything new from another site needs the policy changed on purpose.
 - **Scheduler rules** are one per job, pinned to the launch timezone (`America/Chicago`, Central; owner, 2026-11-17, I7) with
   Scheduler's IANA timezone support. A second timezone is one more rule per job; the data
   already carries each coach's timezone. Until then a Pacific coach's families get the 7am

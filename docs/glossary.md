@@ -43,6 +43,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **UI / UX** | User Interface / User Experience | UX appears in the ADR to distinguish "cold start is a latency problem the user feels" from "cold start is a cost problem," which it isn't. |
 | **AI** | Artificial Intelligence | Used specifically to mean "how well an AI coding assistant can help with this framework," which the ADR treats as a real selection criterion for a solo developer. |
 | **CSV** | Comma-Separated Values | The financial page's summary export: one row per month, no personal data (ADR-030 decision 7). |
+| **CSP** | Content Security Policy | A response header telling the browser which sites a page may load scripts, styles, fonts and images from and send data to. BladeBook's allows only its own site, plus Cognito for sign-in, so an injected script can't run or send data away (ADR-MASTER §1; I17, 2026-11-17). |
 | **CSS** | Cascading Style Sheets | The browser's styling language. Harbor's look is one stylesheet, `design/harbor/harbor.css`, copied into `web/src/shared/styles/` (Batch 1). |
 | **TDD** | Test-Driven Development | Write a failing test first (red), then the least code that makes it pass (green). Required for `backend/core/` by the implementation plan's ground rules. |
 | **YTD** | Year to Date | The financial page's totals for the calendar year: gross (money received) (MVP feature 16). Rink fees, calculated by BladeBook, join it in Phase 2 (owner, 2026-11-12; `Q_Rink-Fees.md`). |
