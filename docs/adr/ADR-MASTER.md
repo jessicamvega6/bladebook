@@ -1539,7 +1539,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 - **Point-in-time recovery** on the table (35 days); **deletion protection**; **`RETAIN`**.
 - **Monthly DynamoDB export to S3**, triggered by EventBridge Scheduler, stored in S3 Glacier
-  Instant Retrieval, deleted after 12 months.
+  Instant Retrieval, deleted after 12 months. *Production only; built with production, not in
+  Batch 17b (owner, 2026-11-17).*
 - **Restore** goes to a new table; recovery **copies data back by default** and repoints only for
   total loss. The runbook pauses notifications during a restore and, once erasure ships (Phase 2), re-applies the erased-ID list.
 
@@ -1619,7 +1620,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
   tagged addresses on **the owner's test mailbox**, `…+dev-coach-a@…`, `…+dev-client-1@…`;
   the address is a deploy-time setting, never in the repo; the stack sets each account's group
   and keeps the passwords in Secrets Manager; dev's SES verifies the mailbox's domain; owner,
-  2026-11-17, ADR-027), then the **application stack**, whose table is
+  2026-11-17, ADR-027), and **the seed file's bucket** (ADR-028, 2026-11-17: the import reads it
+  when the table is created, so it must exist first), then the **application stack**, whose table is
   **created by one import from one file**. Nothing is loaded into a dev table afterwards.
 - **Two data sources, never mixed:**
   - `build-dev` — **seed data**; always before launch, the default after.
@@ -1684,6 +1686,8 @@ production's.
 A Lambda in dev's application stack applies the same deny-by-default rule to the dev table, the
 reports bucket and the archive bucket; any object in photo storage other than the placeholder is a
 finding. **Its role can't read production.** Runs after every masked build, on demand, and daily.
+**Built with the first masked build**, after launch (owner, 2026-11-17, ADR-027): a dev built from
+the seed file holds no real data, so until then dev has no scanner.
 
 - **A finding:** page; automatically **disable dev's Cognito app clients**; log item key and field
   name, **never the value**; then triage (real or allowlist gap → scope → origin → who read it →

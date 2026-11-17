@@ -75,6 +75,12 @@ The domain production's email is sent from is not chosen yet; dev's SES verifies
 This settles which mailbox **dev's** test accounts use. Production's canary accounts (decision 7)
 can use the same mailbox; that's confirmed when production is built.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I18 in `AI/plan-history.md`).*
+**The dev scanner is built with the first masked build**, not before. Until production exists,
+every dev build is made from the seed file, which holds no real data, so there is nothing for the
+scanner to find; *"no teardown while a scanner finding is open"* applies from then on. The scanner
+is built with the production data-loading stack, after launch.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across

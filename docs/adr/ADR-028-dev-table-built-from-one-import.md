@@ -22,6 +22,12 @@ the right shape for the skater's `skatingOrg`, one that passes ADR-029 decision 
 on `SKATER#` and every `STUDENT#` copy alike, so the sign-up and profile forms work in dev. The
 seed data uses the same kind of fake numbers.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I18 in `AI/plan-history.md`).*
+**The seed file's bucket is in the account stack** (decision 4), with the user pool and the test
+accounts. A table import reads its file when the table is created, so the file must exist before
+the application stack does; the account stack is built first. The bucket is private, encrypted
+and holds no real data. It is built in Batch 17b.
+
 ---
 
 ## Context

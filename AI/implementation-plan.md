@@ -93,7 +93,7 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1, I4, I6, I7, I9, I12, I13, I16, I18). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | The owner's rulings on its conflicts (I1, I4, I6, I7, I9, I12, I13, I16). Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it also needs that stack's CloudFront verification (§3) |
 | 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b; the owner's rulings on I11, I14 and I17 |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
@@ -127,7 +127,7 @@ Each is the owner's. The full wording, and every decision that's been settled fo
 New ones go here until the owner rules, then move to `AI/plan-history.md`.
 
 **Batch 17b and 17c conflicts (listed 2026-11-17).** Claude's recommendation follows each. Ruled ones move to
-`AI/plan-history.md` (I2, I3, I5, I8, I10, I15, I19 and I20 so far).
+`AI/plan-history.md` (I2, I3, I5, I8, I10, I15, I18, I19 and I20 so far).
 
 | ID | Conflict | Batch | Recommended |
 |---|---|---|---|
@@ -142,4 +142,3 @@ New ones go here until the owner rules, then move to `AI/plan-history.md`.
 | I14 | Rinkside is `/coach/rinkside/` (ADR-023, ADR-MASTER, the code) or `/rinkside/` (ADR-027, `infra/`); email links assume one host | 17c | `/rinkside/`; separate coach and family hosts in the email links; update the ADRs |
 | I16 | Whether the identity stack is kept between dev builds (ADR-028 open; `infra/README.md` destroys it) | 17b | Keep it |
 | I17 | No Content Security Policy is settled; the coach page loads Google Fonts | 17c | Self-host Figtree; strict policy |
-| I18 | The dev scanner, monthly export and seed bucket are in the ADRs but in no batch | 17b | Seed bucket in 17b; scanner after launch; export with production |
