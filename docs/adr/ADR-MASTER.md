@@ -1160,6 +1160,8 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
   `lessons@dev.bladebook.org` and `no-reply@dev.bladebook.org`. A family's email is from
   *"<Coach name> via BladeBook"*, a coach's from *"BladeBook"* (`design/harbor/email/templates.mjs`).
   Production's addresses wait on its email domain.
+- **An email SES refuses (`MessageRejected`) is marked failed, not retried** (owner,
+  2026-11-17), so a refused address never fills a dead-letter queue.
 - **Emails to the coach about their own account and lessons go to `loginEmail`**: the morning email
   and the weekly unpaid reminder (and, from Phase 2, the daily report).
 - Coach-authored free text (`paymentInstructions`, block names) is HTML-escaped.
@@ -1607,7 +1609,10 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
   and `family.dev.bladebook.org` (family), each API under its own host's `/api/*` (ADR-027, amended
   2026-11-16), not indexed.
 - **Built as two stacks:** the **account stack** (Cognito pools and test accounts:
-  `coach-a@example.com`…, `client-1@example.com`…), then the **application stack**, whose table is
+  tagged addresses on **the owner's test mailbox**, `…+dev-coach-a@…`, `…+dev-client-1@…`;
+  the address is a deploy-time setting, never in the repo; the stack sets each account's group
+  and keeps the passwords in Secrets Manager; dev's SES verifies the mailbox's domain; owner,
+  2026-11-17, ADR-027), then the **application stack**, whose table is
   **created by one import from one file**. Nothing is loaded into a dev table afterwards.
 - **Two data sources, never mixed:**
   - `build-dev` — **seed data**; always before launch, the default after.
@@ -1872,7 +1877,7 @@ technical.*
 - What CloudTrail records for reads of a CloudWatch Logs group.
 - Operator alert SMS on its own SNS topic and configuration set; whether it needs 10DLC
   registration.
-- The test accounts' mailbox.
+- The production canary's test mailbox (dev's is settled: the owner's test mailbox, ADR-027, 2026-11-17).
 - How long dev may hold masked data; a teardown leftover check; whether an import produces stream
   records; whether the account stack stays up between builds.
 - Dependabot for pinned actions; GitHub run-log retention; narrowing CDK's bootstrap role if CDK is
