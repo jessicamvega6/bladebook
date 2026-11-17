@@ -1592,7 +1592,7 @@ sequenceDiagram
     loop each date - one transaction per date
         API->>DB: lesson time OPEN → BOOKED, seatsTaken 2, shareCount 1 + Family A's seat BOOKED<br/>+ Mia's seat INVITED (inviteId, invitedByClientId = Family A,<br/>no clientId - Family A's record until accepted)<br/>+ ConditionCheckItem on Mia's STUDENT#35;, studentStatus = ACTIVE - the authority (ADR-033 d2)
     end
-    DB->>Bus: (stream) a seat written INVITED (event name to be set)
+    DB->>Bus: (stream) a seat written INVITED (SharedLessonChanged)
     Bus->>Inv: route
     Inv->>DB: read-only copies (ADR-031 d6) - partnerName and partnerStatus on both seats,<br/>invitedClientId + Family B's GSI1 keys on Mia's seat (shows on their Home and My bookings)
     Inv->>SES: email Family B - the invitation (texts are Phase 2)
@@ -1949,6 +1949,10 @@ sequenceDiagram
 
 *Updated 2026-10-13 for ADR-031 (lessons and seats).*
 *Updated 2026-10-13 for the ADR-031 revision.*
+*Updated 2026-11-17 (owner, I6): one Pipe puts each stream record on the bus unchanged, and each event
+below is an EventBridge rule of that name matching the raw record (key prefix, new and old image). Scheduled
+jobs aren't events: Scheduler invokes each function directly, and each schedule is named after its function
+(ADR-MASTER §3).*
 
 | Event | Source | Consumers |
 |---|---|---|
@@ -1959,13 +1963,13 @@ sequenceDiagram
 | `NoShowRecorded` | Attendance write, `NO_SHOW` only | Payment reminder — **Phase 2**, when ADR-015's charge switches on. A separate event from `CheckInRecorded` because the reminder wording differs: a missed lesson is not an attended one. |
 | `StudentChanged` | `STUDENT#` item under `COACH#` modified (`studentStatus`, `studentName` or, from Phase 2, `priceMinorOverride` changed) or removed | Student link sync λ — mirrors the change onto the client's link item (ADR-021 d6). The Invite λ doesn't react to it: the coach's Accept changes only the `STUDENT#` item (ADR-033). |
 | `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` item modified | Family sync λ — copies contact and skater details to every coach's `STUDENT#` record (ADR-025 d6); also issues each new skater's share code (ADR-026 d4); and, since ADR-031 d14, updates `studentName` on the skater's upcoming seats (`consumer-invite` then refreshes `partnerName` on the seats sharing a lesson with them) |
-| *(name to be set)* — replaces `InviteChanged` | A shared-lesson seat change: a seat written `INVITED`, accepted, joined, moved to `SEATEND#` (declined, withdrawn, expired) or to a `CANCELLED#` line (a leave, or the inviting family cancelling), or its `studentName` changed; or a lesson time's `pendingLeave` written or cleared — both through the change stream. There is no `INVITE#` item any more (ADR-031 d5, d6). *ADR-031 names the consumer but not the event.* | Invite λ — writes the read-only copies on the seats in that lesson, about a second later (ADR-031 d6): `partnerName` + `partnerStatus`, `invitedClientId` + GSI1 keys on an invited seat, and `choiceAnswerBy` on the staying seat while a pending leave waits; and sends the shared-lesson emails that aren't deadlines: the invitation and every outcome email — joined, declined, withdrawn, expired ("no longer available"), and "the other skater can't make it — keep or cancel" (ADR-031 d14, ADR-033 d6). A system function, so its writes are no family's. It never ends a seat: the inviting family's own cancel, or the hourly sweep's `EXPIRE`, does (ADR-031 d5, ADR-033 d4). |
-| `DailyReminderDue` (scheduled) | Scheduler | Day-of reminder λ |
-| `DailyReportDue` (scheduled) — *Phase 2 (owner, 2026-11-11)* | Scheduler | End-of-day report λ |
-| `UnpaidReminderDue` (scheduled) | Scheduler, weekly | Unpaid-lesson reminder λ (ADR-018) |
-| `DriftCheckDue` (scheduled) | Scheduler, nightly | Drift check λ (ADR-010 d5k) — reads only; finishes a stuck batch through `consumer-schedule-change` (2026-11-17) |
-| *(name to be set)* (scheduled) | Scheduler, nightly | Lesson roller λ (`sched-lesson-roller`, ADR-031 d1) — keeps lesson times stored to the end of the booking window plus 12 months |
-| *(name to be set)* (scheduled) | Scheduler, every hour | Deadline sweep λ (`sched-deadline-sweep`, ADR-031 d12) — acts on `EXPIRE` deadlines (invited seats) and `ANSWER` deadlines (lesson times) through GSI4; replaces the Invite λ's nightly run; emits `DeadlineSweepCompleted` (ADR-031 d14) |
+| `SharedLessonChanged` — replaces `InviteChanged` (named 2026-11-17, I6) | A shared-lesson seat change: a seat written `INVITED`, accepted, joined, moved to `SEATEND#` (declined, withdrawn, expired) or to a `CANCELLED#` line (a leave, or the inviting family cancelling), or its `studentName` changed; or a lesson time's `pendingLeave` written or cleared — both through the change stream. There is no `INVITE#` item any more (ADR-031 d5, d6). | Invite λ — writes the read-only copies on the seats in that lesson, about a second later (ADR-031 d6): `partnerName` + `partnerStatus`, `invitedClientId` + GSI1 keys on an invited seat, and `choiceAnswerBy` on the staying seat while a pending leave waits; and sends the shared-lesson emails that aren't deadlines: the invitation and every outcome email — joined, declined, withdrawn, expired ("no longer available"), and "the other skater can't make it — keep or cancel" (ADR-031 d14, ADR-033 d6). A system function, so its writes are no family's. It never ends a seat: the inviting family's own cancel, or the hourly sweep's `EXPIRE`, does (ADR-031 d5, ADR-033 d4). |
+| `sched-day-reminder` (schedule) | Scheduler, daily 7am | Day-of reminder λ |
+| `sched-daily-report` (schedule) — *Phase 2 (owner, 2026-11-11)* | Scheduler | End-of-day report λ |
+| `sched-unpaid-reminder` (schedule) | Scheduler, weekly | Unpaid-lesson reminder λ (ADR-018) |
+| `sched-drift-check` (schedule) | Scheduler, nightly | Drift check λ (ADR-010 d5k) — reads only; finishes a stuck batch through `consumer-schedule-change` (2026-11-17) |
+| `sched-lesson-roller` (schedule) | Scheduler, nightly | Lesson roller λ (`sched-lesson-roller`, ADR-031 d1) — keeps lesson times stored to the end of the booking window plus 12 months |
+| `sched-deadline-sweep` (schedule) | Scheduler, every hour | Deadline sweep λ (`sched-deadline-sweep`, ADR-031 d12) — acts on `EXPIRE` deadlines (invited seats) and `ANSWER` deadlines (lesson times) through GSI4; replaces the Invite λ's nightly run; emits `DeadlineSweepCompleted` (ADR-031 d14) |
 
 ---
 

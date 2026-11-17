@@ -264,8 +264,25 @@ number had opted out, so no SMS was attempted.
 | `NoShowRecorded` | Attendance write, `NO_SHOW` | Payment reminder — Phase 2 |
 | `StudentChanged` | `STUDENT#` modified (`studentStatus`, `studentName`) or removed | `consumer-student-link` |
 | `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` created or modified (a new skater needs its share code, §5) | `consumer-family-sync` |
-| *(name to be set)* | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
-| `DailyReminderDue`, `UnpaidReminderDue`, `DriftCheckDue`, and the roller's and sweep's (names to be set) | Scheduler | The matching `sched-*` function |
+| `SharedLessonChanged` | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
+
+**How a change becomes a named event** (owner, 2026-11-17, I6). **One Pipe** reads the stream and puts each
+record on the bus **unchanged**: no enrichment function, no renaming. **Each event above is an EventBridge
+rule** of that name, whose pattern matches the raw record: the key's prefix (`prefix` on the `SK`), the new
+image's values and, for a transition, the old image's (`anything-but`, `exists: false`). For example,
+`LessonBooked` matches an `SK` starting `SEAT#`, a new `seatStatus` of `BOOKED` and an old one that is
+absent or not `BOOKED`. The event's name is the rule's name; the record on the bus is the stream record.
+- **One Pipe, not one per event:** a stream should have at most two readers per shard, and the Pipe and
+  `consumer-ttl-archiver` are those two.
+- **Each rule's pattern is tested** in Batch 17b: sample stream records (each event's match and its near
+  misses) are run against every pattern, so a pattern can't silently match too much or nothing.
+- **Consumers read the raw record** through one shared reader in `core` that turns DynamoDB's typed
+  attributes into the domain's types.
+
+**Scheduled jobs have no event.** EventBridge Scheduler invokes each `sched-*` function directly, so
+nothing goes through the bus. Each schedule is **named after its function**: `sched-day-reminder`,
+`sched-unpaid-reminder`, `sched-drift-check`, `sched-lesson-roller`, `sched-year-close` and
+`sched-deadline-sweep` (and `sched-daily-report` from Phase 2). The earlier `…Due` names are dropped.
 
 The Pipe **drops TTL removals** (removals whose identity is the DynamoDB service); only the
 archiver reads them.
@@ -1867,7 +1884,6 @@ technical.*
   projection allowed for an `ACTIVE` session, other `STUDENT#` attributes and `PENDING` sessions
   refused), and the share-code read's row (`studentId` and the display name only; any other
   attribute, no projection, or a `Query` refused).
-- **Event names** for `consumer-invite`'s trigger and the roller's and sweep's schedules.
 - **Which function sends the coach's SMS opt-in confirmation.**
 
 **Settings and details**
