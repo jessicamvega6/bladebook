@@ -67,6 +67,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- AWS mode: sched-drift-check hands a stuck batch to consumer-schedule-change (ADR-MASTER section 19). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>lambda</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- AWS mode: the unpaid reminder's threshold, held in Parameter Store (ADR-MASTER section 12). -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

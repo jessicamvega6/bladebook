@@ -21,11 +21,15 @@ import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.SesMailer;
 import com.bladebook.core.service.StudentLinkService;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -63,6 +67,8 @@ public final class EventConsumers {
             Event.FamilyChanged, List.of("clientEmail", "clientName", "clientPhone", "clientRelationship", "isMinor",
                     "registrationNumber", "skatingOrg", "studentName"),
             Event.SharedLessonChanged, List.of("businessEmail", "clientEmail", "clientName", "partnerName", "studentName"));
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final String function;
     private final NotificationService notifications;
@@ -118,6 +124,13 @@ public final class EventConsumers {
      * a failure throws, so Lambda retries and then puts the event on the function's dead-letter queue.
      */
     public Outcome run(Event event, String json, String requestId) {
+        String coach = reconcileRequest(json);
+        if (coach != null) {
+            if (event != Event.ScheduleChanged) {
+                throw new IllegalArgumentException("only consumer-schedule-change reconciles");
+            }
+            return reconcile(coach, requestId);
+        }
         TableRecord r = TableRecord.parse(json);
         AccessLog.begin(requestId, null);
         try {
@@ -126,6 +139,30 @@ public final class EventConsumers {
                 AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event));
             }
             return o;
+        } finally {
+            AccessLog.end();
+        }
+    }
+
+    /** {@code {"reconcile": "<coachId>"}}: a direct invocation, not an event; else null. */
+    static String reconcileRequest(String json) {
+        JsonNode n = JSON.readTree(Objects.requireNonNull(json, "json"));
+        return n.has("reconcile") ? n.get("reconcile").asString() : null;
+    }
+
+    /**
+     * {@code consumer-schedule-change} invoked directly, by {@code sched-drift-check} or the {@code reconcile-schedule}
+     * command (ADR-MASTER section 19): settles the coach's stuck batches, then writes any difference as a {@code RECONCILE}
+     * batch. Its access-log line is the schedule change's.
+     */
+    Outcome reconcile(String coachId, String requestId) {
+        AccessContext ctx = new AccessContext(coachId);
+        AccessLog.begin(requestId, null);
+        try {
+            ScheduleChangeService.Reconciled r = scheduleChange.reconcile(ctx);
+            AccessLog.consumerRun(function, "reconcile", new AccessLog.Ids().add("coachId", coachId), FIELDS.get(Event.ScheduleChanged));
+            return new Outcome(Event.ScheduleChanged, "batches settled, then lessons cancelled or re-priced",
+                    r.settled() + r.result().cancelled() + r.result().repriced());
         } finally {
             AccessLog.end();
         }

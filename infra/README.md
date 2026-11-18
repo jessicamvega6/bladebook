@@ -165,6 +165,12 @@ Change any of these in `lib/` and its test together.
   embedded metric format, namespace `BladeBook`, by `Function`). The unpaid threshold is the Parameter
   Store setting `/<prefix>/unpaid-reminder/threshold-days`, read on every run; a deploy sets it back
   to `config.ts`'s value. Roles: ADR-MASTER §2, I23.
+- **The drift check (`sched-drift-check`, 3:00 AM Central):** reads only (GSI2, and `GetItem` and `Query`
+  in each coach's partition). A coach with a batch stuck for over an hour is handed to
+  `consumer-schedule-change` (`{"reconcile": "<coachId>"}`, the role's one `lambda:InvokeFunction`),
+  which settles the batch and writes any difference as a `RECONCILE` batch. What's left goes out as metrics
+  (`DriftReconcileFailed`, `DriftMissedCancellations`, `DriftOutstandingReprices`, `DriftCheckCompleted`)
+  for piece 7's alarms; it publishes to no SNS topic itself.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed

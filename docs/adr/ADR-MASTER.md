@@ -1588,6 +1588,8 @@ times and seats in that window.
 | A lesson that should have been cancelled and wasn't | Page |
 | Only re-prices outstanding | Dashboard |
 
+*How it's built (Batch 17b):* finishing is the reconcile, never a replay. `consumer-schedule-change`, invoked with `{"reconcile": "<coachId>"}`, settles each batch stuck for over an hour (its lines still `PLANNED` are skipped as `NO_LONGER_NEEDED`; its header becomes `EXECUTED` with what was done, so the notifier tells only those families), then writes any difference left as a `RECONCILE` batch. A batch still running is left alone, so it's safe to run any time; `reconcile-schedule` uses the same entry. A coach's day or week cancel (I24) left part-way is finished the same way, so its remaining families get the schedule-change email.
+
 ### Alarms
 
 - **Scheduled jobs:** a **dead man's switch** — `Invocations` `Sum < 1` over the window, with

@@ -118,6 +118,7 @@ export class AppStack extends Stack {
       familySiteUrl: `https://${cfg.sites.family.host}`,
       ...(this.email ? { email: this.email } : {}),
       unpaidThresholdDays: cfg.unpaidThresholdDays,
+      scheduleChange: this.consumers.functions.get('consumer-schedule-change')!,
       removalPolicy,
     });
 

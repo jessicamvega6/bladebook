@@ -36,6 +36,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.model.ParameterNotFoundException;
 
@@ -58,7 +62,8 @@ public final class ScheduledRuns {
         UNPAID_REMINDER("sched-unpaid-reminder", null),
         LESSON_ROLLER("sched-lesson-roller", "LessonRollerCompleted"),
         YEAR_CLOSE("sched-year-close", "YearCloseCompleted"),
-        DEADLINE_SWEEP("sched-deadline-sweep", "DeadlineSweepCompleted");
+        DEADLINE_SWEEP("sched-deadline-sweep", "DeadlineSweepCompleted"),
+        DRIFT_CHECK("sched-drift-check", "DriftCheckCompleted");
 
         public final String rule;
         /** The completion metric, or null if the job has none (its Invocations drive its alarm). */
@@ -97,7 +102,21 @@ public final class ScheduledRuns {
             Job.UNPAID_REMINDER, List.of("loginEmail", "studentName"),
             Job.LESSON_ROLLER, List.of(),
             Job.YEAR_CLOSE, List.of(),
-            Job.DEADLINE_SWEEP, List.of("invitedByName", "leftStudentName", "partnerName", "studentName"));
+            Job.DEADLINE_SWEEP, List.of("invitedByName", "leftStudentName", "partnerName", "studentName"),
+            // It reads seats to find coaches, and outputs counts only.
+            Job.DRIFT_CHECK, List.of());
+
+    /** How far ahead the drift check looks for coaches with lessons (ADR-MASTER section 19). */
+    static final int DRIFT_DAYS = 30;
+
+    /**
+     * Finishes a coach's stuck batch: on AWS, invokes {@code consumer-schedule-change} and waits (ADR-MASTER section 19).
+     * Throws if that failed.
+     */
+    @FunctionalInterface
+    public interface Reconciler {
+        void reconcile(String coachId);
+    }
 
     /** The metrics' namespace. The {@code Function} dimension (its name carries the environment) tells them apart. */
     static final String NAMESPACE = "BladeBook";
@@ -114,10 +133,19 @@ public final class ScheduledRuns {
     private final Supplier<Integer> unpaidThresholdDays;
     private final ClosedYearJob yearClose;
     private final DeadlineSweepService sweep;
+    private final Reconciler reconciler;
 
     public ScheduledRuns(String function, TenantClients clients, String table, Mailer mailer, NotificationService.Links links,
                          Supplier<Integer> unpaidThresholdDays, Clock clock) {
+        this(function, clients, table, mailer, links, unpaidThresholdDays, clock, coachId -> {
+            throw new IllegalStateException("no reconciler: this function doesn't run the drift check");
+        });
+    }
+
+    public ScheduledRuns(String function, TenantClients clients, String table, Mailer mailer, NotificationService.Links links,
+                         Supplier<Integer> unpaidThresholdDays, Clock clock, Reconciler reconciler) {
         this.function = function;
+        this.reconciler = reconciler;
         this.notify = new NotifyRepository(clients, table);
         this.notifications = new NotificationService(notify, mailer, links, clock);
         ScheduleRepository schedules = new ScheduleRepository(clients, table);
@@ -151,7 +179,25 @@ public final class ScheduledRuns {
         Supplier<Integer> threshold = parameter == null || parameter.isBlank() ? () -> null : parameterStore(parameter);
         return new ScheduledRuns(function, TenantClients.consumer(), required(env, "BLADEBOOK_TABLE"), mailer,
                 new NotificationService.Links(required(env, "BLADEBOOK_COACHSITEURL"), required(env, "BLADEBOOK_FAMILYSITEURL")),
-                threshold, Clock.systemUTC());
+                threshold, Clock.systemUTC(), lambdaReconciler(env.apply("BLADEBOOK_RECONCILEFUNCTION")));
+    }
+
+    /** Invokes {@code consumer-schedule-change} with {@code {"reconcile": coachId}} and waits for it; none if unset. */
+    private static Reconciler lambdaReconciler(String fn) {
+        if (fn == null || fn.isBlank()) {
+            return coachId -> {
+                throw new IllegalStateException("BLADEBOOK_RECONCILEFUNCTION is not set");
+            };
+        }
+        LambdaClient lambda = LambdaClient.builder().httpClient(UrlConnectionHttpClient.create())
+                .region(new DefaultAwsRegionProviderChain().getRegion()).build();
+        return coachId -> {
+            InvokeResponse r = lambda.invoke(i -> i.functionName(fn).invocationType(InvocationType.REQUEST_RESPONSE)
+                    .payload(SdkBytes.fromUtf8String(JSON.writeValueAsString(Map.of("reconcile", coachId)))));
+            if (r.functionError() != null) {
+                throw new IllegalStateException("consumer-schedule-change failed for a coach: " + r.functionError());
+            }
+        };
     }
 
     /** The threshold from Parameter Store; a missing or blank parameter means no threshold, so nothing is sent. */
@@ -218,6 +264,16 @@ public final class ScheduledRuns {
                 counts.put("alreadySaved", r.alreadySaved());
                 counts.put("notClosedYet", r.notClosedYet());
             }
+            case DRIFT_CHECK -> {
+                driftCheck(date, counts);
+                AccessLog.jobRun(function, job.rule, date, counts, FIELDS.get(job));
+                Map<String, Integer> metrics = new LinkedHashMap<>();
+                metrics.put(job.metric, 1);
+                metrics.put("DriftReconcileFailed", counts.get("reconcileFailed"));
+                metrics.put("DriftMissedCancellations", counts.get("missedCancellations"));
+                metrics.put("DriftOutstandingReprices", counts.get("outstandingReprices"));
+                return new Outcome(job, date, Map.copyOf(counts), metricLine(metrics, function, Instant.now()));
+            }
             case DEADLINE_SWEEP -> {
                 DeadlineSweepService.Swept r = sweep.sweep(scheduledTime.truncatedTo(ChronoUnit.SECONDS));
                 counts.put("expired", r.expired());
@@ -230,16 +286,54 @@ public final class ScheduledRuns {
     }
 
     /**
+     * {@code sched-drift-check} (ADR-MASTER section 19), reading only: every coach with booked lessons in the next
+     * {@value #DRIFT_DAYS} days (through GSI2). A coach with a batch stuck for over an hour is handed to
+     * {@code consumer-schedule-change} to finish, then checked again. What's left is counted: a failed finish and a lesson
+     * that should have been cancelled page; outstanding re-prices go on the dashboard (piece 7's alarms read the metrics).
+     */
+    private void driftCheck(LocalDate date, Map<String, Integer> counts) {
+        java.util.Set<String> coaches = new java.util.TreeSet<>();
+        for (int i = 0; i < DRIFT_DAYS; i++) {
+            notify.seatsOn(date.plusDays(i)).forEach(r -> coaches.add(r.seat().coachId()));
+        }
+        int reconciled = 0, failed = 0, missed = 0, reprices = 0;
+        for (String coachId : coaches) {
+            com.bladebook.core.data.AccessContext ctx = new com.bladebook.core.data.AccessContext(coachId);
+            ScheduleChangeService.Drift d = change.drift(ctx);
+            if (d.stuckBatches() > 0) {
+                try {
+                    reconciler.reconcile(coachId);
+                    reconciled++;
+                } catch (RuntimeException e) {
+                    failed++;
+                }
+                d = change.drift(ctx);
+            }
+            missed += d.missedCancellations();
+            reprices += d.outstandingReprices();
+        }
+        counts.put("coaches", coaches.size());
+        counts.put("reconciled", reconciled);
+        counts.put("reconcileFailed", failed);
+        counts.put("missedCancellations", missed);
+        counts.put("outstandingReprices", reprices);
+    }
+
+    /**
      * CloudWatch's embedded metric format: a log line CloudWatch turns into the metric, by function, with no permission or
      * call needed (ADR-MASTER section 19's completion metrics).
      */
     static String metricLine(String metric, String function, Instant at) {
+        return metricLine(Map.of(metric, 1), function, at);
+    }
+
+    static String metricLine(Map<String, Integer> metrics, String function, Instant at) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("_aws", Map.of("Timestamp", at.toEpochMilli(), "CloudWatchMetrics", List.of(Map.of(
                 "Namespace", NAMESPACE, "Dimensions", List.of(List.of("Function")),
-                "Metrics", List.of(Map.of("Name", metric, "Unit", "Count"))))));
+                "Metrics", metrics.keySet().stream().map(n -> Map.of("Name", n, "Unit", "Count")).toList()))));
         m.put("Function", function);
-        m.put(metric, 1);
+        m.putAll(metrics);
         return JSON.writeValueAsString(m);
     }
 }

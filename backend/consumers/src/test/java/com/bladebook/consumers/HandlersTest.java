@@ -43,6 +43,6 @@ class HandlersTest {
                 .flatMap(c -> c.getFieldAccessesFromSelf().stream().map(JavaFieldAccess::getTarget)
                         .filter(t -> t.getOwner().isEquivalentTo(ScheduledRuns.Job.class)).map(t -> t.getName()))
                 .sorted().toList();
-        assertThat(jobs).containsExactly("DAY_REMINDER", "DEADLINE_SWEEP", "LESSON_ROLLER", "UNPAID_REMINDER");
+        assertThat(jobs).containsExactly("DAY_REMINDER", "DEADLINE_SWEEP", "DRIFT_CHECK", "LESSON_ROLLER", "UNPAID_REMINDER");
     }
 }

@@ -118,6 +118,50 @@ public final class ScheduleChangeService {
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
     }
 
+    /** What a reconcile did: stuck batches settled, and the new batch's result. */
+    public record Reconciled(int settled, Result result) {
+    }
+
+    /**
+     * {@code reconcile-schedule} and {@code sched-drift-check}'s finish (ADR-MASTER section 19; ADR-010, 2026-11-17):
+     * first settles every batch stuck for over an hour (its remaining lines skipped, its header {@code EXECUTED} with what
+     * was done), then compares the lesson times the schedule makes with the stored ones and writes any difference as a new
+     * {@code RECONCILE} batch. Safe to run any time: a batch still running (under an hour) is left alone.
+     */
+    public Reconciled reconcile(AccessContext ctx) {
+        int settled = 0;
+        for (ChangeBatch b : batches.unfinished(ctx, clock.instant().minus(STUCK))) {
+            batches.settle(ctx, b);
+            settled++;
+        }
+        return new Reconciled(settled, apply(ctx, ChangeBatch.Source.RECONCILE));
+    }
+
+    /** What a check finds for one coach, reading only (ADR-MASTER section 19, "Drift check"). */
+    public record Drift(int stuckBatches, int missedCancellations, int outstandingReprices) {
+        public boolean clean() {
+            return stuckBatches == 0 && missedCancellations == 0 && outstandingReprices == 0;
+        }
+    }
+
+    /**
+     * {@code sched-drift-check} for one coach, writing nothing: batches stuck for over an hour, and the evaluator's verdict
+     * on the stored lesson times and seats from today on: booked lessons the schedule no longer makes (should have been
+     * cancelled) and booked lessons at the wrong price.
+     */
+    public Drift drift(AccessContext ctx) {
+        CoachProfile coach = coach(ctx);
+        ZoneId zone = ZoneId.of(coach.coachTimezone());
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, zone);
+        LocalDate until = Weeks.storeUntil(today);
+        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, today, until), today, until, zone,
+                coach.currency().name(), coach.requiredNoticeHours(), now);
+        ScheduleChange verdict = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now);
+        return new Drift(batches.unfinished(ctx, now.minus(STUCK)).size(), verdict.cancel().size(), verdict.reprice().size());
+    }
+
     /**
      * {@code sched-lesson-roller} for one coach: the lesson times the schedule makes from {@code date} to the end of what's
      * stored ({@link Weeks#storeUntil}) that don't exist yet. Only adds; a time that exists is left as it is, booked or not.

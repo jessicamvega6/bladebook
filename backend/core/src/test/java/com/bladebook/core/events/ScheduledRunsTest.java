@@ -96,4 +96,21 @@ class ScheduledRunsTest {
         assertThat(ScheduledRuns.threshold(null)).isNull();
         assertThat(outbox.list()).isEmpty();
     }
+
+    @Test
+    void theDriftCheckReadsOnlyAndReportsItsFindingsAsMetrics() {
+        java.util.List<String> handedOn = new java.util.ArrayList<>();
+        ScheduledRuns drift = new ScheduledRuns("bladebook-dev-sched-drift-check", f.clients, f.table, outbox,
+                new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), () -> null,
+                Clock.systemUTC(), handedOn::add);
+        ScheduledRuns.Outcome o = drift.run(input("sched-drift-check", "2026-11-19T08:00:00Z"));
+
+        assertThat(o.counts()).containsEntry("coaches", 0).containsEntry("reconcileFailed", 0).containsEntry("missedCancellations", 0);
+        assertThat(handedOn).isEmpty(); // nothing stuck
+        var m = JsonMapper.builder().build().readTree(o.metric());
+        assertThat(m.get("_aws").get("CloudWatchMetrics").get(0).get("Metrics")).hasSize(4);
+        assertThat(m.get("DriftCheckCompleted").asInt()).isEqualTo(1);
+        assertThat(m.get("DriftMissedCancellations").asInt()).isZero();
+        assertThat(log.lines).isEmpty(); // counts only: no personal data in its output (I23)
+    }
 }

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Duration;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -312,5 +314,44 @@ class ScheduleChangeBookedTest {
             assertThat(s.stuck()).isTrue();
             assertThat(s.batch().executionStatus()).isEqualTo(ChangeBatch.Execution.PLANNED);
         });
+    }
+
+    // ------------------------------------------------------------- the drift check and reconcile (section 19)
+
+    @Test
+    void theDriftCheckFindsAMissedCancellationAndReconcileCarriesItOut() {
+        schedules.save(dana, 1, List.of(shorter(5000))); // saved, but the schedule change never ran
+        assertThat(change.drift(dana)).isEqualTo(new ScheduleChangeService.Drift(0, 1, 0)); // Mia's 7:00
+
+        ScheduleChangeService.Reconciled r = change.reconcile(dana);
+
+        assertThat(r.settled()).isZero();
+        assertThat(r.result().cancelled()).isEqualTo(1);
+        assertThat(cancels.batches(dana)).last().satisfies(b -> assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.RECONCILE));
+        assertThat(change.drift(dana).clean()).isTrue();
+        assertThat(change.reconcile(dana).result().cancelled()).isZero(); // safe to run again
+    }
+
+    @Test
+    void aStuckBatchIsSettledWithWhatWasDoneAndItsRemainingLinesSkipped() {
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        change.apply(dana);
+        ChangeBatch b = cancels.batches(dana).get(0);
+        CancellationLine line = cancels.lines(dana).get(0);
+        // As if it stopped part-way: the header never reached EXECUTED and a line is still PLANNED.
+        for (String sk : List.of(b.key(), line.key())) {
+            t.f.clients.forSetup().updateItem(u -> u.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS(dana.partitionKey()),
+                    "SK", AttributeValue.fromS(sk))).updateExpression("SET executionStatus = :p")
+                    .expressionAttributeValues(Map.of(":p", AttributeValue.fromS("PLANNED"))));
+        }
+        assertThat(change.drift(dana).stuckBatches()).isZero(); // under an hour: still running
+        now.set(now.get().plus(Duration.ofHours(2)));
+        assertThat(change.drift(dana).stuckBatches()).isEqualTo(1);
+
+        assertThat(change.reconcile(dana).settled()).isEqualTo(1);
+
+        assertThat(cancels.batches(dana).get(0).executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
+        assertThat(cancels.lines(dana).get(0).executionStatus()).isEqualTo(ChangeBatch.Execution.SKIPPED);
+        assertThat(change.drift(dana).stuckBatches()).isZero();
     }
 }

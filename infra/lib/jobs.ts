@@ -2,7 +2,7 @@
 // launch time zone (America/Chicago, I7), with the time it was scheduled for; nothing goes through the bus. Each schedule
 // is named after its rule. The roller's function also runs the year close, on a second schedule (Batch 26).
 //
-// - The reminders have a dead-letter queue (discarded once their date has passed). The roller, the year close and the
+// - The reminders and the drift check have a dead-letter queue (discarded once their date has passed). The roller, the year close and the
 //   sweep have none: each is safe to run twice, and its completion metric drives its missed-run alarm (piece 7).
 // - Each role grants what its code calls, held by leading key to the partitions it touches (owner, 2026-11-18, I23).
 //   The cross-coach indexes stay with the jobs that need them: GSI2 the reminder, GSI3 the unpaid list, GSI4 the sweep.
@@ -91,6 +91,18 @@ export const JOBS: readonly JobSpec[] = [
     deadLetters: false, timeout: Duration.minutes(10),
   },
   {
+    name: 'sched-drift-check', handler: 'DriftCheck', templates: [],
+    description: 'nightly, reading only: stuck change batches and missed cancellations (ADR-MASTER §19)',
+    // Read-only: no writes at all. It finishes a stuck batch by invoking consumer-schedule-change (granted below).
+    dynamo: (t) => [
+      keys(['Query'], `${t}/index/GSI2`, ['DATE#*']),
+      keys(['GetItem', 'Query'], t, [COACH]),
+    ],
+    // After the roller (2:30 AM), so it checks a full store.
+    schedules: [{ rule: 'sched-drift-check', cron: 'cron(0 3 * * ? *)' }],
+    deadLetters: true, timeout: Duration.minutes(10),
+  },
+  {
     name: 'sched-deadline-sweep', handler: 'DeadlineSweep', templates: [],
     description: 'hourly: shared-lesson deadlines (GSI4)',
     dynamo: (t) => [
@@ -109,6 +121,8 @@ export interface JobsProps {
   readonly coachSiteUrl: string;
   readonly familySiteUrl: string;
   readonly email?: Email;
+  /** `consumer-schedule-change`: the drift check hands it a stuck batch to finish (ADR-MASTER §2, §19). */
+  readonly scheduleChange: lambda.IFunction;
   /** The weekly unpaid reminder's threshold in days, held in Parameter Store (ADR-MASTER §12). */
   readonly unpaidThresholdDays: number;
   readonly removalPolicy: RemovalPolicy;
@@ -144,8 +158,14 @@ export class Jobs extends Construct {
         timeout: spec.timeout, ...(deadLetters ? { deadLetters } : {}), removalPolicy: props.removalPolicy,
         ...(spec.name === 'sched-unpaid-reminder'
           ? { environment: { BLADEBOOK_UNPAIDTHRESHOLDPARAMETER: this.unpaidThreshold.parameterName } }
-          : {}),
+          : spec.name === 'sched-drift-check'
+            ? { environment: { BLADEBOOK_RECONCILEFUNCTION: props.scheduleChange.functionName } }
+            : {}),
       });
+      if (spec.name === 'sched-drift-check') {
+        // consumer-schedule-change only (ADR-MASTER §2; owner, 2026-11-17).
+        fn.addToRolePolicy(new iam.PolicyStatement({ actions: ['lambda:InvokeFunction'], resources: [props.scheduleChange.functionArn] }));
+      }
       if (spec.name === 'sched-unpaid-reminder') {
         fn.addToRolePolicy(new iam.PolicyStatement({ actions: ['ssm:GetParameter'], resources: [this.unpaidThreshold.parameterArn] }));
       }

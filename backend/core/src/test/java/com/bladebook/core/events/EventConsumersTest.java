@@ -152,4 +152,15 @@ class EventConsumersTest {
         assertThatThrownBy(() -> EventConsumers.fromEnvironment(Map.<String, String>of()::get))
                 .hasMessageContaining("AWS_LAMBDA_FUNCTION_NAME");
     }
+
+    @Test
+    void consumerScheduleChangeTakesAReconcileRequestAndOnlyItDoes() {
+        String coachId = coach();
+        EventConsumers.Outcome o = consumers.run(EventConsumers.Event.ScheduleChanged, "{\"reconcile\":\"" + coachId + "\"}", "req-r");
+        assertThat(o.count()).isZero(); // nothing stuck and nothing different
+        assertThat(log.only("reconcile").ids()).isEqualTo(Map.of("coachId", java.util.Set.of(coachId)));
+        assertThatThrownBy(() -> consumers.run(EventConsumers.Event.LessonBooked, "{\"reconcile\":\"" + coachId + "\"}", "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(EventConsumers.reconcileRequest("{\"detail\":{}}")).isNull();
+    }
 }
