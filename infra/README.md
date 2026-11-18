@@ -47,7 +47,10 @@ aws sso login --sso-session bladebook
 # policy that denies reading table data, the access log and the data buckets (ADR-032, I13).
 npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
 
-npx cdk deploy bladebook-dev-identity bladebook-dev-app --profile bladebook-dev
+npx cdk deploy bladebook-dev-identity --profile bladebook-dev
+node seed/seed.ts                      # the seed file (needs Docker and Java 17; see "The seed file")
+npx cdk deploy bladebook-dev-app --profile bladebook-dev
+node seed/check-import.ts              # ADR-028 d5: destroy the app stack if this fails
 npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the workflow is added
 
 # Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
@@ -72,6 +75,28 @@ After the first deploy with it set:
 seed bucket, then the app stack, whose table is created from that file. Deploying the app stack
 before a seed file exists fails.
 
+### The seed file
+
+`seed/seed.ts` writes the one file dev's table is created from (ADR-028). It doesn't write items
+itself: it starts both APIs from `backend/` in the local profile against a fresh `bladebook-seed`
+table on DynamoDB Local (ports 18080 and 18081, so it doesn't clash with a local run), and the
+people in `seed/scenario.ts` sign up, post schedules, link, get approved and book through the
+real routes. The local token stub is given the test accounts' real Cognito `sub`s, read by email
+from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you can sign
+in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
+are counted into `seed/current.manifest.json`, and both are uploaded to the seed bucket, replacing
+the last seed. `--no-upload` stops before the upload; `--skip-build` reuses the built jars.
+
+What's in it: three coaches (one with two-skater lessons), ten families (guardians and adult
+skaters, one with two coaches), 18 lessons booked, two weekly series, one cancellation, and two
+families left waiting for approval. Payments and attendance need lessons in the past, so the seed
+has none yet. Its local copy is in `seed/out/`, which git ignores: it holds the test mailbox's
+addresses.
+
+`seed/check-import.ts` then compares the table's import with the manifest: the import must be
+complete, with no errors, and must have read and imported exactly the manifest's item count. It
+exits 1 otherwise, and the app stack must be destroyed.
+
 ### New account: CloudFront verification
 
 A new AWS account can't create CloudFront distributions until AWS Support verifies it. Without that
@@ -79,7 +104,8 @@ verification, `bladebook-<env>-app` fails with `Your account must be verified be
 CloudFront resources` (403) and rolls back. The identity stack has no CloudFront resources, so it
 deploys without verification.
 
-Dev's account (793581837527) was asked on 2026-11-16 (case 179485860000682). **Production's
+Dev's account (793581837527) was asked on 2026-11-16 (case 179485860000682) and verified by
+2026-11-17, when `bladebook-dev-app` first deployed. **Production's
 account needs the same step as soon as it is created, a day or more before its first deploy.**
 
 1. Open AWS Support Center in the new account and choose **Create case**.

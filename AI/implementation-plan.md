@@ -59,8 +59,10 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [17a](../infra/README.md) | Infrastructure, part 1: `infra/` in CDK (no batch log; its record is `infra/README.md`) | #54 |
 | [27](batch-logs/batch-27.md) | Lessons from before last year are view only (an unpaid one can still be waived) | #57 |
 
-**Under way:** Batch 17b, on `feature/batch-17b-infra`. Its conflicts (I1–I20) are all ruled
-(2026-11-17, `AI/plan-history.md`); building waits on the owner's go and the CloudFront verification. Batch 17 is split into 17b and 17c (owner, 2026-11-17).
+**Under way:** Batch 17b, being built on `feature/batch-17b-build` (owner's go, 2026-11-17). Its conflicts (I1–I20)
+are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
+the table, the seed bucket, the test accounts, the seed generator and the import check. Batch 17 is split into 17b and
+17c (owner, 2026-11-17).
 
 **What that means for the code:**
 
@@ -69,10 +71,10 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 - `web/` has three Vite entry points (coach, rinkside and family) and the rinkside page's service worker.
   `web/src/shared/auth` holds the local sign-in stand-in (Question 3, SC-1).
 - **Still disabled on screen:** the coach Profile's *Account* tab (Batch 18).
-- `infra/` holds the CDK (TypeScript) app from Batch 17a. In dev, only `bladebook-dev-identity` (the Cognito user
-  pool, its groups and both app clients) is deployed, and nothing uses it yet. `bladebook-dev-app` waits for AWS
-  Support's CloudFront verification (§3), and `bladebook-dev-deploy-access` waits for Batch 17b's deploy workflow.
-  The app itself still runs locally only.
+- `infra/` holds the CDK (TypeScript) app from Batches 17a and 17b. In dev, `bladebook-dev-identity` (the user pool,
+  its groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox) and
+  `bladebook-dev-app` (both websites behind CloudFront, still empty, and the table built from the seed file) are
+  deployed. `bladebook-dev-deploy-access` waits for Batch 17b's deploy workflow. The app itself still runs locally only.
 
 ## 3. Blocked outside this work
 
@@ -93,7 +95,7 @@ Batch numbers are names, not order. The rows below are the build order (owner, 2
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it needs that stack's CloudFront verification (§3). Every conflict is ruled (2026-11-17) |
+| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it needs that stack's CloudFront verification (§3; done by 2026-11-17). Every conflict is ruled (2026-11-17) |
 | 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, the Figtree font served from BladeBook's own files, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b |
 | 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password, change password and log out, a coach's multi-factor authentication (MFA) code, and signing in again before a save. Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |

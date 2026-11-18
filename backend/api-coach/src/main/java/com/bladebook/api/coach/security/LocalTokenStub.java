@@ -16,7 +16,11 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -25,8 +29,11 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 
 /**
@@ -44,9 +51,12 @@ public class LocalTokenStub {
     private final RSAKey key;
     private final NimbusJwtEncoder encoder;
     private final Clock clock;
+    private final Map<String, String> subs;
     private final String coachAppClientId;
 
-    public LocalTokenStub(Clock clock, @Value("${bladebook.auth.coach-app-client-id}") String coachAppClientId) {
+    public LocalTokenStub(Clock clock, @Value("${bladebook.auth.coach-app-client-id}") String coachAppClientId,
+                          @Value("${bladebook.local.subs-file:}") String subsFile) {
+        this.subs = subs(subsFile);
         KeyPair pair = rsa();
         this.key = new RSAKey.Builder((RSAPublicKey) pair.getPublic()).privateKey((RSAPrivateKey) pair.getPrivate())
                 .keyID(UUID.randomUUID().toString()).build();
@@ -86,8 +96,31 @@ public class LocalTokenStub {
         return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
-    static String subFor(String email) {
-        return UUID.nameUUIDFromBytes(email.trim().toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8)).toString();
+    /**
+     * The token's {@code sub}: the one {@code bladebook.local.subs-file} gives for this email, else one made from the email.
+     * Dev's seed generator gives the file, so the seed file's items belong to the real test accounts' Cognito {@code sub}s
+     * (ADR-028 decision 4).
+     */
+    String subFor(String email) {
+        String e = email.trim().toLowerCase(Locale.ROOT);
+        String sub = subs.get(e);
+        return sub != null ? sub : UUID.nameUUIDFromBytes(e.getBytes(StandardCharsets.UTF_8)).toString();
+    }
+
+    /** {@code email=sub} lines. Blank: none. */
+    static Map<String, String> subs(String file) {
+        Map<String, String> out = new HashMap<>();
+        if (file == null || file.isBlank()) {
+            return out;
+        }
+        Properties p = new Properties();
+        try (Reader r = Files.newBufferedReader(Path.of(file), StandardCharsets.UTF_8)) {
+            p.load(r);
+        } catch (IOException e) {
+            throw new IllegalStateException("Can't read bladebook.local.subs-file " + file, e);
+        }
+        p.forEach((k, v) -> out.put(k.toString().trim().toLowerCase(Locale.ROOT), v.toString().trim()));
+        return Map.copyOf(out);
     }
 
     private static KeyPair rsa() {
