@@ -37,9 +37,13 @@ public final class AccessLog {
         void write(List<Line> lines);
     }
 
-    /** One line. {@code relationship} is the family's {@code clientRelationship}, when the request read it; else null. */
+    /**
+     * One line. {@code relationship} is the family's {@code clientRelationship}, when the request read it; else null.
+     * {@code counts}: a scheduled job's run, which names how many records of each kind it read instead of their IDs; else
+     * null.
+     */
     public record Line(Instant at, String requestId, String source, String role, String actor, String relationship,
-                       String operation, Map<String, Set<String>> ids, Set<String> fields) {
+                       String operation, Map<String, Set<String>> ids, Map<String, Integer> counts, Set<String> fields) {
 
         /** The line as written: one JSON object, keys in a fixed order, nulls left out. */
         public String json() {
@@ -52,6 +56,7 @@ public final class AccessLog {
             put(m, "relationship", relationship);
             m.put("operation", operation);
             m.put("ids", ids);
+            put(m, "counts", counts);
             m.put("fields", fields);
             return JSON.writeValueAsString(m);
         }
@@ -163,6 +168,27 @@ public final class AccessLog {
         record("consumer", function, null, event, ids, fields);
     }
 
+    /**
+     * A scheduled job's one line per run (ADR-MASTER section 18; I21): the function, the job and the date it ran for, how
+     * many records of each kind it read, and the fields named once. Written at once: a job runs outside a request.
+     */
+    public static void jobRun(String function, String job, java.time.LocalDate date, Map<String, Integer> counts,
+                              Collection<String> fields) {
+        Objects.requireNonNull(function, "function");
+        Objects.requireNonNull(date, "date");
+        if (fields.isEmpty()) {
+            return;
+        }
+        Line line = new Line(clock.instant(), null, null, "job", function, null, job + ":" + date, Map.of(),
+                Collections.unmodifiableMap(new TreeMap<>(counts)), Collections.unmodifiableSortedSet(new TreeSet<>(fields)));
+        Pending p = CURRENT.get();
+        if (p == null) {
+            sink.write(List.of(line));
+        } else {
+            p.lines.add(line);
+        }
+    }
+
     /** A security event (ADR-MASTER section 18), such as a family asking about a skater it was never linked to. */
     public static void security(String role, String actor, String operation, Ids ids) {
         record(role, actor, null, "security:" + operation, ids, List.of());
@@ -177,7 +203,7 @@ public final class AccessLog {
         }
         Pending p = CURRENT.get();
         Line line = new Line(clock.instant(), p == null ? null : p.requestId, p == null ? null : p.source, role, actor,
-                relationship, operation, ids.copy(), Collections.unmodifiableSortedSet(new TreeSet<>(fields)));
+                relationship, operation, ids.copy(), null, Collections.unmodifiableSortedSet(new TreeSet<>(fields)));
         if (p == null) {
             sink.write(List.of(line)); // outside a request (tests, local jobs): at once
         } else {

@@ -158,15 +158,16 @@ what its single-item actions allow.
 | `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
 | `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
-| `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
-| `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
+| `sched-day-reminder` | `Query` on GSI2; `GetItem` on the coach's and family's profiles; `UpdateItem` on the coach's partition (its guards). *Family profile added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I23)* | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
+| `sched-unpaid-reminder` | `Scan` on GSI3; `GetItem`, `Query` and `UpdateItem` in the coach's partition (the `Query` lists a lesson's seats, for a shared lesson's split, (owner, 2026-11-18, I23)). Reads its threshold with `ssm:GetParameter` on that one parameter | **GSI3** (scanned) | `ses:SendEmail` |
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17); `sns:Publish` to the operator alert topic only; CloudWatch metrics |
 | `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 **Each role is held by `dynamodb:LeadingKeys` to the partitions it touches** (`COACH#`, `CLIENT#`,
-`SKATERCODE#`), and was written from what its code calls (Batch 17b; owner, 2026-11-18, I22). Inside
+`SKATERCODE#`), and was written from what its code calls (Batch 17b; owner, 2026-11-18, I22 for the
+consumers, I23 for the scheduled jobs). Inside
 `TransactWriteItems` each write is checked as its item action, so no role lists it.
 
 **Every email is sent from a stored SES template**, so IAM sees each `ses:SendEmail` in this table as
@@ -1501,6 +1502,9 @@ same coach (held by `LinkedSkater` and the ownership condition).
 - **A family line carries `clientRelationship` when the request already read the family's
   account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
+  The fields named are those the run's **output uses** (the emails it sends, the records it writes), as for
+  the API and the consumers: the roller and the year close read profiles and skater records only to list
+  coaches and work out figures, so they write no line (owner, 2026-11-18, I23).
   The event consumers do the same per event: role `consumer`, the function as actor, the event's name as
   the operation, the IDs the record names and the fields that consumer reads, written when the event's work is done
   (a failed write fails the event; the retry finds the guards set). Both are added with their functions (Batch 17b

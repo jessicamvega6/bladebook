@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
 import { CONSUMERS, EVENT_PATTERNS, INVITE_ATTRIBUTES, PIPE_DETAIL_TYPE, PIPE_FILTER, PIPE_SOURCE } from '../lib/consumers.ts';
 import { templateFiles } from '../lib/email.ts';
+import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
 import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
@@ -187,15 +188,15 @@ describe('access log (ADR-012)', () => {
     dev.app.resourceCountIs('AWS::Logs::SubscriptionFilter', 1);
     dev.app.resourceCountIs('AWS::KinesisFirehose::DeliveryStream', 1);
   });
-  test('both API functions and the seven consumers are told the group, and may write to it only (no reading; I12)', () => {
+  test('both API functions, the seven consumers and the four jobs are told the group, and may write to it only (no reading; I12)', () => {
     const fns = Object.values(dev.app.findResources('AWS::Lambda::Function'))
-      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-(api-(coach|client)|consumer-[a-z-]+)$/));
-    assert.equal(fns.length, 9);
+      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-(api-(coach|client)|consumer-[a-z-]+|sched-[a-z-]+)$/));
+    assert.equal(fns.length, 13);
     for (const f of fns) assert.match(JSON.stringify(f.Properties.Environment.Variables.BLADEBOOK_ACCESSLOGGROUP), /DataAccessLog/);
     const grants = Object.values(dev.app.findResources('AWS::IAM::Policy'))
       .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[])
       .filter((st) => /"DataAccessLog[0-9A-F]{8}","Arn"/.test(JSON.stringify(st.Resource ?? '')));
-    assert.equal(grants.length, 9);
+    assert.equal(grants.length, 13);
     for (const g of grants) assert.deepEqual([g.Action].flat().sort(), ['logs:CreateLogStream', 'logs:PutLogEvents']);
   });
   test('the archive goes to Deep Archive and is deleted after 2 years', () => {
@@ -699,5 +700,55 @@ describe('the consumers\' roles (ADR-MASTER §2; owner, 2026-11-18)', () => {
       else if (c.name === 'consumer-family-sync') assert.deepEqual(puts, ['SKATERCODE#*']);
       else assert.deepEqual(puts, [], c.name);
     }
+  });
+});
+
+describe('the scheduled jobs (ADR-MASTER §2, §14; owner, 2026-11-18, I23)', () => {
+  const schedules = () => Object.values(dev.app.findResources('AWS::Scheduler::Schedule'));
+  const statementsOf = (handler: string) => {
+    const [roleId] = Object.entries(dev.app.findResources('AWS::IAM::Role')).find(([id]) => id.startsWith(`Jobs${handler}Role`))!;
+    return Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(roleId))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[]);
+  };
+  test('one schedule per rule, named after it, in the launch time zone, carrying the time it is for', () => {
+    const names = schedules().map((s) => s.Properties.Name).sort();
+    assert.deepEqual(names, ['sched-day-reminder', 'sched-deadline-sweep', 'sched-lesson-roller', 'sched-unpaid-reminder',
+      'sched-year-close'].map((n) => `bladebook-dev-${n}`));
+    for (const s of schedules()) {
+      assert.equal(s.Properties.ScheduleExpressionTimezone, 'America/Chicago');
+      assert.deepEqual(JSON.parse(s.Properties.Target.Input),
+        { job: s.Properties.Name.replace('bladebook-dev-', ''), scheduledTime: '<aws.scheduler.scheduled-time>' });
+    }
+    const yearClose = schedules().find((s) => s.Properties.Name === 'bladebook-dev-sched-year-close')!;
+    const roller = schedules().find((s) => s.Properties.Name === 'bladebook-dev-sched-lesson-roller')!;
+    assert.deepEqual(yearClose.Properties.Target.Arn, roller.Properties.Target.Arn); // one function (Batch 26)
+    assert.equal(yearClose.Properties.ScheduleExpression, 'cron(0 8 1-7 1 ? *)');
+  });
+  test('only the two reminders have a dead-letter queue', () => {
+    for (const s of schedules()) {
+      const reminder = /reminder$/.test(s.Properties.Name);
+      assert.equal(s.Properties.Target.DeadLetterConfig !== undefined, reminder, s.Properties.Name);
+    }
+  });
+  test('each cross-coach index belongs to one job, and the coach list reads keys only', () => {
+    const indexes = (h: string) => statementsOf(h).flatMap((st) => [st.Resource].flat())
+      .map((r) => JSON.stringify(r)).filter((r) => r.includes('/index/')).map((r) => r.match(/index\/(GSI\d)/)![1]);
+    assert.deepEqual(indexes('DayReminder'), ['GSI2']);
+    assert.deepEqual(indexes('UnpaidReminder'), ['GSI3']);
+    assert.deepEqual(indexes('DeadlineSweep'), ['GSI4']);
+    assert.deepEqual(indexes('LessonRoller'), []);
+    const scans = statementsOf('LessonRoller').filter((st) => [st.Action].flat().includes('dynamodb:Scan'));
+    assert.equal(scans.length, 1);
+    assert.deepEqual(scans[0]!.Condition['ForAllValues:StringEquals']['dynamodb:Attributes'], ['PK', 'SK']);
+    assert.equal(scans[0]!.Condition.StringEquals['dynamodb:Select'], 'SPECIFIC_ATTRIBUTES');
+    const rollerWrites = statementsOf('LessonRoller').flatMap((st) => [st.Action].flat())
+      .filter((a: string) => /UpdateItem|DeleteItem/.test(a));
+    assert.deepEqual(rollerWrites, []); // it only adds
+  });
+  test('the unpaid threshold is a Parameter Store setting only the unpaid reminder may read', () => {
+    dev.app.hasResourceProperties('AWS::SSM::Parameter', { Name: '/bladebook-dev/unpaid-reminder/threshold-days', Value: '7' });
+    const readers = JOBS.filter((j) => statementsOf(j.handler).some((st) => [st.Action].flat().includes('ssm:GetParameter')));
+    assert.deepEqual(readers.map((j) => j.name), ['sched-unpaid-reminder']);
   });
 });

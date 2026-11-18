@@ -1,0 +1,245 @@
+package com.bladebook.core.events;
+
+import com.bladebook.core.data.AccessLog;
+import com.bladebook.core.data.CloudWatchAccessLog;
+import com.bladebook.core.data.CoachRepository;
+import com.bladebook.core.data.FinancialRepository;
+import com.bladebook.core.data.NotifyRepository;
+import com.bladebook.core.data.PaymentRepository;
+import com.bladebook.core.data.ScheduleRepository;
+import com.bladebook.core.data.ShareRepository;
+import com.bladebook.core.data.StudentRepository;
+import com.bladebook.core.data.TenantClients;
+import com.bladebook.core.service.ClosedYearJob;
+import com.bladebook.core.service.DeadlineSweepService;
+import com.bladebook.core.service.FinancialService;
+import com.bladebook.core.service.Mailer;
+import com.bladebook.core.service.NotificationService;
+import com.bladebook.core.service.PaymentService;
+import com.bladebook.core.service.ScheduleChangeService;
+import com.bladebook.core.service.ScheduledJobs;
+import com.bladebook.core.service.SeatEvents;
+import com.bladebook.core.service.SesMailer;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.model.ParameterNotFoundException;
+
+/**
+ * The scheduled jobs on AWS (ADR-MASTER sections 2 and 14): EventBridge Scheduler invokes each {@code sched-*} function
+ * directly, with the time it was scheduled for. Each job takes the date that time falls on in the launch time zone (or, for
+ * the sweep, the time itself), never the clock, so a re-run or a late run works on its own date.
+ *
+ * <p>Each run that reads personal data writes one access-log line (ADR-MASTER section 18; I21). The roller, the year close
+ * and the sweep also report a completion metric, which drives their missed-run alarms (section 19).
+ */
+public final class ScheduledRuns {
+
+    /** The launch time zone the Scheduler's rules use (owner, 2026-11-17, I7). */
+    public static final ZoneId LAUNCH = ZoneId.of("America/Chicago");
+
+    /** Each Scheduler rule, by its name (ADR-MASTER section 3). The roller's function also runs the year close. */
+    public enum Job {
+        DAY_REMINDER("sched-day-reminder", null),
+        UNPAID_REMINDER("sched-unpaid-reminder", null),
+        LESSON_ROLLER("sched-lesson-roller", "LessonRollerCompleted"),
+        YEAR_CLOSE("sched-year-close", "YearCloseCompleted"),
+        DEADLINE_SWEEP("sched-deadline-sweep", "DeadlineSweepCompleted");
+
+        public final String rule;
+        /** The completion metric, or null if the job has none (its Invocations drive its alarm). */
+        public final String metric;
+
+        Job(String rule, String metric) {
+            this.rule = rule;
+            this.metric = metric;
+        }
+
+        public static Job ofRule(String rule) {
+            for (Job j : values()) {
+                if (j.rule.equals(rule)) {
+                    return j;
+                }
+            }
+            throw new IllegalArgumentException("unknown job " + rule);
+        }
+    }
+
+    /**
+     * What one run did: counts only, for the function's log. {@code metric}: the line that reports the completion metric in
+     * CloudWatch's embedded metric format, or null.
+     */
+    public record Outcome(Job job, LocalDate date, Map<String, Integer> counts, String metric) {
+    }
+
+    /**
+     * The personal-data fields each job's output uses (the emails it sends, the lines it writes), named once on its
+     * access-log line (owner, 2026-11-18, I23). The roller and the year close output none: they read profiles and skater
+     * records only to list coaches and work out figures, so they write no line.
+     */
+    static final Map<Job, List<String>> FIELDS = Map.of(
+            Job.DAY_REMINDER, List.of("businessEmail", "clientEmail", "firstName", "lastName", "loginEmail",
+                    "studentName"),
+            Job.UNPAID_REMINDER, List.of("loginEmail", "studentName"),
+            Job.LESSON_ROLLER, List.of(),
+            Job.YEAR_CLOSE, List.of(),
+            Job.DEADLINE_SWEEP, List.of("invitedByName", "leftStudentName", "partnerName", "studentName"));
+
+    /** The metrics' namespace. The {@code Function} dimension (its name carries the environment) tells them apart. */
+    static final String NAMESPACE = "BladeBook";
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private final String function;
+    private final ScheduledJobs jobs;
+    private final NotifyRepository notify;
+    private final NotificationService notifications;
+    private final ScheduleChangeService change;
+    private final Mailer mailer;
+    /** Read on every unpaid run, so a change to the setting takes effect without a deploy. */
+    private final Supplier<Integer> unpaidThresholdDays;
+    private final ClosedYearJob yearClose;
+    private final DeadlineSweepService sweep;
+
+    public ScheduledRuns(String function, TenantClients clients, String table, Mailer mailer, NotificationService.Links links,
+                         Supplier<Integer> unpaidThresholdDays, Clock clock) {
+        this.function = function;
+        this.notify = new NotifyRepository(clients, table);
+        this.notifications = new NotificationService(notify, mailer, links, clock);
+        ScheduleRepository schedules = new ScheduleRepository(clients, table);
+        CoachRepository coaches = new CoachRepository(clients, table);
+        this.change = new ScheduleChangeService(schedules, coaches, clock);
+        this.mailer = mailer;
+        this.unpaidThresholdDays = unpaidThresholdDays;
+        this.jobs = new ScheduledJobs(notify, notifications, change, mailer, null);
+        PaymentService payments = new PaymentService(new PaymentRepository(clients, table), schedules,
+                new StudentRepository(clients, table), coaches, clock);
+        this.yearClose = new ClosedYearJob(notify, new FinancialService(payments, coaches, new FinancialRepository(clients, table), clock));
+        // No in-process seat events on AWS: consumer-invite follows the sweep's writes through the stream.
+        this.sweep = new DeadlineSweepService(new ShareRepository(clients, table), SeatEvents.NONE);
+    }
+
+    /** On Lambda, from the function's environment (set by {@code infra/lib/jobs.ts}). */
+    public static ScheduledRuns fromEnvironment() {
+        return fromEnvironment(System::getenv);
+    }
+
+    static ScheduledRuns fromEnvironment(Function<String, String> env) {
+        String function = required(env, "AWS_LAMBDA_FUNCTION_NAME");
+        AccessLog.install(CloudWatchAccessLog.aws(required(env, "BLADEBOOK_ACCESSLOGGROUP"), function), Clock.systemUTC());
+        String from = env.apply("BLADEBOOK_MAIL_FROM");
+        Mailer mailer = from == null || from.isBlank()
+                ? email -> {
+                    throw new IllegalStateException(function + " has no sending address; it sends no email");
+                }
+                : SesMailer.aws(new SesMailer.Senders(from, required(env, "BLADEBOOK_MAIL_NOREPLY")));
+        String parameter = env.apply("BLADEBOOK_UNPAIDTHRESHOLDPARAMETER");
+        Supplier<Integer> threshold = parameter == null || parameter.isBlank() ? () -> null : parameterStore(parameter);
+        return new ScheduledRuns(function, TenantClients.consumer(), required(env, "BLADEBOOK_TABLE"), mailer,
+                new NotificationService.Links(required(env, "BLADEBOOK_COACHSITEURL"), required(env, "BLADEBOOK_FAMILYSITEURL")),
+                threshold, Clock.systemUTC());
+    }
+
+    /** The threshold from Parameter Store; a missing or blank parameter means no threshold, so nothing is sent. */
+    private static Supplier<Integer> parameterStore(String name) {
+        SsmClient ssm = SsmClient.builder().httpClient(UrlConnectionHttpClient.create())
+                .region(new DefaultAwsRegionProviderChain().getRegion()).build();
+        return () -> {
+            try {
+                return threshold(ssm.getParameter(r -> r.name(name)).parameter().value());
+            } catch (ParameterNotFoundException e) {
+                return null;
+            }
+        };
+    }
+
+    /** A threshold setting's value: whole days, or blank for none. */
+    static Integer threshold(String value) {
+        return value == null || value.isBlank() ? null : Integer.valueOf(value.trim());
+    }
+
+    private static String required(Function<String, String> env, String name) {
+        String v = env.apply(name);
+        if (v == null || v.isBlank()) {
+            throw new IllegalStateException(name + " is not set");
+        }
+        return v;
+    }
+
+    /**
+     * One run, from the Scheduler's input: {@code {"job": "<rule name>", "scheduledTime": "<ISO instant>"}}. Throws if the
+     * job fails, so Lambda retries it (or, for a job with a queue, puts it there).
+     */
+    public Outcome run(String json) {
+        JsonNode in = JSON.readTree(Objects.requireNonNull(json, "json"));
+        if (!in.has("job") || !in.has("scheduledTime")) {
+            throw new IllegalArgumentException("a Scheduler input needs job and scheduledTime");
+        }
+        return run(Job.ofRule(in.get("job").asString()), Instant.parse(in.get("scheduledTime").asString()));
+    }
+
+    Outcome run(Job job, Instant scheduledTime) {
+        LocalDate date = LocalDate.ofInstant(scheduledTime, LAUNCH);
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        switch (job) {
+            case DAY_REMINDER -> {
+                ScheduledJobs.DayOf r = jobs.dayOf(date);
+                counts.put("familyReminders", r.reminders());
+                counts.put("morningEmails", r.morningEmails());
+            }
+            case UNPAID_REMINDER -> {
+                ScheduledJobs.Unpaid r = new ScheduledJobs(notify, notifications, change, mailer, unpaidThresholdDays.get()).unpaid(date);
+                counts.put("emails", r.emails());
+                counts.put("lessons", r.lessons());
+            }
+            case LESSON_ROLLER -> {
+                ScheduledJobs.Rolled r = jobs.roll(date);
+                counts.put("coaches", r.coaches());
+                counts.put("lessonTimesAdded", r.added());
+            }
+            case YEAR_CLOSE -> {
+                ClosedYearJob.Result r = yearClose.run(date);
+                counts.put("coaches", r.coaches());
+                counts.put("saved", r.saved());
+                counts.put("alreadySaved", r.alreadySaved());
+                counts.put("notClosedYet", r.notClosedYet());
+            }
+            case DEADLINE_SWEEP -> {
+                DeadlineSweepService.Swept r = sweep.sweep(scheduledTime.truncatedTo(ChronoUnit.SECONDS));
+                counts.put("expired", r.expired());
+                counts.put("cancelledNoAnswer", r.cancelledNoAnswer());
+                counts.put("cleared", r.cleared());
+            }
+        }
+        AccessLog.jobRun(function, job.rule, date, counts, FIELDS.get(job));
+        return new Outcome(job, date, Map.copyOf(counts), job.metric == null ? null : metricLine(job.metric, function, Instant.now()));
+    }
+
+    /**
+     * CloudWatch's embedded metric format: a log line CloudWatch turns into the metric, by function, with no permission or
+     * call needed (ADR-MASTER section 19's completion metrics).
+     */
+    static String metricLine(String metric, String function, Instant at) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("_aws", Map.of("Timestamp", at.toEpochMilli(), "CloudWatchMetrics", List.of(Map.of(
+                "Namespace", NAMESPACE, "Dimensions", List.of(List.of("Function")),
+                "Metrics", List.of(Map.of("Name", metric, "Unit", "Count"))))));
+        m.put("Function", function);
+        m.put(metric, 1);
+        return JSON.writeValueAsString(m);
+    }
+}

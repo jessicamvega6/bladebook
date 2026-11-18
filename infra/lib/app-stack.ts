@@ -16,6 +16,7 @@ import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
 import { Api } from './api.ts';
 import { Consumers } from './consumers.ts';
+import { Jobs } from './jobs.ts';
 import { Email } from './email.ts';
 import { BladebookTable } from './table.ts';
 import { TenantRoles } from './tenant-roles.ts';
@@ -40,6 +41,7 @@ export class AppStack extends Stack {
   readonly email?: Email;
   readonly api: Api;
   readonly consumers: Consumers;
+  readonly jobs: Jobs;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -104,6 +106,18 @@ export class AppStack extends Stack {
       coachSiteUrl: `https://${cfg.sites.coach.host}`,
       familySiteUrl: `https://${cfg.sites.family.host}`,
       ...(this.email ? { email: this.email } : {}),
+      removalPolicy,
+    });
+
+    // The scheduled jobs, on EventBridge Scheduler (ADR-MASTER §2, §14).
+    this.jobs = new Jobs(this, 'Jobs', {
+      prefix,
+      table: this.table.table,
+      accessLog: this.data.accessLog,
+      coachSiteUrl: `https://${cfg.sites.coach.host}`,
+      familySiteUrl: `https://${cfg.sites.family.host}`,
+      ...(this.email ? { email: this.email } : {}),
+      unpaidThresholdDays: cfg.unpaidThresholdDays,
       removalPolicy,
     });
 

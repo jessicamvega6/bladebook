@@ -18,6 +18,7 @@ import * as pipes from 'aws-cdk-lib/aws-pipes';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { backendCode } from './api.ts';
+import { backendFunction, deadLetterQueue } from './backend-function.ts';
 import type { Email } from './email.ts';
 
 /** What the Pipe sets on every event it puts on the bus. */
@@ -198,13 +199,7 @@ export class Consumers extends Construct {
     this.bus = new events.EventBus(this, 'Bus', { eventBusName: `${props.prefix}-events` });
 
     // ---------------------------------------------------------------------------------------------------- the Pipe
-    const queue = (qid: string): sqs.Queue => new sqs.Queue(this, qid, {
-      encryption: sqs.QueueEncryption.SQS_MANAGED,
-      enforceSSL: true,
-      retentionPeriod: Duration.days(14),
-      removalPolicy: props.removalPolicy,
-    });
-    this.pipeDeadLetters = queue('PipeDeadLetters');
+    this.pipeDeadLetters = deadLetterQueue(this, 'PipeDeadLetters', props.removalPolicy);
     const pipeRole = new iam.Role(this, 'PipeRole', {
       assumedBy: new iam.ServicePrincipal('pipes.amazonaws.com'),
       description: 'The table stream Pipe: reads the stream, puts each record on the bus.',
@@ -239,54 +234,15 @@ export class Consumers extends Construct {
     // ---------------------------------------------------------------------------------------------- the consumers
     const code = backendCode(this, 'consumers');
     for (const spec of CONSUMERS) {
-      const name = `${props.prefix}-${spec.name}`;
-      const role = new iam.Role(this, `${spec.handler}Role`, {
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-        description: `${spec.name}: ${spec.event} (ADR-MASTER §2).`,
-      });
-      const logGroup = new logs.LogGroup(this, `${spec.handler}Logs`, {
-        logGroupName: `/aws/lambda/${name}`,
-        retention: logs.RetentionDays.ONE_MONTH,
-        removalPolicy: props.removalPolicy,
-      });
-      // Its own log group only (not AWSLambdaBasicExecutionRole's every group).
-      role.addToPolicy(new iam.PolicyStatement({
-        actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
-        resources: [logGroup.logGroupArn],
-      }));
-      for (const s of spec.dynamo(table.tableArn)) role.addToPolicy(s);
-      // Its own streams in the access-log group: no reading (ADR-MASTER §18; I12).
-      role.addToPolicy(new iam.PolicyStatement({
-        actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
-        resources: [props.accessLog.logGroupArn],
-      }));
-      if (props.email && spec.templates.length > 0) props.email.sendOnly(role, [...spec.templates]);
-
-      const deadLetters = queue(`${spec.handler}DeadLetters`);
-      const fn = new lambda.Function(this, spec.handler, {
-        functionName: name,
-        description: `${spec.event} (ADR-MASTER §2)`,
-        runtime: lambda.Runtime.JAVA_17_AL2023,
-        architecture: lambda.Architecture.ARM_64,
-        handler: `com.bladebook.consumers.handler.${spec.handler}::handleRequest`,
-        code,
-        role,
-        memorySize: 1024,
+      const deadLetters = deadLetterQueue(this, `${spec.handler}DeadLetters`, props.removalPolicy);
+      const fn = backendFunction(this, {
+        prefix: props.prefix, name: spec.name, handler: spec.handler, description: spec.event, code,
+        table, dynamo: spec.dynamo(table.tableArn), accessLog: props.accessLog,
+        coachSiteUrl: props.coachSiteUrl, familySiteUrl: props.familySiteUrl,
+        templates: spec.templates, ...(props.email ? { email: props.email } : {}),
         timeout: spec.timeout ?? Duration.minutes(1),
-        logGroup,
         // Two retries, then the event goes to its queue (ADR-MASTER §19).
-        retryAttempts: 2,
-        deadLetterQueue: deadLetters,
-        environment: {
-          BLADEBOOK_TABLE: table.tableName,
-          BLADEBOOK_COACHSITEURL: props.coachSiteUrl.replace(/\/$/, ''),
-          BLADEBOOK_FAMILYSITEURL: props.familySiteUrl.replace(/\/$/, ''),
-          BLADEBOOK_ACCESSLOGGROUP: props.accessLog.logGroupName,
-          ...(props.email && spec.templates.length > 0
-            ? { BLADEBOOK_MAIL_FROM: props.email.from, BLADEBOOK_MAIL_NOREPLY: props.email.noReply }
-            : {}),
-          JAVA_TOOL_OPTIONS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1',
-        },
+        deadLetters, removalPolicy: props.removalPolicy,
       });
       new events.Rule(this, `${spec.event}Rule`, {
         ruleName: `${props.prefix}-${spec.event}`,
@@ -302,19 +258,7 @@ export class Consumers extends Construct {
       this.functions.set(spec.name, fn);
       this.deadLetters.set(spec.name, deadLetters);
 
-      Validations.of(fn).acknowledge({
-        id: 'AwsSolutions-L1',
-        reason: 'java17.al2023 is the owner\'s choice (ADR-001 A10): Java 17, not the newest Java runtime.',
-      });
-      Validations.of(deadLetters).acknowledge({
-        id: 'AwsSolutions-SQS3',
-        reason: 'This is the consumer\'s dead-letter queue; it needs none of its own (ADR-MASTER §19).',
-      });
     }
-    Validations.of(this.pipeDeadLetters).acknowledge({
-      id: 'AwsSolutions-SQS3',
-      reason: 'The Pipe\'s dead-letter queue; it needs none of its own (ADR-MASTER §19).',
-    });
     Validations.of(pipeRole).acknowledge({
       id: 'AwsSolutions-IAM5[Resource::*]',
       reason: 'dynamodb:ListStreams has no resource-level permission; the stream reads are on this table\'s stream only.',

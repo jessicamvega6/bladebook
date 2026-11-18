@@ -20,7 +20,7 @@ account doesn't exist yet, so only dev's are built.
 | Stack | Holds | Lifetime |
 |---|---|---|
 | `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, the `coach-web` and `family-web` app clients, and in dev the test accounts (3 coaches, 10 families) and the seed file's bucket | Built first; kept between dev builds (I16, ADR-028) |
-| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, the tenant roles (`coach-tenant`, `client-tenant`, `code-lookup`) and the API functions' execution roles, the event bus, its Pipe and the seven consumers with their dead-letter queues, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
+| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, the tenant roles (`coach-tenant`, `client-tenant`, `code-lookup`) and the API functions' execution roles, the event bus, its Pipe and the seven consumers with their dead-letter queues, the scheduled jobs and their schedules, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
 | Website | Dev | Production |
@@ -158,6 +158,13 @@ Change any of these in `lib/` and its test together.
   partitions it touches (ADR-MASTER §2, I22), SES for its own templates only, and one dead-letter queue
   for both the rule and the function (two Lambda retries). 1,024 MB; one minute, five for
   `consumer-schedule-change`.
+- **The scheduled jobs (`lib/jobs.ts`):** EventBridge Scheduler runs each `sched-*` function in
+  `America/Chicago` with the time it's for (`<aws.scheduler.scheduled-time>`); the job takes that time's
+  date. `sched-year-close` is a second schedule on the roller's function. Only the two reminders have a
+  dead-letter queue; the roller, year close and sweep report a completion metric instead (CloudWatch's
+  embedded metric format, namespace `BladeBook`, by `Function`). The unpaid threshold is the Parameter
+  Store setting `/<prefix>/unpaid-reminder/threshold-days`, read on every run; a deploy sets it back
+  to `config.ts`'s value. Roles: ADR-MASTER §2, I23.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed

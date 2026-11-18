@@ -47,7 +47,7 @@ class CloudWatchAccessLogTest {
 
     private static AccessLog.Line line(String at) {
         return new AccessLog.Line(Instant.parse(at), "req", "203.0.113.7", "coach", "c1", null, "students",
-                Map.of("studentId", Set.of("s1")), Set.of("studentName"));
+                Map.of("studentId", Set.of("s1")), null, Set.of("studentName"));
     }
 
     @Test
