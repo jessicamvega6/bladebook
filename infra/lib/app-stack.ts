@@ -14,6 +14,7 @@ import { dataRemovalPolicy, resourcePrefix } from './config.ts';
 import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
+import { Api } from './api.ts';
 import { BladebookTable } from './table.ts';
 import { TenantRoles } from './tenant-roles.ts';
 import { Website } from './website.ts';
@@ -21,6 +22,8 @@ import { Website } from './website.ts';
 export interface AppStackProps extends StackProps {
   readonly cfg: EnvConfig;
   readonly userPool: cognito.IUserPool;
+  readonly coachAppClient: cognito.IUserPoolClient;
+  readonly familyAppClient: cognito.IUserPoolClient;
   /** Dev: the account stack's seed bucket, which the table is imported from (ADR-028). */
   readonly seedBucket?: s3.IBucket;
 }
@@ -32,6 +35,7 @@ export class AppStack extends Stack {
   readonly firewall?: Firewall;
   readonly table: BladebookTable;
   readonly tenants: TenantRoles;
+  readonly api: Api;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -56,19 +60,6 @@ export class AppStack extends Stack {
       return zone;
     };
 
-    this.coachSite = new Website(this, 'CoachSite', {
-      site: cfg.sites.coach,
-      zone: zoneFor(cfg.sites.coach.zoneName, cfg.sites.coach.zoneId),
-      noindex: cfg.noindex,
-      removalPolicy,
-    });
-    this.familySite = new Website(this, 'FamilySite', {
-      site: cfg.sites.family,
-      zone: zoneFor(cfg.sites.family.zoneName, cfg.sites.family.zoneId),
-      noindex: cfg.noindex,
-      removalPolicy,
-    });
-
     this.data = new DataBuckets(this, 'Data', { prefix, removalPolicy });
 
     if (cfg.seedImport && !props.seedBucket) throw new Error(`${id}: seedImport needs the account stack's seed bucket`);
@@ -81,6 +72,35 @@ export class AppStack extends Stack {
     // The database gate (ADR-MASTER §16): the API functions reach the table only through these.
     this.tenants = new TenantRoles(this, 'Tenants', { table: this.table.table });
 
+    this.api = new Api(this, 'Api', {
+      prefix,
+      table: this.table.table,
+      tenants: this.tenants,
+      userPool: props.userPool,
+      issuer: `https://cognito-idp.${this.region}.amazonaws.com/${props.userPool.userPoolId}`,
+      coachAppClientId: props.coachAppClient.userPoolClientId,
+      familyAppClientId: props.familyAppClient.userPoolClientId,
+      coachSiteUrl: `https://${cfg.sites.coach.host}`,
+      familySiteUrl: `https://${cfg.sites.family.host}`,
+      removalPolicy,
+    });
+
+    this.coachSite = new Website(this, 'CoachSite', {
+      site: cfg.sites.coach,
+      zone: zoneFor(cfg.sites.coach.zoneName, cfg.sites.coach.zoneId),
+      noindex: cfg.noindex,
+      removalPolicy,
+      api: this.api,
+    });
+    this.familySite = new Website(this, 'FamilySite', {
+      site: cfg.sites.family,
+      zone: zoneFor(cfg.sites.family.zoneName, cfg.sites.family.zoneId),
+      noindex: cfg.noindex,
+      removalPolicy,
+      api: this.api,
+    });
+
+
     if (cfg.emailDomain) {
       // DKIM records go in the zone; the identity starts in the SES sandbox.
       new ses.EmailIdentity(this, 'EmailIdentity', {
@@ -91,7 +111,7 @@ export class AppStack extends Stack {
     if (cfg.waf.enabled) {
       this.firewall = new Firewall(this, 'Firewall', { name: prefix, mode: cfg.waf.mode, removalPolicy });
       this.firewall.associate('UserPoolAssociation', props.userPool.userPoolArn);
-      // The REST API's stage is associated in Batch 17b.
+      this.firewall.associate('ApiAssociation', this.api.restApi.deploymentStage.stageArn);
     }
 
     new CfnOutput(this, 'TableName', { value: this.table.table.tableName });

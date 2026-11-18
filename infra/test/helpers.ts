@@ -32,7 +32,7 @@ export interface Built {
 export const TEST_MAILBOX = 'owner+dev@mailbox.test';
 
 export function build(cfg: EnvConfig, context: Record<string, string> = {}): Built {
-  const app = new App({ context });
+  const app = new App({ context: { 'bladebook:placeholderCode': 'true', ...context } });
   const stacks = addEnvironment(app, cfg);
   return {
     stacks,
@@ -44,7 +44,7 @@ export function build(cfg: EnvConfig, context: Record<string, string> = {}): Bui
 
 /** Synthesizes with cdk-nag on and returns the error, if any. */
 export function synthWithSecurityChecks(cfgs: readonly EnvConfig[], context: Record<string, string> = {}): Error | undefined {
-  const app = new App({ context });
+  const app = new App({ context: { 'bladebook:placeholderCode': 'true', ...context } });
   for (const cfg of cfgs) addEnvironment(app, cfg);
   addSecurityChecks(app);
   try {

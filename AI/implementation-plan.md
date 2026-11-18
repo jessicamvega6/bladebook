@@ -61,8 +61,9 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 
 **Under way:** Batch 17b, being built on `feature/batch-17b-build` (owner's go, 2026-11-17). Its conflicts (I1–I20)
 are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
-the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles and
-`TenantClients`' AWS mode. Batch 17 is split into 17b and
+the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles,
+`TenantClients`' AWS mode, and the API (both functions, API Gateway, CloudFront's `/api/*`, the origin secret and
+the US-only check). Batch 17 is split into 17b and
 17c (owner, 2026-11-17).
 
 **What that means for the code:**

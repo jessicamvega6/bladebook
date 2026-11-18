@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
 import { testAccounts } from '../lib/test-accounts.ts';
-import { spaRoutingCode } from '../lib/website.ts';
+import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
 
 const dev = build(testDev);
@@ -162,8 +162,12 @@ describe('firewall (ADR-019)', () => {
       else assert.deepEqual(r.Action, { Block: {} });
     }
   });
-  test('attached to the user pool; logs only matched requests, Authorization redacted', () => {
-    prod.app.resourceCountIs('AWS::WAFv2::WebACLAssociation', 1);
+  test('attached to the user pool and the API\'s stage; logs only matched requests, Authorization redacted', () => {
+    const attached = Object.values(prod.app.findResources('AWS::WAFv2::WebACLAssociation'))
+      .map((a) => JSON.stringify(a.Properties.ResourceArn));
+    assert.equal(attached.length, 2);
+    assert.ok(attached.some((a) => a.includes('UserPool')));
+    assert.ok(attached.some((a) => a.includes('/restapis/') && a.includes('/stages/') && a.includes('RestApiDeploymentStagelive')));
     prod.app.hasResourceProperties('AWS::WAFv2::LoggingConfiguration', {
       RedactedFields: [{ SingleHeader: { Name: 'authorization' } }],
       LoggingFilter: Match.objectLike({ DefaultBehavior: 'DROP' }),
@@ -309,12 +313,18 @@ describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
       .flatMap((p) => p.Properties.PolicyDocument.Statement as Statement[]);
   };
 
-  test('neither API role holds a DynamoDB action; each may only assume its tenant roles', () => {
+  test('neither API role holds a DynamoDB action: only its tenant roles, and reading the origin secret', () => {
     for (const fn of ['api-coach:', 'api-client:']) {
       const statements = attached(fn);
       assert.ok(statements.length > 0);
       for (const s of statements) {
-        assert.deepEqual(actions(s).sort(), ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
+        const a = actions(s).sort();
+        if (a[0]!.startsWith('secretsmanager:')) {
+          assert.deepEqual(a, ['secretsmanager:DescribeSecret', 'secretsmanager:GetSecretValue']);
+          assert.ok(JSON.stringify(s.Resource).includes('OriginSecret'));
+        } else {
+          assert.deepEqual(a, ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
+        }
       }
       assert.ok(!JSON.stringify(byDescription(fn)[1]).includes('dynamodb:'));
     }
@@ -325,6 +335,11 @@ describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
     const trust = role.Properties.AssumeRolePolicyDocument.Statement[0];
     assert.deepEqual(trust.Condition['ForAllValues:StringEquals']['aws:TagKeys'], ['coachId']);
     assert.deepEqual(trust.Condition.Null, { 'aws:RequestTag/coachId': 'false' });
+    // Setting the source identity is its own statement: STS checks it without the tags (found in dev, 2026-11-17).
+    const source = role.Properties.AssumeRolePolicyDocument.Statement[1];
+    assert.equal(source.Action, 'sts:SetSourceIdentity');
+    assert.deepEqual(source.Principal, trust.Principal);
+    assert.equal(role.Properties.AssumeRolePolicyDocument.Statement.length, 2);
     const [own, code] = inline('coach-tenant:');
     assert.deepEqual(own!.Condition!['ForAllValues:StringEquals'], { 'dynamodb:LeadingKeys': ['COACH#${aws:PrincipalTag/coachId}'] });
     assert.ok(JSON.stringify(own!.Resource).includes('/index/GSI3'));
@@ -360,5 +375,77 @@ describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
     assert.equal(statements.length, 1);
     assert.deepEqual(actions(statements[0]!), ['dynamodb:GetItem']);
     assert.equal(statements[0]!.Condition!.StringEquals!['dynamodb:Select'], 'SPECIFIC_ATTRIBUTES');
+  });
+});
+
+describe('US only, and the visitor\'s address for the firewall (ADR-019, I1)', () => {
+  type Req = { uri: string; headers: Record<string, { value: string }> };
+  const run = (code: string, country: string | undefined, uri = '/schedule', extra: Record<string, { value: string }> = {}) => {
+    const handler = new Function(`${code}; return handler;`)();
+    const headers = { ...extra, ...(country ? { 'cloudfront-viewer-country': { value: country } } : {}) };
+    return handler({ request: { uri, headers }, viewer: { ip: '203.0.113.7' } }) as Req & {
+      statusCode?: number; headers: Record<string, { value: string }>; body?: { data: string };
+    };
+  };
+  const site = siteRequestCode(['/rinkside/', '/']);
+  test('a visitor in the US or a territory gets the site', () => {
+    for (const c of ['US', 'PR', 'GU']) assert.equal(run(site, c).uri, '/index.html');
+  });
+  test('elsewhere, or with no country, the site answers with a plain page', () => {
+    for (const c of ['CA', 'FR', undefined]) {
+      const r = run(site, c);
+      assert.equal(r.statusCode, 403);
+      assert.match(r.headers['content-type']!.value, /text\/html/);
+      assert.ok(r.body!.data.includes(REFUSAL_MESSAGE));
+    }
+  });
+  const api = apiRequestCode();
+  test('the API answers a visitor outside the US with short JSON', () => {
+    const r = run(api, 'MX', '/api/client/me');
+    assert.equal(r.statusCode, 403);
+    assert.deepEqual(JSON.parse(r.body!.data), { message: REFUSAL_MESSAGE });
+  });
+  test('the API gets the visitor\'s address, overwriting a sent one, and never a sent origin header', () => {
+    const r = run(api, 'US', '/api/client/me', {
+      [VIEWER_IP_HEADER]: { value: '10.0.0.1' }, 'x-bladebook-origin': { value: 'guess' },
+    });
+    assert.equal(r.statusCode, undefined);
+    assert.equal(r.headers[VIEWER_IP_HEADER]!.value, '203.0.113.7');
+    assert.equal(r.headers['x-bladebook-origin'], undefined);
+  });
+});
+
+describe('the API (ADR-MASTER §1, §17)', () => {
+  test('only the health checks and the coach-code lookup are public; every other route needs Cognito', () => {
+    const methods = Object.values(dev.app.findResources('AWS::ApiGateway::Method'));
+    const open = methods.filter((m) => m.Properties.AuthorizationType === 'NONE');
+    const signedIn = methods.filter((m) => m.Properties.AuthorizationType === 'COGNITO_USER_POOLS');
+    assert.equal(open.length, 3);
+    assert.ok(open.every((m) => m.Properties.HttpMethod === 'GET'));
+    assert.equal(signedIn.length, 2);
+    assert.ok(signedIn.every((m) => m.Properties.HttpMethod === 'ANY'));
+    assert.equal(open.length + signedIn.length, methods.length);
+  });
+  test('both functions: Java 17 on Amazon Linux 2023, arm64, their own roles, the origin secret by ARN', () => {
+    const fns = Object.values(dev.app.findResources('AWS::Lambda::Function'))
+      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-api-(coach|client)$/));
+    assert.equal(fns.length, 2);
+    for (const f of fns) {
+      assert.equal(f.Properties.Runtime, 'java17.al2023');
+      assert.deepEqual(f.Properties.Architectures, ['arm64']);
+      assert.ok(f.Properties.Environment.Variables.BLADEBOOK_ORIGINSECRETARN);
+    }
+  });
+  test('each site sends /api/* to the API uncached, with the origin secret, US only', () => {
+    for (const d of Object.values(dev.app.findResources('AWS::CloudFront::Distribution'))) {
+      const api = (d.Properties.DistributionConfig.CacheBehaviors as Record<string, any>[]).find((b) => b.PathPattern === '/api/*')!;
+      assert.ok(api, 'an /api/* behaviour');
+      assert.equal(api.CachePolicyId, '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'); // CachingDisabled
+      assert.equal(api.FunctionAssociations[0].EventType, 'viewer-request');
+      const origin = (d.Properties.DistributionConfig.Origins as Record<string, any>[]).find((o) => o.OriginPath === '/live')!;
+      const header = origin.OriginCustomHeaders[0];
+      assert.equal(header.HeaderName, 'x-bladebook-origin');
+      assert.match(JSON.stringify(header.HeaderValue), /resolve:secretsmanager/);
+    }
   });
 });

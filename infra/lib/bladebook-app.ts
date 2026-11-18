@@ -24,6 +24,8 @@ export function addEnvironment(app: App, cfg: EnvConfig): EnvStacks {
     env,
     cfg,
     userPool: identity.userPool,
+    coachAppClient: identity.coachClient,
+    familyAppClient: identity.familyClient,
     ...(identity.seedBucket ? { seedBucket: identity.seedBucket } : {}),
   });
   const deployAccess = new DeployAccessStack(app, `${prefix}-deploy-access`, { env, cfg });

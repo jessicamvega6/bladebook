@@ -166,15 +166,20 @@ export class TenantRoles extends Construct {
 function trust(caller: iam.IRole, keys: string[], required: string): object {
   return {
     Version: '2012-10-17',
-    Statement: [{
-      Effect: 'Allow',
-      Principal: { AWS: caller.roleArn },
-      Action: ['sts:AssumeRole', 'sts:TagSession', 'sts:SetSourceIdentity'],
-      Condition: {
-        'ForAllValues:StringEquals': { 'aws:TagKeys': keys },
-        Null: { [`aws:RequestTag/${required}`]: 'false' },
+    Statement: [
+      {
+        Effect: 'Allow',
+        Principal: { AWS: caller.roleArn },
+        Action: ['sts:AssumeRole', 'sts:TagSession'],
+        Condition: {
+          'ForAllValues:StringEquals': { 'aws:TagKeys': keys },
+          Null: { [`aws:RequestTag/${required}`]: 'false' },
+        },
       },
-    }],
+      // Its own statement: STS checks setting the source identity without the request's tags, so the tag conditions
+      // above would refuse it (found deploying to dev, 2026-11-17).
+      { Effect: 'Allow', Principal: { AWS: caller.roleArn }, Action: 'sts:SetSourceIdentity' },
+    ],
   };
 }
 

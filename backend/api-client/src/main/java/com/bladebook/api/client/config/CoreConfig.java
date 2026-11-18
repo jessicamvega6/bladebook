@@ -36,6 +36,17 @@ import java.util.UUID;
 public class CoreConfig {
 
     /** DynamoDB Local. {@link TenantClients#local} refuses any endpoint that isn't localhost. */
+    /**
+     * On AWS: the tenant roles, assumed per request with the caller's tags (ADR-MASTER section 16). Their ARNs come from
+     * the function's environment.
+     */
+    @Bean
+    @Profile("!local")
+    TenantClients awsTenantClients(@Value("${bladebook.roles.client-tenant}") String clientTenant,
+                                   @Value("${bladebook.roles.code-lookup}") String codeLookup) {
+        return TenantClients.aws(new TenantClients.Roles(null, clientTenant, codeLookup));
+    }
+
     @Bean
     @Profile("local")
     TenantClients localTenantClients(@Value("${bladebook.dynamodb.endpoint}") URI endpoint,

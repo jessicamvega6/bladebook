@@ -7,8 +7,9 @@ reason (ADR-032).
 
 **Status (Batch 17b, under way, 2026-11-17):** in dev, `bladebook-dev-identity` and
 `bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
-both websites (still empty), the table built from the seed file, and the tenant roles. The API, the
-functions and the event backbone come next; `bladebook-dev-deploy-access` waits for the deploy
+both websites (still empty), the table built from the seed file, the tenant roles, and the API
+(`api-coach` and `api-client` behind API Gateway, served under `/api/*` on each site's host). The
+event backbone and the scheduled jobs come next; `bladebook-dev-deploy-access` waits for the deploy
 workflow (`AI/implementation-plan.md`).
 
 ## Stacks
@@ -132,6 +133,21 @@ Change any of these in `lib/` and its test together.
   `coach-tenant` may `BatchGetItem` in its own partition, as `client-tenant` may in its own.
   ADR-MASTER §16 says the policy also refuses `ReturnValuesOnConditionCheckFailure` on the client
   path, but IAM has no condition key for it, so only the ArchUnit rule holds that.
+- **`cdk.json`'s app command runs `./mvnw -q -DskipTests package` in `backend/` first** (ADR-001
+  decision 2), so every synth, diff and deploy packages the current code: `api-coach` and
+  `api-client` are deployed from `backend/<module>/target/<module>-lambda.zip`
+  (`backend/lambda-zip.xml`). The tests use a stand-in package instead (`bladebook:placeholderCode`).
+- **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
+  timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
+- **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed
+  (it holds no data, and a rebuilt dev needs it again). Without it the stage can't write access logs.
+- **Both API roles may read the origin secret** (`secretsmanager:GetSecretValue` on that one secret),
+  which ADR-MASTER §2's role table doesn't list yet. It's how each API checks CloudFront's header.
+- **"United States only" includes the territories**: Puerto Rico, Guam, the US Virgin Islands,
+  American Samoa, the Northern Mariana Islands and the minor outlying islands, which CloudFront
+  reports under their own country codes. A visitor with no country header is refused, so a
+  configuration mistake shows at once.
+- **No CORS on the API**: the sites call it on their own host through CloudFront.
 - **Region `us-east-1`.** The cost model and the gate tests already assume it, and CloudFront's
   certificates must be there.
 - **Cognito's Lite plan.** Threat protection (the Plus plan) is replaced by ADR-019's WAF rate rules.

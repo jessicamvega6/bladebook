@@ -1,5 +1,10 @@
 {
-  "app": "node bin/bladebook.ts",
-  "watch": { "include": ["bin/**", "lib/**"] },
+  "app": "cd ../backend && ./mvnw -q -DskipTests package && cd ../infra && node bin/bladebook.ts",
+  "watch": {
+    "include": [
+      "bin/**",
+      "lib/**"
+    ]
+  },
   "context": {}
 }
