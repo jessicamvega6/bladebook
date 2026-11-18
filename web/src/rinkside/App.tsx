@@ -320,8 +320,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
               : <WeekTab week={week} sheet={weekSheet} onSheet={setWeekSheet}
                   onCancelLesson={(l, hold) => void weekCancel(() => api.cancelLesson(l, hold), cancelled)}
                   onCancelDay={(ls) => void weekCancel(() => api.cancelDay(ls), cancelled)}
-                  onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), (r) =>
-                    `${plural(r.cancelled, 'lesson')} cancelled and ${plural(r.openHeld, 'open time')} closed.`)} />
+                  onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), cancelled)} />
         ) : tab === 'account' ? (
           <>
             <section className="rk-card"><div className="rk-who"><Avatar name={day?.coachFirstName ?? email} /><div><b>{day?.coachFirstName ? `Coach ${day.coachFirstName}` : 'Signed in'}</b><span className="muted-sm">{email}</span></div></div>

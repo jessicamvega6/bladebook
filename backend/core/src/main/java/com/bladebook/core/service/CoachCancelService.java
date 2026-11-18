@@ -2,34 +2,42 @@ package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CancellationRepository;
+import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.domain.AfterCancel;
 import com.bladebook.core.domain.CancellationLine;
 import com.bladebook.core.domain.ChangeBatch;
+import com.bladebook.core.domain.CoachCancelDays;
 import com.bladebook.core.domain.CoachCancelPlan;
 import com.bladebook.core.domain.CoachCancelRequest;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Seat;
+import com.bladebook.core.domain.TempSchedule;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * The coach cancels from the calendar: one lesson, a day, or the rest of the week (ADR-MASTER section 10, "By the
  * coach"). Cancelling never changes the schedule and is never charged. Every line records {@code cancelledBy = COACH}.
  *
- * <p>A single lesson is a batch of one: header, line and lesson time in one transaction. Anything larger writes its
- * header first ({@code PLANNED}), then each lesson in its own transaction, then marks the header {@code EXECUTED}
- * with what was done. A lesson that changed since it was read is read again once and re-planned; one that has
- * started or gone by then is left alone.
+ * <p>A single lesson is a batch of one: header, line and lesson time in one transaction, with the coach's release-or-hold
+ * choice. A lesson that changed since it was read is read again once and re-planned; one that has started or gone by then
+ * is left alone.
+ *
+ * <p><b>A day or the rest of the week is time off</b> (owner, 2026-11-18, I24): those dates become a time off named
+ * "Cancelled" (or, inside a special schedule, no lessons on those dates), and the schedule change cancels their booked
+ * lessons in one planned batch, recorded as the coach's ({@code cancelledBy = COACH}, {@code batchSource} {@code DAY} or
+ * {@code WEEK}), so families get the "cancelled by the coach" email and a cancel that stops part-way is finished like any
+ * schedule change. No release-or-hold question. The rest of the week starts now: lessons that have started stay.
  */
 public final class CoachCancelService {
 
@@ -41,15 +49,23 @@ public final class CoachCancelService {
 
     private final ScheduleRepository schedules;
     private final CancellationRepository cancels;
+    private final ScheduleChangeService change;
+    private final CoachRepository coaches;
     private final Clock clock;
 
-    public CoachCancelService(ScheduleRepository schedules, CancellationRepository cancels, Clock clock) {
+    public CoachCancelService(ScheduleRepository schedules, CancellationRepository cancels, ScheduleChangeService change,
+                              CoachRepository coaches, Clock clock) {
         this.schedules = schedules;
         this.cancels = cancels;
+        this.change = change;
+        this.coaches = coaches;
         this.clock = clock;
     }
 
     public Result cancel(AccessContext ctx, CoachCancelRequest request) {
+        if (request.scope() == ChangeBatch.Source.DAY || request.scope() == ChangeBatch.Source.WEEK) {
+            return timeOff(ctx, request);
+        }
         Instant now = clock.instant();
         CoachCancelPlan plan = CoachCancelPlan.of(request, schedules.lessonTimes(ctx, request.first(), request.last()),
                 schedules.seats(ctx, request.first(), request.last()), now);
@@ -59,63 +75,41 @@ public final class CoachCancelService {
         ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, request.scope(), ChangeBatch.By.COACH, ctx.coachId(),
                 plan.firstDate(), plan.lastDate(), plan.cancels().size(), plan.clientIds().size(), ChangeBatch.Execution.PLANNED);
 
-        if (plan.cancels().size() == 1 && plan.holdOpen().isEmpty()) {
-            CoachCancelPlan.Cancel only = plan.cancels().get(0);
-            ChangeBatch done = batch.executed(1, plan.clientIds().size());
-            Optional<CoachCancelPlan.Cancel> written = writeAlone(ctx, done, only, now)
-                    .or(() -> reread(ctx, only.time(), only.after(), now).flatMap(fresh -> writeAlone(ctx, done, fresh, now)));
-            CoachCancelPlan.Cancel c = written.orElseThrow(() -> DomainException.conflict(NOTHING));
-            int families = (int) c.bookedSeats().stream().map(Seat::clientId).distinct().count();
-            return new Result(1, c.after() == AfterCancel.HOLD ? 1 : 0, 0, families, plan.skipped());
-        }
-
-        cancels.start(ctx, batch);
-        int cancelled = 0, held = 0, openHeld = 0, skipped = plan.skipped();
-        Set<String> families = new LinkedHashSet<>();
-        for (CoachCancelPlan.Cancel c : plan.cancels()) {
-            Optional<CoachCancelPlan.Cancel> done = cancelOne(ctx, batch, c, now);
-            if (done.isPresent()) {
-                cancelled++;
-                held += c.after() == AfterCancel.HOLD ? 1 : 0;
-                done.get().bookedSeats().forEach(s -> families.add(s.clientId()));
-            } else {
-                skipped++;
-            }
-        }
-        for (LessonTime open : plan.holdOpen()) {
-            if (cancels.holdOpen(ctx, open, now)) {
-                openHeld++;
-                continue;
-            }
-            // Booked since it was read: Cancel rest of week holds that lesson too (S8).
-            Optional<CoachCancelPlan.Cancel> fresh = reread(ctx, open, AfterCancel.HOLD, now);
-            Optional<CoachCancelPlan.Cancel> done = fresh.flatMap(c -> write(ctx, batch, c, now));
-            if (done.isPresent()) {
-                cancelled++;
-                held++;
-                done.get().bookedSeats().forEach(s -> families.add(s.clientId()));
-            } else {
-                skipped++;
-            }
-        }
-        cancels.finish(ctx, batch.executed(cancelled, families.size()));
-        return new Result(cancelled, held, openHeld, families.size(), skipped);
+        // One lesson: header, lines and lesson time in one transaction, so it can't stop part-way.
+        CoachCancelPlan.Cancel only = plan.cancels().get(0);
+        ChangeBatch done = batch.executed(1, plan.clientIds().size());
+        Optional<CoachCancelPlan.Cancel> written = writeAlone(ctx, done, only, now)
+                .or(() -> reread(ctx, only.time(), only.after(), now).flatMap(fresh -> writeAlone(ctx, done, fresh, now)));
+        CoachCancelPlan.Cancel c = written.orElseThrow(() -> DomainException.conflict(NOTHING));
+        int families = (int) c.bookedSeats().stream().map(Seat::clientId).distinct().count();
+        return new Result(1, c.after() == AfterCancel.HOLD ? 1 : 0, 0, families, plan.skipped());
     }
 
-    /** One lesson, read again and re-planned once if it changed since the plan. */
-    private Optional<CoachCancelPlan.Cancel> cancelOne(AccessContext ctx, ChangeBatch batch, CoachCancelPlan.Cancel c, Instant now) {
-        Optional<CoachCancelPlan.Cancel> done = write(ctx, batch, c, now);
-        return done.isPresent() ? done : reread(ctx, c.time(), c.after(), now).flatMap(fresh -> write(ctx, batch, fresh, now));
+    /** A day or the rest of the week: time off on those dates, from today on, then the schedule change as the coach's. */
+    private Result timeOff(AccessContext ctx, CoachCancelRequest request) {
+        String zone = coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."))
+                .coachTimezone();
+        LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(zone));
+        LocalDate first = request.first().isBefore(today) ? today : request.first();
+        CoachCancelDays.Plan plan = CoachCancelDays.plan(first, request.last(), schedules.temps(ctx));
+        if (plan.isEmpty()) {
+            throw DomainException.conflict(NOTHING);
+        }
+        for (TempSchedule t : plan.newTimeOff()) {
+            schedules.saveTemp(ctx, new TempSchedule(UUID.randomUUID().toString(), t.kind(), t.name(), t.startDate(), t.endDate(),
+                    t.templates(), t.off()), null);
+        }
+        for (CoachCancelDays.Change c : plan.specials()) {
+            schedules.saveTemp(ctx, c.after(), c.before());
+        }
+        ScheduleChangeService.Result r = change.apply(ctx, request.scope(), ChangeBatch.By.COACH);
+        return new Result(r.cancelled(), 0, 0, r.families(), 0);
     }
 
     /** The whole batch is this one lesson: header, lines and lesson time in one transaction. */
     private Optional<CoachCancelPlan.Cancel> writeAlone(AccessContext ctx, ChangeBatch done, CoachCancelPlan.Cancel c, Instant now) {
         ChangeBatch header = done.executed(1, (int) c.bookedSeats().stream().map(Seat::clientId).distinct().count());
         return cancels.cancelByCoach(ctx, header, c, lines(header, c, now), header, now) ? Optional.of(c) : Optional.empty();
-    }
-
-    private Optional<CoachCancelPlan.Cancel> write(AccessContext ctx, ChangeBatch batch, CoachCancelPlan.Cancel c, Instant now) {
-        return cancels.cancelByCoach(ctx, batch, c, lines(batch, c, now), null, now) ? Optional.of(c) : Optional.empty();
     }
 
     /** The lesson as it is now, if it can still be cancelled. */

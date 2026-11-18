@@ -149,8 +149,9 @@ public class CoreConfig {
     /** Cancelling from the calendar (Batch 5). */
     @Bean
     CoachCancelService coachCancelService(ScheduleRepository schedules, TenantClients clients, @Value("${bladebook.table}") String table,
-                                          Clock clock) {
-        return new CoachCancelService(schedules, new CancellationRepository(clients, table), clock);
+                                          ScheduleChangeService change, CoachRepository coaches, Clock clock) {
+        // A day or the rest of the week is time off, cancelled by the schedule change in this request (I24).
+        return new CoachCancelService(schedules, new CancellationRepository(clients, table), change, coaches, clock);
     }
 
     @Bean

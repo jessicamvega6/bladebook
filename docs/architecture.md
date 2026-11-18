@@ -1276,17 +1276,28 @@ the coach holds it. The notifier trigger is the same too: the header is marked `
 last, and a single-lesson cancel writes header, line, seat delete and lesson-time update in
 one transaction, already `EXECUTED` (ADR-010 d5f). Two differences from §6.5:
 
-- **No `ScheduleChanged` event and no conflict re-evaluation.** Cancelling never alters
-  `SCHEDULE#DEFAULT` or any `SCHEDULE#DATE#` item, so only seats and lesson times move.
+- **No `ScheduleChanged` event and no conflict re-evaluation** for a family's cancel or a coach's
+  single lesson: they never alter `SCHEDULE#DEFAULT` or any `SCHEDULE#DATE#` item, so only seats and
+  lesson times move. *A coach's whole day or rest of the week is the exception (owner, 2026-11-18,
+  I24): it is time off, so it writes `SCHEDULE#DATE#` items and goes through the schedule change
+  (below).*
 - **The notification direction depends on the actor.** A coach cancelling notifies each
   affected client, once per batch. A **client** cancelling notifies the **coach** only when it is
   inside the coach's notice period (`requiredNoticeHours`; ADR-009, amended 2026-10-08) — the
   client already knows.
 
-A coach cancelling is asked whether to **release** the time for rebooking (every seat moves
-to its line and the lesson time goes back to `OPEN`) or **hold** it (the lesson time becomes
-`HELD`, with no seats — ADR-031 d1, replacing ADR-009 d5's `COACH_HELD` booking). Seats already
-`CHECKED_IN` or `NO_SHOW` are never cancelled by a bulk day or week operation.
+A coach cancelling **one lesson** is asked whether to **release** the time for rebooking (every
+seat moves to its line and the lesson time goes back to `OPEN`) or **hold** it (the lesson time
+becomes `HELD`, with no seats — ADR-031 d1, replacing ADR-009 d5's `COACH_HELD` booking).
+
+**A coach cancelling a whole day or the rest of the week makes it time off** (owner, 2026-11-18,
+I24; ADR-009, amended that day). Those dates become a time off named **"Cancelled"** (from today on,
+for the week), or, inside a special schedule, that schedule's times are switched off on those dates.
+There is no release-or-hold question and nothing is held: the times leave the booking page. The
+schedule change (§6.5) then cancels the booked lessons in one planned batch, in the same request,
+recorded as the coach's (`cancelledBy = COACH`, `batchSource` `DAY` or `WEEK`), so families get the
+*cancelled by the coach* email, and a batch that stops part-way is finished like any schedule
+change. Lessons that have started, and seats already `CHECKED_IN` or `NO_SHOW`, are never cancelled.
 
 **A family cancelling a shared lesson is leaving it** (ADR-031 d8). Their seat moves to its
 line. If they leave in time, the lesson time records a **pending leave** asking the staying
@@ -1299,8 +1310,9 @@ cancel is an ordinary leave of a shared lesson, in time or late (ADR-033 d4).
 **A coach cancels from two surfaces** (ADR-009 d5a): the week view on the website, and the
 rinkside check-in page, also through `api-coach` (ADR-023). The page has a cancel section and a cancel action on each
 lesson in the check-in list. Both cancel **one lesson, a whole day or the rest of the week** and
-nothing in between (owner, 2026-11-16: lessons on different days are cancelled one by one), and
-**release-or-hold is asked once per lesson** because a hold is permanent. Both surfaces write the same records and share the same preview. **A cancel
+nothing in between (owner, 2026-11-16: lessons on different days are cancelled one by one).
+**Only a single lesson asks release or hold**, because a hold is permanent; a day or the week is
+time off (I24). Both surfaces write the same records and share the same preview. **A cancel
 from the rinkside check-in list always confirms, even for a single lesson** — the button sits
 beside check-in and no-show, and a cancel cannot be undone (ADR-009 d5a).
 
@@ -1331,7 +1343,7 @@ sequenceDiagram
         Note over AC,DB: Phase 2 - a late line gains payment fields and GSI3 (ADR-015 d1a, d4)
     else coach cancels (ADR-009 d5, d5a)
         Note over C: rinkside with no signal - cancel is disabled,<br/>"Cancelling needs a connection" (d5a)
-        C->>AK: cancel a lesson, a day, or the rest of the week —<br/>release or hold - asked per lesson for a lesson or a day,<br/>never for the week, which holds everything (d5, d5a)
+        C->>AK: cancel one lesson - release or hold (d5)<br/>(a day or the rest of the week is time off instead, I24: see §6.5)
         opt more than one lesson, or any cancel from the check-in list
             AK-->>C: preview or confirmation - names the lessons,<br/>says families will be emailed (d5a, d8)
             C->>AK: accept

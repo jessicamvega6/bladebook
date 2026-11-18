@@ -1,4 +1,5 @@
 Rinkside Cancel Several Lessons
+
 (Written 2026-10-12 from the Harbor design: design/harbor/rinkside/static/week.html and week-confirm.html.
 Redrawn 2026-11-16: week.html, week-lesson.html, week-day.html; week-confirm.html is gone.)
 
@@ -16,13 +17,17 @@ The page lists each day from today to the end of the week, with the lessons that
   *Owner, 2026-11-16:* each lesson shows its time, the skater's name, the lesson length and a "Cancel" button.
     Cancel opens the same confirmation as cancelling from Today: it names the lesson and the family who will be
     emailed, and asks "Release for rebooking" or "Hold it closed".
-  A day with two or more lessons has "Cancel whole day". Its confirmation lists every lesson left that day and asks
-    Release or Hold closed for each one (see cancelation.md). Buttons: "Cancel N lessons" and "Keep them".
+  A day with two or more lessons has "Cancel whole day". Its confirmation lists every lesson left that day ~~and asks
+    Release or Hold closed for each one~~ *and says the day becomes time off called "Cancelled": its lessons are
+    cancelled and families can't book it. It asks nothing per lesson (owner, 2026-11-18, I24; see cancelation.md).*
+    Buttons: "Cancel N lessons" and "Keep them".
   *Changed 2026-11-08 (owner; ADR-009):* cancelling the whole week (everything left from now to Saturday) doesn't ask:
-    every booked lesson and every open time is held closed, as with "Cancel rest of week" on the website.
+    ~~every booked lesson and every open time is held closed~~ *the rest of the week becomes time off called "Cancelled"
+    (2026-11-18, I24)*, as with "Cancel rest of week" on the website.
     ~~The Harbor design hasn't been redrawn for this yet.~~ *Drawn 2026-11-08: a "Cancel the rest of the week"
     card at the top of the tab, stating how many lessons and open times it holds, and its confirmation listing
-    each one as Hold (design week-all-confirm).*
+    each one as Hold (design week-all-confirm).* *Since I24 the card and confirmation say "Time off" instead of
+    "Hold"; the design hasn't been redrawn for that yet.*
   Lessons that have started aren't listed. A day says how many have already started, or "No lessons".
 
 ~~Button at the bottom: "Cancel N lessons", disabled until at least one is picked.~~ *(Removed 2026-11-16: nothing
@@ -31,7 +36,7 @@ is picked across the week.)*
 ~~Confirmation: one confirmation lists every picked lesson and whether it's held or released, names the
 families who will be emailed, and says held times stay closed and this can't be undone.
 Buttons: "Cancel N lessons" and "Keep them".~~
-Afterwards a message says how many were cancelled, how many held, and how many families will be emailed.
+Afterwards a message says how many were cancelled, how many held (*a single lesson only, since I24*), and how many families will be emailed.
 
 ~~No signal: the coach can look but not cancel. A banner says cancelling needs a connection and the
 checkboxes are disabled.~~
