@@ -30,8 +30,9 @@ class CoachCancelPlanTest {
                 t.coachTz(), 30, Instant.parse("2026-11-10T15:00:00Z"), "key-12345678");
     }
 
+    /** One lesson: since I24 only a one-off lesson carries a release-or-hold choice. */
     private static CoachCancelRequest day(LocalDate d, int hour, String after) {
-        return CoachCancelRequest.parse("DAY", List.of(new CoachCancelRequest.PickInput(d.toString(), LocalTime.of(hour, 0).toString(), after)), null);
+        return CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(d.toString(), LocalTime.of(hour, 0).toString(), after)), null);
     }
 
     @Test

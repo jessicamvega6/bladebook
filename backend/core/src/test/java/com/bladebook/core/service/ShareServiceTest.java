@@ -475,7 +475,7 @@ class ShareServiceTest {
     void theCoachsCancelDeletesAnUnansweredInvitationWithNoRecord() {
         bookAva(miaCode, MON);
         String id = shares.invitations(chen).get(0).inviteId();
-        new CoachCancelService(scheduleRepo, cancelRepo, clock).cancel(dana, CoachCancelRequest.parse("LESSON",
+        new CoachCancelService(scheduleRepo, cancelRepo, new ScheduleChangeService(scheduleRepo, t.coaches, clock), t.coaches, clock).cancel(dana, CoachCancelRequest.parse("LESSON",
                 List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "RELEASE")), null));
 
         assertThat(shares.invitations(chen)).isEmpty();
@@ -486,7 +486,7 @@ class ShareServiceTest {
     @Test
     void theCoachsCancelOfAnAcceptedInvitationRecordsBothSkatersEachAtTheirShare() {
         miaAccepted(MON);
-        new CoachCancelService(scheduleRepo, cancelRepo, clock).cancel(dana, CoachCancelRequest.parse("LESSON",
+        new CoachCancelService(scheduleRepo, cancelRepo, new ScheduleChangeService(scheduleRepo, t.coaches, clock), t.coaches, clock).cancel(dana, CoachCancelRequest.parse("LESSON",
                 List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "RELEASE")), null));
 
         assertThat(cancelRepo.lines(dana))

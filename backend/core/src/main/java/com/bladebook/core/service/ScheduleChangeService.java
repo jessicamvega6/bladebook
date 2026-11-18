@@ -89,6 +89,14 @@ public final class ScheduleChangeService {
     }
 
     public Result apply(AccessContext ctx, ChangeBatch.Source source) {
+        return apply(ctx, source, ChangeBatch.By.SCHEDULE_CHANGE);
+    }
+
+    /**
+     * {@code by}: who the batch's cancellations are for. {@code COACH} when the coach cancelled a day or the rest of the
+     * week, which is time off (owner, 2026-11-18, I24): families get the "cancelled by the coach" email.
+     */
+    public Result apply(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by) {
         CoachProfile coach = coach(ctx);
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         Instant now = clock.instant();
@@ -105,7 +113,7 @@ public final class ScheduleChangeService {
             return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), 0, 0, 0);
         }
         Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
-        int[] counts = runBatch(ctx, source, booked, seats, now);
+        int[] counts = runBatch(ctx, source, by, booked, seats, now);
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
     }
 
@@ -133,14 +141,14 @@ public final class ScheduleChangeService {
     }
 
     /** Header, planned lines, then each lesson in its own transaction, then the header {@code EXECUTED}. */
-    private int[] runBatch(AccessContext ctx, ChangeBatch.Source source, ScheduleChange plan, Map<String, List<Seat>> seats, Instant now) {
+    private int[] runBatch(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by, ScheduleChange plan, Map<String, List<Seat>> seats, Instant now) {
         List<LocalDate> dates = new ArrayList<>();
         plan.cancel().forEach(c -> dates.add(c.time().lessonDate()));
         plan.reprice().forEach(r -> dates.add(r.time().lessonDate()));
         Set<String> families = new LinkedHashSet<>();
         plan.cancel().forEach(c -> bookedIn(seats, c.time()).forEach(s -> families.add(s.clientId())));
         plan.reprice().forEach(r -> bookedIn(seats, r.time()).forEach(s -> families.add(s.clientId())));
-        ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, source, ChangeBatch.By.SCHEDULE_CHANGE, ctx.coachId(),
+        ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, source, by, ctx.coachId(),
                 dates.stream().min(Comparator.naturalOrder()).orElse(null), dates.stream().max(Comparator.naturalOrder()).orElse(null),
                 plan.cancel().size() + plan.reprice().size(), families.size(), ChangeBatch.Execution.PLANNED);
         batches.begin(ctx, batch);

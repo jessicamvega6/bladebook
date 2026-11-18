@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { scheduleApi, type CalendarDto, type LessonDto } from '../api';
@@ -115,7 +115,7 @@ test('tapping a booked lesson in the week opens the preview, asking release or h
 
   await userEvent.click(await screen.findByRole('button', { name: /Ava P\./ }));
   expect(screen.getByRole('heading', { name: 'Cancel Tue, Nov 17' })).toBeInTheDocument();
-  expect(screen.getByText('For each lesson, choose whether families can book the time again.')).toBeInTheDocument();
+  expect(screen.getByText('Choose whether families can book the time again.')).toBeInTheDocument();
   expect(screen.getByText('Tue, Nov 17 · 7:00 AM · 30 min')).toBeInTheDocument();
   expect(screen.getByText(/Sarah Park will each get one email listing their cancelled lesson/)).toBeInTheDocument();
   expect(screen.getByText('1 family will be emailed. Nothing changes until you confirm.')).toBeInTheDocument();
@@ -138,10 +138,10 @@ test('Back leaves the preview without cancelling anything', async () => {
   expect(sent).toEqual([]);
 });
 
-test('Cancel day takes the lessons left that day, each with its own choice, and counts families once', async () => {
+test('Cancel day makes the day time off: no release-or-hold, and families counted once (I24)', async () => {
   const { sent } = serveWithCancel({ ...WEEK, days: days('2026-11-15', 7, (d) => (d === '2026-11-16'
     ? [bookedFor('06:00', 'Mia', 'Gina Rossi', 'rossi'), bookedFor('07:00', 'Ava', 'Sarah Park', 'park'), bookedFor('07:30', 'Jack', 'Sarah Park', 'park')]
-    : [])) }, { cancelled: 2, held: 1, openHeld: 0, families: 1, skipped: 0 });
+    : [])) }, { cancelled: 2, held: 0, openHeld: 0, families: 1, skipped: 0 });
   render(<Calendar api={scheduleApi('t')} route={{ view: 'week', date: '2026-11-15' }} onError={vi.fn()} />);
 
   // Today's 6:00 has started: it can't be tapped, and Cancel day leaves it out.
@@ -150,30 +150,31 @@ test('Cancel day takes the lessons left that day, each with its own choice, and 
   await userEvent.click(screen.getByRole('button', { name: 'Cancel day' }));
 
   expect(screen.getByRole('heading', { name: 'Cancel Mon, Nov 16' })).toBeInTheDocument();
-  expect(screen.getAllByRole('group', { name: /After cancelling/ })).toHaveLength(2);
+  expect(screen.getByText(/This day becomes time off called “Cancelled”/)).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /After cancelling/ })).not.toBeInTheDocument();
+  expect(screen.queryByText('Held closed')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Time off')).toHaveLength(2);
   expect(screen.getByText('Families emailed').nextElementSibling).toHaveTextContent('1');
-  await userEvent.click(within(screen.getByRole('group', { name: 'After cancelling Jack’s lesson' })).getByRole('button', { name: 'Hold — keep closed' }));
   await userEvent.click(screen.getByRole('button', { name: 'Cancel 2 lessons' }));
 
-  expect(sent).toEqual([{ scope: 'DAY', picks: [
-    { date: '2026-11-16', startTime: '07:00', after: 'RELEASE' }, { date: '2026-11-16', startTime: '07:30', after: 'HOLD' }] }]);
-  expect(await screen.findByText('2 lessons cancelled, 1 held closed. 1 family will be emailed.')).toBeInTheDocument();
+  expect(sent).toEqual([{ scope: 'DAY', picks: [{ date: '2026-11-16', startTime: '07:00' }, { date: '2026-11-16', startTime: '07:30' }] }]);
+  expect(await screen.findByText('2 lessons cancelled. 1 family will be emailed.')).toBeInTheDocument();
 });
 
-test('Cancel rest of week states the range and count, and holds everything with no question (S8)', async () => {
+test('Cancel rest of week states the range and count, and makes it time off with no question (I24)', async () => {
   const { sent } = serveWithCancel({ ...WEEK, days: days('2026-11-15', 7, (d) => (d === '2026-11-16' ? [booked('06:00'), open('08:00')]
-    : d === '2026-11-18' ? [booked('07:00'), open('07:30')] : [])) }, { cancelled: 1, held: 1, openHeld: 2, families: 1, skipped: 0 });
+    : d === '2026-11-18' ? [booked('07:00'), open('07:30')] : [])) }, { cancelled: 1, held: 0, openHeld: 0, families: 1, skipped: 0 });
   render(<Calendar api={scheduleApi('t')} route={{ view: 'week', date: '2026-11-15' }} onError={vi.fn()} />);
 
   await userEvent.click(await screen.findByRole('button', { name: 'Cancel rest of week: Mon, Nov 16 – Wed, Nov 18 (1 lesson, 2 open times)' }));
   expect(screen.getByRole('heading', { name: 'Cancel the rest of the week, Mon, Nov 16 – Wed, Nov 18' })).toBeInTheDocument();
-  expect(screen.getByText(/Everything left this week is held closed/)).toBeInTheDocument();
+  expect(screen.getByText(/The rest of the week, from now on, becomes time off called “Cancelled”/)).toBeInTheDocument();
   expect(screen.queryByRole('group', { name: /After cancelling/ })).not.toBeInTheDocument();
-  expect(screen.getAllByText('Held closed')).toHaveLength(4); // the stat, one lesson and two open times
+  expect(screen.getAllByText('Time off')).toHaveLength(3); // one lesson and two open times
   await userEvent.click(screen.getByRole('button', { name: 'Cancel 1 lesson and 2 open times' }));
 
   expect(sent).toEqual([{ scope: 'WEEK', weekStart: '2026-11-15' }]);
-  expect(await screen.findByText('1 lesson cancelled, 1 held closed, 2 open times closed. 1 family will be emailed.')).toBeInTheDocument();
+  expect(await screen.findByText('1 lesson cancelled. 1 family will be emailed.')).toBeInTheDocument();
 });
 
 test('a future week says to tap a lesson; the day view has Cancel on each lesson and Cancel this day', async () => {

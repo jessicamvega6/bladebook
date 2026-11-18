@@ -59,7 +59,8 @@ class AttendanceServiceTest {
                 new CancellationRepository(t.f.clients, t.f.table), clock);
         familyCancels = new CancellationService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table),
                 new CancellationRepository(t.f.clients, t.f.table), clock);
-        cancels = new CoachCancelService(repo, new CancellationRepository(t.f.clients, t.f.table), clock);
+        cancels = new CoachCancelService(repo, new CancellationRepository(t.f.clients, t.f.table),
+                new ScheduleChangeService(repo, t.coaches, clock), t.coaches, clock);
         BookingService booking = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), t.families, clock);
 
         dana = t.coach("Dana", DANA_CODE);
