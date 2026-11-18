@@ -882,3 +882,29 @@ describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
     assert.deepEqual(checks.map((c) => c.Properties.HealthCheckConfig.ResourcePath).sort(), ['/', '/api/coach/health']);
   });
 });
+
+describe('auth-post-confirmation (ADR-023 d10)', () => {
+  const fn = () => Object.entries(dev.identity.findResources('AWS::Lambda::Function'))
+    .find(([, f]) => f.Properties.FunctionName === 'bladebook-dev-auth-post-confirmation')!;
+  test('the user pool calls it on confirmation, named by the function\'s own fixed ARN', () => {
+    const pool = Object.values(dev.identity.findResources('AWS::Cognito::UserPool'))[0]!;
+    assert.match(JSON.stringify(pool.Properties.LambdaConfig.PostConfirmation), /function:bladebook-dev-auth-post-confirmation/);
+    const [, f] = fn();
+    assert.equal(f.Properties.Handler, 'com.bladebook.consumers.handler.PostConfirmation::handleRequest');
+    assert.equal(f.Properties.Timeout, 5); // Cognito's own wait
+    const env = f.Properties.Environment.Variables;
+    assert.match(JSON.stringify(env.BLADEBOOK_COACHCLIENTID), /CoachWebClient/);
+    assert.match(JSON.stringify(env.BLADEBOOK_FAMILYCLIENTID), /FamilyWebClient/);
+  });
+  test('only Cognito, for this pool, may invoke it; it may add users to groups in this pool and nothing else', () => {
+    const perm = Object.values(dev.identity.findResources('AWS::Lambda::Permission'))
+      .find((p) => p.Properties.Principal === 'cognito-idp.amazonaws.com')!;
+    assert.match(JSON.stringify(perm.Properties.SourceArn), /UserPool/);
+    const [roleId] = Object.entries(dev.identity.findResources('AWS::IAM::Role')).find(([id]) => id.startsWith('PostConfirmationRole'))!;
+    const actions = Object.values(dev.identity.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(roleId))
+      .flatMap((p) => (p.Properties.PolicyDocument.Statement as any[]).flatMap((st) => [st.Action].flat()));
+    assert.deepEqual(actions.sort(), ['cognito-idp:AdminAddUserToGroup', 'logs:CreateLogStream', 'logs:PutLogEvents']);
+    assert.equal(dev.identity.findResources('AWS::IAM::Role')[roleId]!.Properties.ManagedPolicyArns, undefined);
+  });
+});

@@ -63,7 +63,7 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
 the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles,
 `TenantClients`' AWS mode, and the API (both functions, API Gateway, CloudFront's `/api/*`, the origin secret and
-the US-only check), SES (every template, and `api-coach`'s confirmation email), the access log's writes from both APIs, the event backbone (the Pipe, the bus, a rule per event and the seven consumers with their dead-letter queues), the scheduled jobs on EventBridge Scheduler, including the drift check and `consumer-schedule-change`'s reconcile, and the TTL archiver. The firewall's rules and the alarms (with the never-linked Contributor Insights rule and production's up-check) are built too. Batch 17 is split into 17b and
+the US-only check), SES (every template, and `api-coach`'s confirmation email), the access log's writes from both APIs, the event backbone (the Pipe, the bus, a rule per event and the seven consumers with their dead-letter queues), the scheduled jobs on EventBridge Scheduler, including the drift check and `consumer-schedule-change`'s reconcile, and the TTL archiver. The firewall's rules and the alarms (with the never-linked Contributor Insights rule and production's up-check) are built too. So is `auth-post-confirmation`. Batch 17 is split into 17b and
 17c (owner, 2026-11-17).
 
 **What that means for the code:**
