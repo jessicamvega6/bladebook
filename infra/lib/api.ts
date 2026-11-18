@@ -53,6 +53,8 @@ export interface ApiProps {
   readonly familySiteUrl: string;
   /** The sending addresses for `api-coach`'s one email; unset until the environment has an email domain. */
   readonly mail?: { readonly from: string; readonly noReply: string };
+  /** The personal-data access log (ADR-MASTER §18): each function writes its lines straight to it (I12). */
+  readonly accessLog: logs.ILogGroup;
   readonly removalPolicy: RemovalPolicy;
 }
 
@@ -100,6 +102,7 @@ export class Api extends Construct {
           BLADEBOOK_COACHSITEURL: common.coachSite,
           BLADEBOOK_FAMILYSITEURL: common.familySite,
           BLADEBOOK_ORIGINSECRETARN: this.originSecret.secretArn,
+          BLADEBOOK_ACCESSLOGGROUP: props.accessLog.logGroupName,
           // Faster cold starts: stop at the first JIT tier (a common setting for short Lambda requests).
           JAVA_TOOL_OPTIONS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1',
           ...env,
@@ -109,6 +112,12 @@ export class Api extends Construct {
       role.addToPrincipalPolicy(new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [this.originSecret.secretArn],
+      }));
+      // Its own streams in the access-log group, and nothing else there: no reading (ADR-MASTER §2, §18; I12).
+      role.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+        // A log group's ARN ends in ':*', which covers its streams (as Lambda's own log permission does).
+        resources: [props.accessLog.logGroupArn],
       }));
       return f;
     };

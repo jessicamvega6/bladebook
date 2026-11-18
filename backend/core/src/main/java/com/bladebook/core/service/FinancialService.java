@@ -112,7 +112,7 @@ public final class FinancialService {
     }
 
     private List<FinancialSummary.Entry> entries(AccessContext ctx, int year) {
-        return payments.list(ctx, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)).rows().stream()
+        return payments.buildList(ctx, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)).rows().stream()
                 .map(r -> new FinancialSummary.Entry(r.date(), r.amountMinor(), r.currency(), r.status(), r.paidAt())).toList();
     }
 

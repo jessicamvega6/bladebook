@@ -62,6 +62,21 @@ class ClientLinksTest {
     }
 
     @Test
+    void aNeverLinkedAskIsASecurityEventWithIdsOnlyAndAnUnsafeOneByLength() {
+        try (AccessLogCapture log = AccessLogCapture.start()) {
+            assertThatThrownBy(() -> links.requireActive(family, ben.coachId(), ava.studentId())).isInstanceOf(DomainException.class);
+            assertThatThrownBy(() -> links.requireActive(family, "a#b", ava.studentId())).isInstanceOf(DomainException.class);
+            assertThat(log.lines).hasSize(2);
+            AccessLog.Line l = log.lines.get(0);
+            assertThat(l.operation()).isEqualTo("security:never-linked-book");
+            assertThat(l.role()).isEqualTo("family");
+            assertThat(l.actor()).isEqualTo(family.clientId());
+            assertThat(l.ids()).containsEntry("coachId", java.util.Set.of(ben.coachId())).containsEntry("studentId", java.util.Set.of(ava.studentId()));
+            assertThat(log.lines.get(1).ids().get("coachId")).containsExactly("(unsafe, 3 chars)");
+        }
+    }
+
+    @Test
     void anotherFamilysSkaterIsAPlainNotFound() {
         Skater mia = FamilyTestData.skater("Mia Rossi");
         ClientContext other = FamilyTestData.register(f, List.of(mia), dana);

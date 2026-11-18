@@ -1,5 +1,6 @@
 package com.bladebook.core.service;
 
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.BookingRepository.CoachClock;
 import com.bladebook.core.data.ClientContext;
@@ -213,6 +214,15 @@ public final class BookingService {
      * block takes one skater are booked private.
      */
     public BookingResult book(ClientContext ctx, BookingRequest request, String shareCode) {
+        BookingResult out = bookShared(ctx, request, shareCode);
+        if (out.shared() != null && out.shared().displayName() != null) {
+            AccessLog.familyRead(ctx, null, "book-shared", new AccessLog.Ids().add("coachId", request.coachId()),
+                    List.of("shared.displayName"));
+        }
+        return out;
+    }
+
+    private BookingResult bookShared(ClientContext ctx, BookingRequest request, String shareCode) {
         LinkedSkater skater = links.requireActive(ctx, request.coachId(), request.studentId(), "book");
         CoachClock coach = coachOf(ctx, skater);
         Instant now = clock.instant();
@@ -274,6 +284,12 @@ public final class BookingService {
 
     /** The family's lessons with every coach from today on, soonest first and priced: Home's Today and Coming up. */
     public List<MyLesson> upcoming(ClientContext ctx) {
+        List<MyLesson> out = buildUpcoming(ctx);
+        logPartners(ctx, "lessons", out);
+        return out;
+    }
+
+    private List<MyLesson> buildUpcoming(ClientContext ctx) {
         Instant now = clock.instant();
         // A day either side of UTC's today covers every coach's today; each seat is then held to its coach's.
         LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
@@ -285,6 +301,14 @@ public final class BookingService {
 
     /** My bookings (FeatureDecriptions/C_Client My Bookings.md), with every coach the family is approved with. */
     public MyBookings myBookings(ClientContext ctx) {
+        MyBookings out = buildMyBookings(ctx);
+        List<MyLesson> all = new java.util.ArrayList<>(out.upcoming());
+        all.addAll(out.recent());
+        logPartners(ctx, "bookings", all);
+        return out;
+    }
+
+    private MyBookings buildMyBookings(ClientContext ctx) {
         Instant now = clock.instant();
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
         List<Seat> seats = lessonsOnly(bookings.familySeats(ctx, today.minusDays(RECENT_DAYS), Weeks.storeUntil(today)));
@@ -403,5 +427,15 @@ public final class BookingService {
             }
         }
         return null;
+    }
+
+    /** The other family's skater named on shared lessons (ADR-MASTER section 18); the family's own aren't logged (I21). */
+    private static void logPartners(ClientContext ctx, String operation, List<MyLesson> lessons) {
+        List<MyLesson> shared = lessons.stream().filter(l -> l.share() != null && l.share().partnerName() != null).toList();
+        if (!shared.isEmpty()) {
+            AccessLog.familyRead(ctx, null, operation, new AccessLog.Ids()
+                    .addAll("coachId", shared.stream().map(l -> l.lesson().coachId()).toList())
+                    .addAll("studentId", shared.stream().map(l -> l.lesson().studentId()).toList()), List.of("share.partnerName"));
+        }
     }
 }

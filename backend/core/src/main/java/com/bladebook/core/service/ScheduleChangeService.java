@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.ChangeBatchRepository;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
@@ -232,6 +233,12 @@ public final class ScheduleChangeService {
      * change doesn't reach them.
      */
     public Preview previewWeekly(AccessContext ctx, List<BlockTemplate> templates) {
+        Preview out = buildPreviewWeekly(ctx, templates);
+        log(ctx, "schedule-preview", out);
+        return out;
+    }
+
+    private Preview buildPreviewWeekly(AccessContext ctx, List<BlockTemplate> templates) {
         List<String> problems = ScheduleRules.problems(templates);
         if (!problems.isEmpty()) {
             throw DomainException.invalid("blocks", String.join("\n", problems));
@@ -249,6 +256,12 @@ public final class ScheduleChangeService {
      * deleting {@code previous}, so the weekly schedule applies to its dates again.
      */
     public Preview previewTemp(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
+        Preview out = buildPreviewTemp(ctx, proposed, previous);
+        log(ctx, "temp-preview", out);
+        return out;
+    }
+
+    private Preview buildPreviewTemp(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(coach(ctx).coachTimezone()));
         Map<LocalDate, List<ScheduleBlock>> overrides = new HashMap<>(schedules.overrides(ctx, today, Weeks.storeUntil(today)));
         if (previous != null) {
@@ -264,6 +277,14 @@ public final class ScheduleChangeService {
 
     /** The newest schedule-change batch, for the save status. */
     public Optional<Status> status(AccessContext ctx) {
+        Optional<Status> out = buildStatus(ctx);
+        out.filter(st -> !st.passed().isEmpty()).ifPresent(st -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
+                .addAll("studentId", st.passed().stream().map(CancellationLine::studentId).toList())
+                .addAll("clientId", st.passed().stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
+        return out;
+    }
+
+    private Optional<Status> buildStatus(AccessContext ctx) {
         Instant now = clock.instant();
         return batches.latest(ctx).map(l -> new Status(l.batch(),
                 l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed()));
@@ -294,5 +315,16 @@ public final class ScheduleChangeService {
 
     private CoachProfile coach(AccessContext ctx) {
         return coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."));
+    }
+
+    /** One access-log line for the skaters a preview names (ADR-MASTER section 18). */
+    private static void log(AccessContext ctx, String operation, Preview p) {
+        List<Who> who = java.util.stream.Stream.of(p.cancel(), p.reprice(), p.kept())
+                .flatMap(List::stream).flatMap(i -> i.skaters().stream()).toList();
+        if (!who.isEmpty()) {
+            AccessLog.coachRead(ctx, operation, new AccessLog.Ids()
+                    .addAll("studentId", who.stream().map(Who::studentId).toList())
+                    .addAll("clientId", who.stream().map(Who::familyId).toList()), List.of("name"));
+        }
     }
 }

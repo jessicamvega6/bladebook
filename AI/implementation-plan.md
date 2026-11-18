@@ -63,7 +63,7 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
 the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles,
 `TenantClients`' AWS mode, and the API (both functions, API Gateway, CloudFront's `/api/*`, the origin secret and
-the US-only check), and SES (every template, and `api-coach`'s confirmation email). Batch 17 is split into 17b and
+the US-only check), SES (every template, and `api-coach`'s confirmation email), and the access log's writes from both APIs. Batch 17 is split into 17b and
 17c (owner, 2026-11-17).
 
 **What that means for the code:**

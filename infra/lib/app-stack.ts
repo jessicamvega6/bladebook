@@ -81,6 +81,7 @@ export class AppStack extends Stack {
       prefix,
       table: this.table.table,
       tenants: this.tenants,
+      accessLog: this.data.accessLog,
       userPool: props.userPool,
       issuer: `https://cognito-idp.${this.region}.amazonaws.com/${props.userPool.userPoolId}`,
       coachAppClientId: props.coachAppClient.userPoolClientId,

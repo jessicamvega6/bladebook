@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.FinancialRepository;
 import com.bladebook.core.data.PaymentRepository;
@@ -86,6 +87,13 @@ public final class PaymentService {
     }
 
     public View list(AccessContext ctx, LocalDate from, LocalDate to) {
+        View out = buildList(ctx, from, to);
+        log(ctx, "payments", out.rows());
+        return out;
+    }
+
+    /** The rows without an access-log line: for FinancialService, which returns only figures (ADR-MASTER section 18). */
+    View buildList(AccessContext ctx, LocalDate from, LocalDate to) {
         if (to.isBefore(from)) {
             throw DomainException.invalid("to", "The end date is before the start date.");
         }
@@ -121,6 +129,12 @@ public final class PaymentService {
 
     /** Marks paid, or on a paid lesson changes how they paid. {@code paidVia} blank for none. */
     public Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
+        Row out = markPaidRow(ctx, date, start, studentId, paidVia);
+        log(ctx, "payments-markpaid", List.of(out));
+        return out;
+    }
+
+    private Row markPaidRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
         CoachProfile coach = coach(ctx);
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkMarkPaid(s.status());
@@ -137,6 +151,12 @@ public final class PaymentService {
      * (owner, 2026-11-16), so an old unpaid lesson can still be settled; a waive never touches the figures.
      */
     public Row waive(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        Row out = waiveRow(ctx, date, start, studentId);
+        log(ctx, "payments-waive", List.of(out));
+        return out;
+    }
+
+    private Row waiveRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkWaive(s.status());
         if (!payments.waive(ctx, s.seat().key(), clock.instant())) {
@@ -151,6 +171,12 @@ public final class PaymentService {
      * for an earlier year, so the closed year doesn't change (Batch 26; ADR-030 decision 4, amended 2026-11-16).
      */
     public Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        Row out = undoRow(ctx, date, start, studentId);
+        log(ctx, "payments-undo", List.of(out));
+        return out;
+    }
+
+    private Row undoRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
         PaidSeat s = happened(ctx, date, start, studentId);
         Payment.checkUndo(s.status());
         Instant now = clock.instant();
@@ -244,5 +270,17 @@ public final class PaymentService {
 
     private CoachProfile coach(AccessContext ctx) {
         return coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."));
+    }
+
+    /** One access-log line for the payment rows a response carries (ADR-MASTER section 18). */
+    private static void log(AccessContext ctx, String operation, List<Row> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        List<String> fields = new java.util.ArrayList<>(List.of("fullName", "familyName", "relationship"));
+        if (rows.stream().anyMatch(r -> !r.sharedWith().isEmpty())) {
+            fields.add("sharedWith");
+        }
+        AccessLog.coachRead(ctx, operation, new AccessLog.Ids().addAll("studentId", rows.stream().map(Row::studentId).toList()), fields);
     }
 }

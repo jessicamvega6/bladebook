@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.ScheduleRepository;
@@ -63,6 +64,15 @@ public final class TodayService {
     }
 
     public View today(AccessContext ctx) {
+        View out = buildToday(ctx);
+        List<String> ids = out.lessons().stream().flatMap(l -> l.skaters().stream()).map(TodayBoard.Skater::studentId).toList();
+        if (!ids.isEmpty()) {
+            AccessLog.coachRead(ctx, "today", new AccessLog.Ids().addAll("studentId", ids), List.of("name"));
+        }
+        return out;
+    }
+
+    private View buildToday(AccessContext ctx) {
         CoachProfile coach = coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."));
         String currency = coach.currency().name();
         Instant now = clock.instant();

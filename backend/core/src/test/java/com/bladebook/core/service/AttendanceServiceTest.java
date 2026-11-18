@@ -1,6 +1,8 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
+import com.bladebook.core.data.AccessLogCapture;
 import com.bladebook.core.data.AttendanceRepository;
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.CancellationRepository;
@@ -139,6 +141,18 @@ class AttendanceServiceTest {
         assertThatThrownBy(() -> service.correct(dana, MONDAY, LocalTime.of(7, 30), ava, "CHECKED_IN")).hasMessage("That lesson hasn’t happened yet.");
         assertThatThrownBy(() -> service.lessons(dana, MONDAY, MONDAY.minusDays(1))).hasMessage("The end date is before the start date.");
         assertThatThrownBy(() -> service.lessons(dana, MONDAY, MONDAY.plusDays(366))).hasMessage("Pick up to a year at a time.");
+    }
+
+    @Test
+    void aContactRevealIsLoggedByFieldNameNeverValue() {
+        try (AccessLogCapture log = AccessLogCapture.start()) {
+            AttendanceService.Contact c = service.contact(dana, ava);
+            AccessLog.Line l = log.only("contact-reveal");
+            assertThat(l.actor()).isEqualTo(dana.coachId());
+            assertThat(l.ids().get("studentId")).containsExactly(ava);
+            assertThat(l.fields()).containsExactlyInAnyOrderElementsOf(AttendanceService.CONTACT_FIELDS);
+            assertThat(l.json()).doesNotContain(c.clientName()).doesNotContain(c.studentName());
+        }
     }
 
     @Test

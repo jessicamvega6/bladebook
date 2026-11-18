@@ -1,5 +1,6 @@
 package com.bladebook.core.service;
 
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.CancellationRepository;
 import com.bladebook.core.data.ClientContext;
@@ -112,9 +113,9 @@ public final class ShareService {
                 .orElseThrow(() -> DomainException.noSuchItem("That coach couldn’t be found. Reload the page."));
         ShareRepository.CodeMatch match = shares.shareCode(ctx, code).orElseThrow(() -> DomainException.noSuchItem(NO_SUCH_CODE));
         boolean on = shares.rosterStatus(ctx, coach, match.studentId()).filter(s -> s == StudentStatus.ACTIVE).isPresent();
-        // The access-log line (ADR-MASTER section 18); locally, the application log (a listed shortcut, SC-15).
-        System.getLogger("bladebook.access").log(System.Logger.Level.INFO, "share-check family={0} coach={1} onCoachRoster={2}",
-                ctx.clientId(), coachId, on);
+        // The other family's skater's display name (ADR-MASTER section 18, ADR-033).
+        AccessLog.familyRead(ctx, null, "share-check", new AccessLog.Ids().add("coachId", coachId).add("sharedStudentId", match.studentId()),
+                List.of("displayName"));
         return new ShareCheck(match.displayName(), on);
     }
 
@@ -122,6 +123,17 @@ public final class ShareService {
 
     /** Every invitation to the family's skaters, newest lesson last; an expired one stays until the sweep ends it. */
     public List<Invitation> invitations(ClientContext ctx) {
+        List<Invitation> out = buildInvitations(ctx);
+        List<Invitation> named = out.stream().filter(i -> i.hostName() != null || i.invitedByName() != null).toList();
+        if (!named.isEmpty()) {
+            AccessLog.familyRead(ctx, null, "invitations", new AccessLog.Ids()
+                    .addAll("inviteId", named.stream().map(Invitation::inviteId).toList())
+                    .addAll("coachId", named.stream().map(Invitation::coachId).toList()), List.of("hostName", "invitedByName"));
+        }
+        return out;
+    }
+
+    private List<Invitation> buildInvitations(ClientContext ctx) {
         Instant now = clock.instant();
         LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
         List<Seat> all = bookings.familySeats(ctx, from, Weeks.storeUntil(from));
@@ -184,11 +196,23 @@ public final class ShareService {
      * each in its own transaction. A skater no longer the coach's student gets the ordinary "no longer available".
      */
     public Answered accept(ClientContext ctx, String inviteId) {
+        Answered out = acceptAnswer(ctx, inviteId);
+        logHost(ctx, "invitation-accept", out, new AccessLog.Ids().add("inviteId", inviteId));
+        return out;
+    }
+
+    private Answered acceptAnswer(ClientContext ctx, String inviteId) {
         return answer(ctx, inviteId, true);
     }
 
     /** Decline: each date still waiting ends {@code DECLINED}; the other family's lesson stays booked, private. */
     public Answered decline(ClientContext ctx, String inviteId) {
+        Answered out = declineAnswer(ctx, inviteId);
+        logHost(ctx, "invitation-decline", out, new AccessLog.Ids().add("inviteId", inviteId));
+        return out;
+    }
+
+    private Answered declineAnswer(ClientContext ctx, String inviteId) {
         return answer(ctx, inviteId, false);
     }
 
@@ -237,6 +261,12 @@ public final class ShareService {
      * it that's still invited ends {@code WITHDRAWN}. The family's own lessons stay booked, private at the full price.
      */
     public Answered withdraw(ClientContext ctx, String inviteId) {
+        Answered out = withdrawAnswer(ctx, inviteId);
+        logHost(ctx, "invitation-withdraw", out, new AccessLog.Ids().add("inviteId", inviteId));
+        return out;
+    }
+
+    private Answered withdrawAnswer(ClientContext ctx, String inviteId) {
         Instant now = clock.instant();
         LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
         List<Seat> mine = bookings.familySeats(ctx, from, Weeks.storeUntil(from)).stream()
@@ -269,6 +299,12 @@ public final class ShareService {
      * date is its own write, conditional on the lesson's pending leave naming this skater and not being past its answer-by.
      */
     public Answered keep(ClientContext ctx, String coachId, String studentId, LocalTime start, List<LocalDate> dates) {
+        Answered out = keepAnswer(ctx, coachId, studentId, start, dates);
+        logHost(ctx, "keep", out, new AccessLog.Ids().add("coachId", coachId).add("studentId", studentId));
+        return out;
+    }
+
+    private Answered keepAnswer(ClientContext ctx, String coachId, String studentId, LocalTime start, List<LocalDate> dates) {
         LinkedSkater skater = links.requireActive(ctx, coachId, studentId, "keep");
         Instant now = clock.instant();
         List<LocalDate> done = new ArrayList<>();
@@ -296,6 +332,15 @@ public final class ShareService {
      * booking. A sibling the coach has accepted is added directly.
      */
     public Filled fillFreedPlace(ClientContext ctx, String coachId, String studentId, LocalDate date, LocalTime start, String code) {
+        Filled out = fill(ctx, coachId, studentId, date, start, code);
+        if (out.displayName() != null) {
+            AccessLog.familyRead(ctx, null, "fill-freed-place", new AccessLog.Ids().add("coachId", coachId).add("studentId", studentId),
+                    List.of("displayName"));
+        }
+        return out;
+    }
+
+    private Filled fill(ClientContext ctx, String coachId, String studentId, LocalDate date, LocalTime start, String code) {
         LinkedSkater host = links.requireActive(ctx, coachId, studentId, "invite");
         Instant now = clock.instant();
         Seat seat = bookings.familySeats(ctx, date, date).stream()
@@ -310,5 +355,12 @@ public final class ShareService {
         }
         events.seatsChanged(coachId, date, start);
         return new Filled(r.displayName(), r.sibling());
+    }
+
+    /** The other family's skater named in an answer (ADR-MASTER section 18). */
+    private static void logHost(ClientContext ctx, String operation, Answered a, AccessLog.Ids ids) {
+        if (a.hostName() != null) {
+            AccessLog.familyRead(ctx, null, operation, ids, List.of("hostName"));
+        }
     }
 }

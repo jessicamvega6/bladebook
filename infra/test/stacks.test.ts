@@ -186,6 +186,17 @@ describe('access log (ADR-012)', () => {
     dev.app.resourceCountIs('AWS::Logs::SubscriptionFilter', 1);
     dev.app.resourceCountIs('AWS::KinesisFirehose::DeliveryStream', 1);
   });
+  test('both API functions are told the group, and may write to it only (no reading; I12)', () => {
+    const fns = Object.values(dev.app.findResources('AWS::Lambda::Function'))
+      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-api-(coach|client)$/));
+    assert.equal(fns.length, 2);
+    for (const f of fns) assert.match(JSON.stringify(f.Properties.Environment.Variables.BLADEBOOK_ACCESSLOGGROUP), /DataAccessLog/);
+    const grants = Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[])
+      .filter((st) => /"DataAccessLog[0-9A-F]{8}","Arn"/.test(JSON.stringify(st.Resource ?? '')));
+    assert.equal(grants.length, 2);
+    for (const g of grants) assert.deepEqual([g.Action].flat().sort(), ['logs:CreateLogStream', 'logs:PutLogEvents']);
+  });
   test('the archive goes to Deep Archive and is deleted after 2 years', () => {
     dev.app.hasResourceProperties('AWS::S3::Bucket', {
       LifecycleConfiguration: {
@@ -323,6 +334,9 @@ describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
         if (a[0]!.startsWith('secretsmanager:')) {
           assert.deepEqual(a, ['secretsmanager:GetSecretValue']);
           assert.ok(JSON.stringify(s.Resource).includes('OriginSecret'));
+        } else if (a[0]!.startsWith('logs:')) {
+          assert.deepEqual(a, ['logs:CreateLogStream', 'logs:PutLogEvents']);
+          assert.match(JSON.stringify(s.Resource), /DataAccessLog/);
         } else if (a[0]!.startsWith('ses:')) {
           assert.equal(fn, 'api-coach:'); // its one template: the email tests below
         } else {

@@ -67,6 +67,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- AWS mode: the access log's lines, written straight to its group (ADR-MASTER section 18, I12). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cloudwatchlogs</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- One HTTP client for the SDK, not the Apache and Netty pair it pulls in by default. -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

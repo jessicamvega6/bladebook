@@ -1484,7 +1484,13 @@ same coach (held by `LinkedSkater` and the ownership condition).
   someone else's data is logged for that data only (the family's *My details* lists its coaches'
   phone, email and payment handles, so those are logged).
 - **Not logged: the coach-code lookup before sign-in** (owner, 2026-11-17, I21). It returns only
-  the name a coach shares with the code; the firewall's rate rule guards it.
+  the name a coach shares with the code; the firewall's rate rule guards it. By the same reasoning,
+  a coach's name on a family's pages isn't logged; the coach's phone, email and payment handles are.
+- **How it's built** (Batch 17b): `core.data.AccessLog` holds a request's lines; each API's
+  `AccessLogging` opens them with API Gateway's request ID and CloudFront's
+  `x-bladebook-viewer-ip`, and writes them before any response body. A line is JSON: time,
+  request ID, source, role, actor, `relationship` when known, operation, the IDs by kind, and the
+  field names. Security events (a family's never-linked ask) are lines too, `security:<what>`.
 - **A family line carries `clientRelationship` when the request already read the family's
   account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).

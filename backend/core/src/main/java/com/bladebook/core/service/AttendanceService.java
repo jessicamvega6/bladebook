@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.AttendanceRepository;
 import com.bladebook.core.data.AttendanceRepository.SeatOutcome;
 import com.bladebook.core.data.CancellationRepository;
@@ -35,7 +36,7 @@ import java.util.Optional;
  * FeatureDecriptions/Coach App and Coach lesson list). Capture is rinkside, correction is website-only (R1).
  *
  * <p>A guardian's contact details are fetched for one tap and logged when shown (ADR-MASTER section 18). Locally the
- * log is the application log (SC-12's shortcut).
+ * access log is the application log (SC-15).
  */
 public final class AttendanceService {
 
@@ -71,7 +72,9 @@ public final class AttendanceService {
     /** The Lessons page's range: at most a year. */
     static final int MAX_DAYS = 366;
 
-    private static final System.Logger ACCESS = System.getLogger("bladebook.pii-access");
+    /** A skater's personal fields on these pages (ADR-MASTER section 18 logs the names). */
+    static final List<String> SKATER_FIELDS = List.of("shortName", "fullName", "familyName");
+    static final List<String> CONTACT_FIELDS = List.of("studentName", "isMinor", "relationship", "clientName", "phone", "email");
 
     private final AttendanceRepository attendance;
     private final ScheduleRepository schedules;
@@ -113,6 +116,7 @@ public final class AttendanceService {
                     .filter(s -> s.seat().seatStatus() != Seat.Status.INVITED).map(s -> skater(s, records, now)).toList();
             out.add(new RinkLesson(t, in));
         }
+        log(ctx, "rinkside-today", out.stream().flatMap(l -> l.skaters().stream()).toList(), SKATER_FIELDS);
         return new RinkDay(coach.firstName(), coach.coachTimezone(), today, local.toLocalTime().truncatedTo(ChronoUnit.MINUTES), out);
     }
 
@@ -131,7 +135,9 @@ public final class AttendanceService {
         if (attendance.capture(ctx, seat.seat().key(), status, at, now) == AttendanceRepository.Capture.GONE) {
             throw DomainException.conflict(CANCELLED);
         }
-        return skater(seat(ctx, date, start, studentId).orElseThrow(() -> DomainException.conflict(CANCELLED)), records(ctx), now);
+        Skater done = skater(seat(ctx, date, start, studentId).orElseThrow(() -> DomainException.conflict(CANCELLED)), records(ctx), now);
+        log(ctx, "rinkside-attendance", List.of(done), SKATER_FIELDS);
+        return done;
     }
 
     /** The family's contact details for one skater, for this tap only; every reveal is logged. */
@@ -140,7 +146,8 @@ public final class AttendanceService {
         if (r == null) {
             throw DomainException.notFound("That skater couldn’t be found.");
         }
-        ACCESS.log(System.Logger.Level.INFO, "contact-reveal coach={0} studentId={1} surface=rinkside", ctx.coachId(), studentId);
+        AccessLog.coachRead(ctx, "contact-reveal", new AccessLog.Ids().add("studentId", studentId).add("clientId", r.clientId()),
+                CONTACT_FIELDS);
         return new Contact(r.studentName(), r.isMinor(), r.relationship(), r.clientName(), r.clientPhone(), r.clientEmail());
     }
 
@@ -166,6 +173,8 @@ public final class AttendanceService {
             }
         }
         out.sort(Comparator.comparing(PastLesson::date).thenComparing(PastLesson::startTime).thenComparing(p -> p.skater().fullName()));
+        log(ctx, "lessons", out.stream().map(PastLesson::skater).toList(),
+                out.stream().anyMatch(p -> !p.sharedWith().isEmpty()) ? withShared() : SKATER_FIELDS);
         return out;
     }
 
@@ -180,7 +189,23 @@ public final class AttendanceService {
         if (!attendance.correct(ctx, seat.seat().key(), status, now)) {
             throw DomainException.notFound("That lesson couldn’t be found.");
         }
-        return skater(seat(ctx, date, start, studentId).orElseThrow(), records(ctx), now);
+        Skater done = skater(seat(ctx, date, start, studentId).orElseThrow(), records(ctx), now);
+        log(ctx, "lessons-attendance", List.of(done), SKATER_FIELDS);
+        return done;
+    }
+
+    private static List<String> withShared() {
+        List<String> f = new ArrayList<>(SKATER_FIELDS);
+        f.add("sharedWith");
+        return f;
+    }
+
+    /** One access-log line for the skaters a response carries; none when it carries none. */
+    private static void log(AccessContext ctx, String operation, List<Skater> skaters, List<String> fields) {
+        if (!skaters.isEmpty()) {
+            AccessLog.coachRead(ctx, operation,
+                    new AccessLog.Ids().addAll("studentId", skaters.stream().map(Skater::studentId).toList()), fields);
+        }
     }
 
     // ---------------------------------------------------------------------- helpers
