@@ -142,6 +142,7 @@ export class AppStack extends Stack {
         pipeDeadLetters: this.consumers.pipeDeadLetters,
         ttlArchiver: this.consumers.ttlArchiver,
         accessLog: this.data.accessLog,
+        postConfirmationName: `${prefix}-auth-post-confirmation`,
         // Production only (I26): in dev, switching alarms on proves them; the up-check costs per check.
         ...(cfg.retainData ? { upCheck: { siteHost: cfg.sites.coach.host, apiHost: cfg.sites.coach.host } } : {}),
       });

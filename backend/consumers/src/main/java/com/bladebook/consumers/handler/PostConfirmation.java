@@ -19,7 +19,9 @@ import java.util.function.Function;
  * {@code auth-post-confirmation} (ADR-023 d10): once a new account's email is verified, adds {@code Coach} to an account
  * confirmed through the coach app client and {@code Client} to one confirmed through the family app client. The group
  * comes only from the app client ID in Cognito's event, never from anything the person typed. Cognito calls it
- * synchronously: if it fails, confirmation fails and the person tries again, so it has no dead-letter queue.
+ * synchronously and waits 5 seconds. It confirms the account first, so a failure here leaves it confirmed with no group:
+ * the call is held inside those 5 seconds (the SDK's own retries included), its errors page the owner, and the owner
+ * adds the group by hand ({@code docs/runbooks/stuck-account.md}; I27).
  */
 public final class PostConfirmation implements RequestStreamHandler {
 
@@ -90,7 +92,11 @@ public final class PostConfirmation implements RequestStreamHandler {
             synchronized (PostConfirmation.class) {
                 if (cognito == null) {
                     CognitoIdentityProviderClient c = CognitoIdentityProviderClient.builder()
-                            .httpClient(UrlConnectionHttpClient.create()).region(new DefaultAwsRegionProviderChain().getRegion()).build();
+                            .httpClient(UrlConnectionHttpClient.create()).region(new DefaultAwsRegionProviderChain().getRegion())
+                            // Every attempt, retries included, inside Cognito's 5 seconds (I27).
+                            .overrideConfiguration(o -> o.apiCallTimeout(java.time.Duration.ofMillis(3500))
+                                    .apiCallAttemptTimeout(java.time.Duration.ofMillis(1200)))
+                            .build();
                     cognito = (pool, user, name) -> c.adminAddUserToGroup(r -> r.userPoolId(pool).username(user).groupName(name));
                 }
                 g = cognito;

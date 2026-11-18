@@ -836,6 +836,7 @@ describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
     assert.deepEqual(alarmNames(prod.app), [
       'archiver-behind', 'change-notifier-queue', 'day-reminder-missed', 'drift-check-missed', 'drift-finish-failed',
       'drift-missed-cancellation', 'never-linked-a-day', 'never-linked-one-family', 'pipe-failing', 'pipe-queue',
+      'post-confirmation-errors',
       'roller-missed', 'schedule-change-queue', 'ses-bounces', 'ses-complaints', 'sweep-missed', 'unpaid-reminder-missed',
       'up-api-down', 'up-site-down',
     ].map((n) => `bladebook-prod-${n}`));

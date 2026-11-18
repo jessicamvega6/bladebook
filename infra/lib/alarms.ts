@@ -50,6 +50,8 @@ export interface AlarmsProps {
   readonly pipeDeadLetters: sqs.IQueue;
   readonly ttlArchiver: lambda.IFunction;
   readonly accessLog: logs.ILogGroup;
+  /** `auth-post-confirmation`, in the identity stack: by name, so no cross-stack reference. */
+  readonly postConfirmationName: string;
   /** The up-check's targets; none in dev unless switched on. */
   readonly upCheck?: { readonly siteHost: string; readonly apiHost: string };
 }
@@ -152,6 +154,11 @@ export class Alarms extends Construct {
     { threshold: 1, op: AT_LEAST, description: 'The Pipe is failing to put stream records on the bus.' });
     alarm('archiver-behind', props.ttlArchiver.metric('IteratorAge', { period: Duration.minutes(5), statistic: 'Maximum' }),
       { threshold: THRESHOLDS.iteratorAgeMs, op: ABOVE, periods: 3, description: 'The TTL archiver is falling behind the stream.' });
+
+    // ---------------------------------------------------------------- a new account left with no group (I27)
+    alarm('post-confirmation-errors', new cloudwatch.Metric({ namespace: 'AWS/Lambda', metricName: 'Errors',
+      dimensionsMap: { FunctionName: props.postConfirmationName }, statistic: 'Sum', period: Duration.minutes(5) }),
+    { threshold: 1, op: AT_LEAST, description: 'auth-post-confirmation failed: an account is confirmed with no group. See docs/runbooks/stuck-account.md.' });
 
     // ------------------------------------------------------------------------------------------- SES (§19)
     const ses = (metricName: string) => new cloudwatch.Metric({ namespace: 'AWS/SES', metricName, statistic: 'Maximum', period: Duration.hours(1) });

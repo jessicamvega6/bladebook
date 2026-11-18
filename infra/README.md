@@ -202,7 +202,9 @@ Change any of these in `lib/` and its test together.
   confirmed through, never by anything the person typed (ADR-023 d10). The pool names it by the ARN its
   fixed name gives, so the function can hold both clients' IDs without a dependency loop. One permission,
   `cognito-idp:AdminAddUserToGroup` on this pool; only Cognito, for this pool, may invoke it. 2,048 MB and
-  5 seconds, Cognito's own wait; a failure fails the confirmation, so it has no queue.
+  5 seconds, Cognito's own wait, with its call held to 3.5 seconds. Cognito confirms first, so a failure
+  leaves the account with no group: its errors page (`post-confirmation-errors`) and the owner adds the group
+  by hand (`docs/runbooks/stuck-account.md`, I27).
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed
