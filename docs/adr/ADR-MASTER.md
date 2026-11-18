@@ -289,7 +289,10 @@ absent or not `BOOKED`. The event's name is the rule's name; the record on the b
 - **Each rule's pattern is tested** in Batch 17b: sample stream records (each event's match and its near
   misses) are run against every pattern, so a pattern can't silently match too much or nothing.
 - **Consumers read the raw record** through one shared reader in `core` that turns DynamoDB's typed
-  attributes into the domain's types.
+  attributes into the domain's types (`core.data.TableRecord`, Batch 17b). Each consumer's handler is one line: it hands
+  the event to `core.events.EventConsumers`, which calls the same core service the API calls in-process locally.
+  `consumer-student-link` acts on the coach's two answers to a `PENDING` skater only (approved, or the record
+  removed), as locally.
 
 **Scheduled jobs have no event.** EventBridge Scheduler invokes each `sched-*` function directly, so
 nothing goes through the bus. Each schedule is **named after its function**: `sched-day-reminder`,
@@ -1494,7 +1497,9 @@ same coach (held by `LinkedSkater` and the ownership condition).
 - **A family line carries `clientRelationship` when the request already read the family's
   account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
-  The event consumers do the same per event. Both are added with their functions (Batch 17b
+  The event consumers do the same per event: role `consumer`, the function as actor, the event's name as
+  the operation, the IDs the record names and the fields that consumer reads, written when the event's work is done
+  (a failed write fails the event; the retry finds the guards set). Both are added with their functions (Batch 17b
   pieces 5 and 6; owner, 2026-11-17, I21).
 - **Family reads are logged** with `clientRelationship`.
 - **Also logged:** contact reveals on the rinkside page, the rink-number download, archive

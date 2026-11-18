@@ -129,4 +129,16 @@ class TenantClientsAwsTest {
         assertThatThrownBy(clients::forSetup).isInstanceOf(IllegalStateException.class);
         assertThat(clients.forConsumer()).isNotNull();
     }
+
+    @Test
+    void aConsumerWorksInACoachsPartitionThroughItsOwnRoleAndNeverAsAFamily() {
+        FakeSts sts = new FakeSts();
+        TenantClients clients = TenantClients.consumer(sts);
+        DynamoDbClient db = clients.clientFor(new AccessContext(COACH));
+        assertThat(db).isSameAs(clients.forConsumer());
+        assertThat(sts.calls).isEmpty();
+        assertThatThrownBy(() -> clients.clientFor(new ClientContext(FAMILY))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(clients::forCodeLookup).isInstanceOf(IllegalStateException.class);
+        assertThat(sts.calls).isEmpty();
+    }
 }

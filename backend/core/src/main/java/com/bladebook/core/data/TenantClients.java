@@ -48,10 +48,17 @@ public final class TenantClients {
 
     private final LocalStream local;
     private final Sessions sessions;
+    /** An event consumer's or job's: every coach's partition through the function's own role (section 2). */
+    private final boolean consumer;
 
     private TenantClients(LocalStream local, Sessions sessions) {
+        this(local, sessions, false);
+    }
+
+    private TenantClients(LocalStream local, Sessions sessions, boolean consumer) {
         this.local = local;
         this.sessions = sessions;
+        this.consumer = consumer;
     }
 
     /** DynamoDB Local. Throws unless {@code endpoint} is localhost. */
@@ -73,6 +80,27 @@ public final class TenantClients {
         SdkHttpClient http = UrlConnectionHttpClient.create();
         Region region = new DefaultAwsRegionProviderChain().getRegion();
         return new TenantClients(null, new Sessions(roles, StsClient.builder().region(region).httpClient(http).build(), http, region));
+    }
+
+    /**
+     * On AWS, for an event consumer or scheduled job: no tenant roles. A coach's work ({@link #clientFor(AccessContext)})
+     * goes through the function's own role, which IAM limits per function (ADR-MASTER section 2); a family's session
+     * can't be had at all.
+     */
+    public static TenantClients consumer() {
+        SdkHttpClient http = UrlConnectionHttpClient.create();
+        Region region = new DefaultAwsRegionProviderChain().getRegion();
+        return consumer(new Sessions(new Roles(null, null, null), StsClient.builder().region(region).httpClient(http).build(),
+                http, region));
+    }
+
+    /** For tests: consumer mode with a given STS client. */
+    static TenantClients consumer(StsClient sts) {
+        return consumer(new Sessions(new Roles(null, null, null), sts, UrlConnectionHttpClient.create(), Region.US_EAST_1));
+    }
+
+    private static TenantClients consumer(Sessions sessions) {
+        return new TenantClients(null, sessions, true);
     }
 
     /** The AWS-mode sessions; null in local mode. For tests. */
@@ -99,6 +127,9 @@ public final class TenantClients {
         if (local != null) {
             return local;
         }
+        if (consumer) {
+            return sessions.own();
+        }
         return sessions.get(sessions.roles.coachTenant(), "coach-" + ctx.coachId(), ctx.coachId(),
                 List.of(tag("coachId", ctx.coachId())));
     }
@@ -112,6 +143,7 @@ public final class TenantClients {
         if (local != null) {
             return local;
         }
+        refuseInConsumer();
         return sessions.get(sessions.roles.clientTenant(), "client-" + ctx.clientId(), ctx.clientId(),
                 List.of(tag("clientId", ctx.clientId())));
     }
@@ -127,6 +159,7 @@ public final class TenantClients {
         if (local != null) {
             return local;
         }
+        refuseInConsumer();
         return sessions.get(sessions.roles.clientTenant(), "client-" + ctx.clientId(), ctx.clientId(), List.of(
                 tag("clientId", ctx.clientId()),
                 tag("coachId", coach.coachId()),
@@ -138,6 +171,7 @@ public final class TenantClients {
         if (local != null) {
             return local;
         }
+        refuseInConsumer();
         return sessions.get(sessions.roles.codeLookup(), "code-lookup", null, List.of());
     }
 
@@ -155,6 +189,13 @@ public final class TenantClients {
             throw new IllegalStateException("Setup runs only against DynamoDB Local; on AWS the table is built by the stack.");
         }
         return local;
+    }
+
+    /** A consumer or job never acts as a family (section 2). */
+    private void refuseInConsumer() {
+        if (consumer) {
+            throw new IllegalStateException("An event consumer or job has no family session.");
+        }
     }
 
     private static Tag tag(String key, String value) {

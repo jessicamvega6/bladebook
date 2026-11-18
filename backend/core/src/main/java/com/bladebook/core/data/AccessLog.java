@@ -154,6 +154,15 @@ public final class AccessLog {
         record("family", ctx.clientId(), relationship, operation, ids, fields);
     }
 
+    /**
+     * An event consumer's one line per event (ADR-MASTER section 18; I21): the function is the actor, the event the
+     * operation, and the fields named once.
+     */
+    public static void consumerRun(String function, String event, Ids ids, Collection<String> fields) {
+        Objects.requireNonNull(function, "function");
+        record("consumer", function, null, event, ids, fields);
+    }
+
     /** A security event (ADR-MASTER section 18), such as a family asking about a skater it was never linked to. */
     public static void security(String role, String actor, String operation, Ids ids) {
         record(role, actor, null, "security:" + operation, ids, List.of());
