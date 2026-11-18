@@ -37,6 +37,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- AWS mode: each request's tenant-role session (ADR-MASTER section 16). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- One HTTP client for the SDK, not the Apache and Netty pair it pulls in by default. -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

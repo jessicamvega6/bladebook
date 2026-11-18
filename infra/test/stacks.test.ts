@@ -288,3 +288,77 @@ describe('dev test accounts and seed bucket (ADR-027 d3, ADR-028, I15, I18)', ()
   });
 });
 
+
+describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
+  type Statement = { Sid?: string; Action: string | string[]; Resource?: unknown; Condition?: Record<string, Record<string, unknown>> };
+  const roles = dev.app.findResources('AWS::IAM::Role');
+  const policies = dev.app.findResources('AWS::IAM::Policy');
+  const byDescription = (start: string) => {
+    const found = Object.entries(roles).filter(([, r]) => String(r.Properties.Description).startsWith(start));
+    assert.equal(found.length, 1, `one role described "${start}…"`);
+    return found[0]!;
+  };
+  const inline = (start: string): Statement[] =>
+    byDescription(start)[1].Properties.Policies[0].PolicyDocument.Statement as Statement[];
+  const actions = (s: Statement): string[] => [s.Action].flat();
+  /** Every statement in the AWS::IAM::Policy resources attached to the role. */
+  const attached = (start: string): Statement[] => {
+    const [id] = byDescription(start);
+    return Object.values(policies)
+      .filter((p) => (p.Properties.Roles as { Ref: string }[]).some((r) => r.Ref === id))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as Statement[]);
+  };
+
+  test('neither API role holds a DynamoDB action; each may only assume its tenant roles', () => {
+    for (const fn of ['api-coach:', 'api-client:']) {
+      const statements = attached(fn);
+      assert.ok(statements.length > 0);
+      for (const s of statements) {
+        assert.deepEqual(actions(s).sort(), ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
+      }
+      assert.ok(!JSON.stringify(byDescription(fn)[1]).includes('dynamodb:'));
+    }
+  });
+
+  test('coach-tenant: only api-coach, only the coachId tag, only the coach\'s partition and GSI3', () => {
+    const [, role] = byDescription('coach-tenant:');
+    const trust = role.Properties.AssumeRolePolicyDocument.Statement[0];
+    assert.deepEqual(trust.Condition['ForAllValues:StringEquals']['aws:TagKeys'], ['coachId']);
+    assert.deepEqual(trust.Condition.Null, { 'aws:RequestTag/coachId': 'false' });
+    const [own, code] = inline('coach-tenant:');
+    assert.deepEqual(own!.Condition!['ForAllValues:StringEquals'], { 'dynamodb:LeadingKeys': ['COACH#${aws:PrincipalTag/coachId}'] });
+    assert.ok(JSON.stringify(own!.Resource).includes('/index/GSI3'));
+    assert.ok(!JSON.stringify(own!.Resource).match(/GSI[124]/));
+    assert.ok(!actions(code!).includes('dynamodb:GetItem'), 'no reads of CODE# items');
+    assert.equal(code!.Condition!.StringEqualsIfExists!['dynamodb:ReturnValues'], 'NONE');
+  });
+
+  test('client-tenant: reads of the coach\'s partition need an ACTIVE link, a projection and the allowlist', () => {
+    const [, role] = byDescription('client-tenant:');
+    const trust = role.Properties.AssumeRolePolicyDocument.Statement[0];
+    assert.deepEqual(trust.Condition['ForAllValues:StringEquals']['aws:TagKeys'], ['clientId', 'coachId', 'linkStatus']);
+    const statements = inline('client-tenant:');
+    const read = statements.find((s) => s.Sid === 'CoachPartitionPublicRead')!;
+    assert.deepEqual(read.Condition!.StringEquals, { 'dynamodb:Select': 'SPECIFIC_ATTRIBUTES', 'aws:PrincipalTag/linkStatus': 'ACTIVE' });
+    const allowed = read.Condition!['ForAllValues:StringEquals']!['dynamodb:Attributes'] as string[];
+    // Nothing that names or reaches a person (ADR-022, 2026-11-17).
+    for (const personal of ['studentName', 'clientName', 'clientEmail', 'clientPhone', 'clientId', 'studentId', 'loginEmail',
+      'pendingLeave', 'paymentInstructions', 'registrationNumber']) {
+      assert.ok(!allowed.includes(personal), `${personal} must not be readable`);
+    }
+    const write = statements.find((s) => s.Sid === 'CoachPartitionWrite')!;
+    assert.equal(write.Condition!.StringEqualsIfExists!['dynamodb:ReturnValues'], 'NONE');
+    assert.ok(!statements.some((s) => actions(s).includes('dynamodb:Scan')));
+    const indexes = statements.flatMap((s) => [JSON.stringify(s.Resource)]).join(' ');
+    assert.ok(indexes.includes('/index/GSI1') && !indexes.match(/GSI[234]/));
+  });
+
+  test('code-lookup: untagged, one GetItem of a CODE# item\'s name fields', () => {
+    const [, role] = byDescription('code-lookup:');
+    assert.equal(role.Properties.AssumeRolePolicyDocument.Statement[0].Action, 'sts:AssumeRole');
+    const statements = inline('code-lookup:');
+    assert.equal(statements.length, 1);
+    assert.deepEqual(actions(statements[0]!), ['dynamodb:GetItem']);
+    assert.equal(statements[0]!.Condition!.StringEquals!['dynamodb:Select'], 'SPECIFIC_ATTRIBUTES');
+  });
+});

@@ -15,6 +15,7 @@ import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
 import { BladebookTable } from './table.ts';
+import { TenantRoles } from './tenant-roles.ts';
 import { Website } from './website.ts';
 
 export interface AppStackProps extends StackProps {
@@ -30,6 +31,7 @@ export class AppStack extends Stack {
   readonly data: DataBuckets;
   readonly firewall?: Firewall;
   readonly table: BladebookTable;
+  readonly tenants: TenantRoles;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -76,6 +78,9 @@ export class AppStack extends Stack {
       ...(cfg.seedImport ? { seedBucket: props.seedBucket } : {}),
     });
 
+    // The database gate (ADR-MASTER §16): the API functions reach the table only through these.
+    this.tenants = new TenantRoles(this, 'Tenants', { table: this.table.table });
+
     if (cfg.emailDomain) {
       // DKIM records go in the zone; the identity starts in the SES sandbox.
       new ses.EmailIdentity(this, 'EmailIdentity', {
@@ -90,6 +95,9 @@ export class AppStack extends Stack {
     }
 
     new CfnOutput(this, 'TableName', { value: this.table.table.tableName });
+    new CfnOutput(this, 'CoachTenantRoleArn', { value: this.tenants.coachTenant.roleArn });
+    new CfnOutput(this, 'ClientTenantRoleArn', { value: this.tenants.clientTenant.roleArn });
+    new CfnOutput(this, 'CodeLookupRoleArn', { value: this.tenants.codeLookup.roleArn });
     new CfnOutput(this, 'CoachSiteUrl', { value: `https://${cfg.sites.coach.host}/` });
     new CfnOutput(this, 'FamilySiteUrl', { value: `https://${cfg.sites.family.host}/` });
     new CfnOutput(this, 'CoachSiteBucket', { value: this.coachSite.bucket.bucketName });

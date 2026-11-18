@@ -61,7 +61,8 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 
 **Under way:** Batch 17b, being built on `feature/batch-17b-build` (owner's go, 2026-11-17). Its conflicts (I1–I20)
 are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
-the table, the seed bucket, the test accounts, the seed generator and the import check. Batch 17 is split into 17b and
+the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles and
+`TenantClients`' AWS mode. Batch 17 is split into 17b and
 17c (owner, 2026-11-17).
 
 **What that means for the code:**
@@ -73,7 +74,8 @@ the table, the seed bucket, the test accounts, the seed generator and the import
 - **Still disabled on screen:** the coach Profile's *Account* tab (Batch 18).
 - `infra/` holds the CDK (TypeScript) app from Batches 17a and 17b. In dev, `bladebook-dev-identity` (the user pool,
   its groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox) and
-  `bladebook-dev-app` (both websites behind CloudFront, still empty, and the table built from the seed file) are
+  `bladebook-dev-app` (both websites behind CloudFront, still empty, the table built from the seed file and the tenant
+  roles) are
   deployed. `bladebook-dev-deploy-access` waits for Batch 17b's deploy workflow. The app itself still runs locally only.
 
 ## 3. Blocked outside this work

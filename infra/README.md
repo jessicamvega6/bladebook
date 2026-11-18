@@ -5,10 +5,11 @@ BladeBook's AWS infrastructure, written with the AWS Cloud Development Kit (CDK)
 every synth against the AWS Solutions rules and fails it on any finding that has no written
 reason (ADR-032).
 
-**Status (Batch 17a, 2026-11-16):** written and tested. In dev, `bladebook-dev-identity` is
-deployed. `bladebook-dev-app` waits for the account's CloudFront verification (below), and
-`bladebook-dev-deploy-access` waits for the deploy workflow. The rest of Batch 17,
-including the table, API and functions, is split into Batches 17b and 17c (`AI/implementation-plan.md`).
+**Status (Batch 17b, under way, 2026-11-17):** in dev, `bladebook-dev-identity` and
+`bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
+both websites (still empty), the table built from the seed file, and the tenant roles. The API, the
+functions and the event backbone come next; `bladebook-dev-deploy-access` waits for the deploy
+workflow (`AI/implementation-plan.md`).
 
 ## Stacks
 
@@ -18,7 +19,7 @@ account doesn't exist yet, so only dev's are built.
 | Stack | Holds | Lifetime |
 |---|---|---|
 | `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, the `coach-web` and `family-web` app clients, and in dev the test accounts (3 coaches, 10 families) and the seed file's bucket | Built first; kept between dev builds (I16, ADR-028) |
-| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
+| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, the tenant roles (`coach-tenant`, `client-tenant`, `code-lookup`) and the API functions' execution roles, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
 | Website | Dev | Production |
@@ -124,6 +125,13 @@ in `cdk.context.json`. Commit that file, so later synths (and CI) don't need the
 
 Change any of these in `lib/` and its test together.
 
+- **The tenant roles' policies (`lib/tenant-roles.ts`) follow the gate tests'**
+  (`docs/runbooks/database-gate-tests.sh`), with ADR-022's 2026-11-17 allowlist. Change one and the
+  other together, and re-run the gate tests. Two details no ADR names: the trust policies also allow
+  `sts:SetSourceIdentity`, so each session carries the person's `sub` as its source identity; and
+  `coach-tenant` may `BatchGetItem` in its own partition, as `client-tenant` may in its own.
+  ADR-MASTER §16 says the policy also refuses `ReturnValuesOnConditionCheckFailure` on the client
+  path, but IAM has no condition key for it, so only the ArchUnit rule holds that.
 - **Region `us-east-1`.** The cost model and the gate tests already assume it, and CloudFront's
   certificates must be there.
 - **Cognito's Lite plan.** Threat protection (the Plus plan) is replaced by ADR-019's WAF rate rules.
