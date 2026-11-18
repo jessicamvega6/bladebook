@@ -150,13 +150,13 @@ what its single-item actions allow.
 |---|---|---|---|
 | `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9). `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
 | `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
-| `consumer-booking-confirmation` | `GetItem`, `UpdateItem` | none | `ses:SendEmail` |
-| `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail` (SNS from Phase 2) |
+| `consumer-booking-confirmation` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's (its guard). *Query added (owner, 2026-11-18, I22)* | none | `ses:SendEmail` |
+| `consumer-payment-reminder` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's. *Query added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I22)* | none | `ses:SendEmail` (SNS from Phase 2) |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `TransactWriteItems` | none | none |
-| `consumer-student-link` | `UpdateItem`, `DeleteItem`; `GetItem` on the coach profile | none | `ses:SendEmail` |
-| `consumer-family-sync` | `GetItem`, `Query` on the family's partition and the coaches' partitions; `UpdateItem` | none | none |
-| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`. **No `PutItem` or `DeleteItem.`** | as needed for reads | `ses:SendEmail`, `sns:Publish` |
+| `consumer-student-link` | `UpdateItem`, `DeleteItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
+| `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
+| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
@@ -164,6 +164,10 @@ what its single-item actions allow.
 | `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
+
+**Each role is held by `dynamodb:LeadingKeys` to the partitions it touches** (`COACH#`, `CLIENT#`,
+`SKATERCODE#`), and was written from what its code calls (Batch 17b; owner, 2026-11-18, I22). Inside
+`TransactWriteItems` each write is checked as its item action, so no role lists it.
 
 **Every email is sent from a stored SES template**, so IAM sees each `ses:SendEmail` in this table as
 `ses:SendTemplatedEmail`, and that is the action granted: a role can send nothing but templates (found

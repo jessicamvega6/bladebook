@@ -15,6 +15,7 @@ import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
 import { Api } from './api.ts';
+import { Consumers } from './consumers.ts';
 import { Email } from './email.ts';
 import { BladebookTable } from './table.ts';
 import { TenantRoles } from './tenant-roles.ts';
@@ -38,6 +39,7 @@ export class AppStack extends Stack {
   readonly tenants: TenantRoles;
   readonly email?: Email;
   readonly api: Api;
+  readonly consumers: Consumers;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -93,6 +95,17 @@ export class AppStack extends Stack {
     });
     // api-coach sends one email itself, the business-email confirmation (ADR-016; ADR-MASTER §2, I9).
     this.email?.sendOnly(this.tenants.apiCoachRole, ['business-email-confirmation']);
+
+    // The event backbone: stream → Pipe → bus → one rule and consumer per event (ADR-MASTER §2, §3, I6).
+    this.consumers = new Consumers(this, 'Consumers', {
+      prefix,
+      table: this.table.table,
+      accessLog: this.data.accessLog,
+      coachSiteUrl: `https://${cfg.sites.coach.host}`,
+      familySiteUrl: `https://${cfg.sites.family.host}`,
+      ...(this.email ? { email: this.email } : {}),
+      removalPolicy,
+    });
 
     this.coachSite = new Website(this, 'CoachSite', {
       site: cfg.sites.coach,

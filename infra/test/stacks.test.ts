@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
+import { CONSUMERS, EVENT_PATTERNS, INVITE_ATTRIBUTES, PIPE_DETAIL_TYPE, PIPE_FILTER, PIPE_SOURCE } from '../lib/consumers.ts';
 import { templateFiles } from '../lib/email.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
 import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
@@ -186,15 +187,15 @@ describe('access log (ADR-012)', () => {
     dev.app.resourceCountIs('AWS::Logs::SubscriptionFilter', 1);
     dev.app.resourceCountIs('AWS::KinesisFirehose::DeliveryStream', 1);
   });
-  test('both API functions are told the group, and may write to it only (no reading; I12)', () => {
+  test('both API functions and the seven consumers are told the group, and may write to it only (no reading; I12)', () => {
     const fns = Object.values(dev.app.findResources('AWS::Lambda::Function'))
-      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-api-(coach|client)$/));
-    assert.equal(fns.length, 2);
+      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-(api-(coach|client)|consumer-[a-z-]+)$/));
+    assert.equal(fns.length, 9);
     for (const f of fns) assert.match(JSON.stringify(f.Properties.Environment.Variables.BLADEBOOK_ACCESSLOGGROUP), /DataAccessLog/);
     const grants = Object.values(dev.app.findResources('AWS::IAM::Policy'))
       .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[])
       .filter((st) => /"DataAccessLog[0-9A-F]{8}","Arn"/.test(JSON.stringify(st.Resource ?? '')));
-    assert.equal(grants.length, 2);
+    assert.equal(grants.length, 9);
     for (const g of grants) assert.deepEqual([g.Action].flat().sort(), ['logs:CreateLogStream', 'logs:PutLogEvents']);
   });
   test('the archive goes to Deep Archive and is deleted after 2 years', () => {
@@ -504,5 +505,199 @@ describe('email (ADR-MASTER §13; §2, I9)', () => {
     assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_NOREPLY, 'no-reply@dev.bladebook.org');
     prod.app.resourceCountIs('AWS::SES::Template', 0);
     assert.deepEqual(ses(policies(prod.app, /ApiCoachRole/)), []);
+  });
+});
+
+// ------------------------------------------------------------------------------------------- the event backbone
+
+/**
+ * The part of EventBridge's pattern matching the patterns use: exact strings, prefix, anything-but, exists, and $or.
+ * The live check against EventBridge's own TestEventPattern is in infra/README.md.
+ */
+function matches(pattern: Record<string, unknown>, value: unknown): boolean {
+  return Object.entries(pattern).every(([k, p]) => {
+    if (k === '$or') return (p as Record<string, unknown>[]).some((alt) => matches(alt, value));
+    const v = (value as Record<string, unknown> | undefined)?.[k];
+    if (Array.isArray(p)) {
+      return p.some((m) => {
+        if (typeof m === 'string') return v === m;
+        const [op, arg] = Object.entries(m as Record<string, unknown>)[0]!;
+        if (op === 'prefix') return typeof v === 'string' && v.startsWith(arg as string);
+        if (op === 'anything-but') return typeof v === 'string' && v !== arg;
+        if (op === 'exists') return (v !== undefined) === arg;
+        throw new Error(`matcher ${op} isn't modelled`);
+      });
+    }
+    return matches(p as Record<string, unknown>, v);
+  });
+}
+
+type Image = Record<string, string | Record<string, unknown>>;
+const typed = (img?: Image) => img && Object.fromEntries(Object.entries(img).map(([k, v]) =>
+  [k, typeof v === 'string' ? { S: v } : { M: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { S: b }])) }]));
+function rec(eventName: string, pk: string, sk: string, newImage?: Image, oldImage?: Image, ttl = false) {
+  return {
+    eventName,
+    dynamodb: { Keys: { PK: { S: pk }, SK: { S: sk } }, NewImage: typed(newImage), OldImage: typed(oldImage) },
+    ...(ttl ? { userIdentity: { type: 'Service', principalId: 'dynamodb.amazonaws.com' } } : {}),
+  };
+}
+
+const SEAT = 'SEAT#2026-11-23#06:00#s1';
+/** Each event's records: the ones it must match, and near misses it mustn't. */
+const SAMPLES: Record<string, { match: object[]; miss: object[] }> = {
+  LessonBooked: {
+    match: [rec('INSERT', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }),
+      rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }, { seatStatus: 'INVITED' })],
+    miss: [rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }, { seatStatus: 'BOOKED' }),
+      rec('INSERT', 'COACH#c', SEAT, { seatStatus: 'INVITED' }), rec('REMOVE', 'COACH#c', SEAT, undefined, { seatStatus: 'BOOKED' }),
+      rec('INSERT', 'COACH#c', 'SEATEND#2026-11-23#06:00#s1#t', { seatStatus: 'BOOKED' })],
+  },
+  CheckInRecorded: {
+    match: [rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'CHECKED_IN' }, { seatStatus: 'BOOKED' })],
+    miss: [rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'CHECKED_IN' }, { seatStatus: 'CHECKED_IN' }),
+      rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'NO_SHOW' }, { seatStatus: 'BOOKED' })],
+  },
+  ScheduleChanged: {
+    match: [rec('MODIFY', 'COACH#c', 'SCHEDULE#DEFAULT', {}, {}), rec('INSERT', 'COACH#c', 'SCHEDULE#DATE#2026-11-23', {}),
+      rec('REMOVE', 'COACH#c', 'SCHEDULE#DATE#2026-11-23', undefined, {})],
+    miss: [rec('INSERT', 'COACH#c', 'SCHEDULE#TEMP#t1', {}), rec('MODIFY', 'COACH#c', 'PROFILE', {}, {})],
+  },
+  LessonsChanged: {
+    match: [rec('MODIFY', 'COACH#c', 'CHANGEBATCH#2026-11-18T12:00:00.000Z#b', { executionStatus: 'EXECUTED' }, { executionStatus: 'PLANNED' }),
+      rec('INSERT', 'COACH#c', 'CHANGEBATCH#2026-11-18T12:00:00.000Z#b', { executionStatus: 'EXECUTED' })],
+    miss: [rec('MODIFY', 'COACH#c', 'CHANGEBATCH#2026-11-18T12:00:00.000Z#b', { executionStatus: 'EXECUTED' }, { executionStatus: 'EXECUTED' }),
+      rec('MODIFY', 'COACH#c', 'CANCELLED#2026-11-18T12:00:00.000Z#b#x', { executionStatus: 'EXECUTED' }, { executionStatus: 'PLANNED' })],
+  },
+  StudentChanged: {
+    match: [rec('MODIFY', 'COACH#c', 'STUDENT#s1', { studentStatus: 'ACTIVE' }, { studentStatus: 'PENDING' }),
+      rec('REMOVE', 'COACH#c', 'STUDENT#s1', undefined, { studentStatus: 'PENDING' })],
+    miss: [rec('MODIFY', 'COACH#c', 'STUDENT#s1', { studentStatus: 'ACTIVE' }, { studentStatus: 'ACTIVE' }),
+      rec('INSERT', 'COACH#c', 'STUDENT#s1', { studentStatus: 'PENDING' }),
+      rec('MODIFY', 'CLIENT#f', 'STUDENT#c#s1', { studentStatus: 'ACTIVE' }, { studentStatus: 'PENDING' })],
+  },
+  FamilyChanged: {
+    match: [rec('MODIFY', 'CLIENT#f', 'PROFILE', {}, {}), rec('INSERT', 'CLIENT#f', 'SKATER#s1', {})],
+    miss: [rec('REMOVE', 'CLIENT#f', 'SKATER#s1', undefined, {}), rec('MODIFY', 'CLIENT#f', 'STUDENT#c#s1', {}, {}),
+      rec('MODIFY', 'COACH#c', 'PROFILE', {}, {})],
+  },
+  SharedLessonChanged: {
+    match: [rec('MODIFY', 'COACH#c', SEAT, {}, {}), rec('INSERT', 'COACH#c', 'SEATEND#2026-11-23#06:00#s1#t', {}),
+      rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', { pendingLeave: { leaveId: 'l1' } }, {}),
+      rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, { pendingLeave: { leaveId: 'l1' } })],
+    miss: [rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, {}), rec('MODIFY', 'CLIENT#f', 'SEAT#x', {}, {})],
+  },
+};
+
+describe('the event backbone (ADR-MASTER §2, §3, I6)', () => {
+  test('every event pattern matches its records and none of its near misses', () => {
+    assert.deepEqual(Object.keys(SAMPLES).sort(), Object.keys(EVENT_PATTERNS).sort());
+    for (const [event, { match, miss }] of Object.entries(SAMPLES)) {
+      for (const r of match) assert.ok(matches(EVENT_PATTERNS[event]!, r), `${event} should match ${JSON.stringify(r)}`);
+      for (const r of miss) assert.ok(!matches(EVENT_PATTERNS[event]!, r), `${event} shouldn't match ${JSON.stringify(r)}`);
+    }
+  });
+  test('no event matches another event\'s records unless both consumers want them', () => {
+    // A booked seat is also a shared-lesson seat change: consumer-invite checks for a partner. Nothing else overlaps.
+    const allowed = new Set(['LessonBooked>SharedLessonChanged', 'CheckInRecorded>SharedLessonChanged']);
+    for (const [owner, { match }] of Object.entries(SAMPLES)) {
+      for (const r of match) {
+        for (const other of Object.keys(EVENT_PATTERNS)) {
+          if (other === owner || allowed.has(`${owner}>${other}`)) continue;
+          assert.ok(!matches(EVENT_PATTERNS[other]!, r), `${other} matched ${owner}'s ${JSON.stringify(r)}`);
+        }
+      }
+    }
+  });
+  test('the Pipe passes every record but a TTL removal', () => {
+    assert.ok(matches(PIPE_FILTER, rec('INSERT', 'COACH#c', SEAT, {})));
+    assert.ok(matches(PIPE_FILTER, rec('REMOVE', 'COACH#c', 'STUDENT#s1', undefined, {})));
+    assert.ok(!matches(PIPE_FILTER, rec('REMOVE', 'COACH#c', SEAT, undefined, {}, true)));
+  });
+  test('one Pipe: the table\'s stream onto the bus, unchanged, with its own dead-letter queue', () => {
+    dev.app.resourceCountIs('AWS::Pipes::Pipe', 1);
+    dev.app.hasResourceProperties('AWS::Pipes::Pipe', {
+      Source: { 'Fn::GetAtt': [Match.stringLikeRegexp('^Table[0-9A-F]{8}$'), 'StreamArn'] },
+      SourceParameters: {
+        DynamoDBStreamParameters: Match.objectLike({ StartingPosition: 'LATEST', DeadLetterConfig: { Arn: Match.anyValue() } }),
+        FilterCriteria: { Filters: [{ Pattern: JSON.stringify(PIPE_FILTER) }] },
+      },
+      TargetParameters: { EventBridgeEventBusParameters: { Source: PIPE_SOURCE, DetailType: PIPE_DETAIL_TYPE } },
+    });
+    const pipe = Object.values(dev.app.findResources('AWS::Pipes::Pipe'))[0]!;
+    assert.equal(pipe.Properties.Enrichment, undefined); // no enrichment function (I6)
+  });
+  test('each consumer: one rule of its event\'s name on the bus, and one dead-letter queue for the rule and the function', () => {
+    const rules = Object.values(dev.app.findResources('AWS::Events::Rule'));
+    const fns = dev.app.findResources('AWS::Lambda::Function');
+    for (const c of CONSUMERS) {
+      const rule = rules.find((r) => r.Properties.Name === `bladebook-dev-${c.event}`);
+      assert.ok(rule, c.event);
+      assert.deepEqual(rule.Properties.EventPattern.detail, EVENT_PATTERNS[c.event]);
+      assert.deepEqual(rule.Properties.EventPattern.source, [PIPE_SOURCE]);
+      const [target] = rule.Properties.Targets;
+      const [fnId, fn] = Object.entries(fns).find(([, f]) => f.Properties.FunctionName === `bladebook-dev-${c.name}`)!;
+      assert.deepEqual(target.Arn, { 'Fn::GetAtt': [fnId, 'Arn'] });
+      assert.deepEqual(target.DeadLetterConfig.Arn, fn.Properties.DeadLetterConfig.TargetArn);
+      assert.equal(fn.Properties.Handler, `com.bladebook.consumers.handler.${c.handler}::handleRequest`);
+    }
+    assert.equal(rules.length, CONSUMERS.length);
+  });
+  test('a consumer writes only its own log group, and only those that email get SES, for their templates alone', () => {
+    const roles = dev.app.findResources('AWS::IAM::Role');
+    const policies = Object.values(dev.app.findResources('AWS::IAM::Policy'));
+    for (const c of CONSUMERS) {
+      const [roleId, role] = Object.entries(roles).find(([id]) => id.startsWith(`Consumers${c.handler}Role`))!;
+      assert.equal(role.Properties.ManagedPolicyArns, undefined, `${c.name} has no managed policy`);
+      const statements = policies.filter((p) => JSON.stringify(p.Properties.Roles).includes(roleId))
+        .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[]);
+      const ses = statements.filter((st) => [st.Action].flat().some((a: string) => a.startsWith('ses:')));
+      if (c.templates.length === 0) {
+        assert.equal(ses.length, 0, `${c.name} sends nothing`);
+      } else {
+        const named = JSON.stringify(ses);
+        for (const t of c.templates) assert.ok(named.includes(`template/${t}`), `${c.name} may send ${t}`);
+        assert.equal((named.match(/template\//g) ?? []).length, c.templates.length, `${c.name}: its templates only`);
+      }
+      const logs = statements.filter((st) => [st.Action].flat().some((a: string) => a.startsWith('logs:')));
+      assert.equal(logs.length, 2, `${c.name}: its own group and the access log`);
+    }
+  });
+});
+
+describe('the consumers\' roles (ADR-MASTER §2; owner, 2026-11-18)', () => {
+  const statementsOf = (handler: string) => {
+    const [roleId] = Object.entries(dev.app.findResources('AWS::IAM::Role')).find(([id]) => id.startsWith(`Consumers${handler}Role`))!;
+    return Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(roleId))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[])
+      .filter((st) => [st.Action].flat().some((a: string) => a.startsWith('dynamodb:')));
+  };
+  test('every DynamoDB statement is held to named partitions, and no consumer has an index but invite\'s GSI1', () => {
+    for (const c of CONSUMERS) {
+      for (const st of statementsOf(c.handler)) {
+        assert.ok(st.Condition['ForAllValues:StringLike']['dynamodb:LeadingKeys'].length > 0, c.name);
+        const res = JSON.stringify(st.Resource);
+        if (res.includes('/index/')) assert.ok(c.name === 'consumer-invite' && res.includes('/index/GSI1'), c.name);
+        assert.ok(![st.Action].flat().some((a: string) => /Scan|BatchWrite|DeleteTable/.test(a)), c.name);
+      }
+    }
+  });
+  test('consumer-invite never puts or deletes, and updates only the copies and its guards', () => {
+    const sts = statementsOf('Invite');
+    const actions = sts.flatMap((st) => [st.Action].flat());
+    assert.ok(!actions.includes('dynamodb:PutItem') && !actions.includes('dynamodb:DeleteItem'));
+    const update = sts.find((st) => [st.Action].flat().includes('dynamodb:UpdateItem'))!;
+    assert.deepEqual(update.Condition['ForAllValues:StringLike']['dynamodb:Attributes'], INVITE_ATTRIBUTES);
+  });
+  test('only schedule-change writes lesson times; family-sync alone writes share codes', () => {
+    for (const c of CONSUMERS) {
+      const sts = statementsOf(c.handler);
+      const puts = sts.filter((st) => [st.Action].flat().includes('dynamodb:PutItem'))
+        .flatMap((st) => st.Condition['ForAllValues:StringLike']['dynamodb:LeadingKeys']);
+      if (c.name === 'consumer-schedule-change') assert.deepEqual(puts, ['COACH#*']);
+      else if (c.name === 'consumer-family-sync') assert.deepEqual(puts, ['SKATERCODE#*']);
+      else assert.deepEqual(puts, [], c.name);
+    }
   });
 });

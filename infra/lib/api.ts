@@ -29,10 +29,10 @@ export const ORIGIN_HEADER = 'x-bladebook-origin';
 export const STAGE = 'live';
 
 /**
- * The Lambda package Maven builds (backend/lambda-zip.xml). `cdk.json`'s app command runs Maven first, so a deploy can't
+ * A Lambda package Maven builds (backend/lambda-zip.xml): each API's, and one for every consumer. `cdk.json`'s app command runs Maven first, so a deploy can't
  * ship a stale one (ADR-001 decision 2). The tests set the `bladebook:placeholderCode` context and use a stand-in.
  */
-export function apiCode(scope: Construct, module: 'api-coach' | 'api-client'): lambda.Code {
+export function backendCode(scope: Construct, module: 'api-coach' | 'api-client' | 'consumers'): lambda.Code {
   if (scope.node.tryGetContext('bladebook:placeholderCode')) {
     return lambda.Code.fromAsset(join(dirname(fileURLToPath(import.meta.url)), '../test/placeholder-code'));
   }
@@ -90,7 +90,7 @@ export class Api extends Construct {
         runtime: lambda.Runtime.JAVA_17_AL2023,
         architecture: lambda.Architecture.ARM_64,
         handler: `com.bladebook.api.${name === 'api-coach' ? 'coach' : 'client'}.StreamLambdaHandler::handleRequest`,
-        code: apiCode(this, name),
+        code: backendCode(this, name),
         role,
         // Spring Boot starts in a few seconds at this size; memory also buys CPU. API Gateway gives up at 29 seconds.
         memorySize: 1536,
