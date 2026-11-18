@@ -973,30 +973,40 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 ### By the coach
 
 - **The coach week view** lists the week by time: *Open*, the skater's name, or held.
-- **Scopes:** this lesson, this day, this week. For *this lesson* and *this day*, each lesson
-  asks **release** (seats move to `CANCELLED#`, the lesson time reopens) or **hold** (seats move
-  to `CANCELLED#`, the lesson time becomes `HELD`) — **asked per lesson**, never once for a
-  selection.
+- **A day or the rest of the week is time off** (owner, 2026-11-18, I24; replaces the per-lesson
+  question for a day, and the hold for a week). Cancelling *this day* or *rest of week* writes a time
+  off named **"Cancelled"** for those dates (§6: a temp with empty-block date items), and the
+  schedule change cancels their booked lessons in one planned batch (§9), so a cancel that stops
+  part-way is finished like any schedule change. There is **no release-or-hold question**: the times
+  leave the booking page, as for any time off. The coach can rename or delete it like any time off.
+  - **Inside a special schedule**, those dates in it become *no lessons* and the rest of it stays;
+    dates already in a time off are already empty. A cancel never shows an overlap error.
+  - **Families get the *cancelled by the coach* email**, not the schedule-change one: the batch
+    records `cancelledBy = COACH` with `batchSource` `DAY` or `WEEK`.
+  - **Rest of the week starts now:** lessons that have started or finished keep their attendance and
+    payment; the time off covers only what hasn't started.
+- **Only *this lesson* asks release or hold** (seats move to `CANCELLED#`, and the lesson time
+  reopens or becomes `HELD`), and it is one transaction, so it can't stop part-way.
+- ~~**Scopes:** this lesson, this day, this week. For *this lesson* and *this day*, each lesson
+  asks **release** … or **hold** … — **asked per lesson**, never once for a selection.~~ *Replaced by
+  the two bullets above (I24).*
 - **A hold is permanent.** There is no release action. Families see a held time as taken.
-- **"This week"** (*Cancel rest of week*) is the Sunday–Saturday week on screen, from now on, and
-  **closes all of it**: every booked lesson is held (seats move to `CANCELLED#`, the lesson time
-  becomes `HELD`) and every open lesson time becomes `HELD`, with no release-or-hold question. A
-  future week closes all of it. The weekly schedule isn't changed, so the next week is untouched.
-  The button states the range and how many booked lessons and open times it closes (ADR-009,
-  2026-11-08).
-- **More than one lesson is planned before it's carried out** (ADR-009, 2026-11-17): the
-  change-batch header and a `PLANNED` line for every lesson (with its release-or-hold choice) are
-  written first, then each lesson, then the header. A cancel that fails part-way is finished by
-  `sched-drift-check` through `consumer-schedule-change` (§19).
+- **"This week"** (*Cancel rest of week*) is the Sunday–Saturday week on screen, from now on. A
+  future week covers all of it. The weekly schedule isn't changed, so the next week is untouched.
+  The button states the range and how many booked lessons it cancels (ADR-009, 2026-11-08). *Since
+  I24 it closes the week as time off, not by holding each time.*
+- ~~**More than one lesson is planned before it's carried out** (ADR-009, 2026-11-17): the
+  change-batch header and a `PLANNED` line for every lesson … are written first.~~ *Since I24 a day
+  or a week goes through the schedule change, whose batch is planned first already; a stuck one is
+  finished by `sched-drift-check` through `consumer-schedule-change` (§19). One lesson is one
+  transaction.*
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
 - **From the rinkside page**, two places: a **cancel section**, the Week tab (one lesson, a whole
   day, or the rest of the week; nothing in between, so lessons on different days are cancelled one
   by one — owner, 2026-11-16, ADR-009) and a **cancel action on each lesson in the check-in list**.
-  - **The whole week works like *Cancel rest of week*:** from now to Saturday, every booked
-    lesson and open time is held, with no release-or-hold question. A whole day, one lesson
-    and the check-in list still ask release-or-hold per lesson (ADR-009,
-    2026-11-08).
+  - **A whole day and the whole week are time off**, as on the website (I24). One lesson and the
+    check-in list ask release-or-hold.
   - **Disabled with no signal:** *"Cancelling needs a connection."* The Week tab shows no lessons
     offline: *"The week needs a connection. Cancelling needs signal too. Today's lessons are on the
     Today tab."* (R5, 2026-11-09)
