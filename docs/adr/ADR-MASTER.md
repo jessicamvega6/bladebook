@@ -1479,7 +1479,17 @@ same coach (held by `LinkedSkater` and the ownership condition).
 - **Enforced by the compiler:** every `core/` method returning personal data takes an
   **`AccessContext`** and logs before returning; there is no overload without it. Plus the
   `DynamoDbClient` ArchUnit rule (§1).
+- **Not logged: a person reading their own details** (owner, 2026-11-17, I21): the coach's own
+  profile and its saves, and the family's own contact and skaters. A response that also carries
+  someone else's data is logged for that data only (the family's *My details* lists its coaches'
+  phone, email and payment handles, so those are logged).
+- **Not logged: the coach-code lookup before sign-in** (owner, 2026-11-17, I21). It returns only
+  the name a coach shares with the code; the firewall's rate rule guards it.
+- **A family line carries `clientRelationship` when the request already read the family's
+  account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
+  The event consumers do the same per event. Both are added with their functions (Batch 17b
+  pieces 5 and 6; owner, 2026-11-17, I21).
 - **Family reads are logged** with `clientRelationship`.
 - **Also logged:** contact reveals on the rinkside page, the rink-number download, archive
   restores (who, which coach and skater, reason, when), the link-check security events, the
