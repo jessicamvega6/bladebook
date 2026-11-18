@@ -71,6 +71,9 @@ sees CloudFront's addresses, and every per-address limit would count everyone to
 - **Both CloudFront sites accept visitors from the United States only.** A visitor elsewhere, including a
   BladeBook family or coach travelling abroad, is refused until back in the US. It also cuts most bot traffic
   before the firewall.
+  - **"The United States" is the 50 states and DC** (CloudFront's country code `US`). The territories, which
+    CloudFront reports under their own codes (`PR`, `GU`, `VI`, `AS`, `MP`, `UM`), are refused (owner,
+    2026-11-17).
   - **Done by a CloudFront Function on every request** (viewer request, reading `CloudFront-Viewer-Country`),
     not CloudFront's built-in geographic restriction. The built-in one answers 403, and a custom page for 403
     would also replace the API's own 403 answers. The function answers a visitor outside the US itself: a

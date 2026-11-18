@@ -31,11 +31,10 @@ export interface WebsiteProps {
 export const VIEWER_IP_HEADER = 'x-bladebook-viewer-ip';
 
 /**
- * Where BladeBook is open: the United States and its territories, by CloudFront's country code (ADR-019, amended
- * 2026-11-17: US only). Puerto Rico, Guam, the US Virgin Islands, American Samoa, the Northern Mariana Islands and the
- * minor outlying islands have their own codes.
+ * Where BladeBook is open, by CloudFront's country code: the 50 states and DC, which CloudFront reports as `US` (ADR-019,
+ * amended 2026-11-17). The territories have their own codes and are refused (owner, 2026-11-17).
  */
-export const ALLOWED_COUNTRIES = ['US', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM'] as const;
+export const ALLOWED_COUNTRIES = ['US'] as const;
 
 export const REFUSAL_MESSAGE =
   'BladeBook is only available in the United States. If you\'re travelling, you can use it again when you\'re back.';

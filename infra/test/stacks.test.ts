@@ -388,11 +388,11 @@ describe('US only, and the visitor\'s address for the firewall (ADR-019, I1)', (
     };
   };
   const site = siteRequestCode(['/rinkside/', '/']);
-  test('a visitor in the US or a territory gets the site', () => {
-    for (const c of ['US', 'PR', 'GU']) assert.equal(run(site, c).uri, '/index.html');
+  test('a visitor in the US gets the site', () => {
+    assert.equal(run(site, 'US').uri, '/index.html');
   });
-  test('elsewhere, or with no country, the site answers with a plain page', () => {
-    for (const c of ['CA', 'FR', undefined]) {
+  test('elsewhere, in a US territory, or with no country, the site answers with a plain page', () => {
+    for (const c of ['CA', 'FR', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM', undefined]) {
       const r = run(site, c);
       assert.equal(r.statusCode, 403);
       assert.match(r.headers['content-type']!.value, /text\/html/);

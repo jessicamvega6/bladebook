@@ -148,8 +148,8 @@ what its single-item actions allow.
 
 | Function | DynamoDB | Indexes | Other services |
 |---|---|---|---|
-| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9) |
-| `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | none |
+| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9). `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
+| `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
 | `consumer-booking-confirmation` | `GetItem`, `UpdateItem` | none | `ses:SendEmail` |
 | `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail` (SNS from Phase 2) |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
@@ -1434,7 +1434,8 @@ same coach (held by `LinkedSkater` and the ownership condition).
     firewall and the API check;
   - the **IP reputation list** protects Cognito only (accepted; revisit with a CloudFront ACL when
     its cost is small beside the bill);
-  - **both sites allow visitors from the United States only**, by a CloudFront Function on
+  - **both sites allow visitors from the United States only** (the 50 states and DC; the
+    territories are refused, owner 2026-11-17), by a CloudFront Function on
     every request (not the built-in geographic restriction, whose 403 page would also replace
     the API's 403s): a plain-language page on the site paths, a short JSON error on `/api/*`;
   - **no country rule on Cognito's firewall for now** (owner, 2026-11-17): Cognito's address

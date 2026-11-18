@@ -141,12 +141,12 @@ Change any of these in `lib/` and its test together.
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed
   (it holds no data, and a rebuilt dev needs it again). Without it the stage can't write access logs.
-- **Both API roles may read the origin secret** (`secretsmanager:GetSecretValue` on that one secret),
-  which ADR-MASTER §2's role table doesn't list yet. It's how each API checks CloudFront's header.
-- **"United States only" includes the territories**: Puerto Rico, Guam, the US Virgin Islands,
-  American Samoa, the Northern Mariana Islands and the minor outlying islands, which CloudFront
-  reports under their own country codes. A visitor with no country header is refused, so a
-  configuration mistake shows at once.
+- **Both API roles may read the origin secret** (`secretsmanager:GetSecretValue` on that one secret,
+  ADR-MASTER §2's role table). It's how each API checks CloudFront's header.
+- **"United States only" means the 50 states and DC** (CloudFront's `US`). The territories (Puerto
+  Rico, Guam, the US Virgin Islands, American Samoa, the Northern Mariana Islands and the minor
+  outlying islands) have their own country codes and are refused (owner, 2026-11-17). A visitor
+  with no country header is refused too, so a configuration mistake shows at once.
 - **No CORS on the API**: the sites call it on their own host through CloudFront.
 - **Region `us-east-1`.** The cost model and the gate tests already assume it, and CloudFront's
   certificates must be there.
