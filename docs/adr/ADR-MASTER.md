@@ -1606,7 +1606,11 @@ times and seats in that window.
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
   sweep or roller as above; **DynamoDB Streams iterator age climbing** on the Pipe or the
   archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
-- **Pages go by SNS to the owner's phone**, never email.
+- **Pages go by SNS to the owner's phone**, never email. *Until the account can send US texts (owner,
+  2026-11-18, I26):* US texts need a registered toll-free sender number, which the owner registers when
+  ready. Until it's approved, the paging topic **also emails** the owner; the email is removed once texts
+  work. The phone number and the address are **deploy-time settings, never in the repo**, like the test
+  mailbox.
 - Everything else is a morning dashboard read.
 - **Alarms live in production permanently.** In dev they are switched on only to prove they fire.
 
@@ -1617,7 +1621,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 ### Checks on production
 
-- **Up-check, always on:** health checks call the website's home page and the API's **`/health`**
+- **Up-check, always on** *(production; in dev only when switched on to prove it fires — owner, 2026-11-18,
+  I26)*. **It checks from US locations only**, so the US-only rule (§17) lets it in. Health checks call the website's home page and the API's **`/health`**
   route (no sign-in, reads no data, returns "OK") about once a minute, alarming through the paging
   route.
 - **Post-deploy check:** the production deploy ends by running the **schedule-change-that-cancels
