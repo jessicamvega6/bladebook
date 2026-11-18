@@ -192,12 +192,14 @@ Change any of these in `lib/` and its test together.
   - a job that didn't run, by its invocations or its completion metric; missing data counts as not run;
   - the drift check's failed finish or missed cancellation (I25);
   - the notifier's and schedule-change's dead-letter queues;
-  - the Pipe's queue and its failed runs, and the archiver falling behind the stream;
+  - the Pipe's queue and its failed runs (Pipes publishes no iterator age), and the archiver falling behind
+    the stream (I28);
   - SES bounce and complaint rates;
   - the never-linked counts (a metric filter for the day; a Contributor Insights rule by family, fixed 15 minutes);
   - and, in production, the up-check: two Route 53 health checks from US locations only.
 
-  Everything else is on the `<prefix>-morning` dashboard.
+  Everything else is on the `<prefix>-morning` dashboard, the year close included: it doesn't page, and a
+  missed one is run by hand (I28).
 - **`auth-post-confirmation` (identity stack):** adds `Coach` or `Client` by the app client a new account
   confirmed through, never by anything the person typed (ADR-023 d10). The pool names it by the ARN its
   fixed name gives, so the function can hold both clients' IDs without a dependency loop. One permission,

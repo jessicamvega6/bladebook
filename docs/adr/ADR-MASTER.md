@@ -1599,13 +1599,14 @@ times and seats in that window.
   (`DeadlineSweepCompleted`): the sweep pages after **2 hours** without a completed run; the
   roller shows on the dashboard after one missed night and pages after **3**. **`sched-year-close`**
   reports its own completion metric: a missed January morning shows on the dashboard (the next
-  morning's run catches up, since it's safe to run twice), and it pages if no run has completed by
-  **January 7**, its last day.
+  morning's run catches up, since it's safe to run twice). ~~It pages if no run has completed by
+  **January 7**, its last day.~~ *It doesn't page: the dashboard shows each January morning's run, and a
+  missed year close is run by hand, since it's safe to repeat (owner, 2026-11-18, I28).*
 - **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
   notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
-  sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the Pipe or the
-  archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
+  sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the archiver, and
+  on the Pipe its dead-letter queue and its failed runs (EventBridge Pipes publishes no iterator age; I28); the link-check alarms (§16); the up-check; a dev scanner finding.
 - **Pages go by SNS to the owner's phone**, never email. *Until the account can send US texts (owner,
   2026-11-18, I26):* US texts need a registered toll-free sender number, which the owner registers when
   ready. Until it's approved, the paging topic **also emails** the owner; the email is removed once texts
@@ -1614,16 +1615,17 @@ times and seats in that window.
 - Everything else is a morning dashboard read.
 - **Alarms live in production permanently.** In dev they are switched on only to prove they fire.
 
-*How they're built (Batch 17b, piece 7):* `infra/lib/alarms.ts`. Two differences from the list above,
-for the owner to confirm: **the Pipe has no iterator-age metric** (EventBridge Pipes publishes none), so
-its stall is alarmed on its dead-letter queue and its failed runs, and the archiver on its own iterator age;
-and **"`sched-year-close` pages if no run has completed by January 7" isn't built**: a CloudWatch alarm
-can't tell the date, so it needs a date-aware check (for example, the drift check reporting it in January).
+*How they're built (Batch 17b, piece 7):* `infra/lib/alarms.ts`. Two differences from the first draft of
+this list, both accepted by the owner (2026-11-18, I28): **the Pipe has no iterator-age metric**
+(EventBridge Pipes publishes none), so its stall is alarmed on its dead-letter queue and its failed runs;
+a Pipe that stopped reading without failing would show only as the consumers' silence on the dashboard.
+And **the year close doesn't page**: a CloudWatch alarm can't tell the date, and a date-aware check (the
+drift check reporting a missing year close from January 7) was weighed and set aside for the dashboard.
 
 ### The event path
 
-**The Pipe (Streams → bus) has its own failure destination**, and its stream iterator age is
-alarmed: if it stalls, no consumer runs and no consumer alarm fires.
+**The Pipe (Streams → bus) has its own failure destination**, ~~and its stream iterator age is
+alarmed~~ *alarmed, with its failed runs (I28)*: if it stalls, no consumer runs and no consumer alarm fires.
 
 ### Checks on production
 
