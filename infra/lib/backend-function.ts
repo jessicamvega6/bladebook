@@ -22,7 +22,8 @@ export interface BackendFunctionProps {
   readonly code: lambda.Code;
   readonly table: dynamodb.ITable;
   readonly dynamo: iam.PolicyStatement[];
-  readonly accessLog: logs.ILogGroup;
+  /** The personal-data access log it writes its lines to; none for a function that reads no one's data for anyone. */
+  readonly accessLog?: logs.ILogGroup;
   readonly coachSiteUrl: string;
   readonly familySiteUrl: string;
   /** The SES templates it may send (none: no SES and no sending address). */
@@ -65,10 +66,12 @@ export function backendFunction(scope: Construct, p: BackendFunctionProps): lamb
   role.addToPolicy(new iam.PolicyStatement({ actions: ['logs:CreateLogStream', 'logs:PutLogEvents'], resources: [logGroup.logGroupArn] }));
   for (const s of p.dynamo) role.addToPolicy(s);
   // Its own streams in the access-log group: no reading (ADR-MASTER §18; I12).
-  role.addToPolicy(new iam.PolicyStatement({
-    actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
-    resources: [p.accessLog.logGroupArn],
-  }));
+  if (p.accessLog) {
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+      resources: [p.accessLog.logGroupArn],
+    }));
+  }
   const sends = p.email !== undefined && p.templates.length > 0;
   if (sends) p.email!.sendOnly(role, [...p.templates]);
 
@@ -89,7 +92,7 @@ export function backendFunction(scope: Construct, p: BackendFunctionProps): lamb
       BLADEBOOK_TABLE: p.table.tableName,
       BLADEBOOK_COACHSITEURL: p.coachSiteUrl.replace(/\/$/, ''),
       BLADEBOOK_FAMILYSITEURL: p.familySiteUrl.replace(/\/$/, ''),
-      BLADEBOOK_ACCESSLOGGROUP: p.accessLog.logGroupName,
+      ...(p.accessLog ? { BLADEBOOK_ACCESSLOGGROUP: p.accessLog.logGroupName } : {}),
       ...(sends ? { BLADEBOOK_MAIL_FROM: p.email!.from, BLADEBOOK_MAIL_NOREPLY: p.email!.noReply } : {}),
       JAVA_TOOL_OPTIONS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1',
       ...p.environment,

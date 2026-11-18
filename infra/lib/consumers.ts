@@ -15,7 +15,9 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as pipes from 'aws-cdk-lib/aws-pipes';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import type * as s3 from 'aws-cdk-lib/aws-s3';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import type * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { backendCode } from './api.ts';
 import { backendFunction, deadLetterQueue } from './backend-function.ts';
@@ -89,6 +91,12 @@ export const PIPE_FILTER: Pattern = {
     { eventName: ['INSERT', 'MODIFY'] },
     { eventName: ['REMOVE'], userIdentity: { type: [{ exists: false }] } },
   ],
+};
+
+/** The archiver's filter: removals by the DynamoDB service, which are TTL's (ADR-MASTER §3, §20). */
+export const TTL_FILTER = {
+  eventName: lambda.FilterRule.isEqual('REMOVE'),
+  userIdentity: { type: lambda.FilterRule.isEqual('Service'), principalId: lambda.FilterRule.isEqual('dynamodb.amazonaws.com') },
 };
 
 /** One consumer function (ADR-MASTER §2). */
@@ -179,6 +187,8 @@ export interface ConsumersProps {
   readonly accessLog: logs.ILogGroup;
   readonly coachSiteUrl: string;
   readonly familySiteUrl: string;
+  /** The archive bucket `consumer-ttl-archiver` writes expired items to (ADR-MASTER §20). */
+  readonly archive: s3.IBucket;
   /** The sending addresses; without them no consumer gets SES and those that email fail their events. */
   readonly email?: Email;
   readonly removalPolicy: RemovalPolicy;
@@ -190,6 +200,7 @@ export class Consumers extends Construct {
   readonly pipeDeadLetters: sqs.Queue;
   readonly functions = new Map<string, lambda.Function>();
   readonly deadLetters = new Map<string, sqs.Queue>();
+  readonly ttlArchiver: lambda.Function;
 
   constructor(scope: Construct, id: string, props: ConsumersProps) {
     super(scope, id);
@@ -259,6 +270,31 @@ export class Consumers extends Construct {
       this.deadLetters.set(spec.name, deadLetters);
 
     }
+    // ------------------------------------------------------------------------------------- the TTL archiver
+    // The stream's second reader (ADR-MASTER §3): TTL removals only, each old image to the archive bucket (§20). No
+    // dead-letter queue: Lambda retries a batch until it succeeds or the record leaves the stream; the stream-age alarm
+    // (piece 7) catches a stuck one, and point-in-time recovery holds the items meanwhile (§19).
+    this.ttlArchiver = backendFunction(this, {
+      prefix: props.prefix, name: 'consumer-ttl-archiver', handler: 'TtlArchiver', description: 'TTL removals, to the archive',
+      code, table, dynamo: [], coachSiteUrl: props.coachSiteUrl, familySiteUrl: props.familySiteUrl, templates: [],
+      timeout: Duration.minutes(1), removalPolicy: props.removalPolicy,
+      environment: { BLADEBOOK_ARCHIVEBUCKET: props.archive.bucketName },
+    });
+    this.ttlArchiver.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject', 's3:PutObjectTagging'],
+      resources: [props.archive.arnForObjects('*')],
+    }));
+    this.ttlArchiver.addEventSource(new DynamoEventSource(table, {
+      startingPosition: lambda.StartingPosition.LATEST,
+      batchSize: 100,
+      bisectBatchOnError: true,
+      filters: [lambda.FilterCriteria.filter(TTL_FILTER)],
+    }));
+    Validations.of(this.ttlArchiver.role!).acknowledge(
+      { id: 'AwsSolutions-IAM5[Resource::*]', reason: 'dynamodb:ListStreams has no resource-level permission; the stream reads are on this table\'s stream only.' },
+      { id: 'AwsSolutions-IAM5[Resource::<DataArchive774FA568.Arn>/*]', reason: 'One object per expired item, at a key made from the item (ADR-MASTER §20): put and tag only, in the archive bucket.' },
+    );
+
     Validations.of(pipeRole).acknowledge({
       id: 'AwsSolutions-IAM5[Resource::*]',
       reason: 'dynamodb:ListStreams has no resource-level permission; the stream reads are on this table\'s stream only.',

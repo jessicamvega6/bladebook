@@ -103,6 +103,7 @@ export class AppStack extends Stack {
       prefix,
       table: this.table.table,
       accessLog: this.data.accessLog,
+      archive: this.data.archive,
       coachSiteUrl: `https://${cfg.sites.coach.host}`,
       familySiteUrl: `https://${cfg.sites.family.host}`,
       ...(this.email ? { email: this.email } : {}),

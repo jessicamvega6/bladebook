@@ -67,6 +67,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- AWS mode: consumer-ttl-archiver writes each expired item to the archive bucket (ADR-MASTER section 20). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- AWS mode: sched-drift-check hands a stuck batch to consumer-schedule-change (ADR-MASTER section 19). -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

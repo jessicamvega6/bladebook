@@ -190,7 +190,9 @@ describe('access log (ADR-012)', () => {
   });
   test('both API functions, the seven consumers and the five jobs are told the group, and may write to it only (no reading; I12)', () => {
     const fns = Object.values(dev.app.findResources('AWS::Lambda::Function'))
-      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-(api-(coach|client)|consumer-[a-z-]+|sched-[a-z-]+)$/));
+      .filter((f) => String(f.Properties.FunctionName ?? '').match(/-(api-(coach|client)|consumer-[a-z-]+|sched-[a-z-]+)$/))
+      // The archiver reads no one's data for anyone: it isn't told the group and may not write to it.
+      .filter((f) => !String(f.Properties.FunctionName).endsWith('-consumer-ttl-archiver'));
     assert.equal(fns.length, 14);
     for (const f of fns) assert.match(JSON.stringify(f.Properties.Environment.Variables.BLADEBOOK_ACCESSLOGGROUP), /DataAccessLog/);
     const grants = Object.values(dev.app.findResources('AWS::IAM::Policy'))
@@ -759,5 +761,32 @@ describe('the scheduled jobs (ADR-MASTER §2, §14; owner, 2026-11-18, I23)', ()
     dev.app.hasResourceProperties('AWS::SSM::Parameter', { Name: '/bladebook-dev/unpaid-reminder/threshold-days', Value: '7' });
     const readers = JOBS.filter((j) => statementsOf(j.handler).some((st) => [st.Action].flat().includes('ssm:GetParameter')));
     assert.deepEqual(readers.map((j) => j.name), ['sched-unpaid-reminder']);
+  });
+});
+
+describe('the TTL archiver (ADR-MASTER §2, §3, §20)', () => {
+  const archiverStatements = () => {
+    const [roleId] = Object.entries(dev.app.findResources('AWS::IAM::Role')).find(([id]) => id.startsWith('ConsumersTtlArchiverRole'))!;
+    return Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(roleId))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[]);
+  };
+  test('it is the stream\'s only other reader, and takes TTL removals only', () => {
+    const mappings = Object.values(dev.app.findResources('AWS::Lambda::EventSourceMapping'));
+    assert.equal(mappings.length, 1); // with the Pipe, the stream's two readers
+    const m = mappings[0]!;
+    assert.match(JSON.stringify(m.Properties.EventSourceArn), /StreamArn/);
+    assert.deepEqual(JSON.parse(m.Properties.FilterCriteria.Filters[0].Pattern),
+      { eventName: ['REMOVE'], userIdentity: { type: ['Service'], principalId: ['dynamodb.amazonaws.com'] } });
+    assert.equal(m.Properties.DestinationConfig, undefined); // no queue (§19)
+  });
+  test('it may put objects in the archive and read the stream, and nothing else in the data', () => {
+    const actions = archiverStatements().flatMap((st) => [st.Action].flat());
+    assert.ok(actions.includes('s3:PutObject') && actions.includes('s3:PutObjectTagging'));
+    assert.ok(!actions.some((a: string) => /^s3:(Get|Delete|List)/.test(a)));
+    const items = actions.filter((a: string) => /dynamodb:(GetItem|Query|Scan|PutItem|UpdateItem|DeleteItem|BatchGetItem)/.test(a));
+    assert.deepEqual(items, []);
+    const puts = archiverStatements().find((st) => [st.Action].flat().includes('s3:PutObject'))!;
+    assert.match(JSON.stringify(puts.Resource), /DataArchive/);
   });
 });
