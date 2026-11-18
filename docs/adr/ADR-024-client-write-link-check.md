@@ -180,6 +180,13 @@ points, to be revisited once there is real traffic.
 As with every alarm (ADR-010 decision 4), production keeps these permanently; staging gets them
 only temporarily, to prove they fire.
 
+*How they count (owner, 2026-11-17, I12):* the security events are lines in the access-log group (ADR-012,
+amendment of 2026-11-17). **The everyone-in-a-day alarm** is a metric filter on that group counting security
+events, alarmed on the day's sum. **The one-family alarm** is a **CloudWatch Contributor Insights** rule on the
+group that counts security events by family ID; one alarm fires when the top family's count in a **fixed
+15-minute period** reaches the threshold. Fixed periods, not rolling ones: three failures split 2 and 1 across a
+boundary don't page, and the day's alarm is the backstop. About $0.50 a month for the rule.
+
 ---
 
 ## Alternatives considered

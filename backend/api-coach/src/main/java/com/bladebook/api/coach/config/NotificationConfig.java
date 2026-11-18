@@ -53,8 +53,9 @@ public class NotificationConfig {
 
     @Bean
     NotificationService notificationService(NotifyRepository repo, Mailer mailer, Clock clock,
-                                            @Value("${bladebook.site-url:http://localhost:5173}") String site) {
-        return new NotificationService(repo, mailer, new NotificationService.Links(site), clock);
+                                            @Value("${bladebook.coach-site-url:http://localhost:5173/coach}") String coachSite,
+                                            @Value("${bladebook.family-site-url:http://localhost:5173/family}") String familySite) {
+        return new NotificationService(repo, mailer, new NotificationService.Links(coachSite, familySite), clock);
     }
 
     /** The unpaid threshold is a setting (ADR-MASTER section 12: Parameter Store on AWS). Blank: the Monday email sends nothing. */

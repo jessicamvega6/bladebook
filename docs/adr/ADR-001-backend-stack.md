@@ -49,7 +49,7 @@ decision 6b's shape check) in **dev's application stack**, so it starts and stop
 not in the data-loading stack. The **data-loading stack** in the production account holds the
 AWS Step Functions workflow and the **transform Lambda** that masks each export, with its role
 (ADR-027 decision 9, amended 2026-10-09; [ADR-028](ADR-028-dev-table-built-from-one-import.md)).
-Like the PII access-log aggregator, the scanner and the transform Lambda are operational
+Like ~~the PII access-log aggregator,~~ the scanner and the transform Lambda are operational
 functions outside the request path and **outside the ~~fourteen~~-function count**, which is
 unchanged. *Revised 2026-10-13 (ADR-031): the count is now **sixteen** functions; these operational
 functions are still outside it.*
@@ -334,7 +334,8 @@ to reconcile it against six later ADRs.
 
 **Nine functions, four build artifacts, nine IAM roles.** Two operational functions sit
 outside this list and outside the request path: the PII access-log aggregator (ADR-012) and
-the staging mask shape-check (ADR-011, staging only). *Amended 2026-10-09: the shape check is
+the staging mask shape-check *(the aggregator was dropped 2026-11-17, I12: `core.data` writes
+access lines straight to their group, ADR-012)* (ADR-011, staging only). *Amended 2026-10-09: the shape check is
 now dev's scanner, in dev's application stack; the transform Lambda in the data-loading stack is
 a third operational function, also outside the count (see Status).*
 
@@ -410,8 +411,8 @@ Key-management permissions follow whichever keys encrypt the table and bucket (�
   profile's `smsOptIn` changing from false to true.
 - **Profile photo upload and resize** (ADR-016 decision 5). No bucket, upload path or resize
   step is specified yet.
-- **The operational functions A5 lists outside the request path** — the PII access-log
-  aggregator (ADR-012) and the staging shape check (ADR-011 decision 6b) — plus the staging
+- **The operational functions A5 lists outside the request path** — ~~the PII access-log
+  aggregator (ADR-012)~~ *(dropped 2026-11-17, I12)* and the staging shape check (ADR-011 decision 6b) — plus the staging
   refresh's cross-environment role (ADR-011 decision 7). Each is specified in its own ADR.
   *Amended 2026-10-09: the shape check is now dev's scanner, in dev's application stack; the
   cross-environment role is the transform Lambda's, in the data-loading stack (ADR-027 decision 9,
@@ -593,7 +594,10 @@ time** (`LESSON#`), written when it is created from the schedule. The rule is un
 
 **Keep unchanged:** `SLOT#<date>#<startTime>#<slotId>` and `GSI2PK = DATE#<yyyy-mm-dd>` remain the coach's *local* date. "Everyone with a lesson today" means the coach's today; that is the correct partition and it does not change.
 
-**MVP behavior:** one EventBridge Scheduler rule per job, pinned to the launch timezone using Scheduler's native IANA timezone support (`America/New_York`), which handles DST transitions for you — you will never write DST arithmetic. The reminder and report Lambdas read `booking.coachTz` and filter, rather than assuming.
+**MVP behavior:** one EventBridge Scheduler rule per job, pinned to the launch timezone using Scheduler's native IANA timezone support (`America/Chicago`), which handles DST transitions for you — you will never write DST arithmetic. The reminder and report Lambdas read `booking.coachTz` and filter, rather than assuming.
+*Revised 2026-11-17 (owner, I7): the launch timezone is Central (`America/Chicago`), as the code
+and the sign-up default already were; it was written as New York here before. Families of a
+coach further west get the 7am reminder early (5 AM Pacific) until a second rule is added.*
 
 **Generalization when a second timezone appears:** add one Scheduler rule per timezone group. Each fires at 7am/9pm local and queries `DATE#<today-in-that-tz>`, filtering results on `coachTz`. At tens of bookings/day globally, over-fetching a shared date partition and filtering client-side is free. **No data migration, no key redesign, no backfill.**
 

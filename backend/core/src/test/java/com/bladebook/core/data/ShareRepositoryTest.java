@@ -136,7 +136,7 @@ class ShareRepositoryTest {
 
     @Test
     void theShareCodeLookupIgnoresCaseAndTheDashAndRefusesOtherShapes() {
-        assertThat(shares.shareCode("not a code")).isEmpty();
-        assertThat(shares.shareCode(null)).isEmpty();
+        assertThat(shares.shareCode(park, "not a code")).isEmpty();
+        assertThat(shares.shareCode(park, null)).isEmpty();
     }
 }

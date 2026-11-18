@@ -102,7 +102,7 @@ class NotificationServiceTest {
         stream = t.f.clients.localStream();
         stream.switchOn();
         notify = new NotifyRepository(t.f.clients, t.f.table);
-        notifications = new NotificationService(notify, mailer, new NotificationService.Links("https://bladebook.test/"), clock);
+        notifications = new NotificationService(notify, mailer, new NotificationService.Links("https://app.bladebook.test/", "https://family.bladebook.test"), clock);
         router = new LocalStreamRouter(notifications);
         scheduleRepo = new ScheduleRepository(t.f.clients, t.f.table);
         scheduleChange = new ScheduleChangeService(scheduleRepo, t.coaches, clock);
@@ -196,7 +196,7 @@ class NotificationServiceTest {
         assertThat(e.replyTo()).isEqualTo("dana@gmail.com");
         assertThat(e.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "2").containsEntry("skaterNames", "Ava")
                 .containsEntry("firstDate", "Mon, Nov 16").containsEntry("firstTime", "6:00 AM").containsEntry("familyFirst", "Sarah")
-                .containsEntry("myBookingsUrl", "https://bladebook.test/family/#/bookings");
+                .containsEntry("myBookingsUrl", "https://family.bladebook.test/#/bookings");
         assertThat(list(e, "lessons")).extracting(l -> l.get("price")).containsExactly("$50", "$50");
         assertThat(drain()).isEmpty();
     }
@@ -331,7 +331,7 @@ class NotificationServiceTest {
         Email morning = only(sent, "coach-morning");
         assertThat(morning.to()).isEqualTo("dana@gmail.com");
         assertThat(morning.data()).containsEntry("lessonCount", "3").containsEntry("firstTime", "6:00 AM").containsEntry("today", "Mon, Nov 16")
-                .containsEntry("rinksideUrl", "https://bladebook.test/coach/rinkside/");
+                .containsEntry("rinksideUrl", "https://app.bladebook.test/rinkside/");
         assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // a re-run for the same date
         assertThat(jobs.dayOf(MON.plusDays(1))).isEqualTo(new ScheduledJobs.DayOf(0, 0)); // no lessons: no morning email
     }
@@ -395,7 +395,7 @@ class NotificationServiceTest {
         assertThat(inv.to()).isEqualTo("grace@example.com");
         assertThat(inv.data()).containsEntry("inviterName", "Sarah Park").containsEntry("inviterSkater", "Ava").containsEntry("skater", "Mia")
                 .containsEntry("share", "$25").containsEntry("fullPrice", "$50");
-        assertThat((String) inv.data().get("invitationUrl")).startsWith("https://bladebook.test/family/#/invite/");
+        assertThat((String) inv.data().get("invitationUrl")).startsWith("https://family.bladebook.test/#/invite/");
 
         shares.accept(chen, shares.invitations(chen).get(0).inviteId());
         sent = drain();
@@ -548,5 +548,19 @@ class NotificationServiceTest {
         assertThat(e.template()).isEqualTo("signup-declined");
         assertThat(e.to()).isEqualTo("lee@example.com");
         assertThat(e.data()).containsEntry("coachName", "Dana Whitfield").containsEntry("skater", "Sam").containsEntry("familyFirst", "Kim");
+    }
+
+    @Test
+    void linksGoToEachWebsitesOwnHostAndRinksideToTheCoachHostsRoot() {
+        NotificationService.Links aws = new NotificationService.Links("https://app.bladebook.org", "https://family.bladebook.org/");
+        assertThat(aws.bookings()).isEqualTo("https://family.bladebook.org/#/bookings");
+        assertThat(aws.calendar()).isEqualTo("https://app.bladebook.org/#/calendar");
+        assertThat(aws.rinkside()).isEqualTo("https://app.bladebook.org/rinkside/");
+
+        // Locally one Vite server holds all three pages: the rinkside page is still at the host's root.
+        NotificationService.Links local = new NotificationService.Links("http://localhost:5173/coach", "http://localhost:5173/family");
+        assertThat(local.bookings()).isEqualTo("http://localhost:5173/family/#/bookings");
+        assertThat(local.lessons()).isEqualTo("http://localhost:5173/coach/#/lessons");
+        assertThat(local.rinkside()).isEqualTo("http://localhost:5173/rinkside/");
     }
 }

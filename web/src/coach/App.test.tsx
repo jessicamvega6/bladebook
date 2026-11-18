@@ -148,7 +148,7 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
 
   // The way to the rinkside page (Batch 7).
   expect(screen.getByText('Heading to the rink?')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Open the rinkside page' })).toHaveAttribute('href', '/coach/rinkside/');
+  expect(screen.getByRole('link', { name: 'Open the rinkside page' })).toHaveAttribute('href', '/rinkside/');
   // Today's lessons
   expect(screen.getByRole('heading', { name: 'Today’s lessons' })).toBeInTheDocument();
   expect(screen.getByText('1 lesson · Pelham Civic Center')).toBeInTheDocument();

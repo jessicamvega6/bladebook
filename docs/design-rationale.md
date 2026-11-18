@@ -139,7 +139,7 @@ BladeBook is a **modular monolith in code**, **deployed as serverless functions*
 
 ### React and TypeScript, two sites, on S3 and CloudFront
 
-**What it is.** One source tree builds the coach website and the family website. The rinkside check-in page is part of the coach website at `/coach/rinkside`, built as its own entry point.
+**What it is.** One source tree builds the coach website and the family website. The rinkside check-in page is part of the coach website at `/rinkside/` (`app.bladebook.org/rinkside/`), built as its own entry point.
 
 **Why.** Cheap static hosting and a clean split from the backend. Its own entry point means the phone at the rink never downloads the schedule editor, and its service worker caches only that page.
 

@@ -68,6 +68,25 @@ route that resolves a share code for a family (the share-code lookup and the sha
 a decision 2 access-log line naming the caller and the skater. The booking's own server-side
 resolve returns nothing to the browser and is covered by the booking's log line.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I12 in `AI/plan-history.md`).* **How a line
+reaches decision 6's group on Lambda.** A Lambda's printed output goes only to its own log group, which anyone who
+can debug the system can read, and AWS grants log access per group, not per line. So **`core.data` writes access
+lines straight to the access-log group** with CloudWatch Logs' `PutLogEvents`:
+- Lines are gathered during a request and sent in **one write before the response is returned**. **If the write
+  fails, the request fails**, so no personal data goes out unrecorded. A scheduled job's aggregate line is written
+  the same way before the run reports success.
+- Each execution environment opens its own log stream in the group when it starts. A function that writes access
+  lines may only create streams in, and write to, that one group (`logs:CreateLogStream`, `logs:PutLogEvents`);
+  it can't read it.
+- Nothing is printed to the function's own log, and there is **no aggregator function**: the one A5 of ADR-001
+  listed was never designed and is dropped.
+- Cost: a write of roughly 10–30 ms on each request that returns personal data, and a little at each cold start.
+- Locally, lines still go to the application log (`bladebook.pii-access`, root `README.md` SC-15).
+- Considered and rejected: printing lines with a marker and forwarding them (the lines would stay in the ordinary
+  logs, defeating decision 6, and a lost line would go unnoticed); pointing a whole function's log at the group
+  (mixes all ordinary logs into it). Deferring the separation until launch was also weighed: no real data is
+  exposed before launch, but it builds the path twice and risks slipping past launch.
+
 ---
 
 ## Context

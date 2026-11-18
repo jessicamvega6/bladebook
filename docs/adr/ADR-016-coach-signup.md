@@ -72,7 +72,8 @@ sends its one built-in verification message for every code: sign-up, forgot pass
 and a family's changed email. Cognito fills in only the code, so that email names no coach or
 family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). Its
 wording is product (see `FeatureDecriptions/Email templates Needed:`). BladeBook stays at seventeen functions. The user
-pool sends through SES, from the same domain as BladeBook's other email.
+pool sends through SES, from the same domain as BladeBook's other email. *(Production only, 2026-11-17: dev's
+pool uses Cognito's own sender, because dev's SES stays in the sandbox; `infra/README.md`.)*
 
 **Amended — 2026-11-12.** *Decided by the owner (implementation plan, Batch 14).* The
 business-email confirmation link carries a random token that works **once** and lasts **3 days**
@@ -95,6 +96,11 @@ where the coach chooses Confirm, as decided above.
   like every other coach route (ADR-023 d7), and is checked against the signed-in coach's own
   profile. No route runs without sign-in, and a forwarded email can't be confirmed by anyone
   else. The cost is one sign-in step when the email is opened on another device.*
+
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I9 in `AI/plan-history.md`).* `api-coach`
+sends the business-email confirmation itself, during the coach's request, so **its role gets `ses:SendEmail` for
+that one template** (`business-email-confirmation`) from the environment's sending address, and nothing else in
+SES. ADR-MASTER §2 had given it no SES at all. Every other email still comes from the event consumers.
 
 **Amended — 2026-11-16.** *Settled while building Batch 14 (implementation plan §7; the owner may override).* Next to
 `pendingBusinessEmails`, the profile keeps the coach's other confirmed addresses (`confirmedBusinessEmails`, the list on

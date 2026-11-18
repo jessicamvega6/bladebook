@@ -59,7 +59,7 @@ export function LocalSignIn({ onSignedIn, notice }: { onSignedIn: (token: string
         <p>The same email always signs in as the same coach. The names are used at step 3 for a new account.</p>
       </Help>
       <Help title="Checking in at the rink?">
-        Use the BladeBook <a className="link" href="/coach/rinkside/">rinkside page</a> on your phone. It signs in with the same email and password, and shows today’s lessons, attendance and cancelling.
+        Use the BladeBook <a className="link" href="/rinkside/">rinkside page</a> on your phone. It signs in with the same email and password, and shows today’s lessons, attendance and cancelling.
       </Help></div>}>
       <Card>
         <form onSubmit={submit} noValidate>

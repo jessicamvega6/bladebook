@@ -9,7 +9,7 @@
  * Batch 10, offline (R2–R5; C_Rinkside Offline.md): today's lessons are kept on the phone (names and times, no contact
  * details); with no signal Present / No-show is saved on the phone and sent when signal returns; an entry the server
  * turns down (a wrong clock) goes to Not sent; a lesson the family cancelled meanwhile shows as cancelled. Logging out
- * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/coach/rinkside/sw.js)
+ * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/rinkside/sw.js)
  * keeps the page itself.
  *
  * Batch 23, the Week tab (G-28; WeekTab.tsx): the week's lessons; cancel one lesson, a whole day, or the rest of the week (S8); with

@@ -80,6 +80,20 @@ Decisions 1–9 are otherwise unchanged.
 decision 9, rows 12–13). Seats carry only `EXPIRE` deadlines and lesson times only `ANSWER`. The
 coach's Accept no longer touches seats.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17c, conflict I11 in `AI/plan-history.md`).* **Decision 7's
+tests run against dev's real table and roles**, not a throwaway table with hand-copied policies in a sandbox account,
+so they prove the policy CDK deploys (the same code that builds production) and can't drift from it:
+- The script reads dev's table name and the tenant roles' addresses from the stack's outputs; it creates no table
+  and no roles. GSI4 and every later policy change come with the stack.
+- The records the tests need (coaches, families, skaters, lesson times, seats) are in dev's **seed file**
+  (ADR-028), since dev's table is built from one import.
+- **In dev only**, `coach-tenant` and `client-tenant` also trust a **gate-test role** the owner signs into, so the
+  script can take tagged sessions as a coach or family. Production's tenant roles never trust it; an
+  infrastructure test asserts that.
+- The rows waiting in the runbook are added in the same rework. Writes during a run land in dev's table, which holds
+  only seed or masked data and is rebuilt anyway.
+- Built in Batch 17c; the tests then need dev to be up.
+
 ---
 
 ## Context

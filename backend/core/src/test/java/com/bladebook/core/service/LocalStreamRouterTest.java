@@ -23,7 +23,7 @@ class LocalStreamRouterTest {
     private final DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
     private final LocalOutbox outbox = new LocalOutbox(Clock.fixed(Instant.parse("2026-11-16T12:00:00Z"), ZoneOffset.UTC));
     private final LocalStreamRouter router = new LocalStreamRouter(new NotificationService(new NotifyRepository(f.clients, f.table), outbox,
-            new NotificationService.Links("https://bladebook.test"), Clock.systemUTC()));
+            new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.systemUTC()));
 
     @Test
     void familyItemsAndUnknownKeysSendNothing() {

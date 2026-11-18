@@ -54,21 +54,31 @@ public final class NotificationService {
     /** The rink every lesson is at in MVP (ADR-MASTER section 6: rink selection is Phase 2). */
     static final String RINK = "Pelham Civic Center";
 
-    /** Where the buttons go: the family website, the coach website, the rinkside page. Plain links; each page asks to sign in. */
-    public record Links(String site) {
+    /**
+     * Where the buttons go. The coach and family websites are separate hosts (ADR-023, 2026-11-16; I14), so each has its
+     * own setting: {@code coachSite} (production {@code https://app.bladebook.org}) and {@code familySite} ({@code
+     * https://family.bladebook.org}). The rinkside page is always at {@code /rinkside/} on the coach site's host. Plain
+     * links; each page asks to sign in.
+     */
+    public record Links(String coachSite, String familySite) {
 
         public Links {
-            site = site.endsWith("/") ? site.substring(0, site.length() - 1) : site;
+            coachSite = trim(coachSite);
+            familySite = trim(familySite);
         }
 
-        String bookings() { return site + "/family/#/bookings"; }
-        String book() { return site + "/family/#/book"; }
-        String home() { return site + "/family/#/home"; }
-        String invite(String inviteId) { return site + "/family/#/invite/" + inviteId; }
-        String calendar() { return site + "/coach/#/calendar"; }
-        String lessons() { return site + "/coach/#/lessons"; }
-        String payments() { return site + "/coach/#/payments"; }
-        String rinkside() { return site + "/coach/rinkside/"; }
+        private static String trim(String url) {
+            return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+        }
+
+        String bookings() { return familySite + "/#/bookings"; }
+        String book() { return familySite + "/#/book"; }
+        String home() { return familySite + "/#/home"; }
+        String invite(String inviteId) { return familySite + "/#/invite/" + inviteId; }
+        String calendar() { return coachSite + "/#/calendar"; }
+        String lessons() { return coachSite + "/#/lessons"; }
+        String payments() { return coachSite + "/#/payments"; }
+        String rinkside() { return java.net.URI.create(coachSite + "/").resolve("/rinkside/").toString(); }
     }
 
     private static final Logger LOG = Logger.getLogger(NotificationService.class.getName());

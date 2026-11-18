@@ -2,6 +2,11 @@
 
 **Status:** Run 2026-10-05: all checks passed, twice. Blockers #4 and #5 are cleared. Re-run whenever a tenant role's policy changes.
 
+**Changing in Batch 17c** (*owner, 2026-11-17, I11; ADR-021 amended*): the script will run against **dev's real
+table and tenant roles**, read from the stack's outputs, instead of building its own table and roles with copied
+policies in a sandbox account. Its test records move into dev's seed file, and in dev only the tenant roles trust a
+gate-test role you sign into. Until then, the steps below describe the old sandbox run.
+
 **Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
 `client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
 
@@ -24,6 +29,16 @@
   `COACH#<coachId>/STUDENT#<studentId>` fails); for the share-check, a `GetItem` of a `STUDENT#`
   item projecting only `studentStatus` is allowed for an `ACTIVE` session, refused with any other
   `STUDENT#` attribute, and refused for a `PENDING` session.
+- **Batch reads** (*added 2026-11-17*, ADR-022 amended, row 14): `client-tenant`'s read statement
+  now allows `BatchGetItem`. A batch read of coach X's `LESSON#` keys with the allowlisted
+  projection is allowed for an `ACTIVE` session; it is refused with any other attribute, with no
+  projection, with any key in another coach's partition, or for a `PENDING` session.
+- **The written allowlist** (*added 2026-11-17*, ADR-022 amended, rows 15 to 17): the policy's
+  attribute list is replaced. Record that a `Query` of the `SEAT#` range projecting `PK`/`SK`
+  returns keys (accepted risk); a read of another family's seat naming `studentName`,
+  `clientId`, `seatStatus` or `partnerName` is refused; the family's own seat by key with
+  `idempotencyKey` only is allowed; GSI1 returns every attribute of the family's own seats and
+  nothing of another family's.
 **Clears:** blockers **#4** and **#5** in `Blockers-Before-Coding.md`.
 **Source:** [ADR-021](../adr/ADR-021-tenant-isolation-at-the-database.md) decision 7 and
 [ADR-022](../adr/ADR-022-client-isolation-at-the-database.md) decision 9.

@@ -110,7 +110,7 @@ public final class ShareService {
     public ShareCheck check(ClientContext ctx, String coachId, String code) {
         LinkedCoach coach = families.linkedCoaches(ctx).stream().filter(c -> c.coachId().equals(coachId) && c.active()).findFirst()
                 .orElseThrow(() -> DomainException.noSuchItem("That coach couldn’t be found. Reload the page."));
-        ShareRepository.CodeMatch match = shares.shareCode(code).orElseThrow(() -> DomainException.noSuchItem(NO_SUCH_CODE));
+        ShareRepository.CodeMatch match = shares.shareCode(ctx, code).orElseThrow(() -> DomainException.noSuchItem(NO_SUCH_CODE));
         boolean on = shares.rosterStatus(ctx, coach, match.studentId()).filter(s -> s == StudentStatus.ACTIVE).isPresent();
         // The access-log line (ADR-MASTER section 18); locally, the application log (a listed shortcut, SC-15).
         System.getLogger("bladebook.access").log(System.Logger.Level.INFO, "share-check family={0} coach={1} onCoachRoster={2}",

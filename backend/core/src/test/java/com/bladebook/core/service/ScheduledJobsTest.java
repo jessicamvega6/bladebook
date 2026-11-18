@@ -23,7 +23,7 @@ class ScheduledJobsTest {
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-16T13:00:00Z"), ZoneOffset.UTC);
     private final LocalOutbox outbox = new LocalOutbox(clock);
     private final NotifyRepository repo = new NotifyRepository(f.clients, f.table);
-    private final NotificationService notifications = new NotificationService(repo, outbox, new NotificationService.Links("https://b.test"), clock);
+    private final NotificationService notifications = new NotificationService(repo, outbox, new NotificationService.Links("https://app.b.test", "https://family.b.test"), clock);
     private final ScheduleChangeService schedules = new ScheduleChangeService(new ScheduleRepository(f.clients, f.table),
             new CoachRepository(f.clients, f.table), clock);
 

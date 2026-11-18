@@ -113,8 +113,8 @@ export function Today({ profile, api, onUseLogin, onResend, onError, note, busy,
       <Card>
         <div className="rink-cta">
           <div className="rink-cta__text"><b>Heading to the rink?</b>
-            <span className="muted">Check skaters in from your phone at <span className="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>
-          <a className="btn btn--primary btn--lg" href="/coach/rinkside/"><Icon name="phone" /><span>Open the rinkside page</span></a>
+            <span className="muted">Check skaters in from your phone at <span className="num">/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>
+          <a className="btn btn--primary btn--lg" href="/rinkside/"><Icon name="phone" /><span>Open the rinkside page</span></a>
         </div>
       </Card>
       {failed && <Banner tone="danger" title="Couldn’t load today’s lessons">{failed}</Banner>}

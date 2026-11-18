@@ -84,7 +84,7 @@ bladebook/
 
 - **`web/` builds two sites from one source tree:** the **coach website** and the **family
   website**. The **rinkside page** is a separate entry point inside the coach website at
-  `/coach/rinkside`, shipped with it. It loads only today's lessons, attendance, contact reveal
+  `/rinkside/` (`app.bladebook.org/rinkside/`; ADR-023, 2026-11-16; moved in the code 2026-11-17, I14), shipped with it. It loads only today's lessons, attendance, contact reveal
   and cancellation, never the schedule editor.
 - **Locally**, `api-coach` runs on `:8080` and `api-client` on `:8081` as ordinary `main()`
   processes, and Vite proxies `/api/coach/*` and `/api/client/*` to them.
@@ -92,9 +92,18 @@ bladebook/
 - **Lambda aliases** for versioning and rollback are recommended, not required.
 - **The web app retries once** on a server error: an idempotent GET as is, a booking with the
   same idempotency key (§7).
-- **Scheduler rules** are one per job, pinned to the launch timezone (`America/New_York`) with
+- **The websites load nothing from other sites** (owner, 2026-11-17, I17). The Figtree font is
+  served from BladeBook's own files (`@font-face` in the shared stylesheet), not Google Fonts, so
+  all three pages (coach, family, rinkside) show it. Both CloudFront sites send a **strict Content
+  Security Policy**: `default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self';
+  img-src 'self' data:; connect-src 'self' https://cognito-idp.<region>.amazonaws.com;
+  frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. Batch 17c adds
+  it, runs it report-only in dev until a click-through of every page reports nothing, then enforces
+  it. Anything new from another site needs the policy changed on purpose.
+- **Scheduler rules** are one per job, pinned to the launch timezone (`America/Chicago`, Central; owner, 2026-11-17, I7) with
   Scheduler's IANA timezone support. A second timezone is one more rule per job; the data
-  already carries each coach's timezone. Verify one rule across a daylight-saving boundary
+  already carries each coach's timezone. Until then a Pacific coach's families get the 7am
+  reminder at 5 AM their time, and a Mountain coach's at 6 AM (root `README.md`, G-33). Verify one rule across a daylight-saving boundary
   before relying on it.
 
 ---
@@ -112,7 +121,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `api-client` | API Gateway | Every family-website route, plus the coach-code lookup before sign-in. |
 | `consumer-booking-confirmation` | `LessonBooked` | Confirmation email per seat. |
 | `consumer-payment-reminder` | `CheckInRecorded` | Payment-reminder email. |
-| `consumer-schedule-change` | `ScheduleChanged` (and direct invocation by `reconcile-schedule`) | Adds, removes, cancels and re-prices lesson times (§9). |
+| `consumer-schedule-change` | `ScheduleChanged` (and direct invocation by `reconcile-schedule` and `sched-drift-check`) | Adds, removes, cancels and re-prices lesson times (§9); finishes a stuck change batch, including a coach's multi-lesson cancel (§10, §19). |
 | `consumer-change-notifier` | `LessonsChanged` | One message per family (or to the coach) per change batch; the coach's late-cancellation SMS. |
 | `consumer-student-link` | `StudentChanged` | Keeps the family's link item in step with the coach's `STUDENT#` item; sends the decline email. |
 | `consumer-family-sync` | `FamilyChanged` | Copies family and skater details to every coach's `STUDENT#` record and upcoming seats; issues share codes. |
@@ -120,12 +129,12 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `consumer-ttl-archiver` | DynamoDB Stream, Time to Live (TTL) removals only | Copies expired items to the archive bucket. |
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
-| `sched-drift-check` | Scheduler, nightly | Read-only check for unfinished or missing schedule changes. |
+| `sched-drift-check` | Scheduler, nightly | Checks for unfinished or missing schedule changes; hands a stuck batch to `consumer-schedule-change` to finish (2026-11-17). Writes nothing to the table itself. |
 | `sched-lesson-roller` | Scheduler, nightly; and January 1–7 (2026-11-16) | Keeps lesson times stored ~15 months ahead. Its second rule, `sched-year-close`, saves last year's figures for every coach (§12, §14). |
 | `sched-deadline-sweep` | Scheduler, hourly | Acts on shared-lesson deadlines (GSI4). |
 | `auth-post-confirmation` | Cognito post-confirmation, when a new account's email is verified | Adds `Coach` or `Client`, chosen by the app client the person signed up through (ADR-023 d10). |
 
-**Outside the count**, not in the request path: the personal-data access-log aggregator; the
+**Outside the count**, not in the request path: the
 **dev scanner** (in dev's application stack); the **transform Lambda** (in the production
 account's data-loading stack).
 
@@ -133,11 +142,13 @@ account's data-loading stack).
 
 IAM enforces the **actions**, **indexes** and **other services** below. It cannot tell item types
 apart inside one partition (there is no sort-key condition), so which items a function touches is
-held by code and tests.
+held by code and tests. Inside `TransactWriteItems`, IAM checks each write as its own action
+(`PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem`), so a role's transactions can do only
+what its single-item actions allow.
 
 | Function | DynamoDB | Indexes | Other services |
 |---|---|---|---|
-| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | none |
+| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9) |
 | `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | none |
 | `consumer-booking-confirmation` | `GetItem`, `UpdateItem` | none | `ses:SendEmail` |
 | `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail` (SNS from Phase 2) |
@@ -149,13 +160,13 @@ held by code and tests.
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
-| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `sns:Publish` to the operator alert topic only; CloudWatch metrics |
-| `sched-lesson-roller` | *Role not yet written* | — | — |
-| `sched-deadline-sweep` | *Role not yet written.* One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
+| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17); `sns:Publish` to the operator alert topic only; CloudWatch metrics |
+| `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
+| `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
 Every function writes its own log group; those that read personal data also write the separate
-access-log group (§18). Every event consumer has a dead-letter queue (§19). Key-management
+access-log group (§18), with `logs:CreateLogStream` and `logs:PutLogEvents` on that group only. Every event consumer has a dead-letter queue (§19). Key-management
 permissions follow the keys that encrypt the table and buckets.
 
 **Cross-tenant indexes (GSI2, GSI3 scan, GSI4) are held only by scheduled jobs.** No function a
@@ -220,6 +231,9 @@ the skater is. The coach's `STUDENT#` record holds copies.
 | **GSI3** (sparse) | `GSI3PK = COACH#<coachId>`, `GSI3SK = UNPAID#<date>#<studentId>` | Seats (and, from Phase 2, chargeable cancellation lines) while `UNPAID` | `api-coach`, `sched-unpaid-reminder` |
 | **GSI4** (sparse) | `GSI4PK = DUE`, `GSI4SK = <dueAtUtc>#<coachId>#<itemKey>` | Records with a pending deadline | `sched-deadline-sweep` only |
 
+**Every index projects all attributes** (`ALL`), as the local table does. The family reads its own
+seats' details from GSI1 (§16), and the 7am job reads the seat's copies through GSI2.
+
 Held lesson times and `INVITED` seats write no GSI2 keys. An invited seat gets
 GSI1 keys only from `consumer-invite` (§8).
 
@@ -257,9 +271,26 @@ number had opted out, so no SMS was attempted.
 | `CheckInRecorded` | Attendance write, `CHECKED_IN` | `consumer-payment-reminder` |
 | `NoShowRecorded` | Attendance write, `NO_SHOW` | Payment reminder — Phase 2 |
 | `StudentChanged` | `STUDENT#` modified (`studentStatus`, `studentName`) or removed | `consumer-student-link` |
-| `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` modified | `consumer-family-sync` |
-| *(name to be set)* | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
-| `DailyReminderDue`, `UnpaidReminderDue`, `DriftCheckDue`, and the roller's and sweep's (names to be set) | Scheduler | The matching `sched-*` function |
+| `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` created or modified (a new skater needs its share code, §5) | `consumer-family-sync` |
+| `SharedLessonChanged` | A shared-lesson seat change, or a lesson time's `pendingLeave` written or cleared | `consumer-invite` |
+
+**How a change becomes a named event** (owner, 2026-11-17, I6). **One Pipe** reads the stream and puts each
+record on the bus **unchanged**: no enrichment function, no renaming. **Each event above is an EventBridge
+rule** of that name, whose pattern matches the raw record: the key's prefix (`prefix` on the `SK`), the new
+image's values and, for a transition, the old image's (`anything-but`, `exists: false`). For example,
+`LessonBooked` matches an `SK` starting `SEAT#`, a new `seatStatus` of `BOOKED` and an old one that is
+absent or not `BOOKED`. The event's name is the rule's name; the record on the bus is the stream record.
+- **One Pipe, not one per event:** a stream should have at most two readers per shard, and the Pipe and
+  `consumer-ttl-archiver` are those two.
+- **Each rule's pattern is tested** in Batch 17b: sample stream records (each event's match and its near
+  misses) are run against every pattern, so a pattern can't silently match too much or nothing.
+- **Consumers read the raw record** through one shared reader in `core` that turns DynamoDB's typed
+  attributes into the domain's types.
+
+**Scheduled jobs have no event.** EventBridge Scheduler invokes each `sched-*` function directly, so
+nothing goes through the bus. Each schedule is **named after its function**: `sched-day-reminder`,
+`sched-unpaid-reminder`, `sched-drift-check`, `sched-lesson-roller`, `sched-year-close` and
+`sched-deadline-sweep` (and `sched-daily-report` from Phase 2). The earlier `…Due` names are dropped.
 
 The Pipe **drops TTL removals** (removals whose identity is the DynamoDB service); only the
 archiver reads them.
@@ -953,6 +984,10 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   future week closes all of it. The weekly schedule isn't changed, so the next week is untouched.
   The button states the range and how many booked lessons and open times it closes (ADR-009,
   2026-11-08).
+- **More than one lesson is planned before it's carried out** (ADR-009, 2026-11-17): the
+  change-batch header and a `PLANNED` line for every lesson (with its release-or-hold choice) are
+  written first, then each lesson, then the header. A cancel that fails part-way is finished by
+  `sched-drift-check` through `consumer-schedule-change` (§19).
 - **Anything larger than one lesson** shows the affected lessons first, states that accepting
   emails families, and needs acceptance — the same preview component as schedule changes.
 - **From the rinkside page**, two places: a **cancel section**, the Week tab (one lesson, a whole
@@ -982,7 +1017,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 
 ### The page
 
-- **`<domain>/coach/rinkside`**, part of the coach website, signed in through the coach website's
+- **`app.bladebook.org/rinkside/`** (dev `app.dev.bladebook.org/rinkside/`; formerly `<domain>/coach/rinkside`), part of the coach website, signed in through the coach website's
   sign-in. Built and tested as an **ordinary browser tab**; nothing depends on Add to Home Screen.
 - **Only a signed-in coach can use it** (ADR-023 d7). Until the coach signs in, the page shows only
   the sign-in screen. Every rinkside route needs a valid token **and** the `Coach` group; a family's
@@ -994,7 +1029,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
 
 ### Offline
 
-- **A service worker scoped to `/coach/rinkside/`** caches the page and today's lessons (skater
+- **A service worker at `/rinkside/sw.js`, scoped to `/rinkside/`** (I14, 2026-11-17), caches the page and today's lessons (skater
   names and times, **no contact details**), fetched whenever the page opens with signal. No other
   part of either site has a service worker.
 - **If the page opens with signal and finds its offline copy gone** (Safari can clear site data),
@@ -1149,6 +1184,13 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 - **Every family gets email.** In MVP there is **no SMS to families**.
 - **Every client-facing email sets `Reply-To: businessEmail`.** The sender stays the app's verified
   domain.
+- **The sending addresses are settings, per environment** (owner, 2026-11-17): the From address
+  (`lessons@<domain>`) and the Reply-To for emails to the coach (`no-reply@<domain>`). Dev uses
+  `lessons@dev.bladebook.org` and `no-reply@dev.bladebook.org`. A family's email is from
+  *"<Coach name> via BladeBook"*, a coach's from *"BladeBook"* (`design/harbor/email/templates.mjs`).
+  Production's addresses wait on its email domain.
+- **An email SES refuses (`MessageRejected`) is marked failed, not retried** (owner,
+  2026-11-17), so a refused address never fills a dead-letter queue.
 - **Emails to the coach about their own account and lessons go to `loginEmail`**: the morning email
   and the weekly unpaid reminder (and, from Phase 2, the daily report).
 - Coach-authored free text (`paymentInstructions`, block names) is HTML-escaped.
@@ -1203,7 +1245,7 @@ notified.
 |---|---|---|
 | `sched-day-reminder` | ~7:00am | Query `DATE#today` on GSI2; email each seat's family; email each coach with lessons their morning list. |
 | `sched-unpaid-reminder` | Weekly, Monday morning | §12. Threshold 7 days; lists every Monday until settled. |
-| `sched-drift-check` | Nightly | §19. Read-only. |
+| `sched-drift-check` | Nightly | §19. Reads only; finishes a stuck batch through `consumer-schedule-change`. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
 | `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
 | `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
@@ -1256,8 +1298,9 @@ notified.
   app client, and the website refreshes its tokens before the first signed-in request.
 - **One code email for everything Cognito sends** (ADR-016, amended 2026-11-06): sign-up, forgot
   password and a changed email all get Cognito's built-in verification message. There is **no
-  custom message trigger**, so the email names no coach or family and states no expiry. The user
-  pool sends through SES.
+  custom message trigger**, so the email names no coach or family and states no expiry.
+  **Production's** user pool sends through SES; **dev's** uses Cognito's own sender, because dev's
+  SES stays in the sandbox (`infra/README.md`, 2026-11-16).
 - **Every limit is measured from `auth_time`** (when the password was last entered, not reset by a
   refresh):
 
@@ -1265,7 +1308,7 @@ notified.
 |---|---|
 | Coach website | **60 minutes** |
 | Family website | **60 minutes** |
-| Rinkside routes (`/coach/rinkside`) | **4 hours** |
+| The rinkside page (`/rinkside/`): its API routes, `/api/coach/rinkside/…` | **4 hours** |
 | Saving a schedule change | Sign-in within the last **15 minutes** |
 
 - Cognito's refresh-token lifetime is **4 hours** on the coach app client and **60 minutes** on the
@@ -1322,12 +1365,16 @@ notified.
 - **`client-tenant` policy:**
   - **own partition** (`CLIENT#<clientId>`): full item access;
   - **GSI1**: same `LeadingKeys` condition on the index;
-  - **coach's partition, reads**: `GetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
-    allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist covers schedule
-    items, the coach profile's public fields (the payment-type switches are `acceptsCash`,
-    `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022, 2026-11-06) and the lesson-time fields availability needs
-    (`priceMinor`, `shareCount`, `joinOrder`, never `pendingLeave`), the family's own seat read,
-    and `studentStatus` alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a).
+  - **coach's partition, reads**: `GetItem`/`BatchGetItem`/`Query` only with `Select = SPECIFIC_ATTRIBUTES`, only
+    allowlisted attributes, **only when `linkStatus = ACTIVE`**. The allowlist (ADR-022 decision 3,
+    written 2026-11-17) covers schedule items, the coach profile's public fields (the payment-type
+    switches are `acceptsCash`, `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal`, ADR-022,
+    2026-11-06), the lesson-time fields availability needs (`priceMinor`, `shareCount`, `joinOrder`,
+    never `pendingLeave`), **a seat's `idempotencyKey` only** (the retry check), and `studentStatus`
+    alone on `STUDENT#` items, by key, for the share-check (§8, ADR-033 d2a). **A family can list
+    every key in the partition** (IAM can't hide `PK`/`SK`), so no listed attribute identifies a
+    person on any item type, and **the family's own seat details are read from GSI1** (owner,
+    2026-11-17).
     **It fails closed.**
   - **coach's partition, writes**: `PutItem`, `UpdateItem`, `DeleteItem`, `ConditionCheckItem`,
     `ReturnValues` held to `NONE` — applies to `PENDING` sessions too. The booking's
@@ -1361,7 +1408,9 @@ notified.
 | Never this family's | HTTP 404 | **Security event** in the access-log group: family ID, the ID asked for, operation, request ID, source address, time — never values. Written by `core.data` |
 
 - **Alarms (page):** one family with **3 or more** never-linked failures in **15 minutes**; **10
-  or more** across everyone in a **day**. Thresholds and windows are configuration.
+  or more** across everyone in a **day**. Thresholds and windows are configuration. The
+  one-family count is a Contributor Insights rule on the access-log group (by family ID, fixed
+  15-minute periods); the daily one a metric filter (I12, 2026-11-17; ADR-024).
 - **No family's action writes another family's records**, except answering an invitation
   addressed to its own skater (§8).
 
@@ -1377,7 +1426,20 @@ same coach (held by `LinkedSkater` and the ownership condition).
 *Sources: ADR-019, ADR-027 (dev), ADR-033.*
 
 - **One web access control list (ACL)**, attached to the **REST API's stage** and to the **Cognito
-  user pool**. CloudFront serves only the static site and has none.
+  user pool**. ~~CloudFront serves only the static site and has none.~~ CloudFront has no ACL; it
+  serves the sites and the API under `/api/*` (owner, 2026-11-17, I1; ADR-019):
+  - a **CloudFront Function** on `/api/*` writes the visitor's address into a BladeBook header,
+    overwriting any sent value, and **the API's rate rules count by that header**;
+  - **the API accepts only CloudFront**, by a secret origin header (in Secrets Manager) that the
+    firewall and the API check;
+  - the **IP reputation list** protects Cognito only (accepted; revisit with a CloudFront ACL when
+    its cost is small beside the bill);
+  - **both sites allow visitors from the United States only**, by a CloudFront Function on
+    every request (not the built-in geographic restriction, whose 403 page would also replace
+    the API's 403s): a plain-language page on the site paths, a short JSON error on `/api/*`;
+  - **no country rule on Cognito's firewall for now** (owner, 2026-11-17): Cognito's address
+    isn't behind CloudFront, so sign-up and sign-in can be reached from abroad, under Cognito's
+    rate rules. Revisit if the logs show abuse from abroad.
 - **Rules:**
 
 | Rule | Limit |
@@ -1418,6 +1480,9 @@ same coach (held by `LinkedSkater` and the ownership condition).
   restores (who, which coach and skater, reason, when), the link-check security events, the
   share-code lookup and the share-check route, which return a skater's display name (ADR-012, ADR-033).
 - **Not logged:** the financial page's summary export (no personal data).
+- **Written straight to that group by `core.data`** (`PutLogEvents`), one write per request before
+  the response; **if it fails, the request fails**. Nothing goes to the function's own log, and
+  there is no aggregator function (I12, 2026-11-17; ADR-012).
 - **Its own log group** with its own read policy. Only the owner's operator role can read it,
   through IAM Identity Center with MFA. Nothing logs reads of the access log.
 - **CloudTrail data events** on the table and the reports, archive and access-log buckets, in
@@ -1456,7 +1521,7 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | `sched-day-reminder` | `remindedOn`, `morningEmailSentOn` | **Discard** once the date has passed |
 | `sched-unpaid-reminder` | `settleReminderSentOn` | Discard |
 | `sched-drift-check` | Read-only | Discard |
-| `sched-lesson-roller`, `sched-deadline-sweep` | Re-check / create-if-missing | No queue |
+| `sched-lesson-roller`, `sched-deadline-sweep`, `sched-year-close` | Re-check / create-if-missing | No queue |
 | `consumer-ttl-archiver` | Object key from item key | No queue; stream-age alarm, point-in-time recovery |
 
 - **Operator commands:**
@@ -1469,13 +1534,13 @@ same coach (held by `LinkedSkater` and the ownership condition).
 
 ### Drift check
 
-`sched-drift-check`, nightly, read-only: for every coach with lessons in the **next 30 days**
+`sched-drift-check`, nightly, reading only: for every coach with lessons in the **next 30 days**
 (found through GSI2), checks recent batch headers and the evaluator's verdict on stored lesson
 times and seats in that window.
 
 | Finding | Response |
 |---|---|
-| A batch unfinished for more than an hour | Page |
+| A batch unfinished for more than an hour | **Finish it:** invoke `consumer-schedule-change` for that batch and wait; **page only if that fails** (owner, 2026-11-17, ADR-010) |
 | A lesson that should have been cancelled and wasn't | Page |
 | Only re-prices outstanding | Dashboard |
 
@@ -1484,10 +1549,13 @@ times and seats in that window.
 - **Scheduled jobs:** a **dead man's switch** — `Invocations` `Sum < 1` over the window, with
   **`treatMissingData: breaching`**. The sweep and roller use their completion metrics
   (`DeadlineSweepCompleted`): the sweep pages after **2 hours** without a completed run; the
-  roller shows on the dashboard after one missed night and pages after **3**.
+  roller shows on the dashboard after one missed night and pages after **3**. **`sched-year-close`**
+  reports its own completion metric: a missed January morning shows on the dashboard (the next
+  morning's run catches up, since it's safe to run twice), and it pages if no run has completed by
+  **January 7**, its last day.
 - **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
-  notifier's and the schedule-change consumer's queue depth above 0; a batch unfinished over an
-  hour; a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
+  notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
+  couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
   sweep or roller as above; **DynamoDB Streams iterator age climbing** on the Pipe or the
   archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
 - **Pages go by SNS to the owner's phone**, never email.
@@ -1515,7 +1583,8 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 - **Point-in-time recovery** on the table (35 days); **deletion protection**; **`RETAIN`**.
 - **Monthly DynamoDB export to S3**, triggered by EventBridge Scheduler, stored in S3 Glacier
-  Instant Retrieval, deleted after 12 months.
+  Instant Retrieval, deleted after 12 months. *Production only; built with production, not in
+  Batch 17b (owner, 2026-11-17).*
 - **Restore** goes to a new table; recovery **copies data back by default** and repoints only for
   total loss. The runbook pauses notifications during a restore and, once erasure ships (Phase 2), re-applies the erased-ID list.
 
@@ -1531,11 +1600,11 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 
 | Item | `expiresAt` set when | Window |
 |---|---|---|
-| Date override | Written | Its date + date-override window (30 days proposed) |
+| Date override | Written | Its date + date-override window (30 days) |
 | Temp header | Written or edited | Its `endDate` + date-override window |
 | Held lesson time | Written | Its date + date-override window |
-| Past lesson time | Its last seat and line have gone (or, never booked, on the date-override window) | With the last of them |
-| Seat, `PAID` or `WAIVED` | **Settled** | Settlement + booking window |
+| Lesson time (`LESSON#`) | Created; **removed** when a seat is booked; **raised** when a seat settles and none is left unsettled (one transaction, conditioned on the other seats; I4, 2026-11-17) | Its date + date-override window (30 days) if never booked; otherwise **never earlier than its latest seat** (only ever raised while set) |
+| Seat, `PAID` or `WAIVED` | **Settled** | Settlement + lesson-record window (16 months) |
 | Seat, `UNPAID` | **Never** while unpaid | — |
 | `SEATEND#` | Written | Cancellation window |
 | Cancellation line (not chargeable) | Written | Cancellation window |
@@ -1543,13 +1612,15 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
 | Cancellation line (chargeable, Phase 2) | Settled | Settlement + cancellation window |
 | Change batch header | With its lines | **Never earlier than its latest line** (only ever raised) |
 | Closed year's figures (`CLOSEDYEAR#`) | Never | Account lifecycle (2026-11-16; Phase 2's past years read them) |
-| Payment correction (`PAYCORRECTION#`) | Written | At least 16 months, like every payment record; set with the others in Batch 17. Once its year is saved, nothing reads it |
-| Recurrence header | Written, and when its end date moves | `endDate` + booking window |
+| Payment correction (`PAYCORRECTION#`) | Written | Lesson-record window (16 months). Once its year is saved, nothing reads it |
+| Recurrence header | Written, and when its end date moves | `endDate` + lesson-record window (16 months) |
 | Rejected `PENDING` skater | — | **Deleted immediately** |
 | Profiles, links, `SKATER#`, `CODE#`, default schedule | Never | Account lifecycle; erasure on request from Phase 2 |
 
-- **Every window holding lesson or payment records is at least 16 months.** The other windows wait
-  on the legal review.
+- **Every window holding lesson or payment records is the lesson-record window, 16 months** (owner,
+  2026-11-17), and never less. It is not the three-month booking window (§7). **The date-override
+  window is 30 days.** The other windows (`SEATEND#`, cancellation and re-price lines) have no value
+  until the legal review, so those items get no `expiresAt` and are kept.
 - **History screens say** lessons settled more than *N* months ago are archived and can be
   requested, *N* read from the retention setting.
 - **`consumer-ttl-archiver`** reads the stream, matches **only TTL removals** (`REMOVE` by the
@@ -1590,8 +1661,13 @@ alarmed: if it stalls, no consumer runs and no consumer alarm fires.
   and `family.dev.bladebook.org` (family), each API under its own host's `/api/*` (ADR-027, amended
   2026-11-16), not indexed.
 - **Built as two stacks:** the **account stack** (Cognito pools and test accounts:
-  `coach-a@example.com`…, `client-1@example.com`…), then the **application stack**, whose table is
-  **created by one import from one file**. Nothing is loaded into a dev table afterwards.
+  tagged addresses on **the owner's test mailbox**, `…+dev-coach-a@…`, `…+dev-client-1@…`;
+  the address is a deploy-time setting, never in the repo; the stack sets each account's group
+  and keeps the passwords in Secrets Manager; dev's SES verifies the mailbox's domain; owner,
+  2026-11-17, ADR-027), and **the seed file's bucket** (ADR-028, 2026-11-17: the import reads it
+  when the table is created, so it must exist first), then the **application stack**, whose table is
+  **created by one import from one file**. The account stack **stays up between builds**; only
+  the application stack is destroyed (owner, 2026-11-17, I16, ADR-028). Nothing is loaded into a dev table afterwards.
 - **Two data sources, never mixed:**
   - `build-dev` — **seed data**; always before launch, the default after.
   - `build-dev --masked --coaches <id>,… [--clients <id>,…] [--as-of <timestamp>] --reason "…"` —
@@ -1655,6 +1731,8 @@ production's.
 A Lambda in dev's application stack applies the same deny-by-default rule to the dev table, the
 reports bucket and the archive bucket; any object in photo storage other than the placeholder is a
 finding. **Its role can't read production.** Runs after every masked build, on demand, and daily.
+**Built with the first masked build**, after launch (owner, 2026-11-17, ADR-027): a dev built from
+the seed file holds no real data, so until then dev has no scanner.
 
 - **A finding:** page; automatically **disable dev's Cognito app clients**; log item key and field
   name, **never the value**; then triage (real or allowlist gap → scope → origin → who read it →
@@ -1685,7 +1763,9 @@ database-gate tests; reproducing an incident (masked build).
 - **Playwright, two flows only:** (1) book a lesson end to end; (2) save a schedule change that
   cancels bookings. Flow 2 is also the post-deploy check (§19).
 - **Database-gate tests run against real AWS (dev)**, never DynamoDB Local (which ignores IAM),
-  from `docs/runbooks/database-gate-tests.md`. They prove each tenant role reaches only its own
+  from `docs/runbooks/database-gate-tests.md`, **against dev's real table and tenant roles**
+  (read from the stack's outputs), with the test records in the seed file and, in dev only, a
+  gate-test role the tenant roles trust (owner, 2026-11-17, I11; ADR-021). They prove each tenant role reaches only its own
   partition, transactions spanning two tenants are refused whole, untagged sessions can't be
   made, execution roles hold no DynamoDB actions, pending families read nothing of the coach,
   the read allowlist holds, `ALL_OLD` is refused, the lookups return only their allowed
@@ -1743,7 +1823,10 @@ database-gate tests; reproducing an incident (masked build).
      `pull_request_target`; forks never get AWS credentials;
   7. separate least-privilege deploy roles per account. The production deploy role may read the
      one Secrets Manager secret with the test accounts' passwords. Deploy roles must not read the
-     table's data or the access log.
+     table's data or the access log: GitHub's role can't assume CDK's lookup role, and CDK's
+     execution role and GitHub's role carry an explicit deny on reading or exporting table items,
+     the access-log group and the data buckets (dev's seed bucket excepted, for the import)
+     (owner, 2026-11-17, I13; ADR-032).
 - **Building dev by hand** with `build-dev` and the owner's Identity Center sign-in is allowed
   before that setup exists.
 
@@ -1832,14 +1915,11 @@ technical.*
   projection allowed for an `ACTIVE` session, other `STUDENT#` attributes and `PENDING` sessions
   refused), and the share-code read's row (`studentId` and the display name only; any other
   attribute, no projection, or a `Query` refused).
-- **IAM roles** for `sched-lesson-roller` and `sched-deadline-sweep`.
-- **Event names** for `consumer-invite`'s trigger and the roller's and sweep's schedules.
 - **Which function sends the coach's SMS opt-in confirmation.**
 
 **Settings and details**
 
 - The rink-fee calculation, for Phase 2 (`docs/Q_Rink-Fees.md`).
-- The date-override window (30 days proposed).
 - The `/health` rate limit.
 - US Figure Skating and Learn to Skate USA number formats; where the USA Hockey check-digit setting
   lives and who changes it.
@@ -1857,11 +1937,10 @@ technical.*
 - What CloudTrail records for reads of a CloudWatch Logs group.
 - Operator alert SMS on its own SNS topic and configuration set; whether it needs 10DLC
   registration.
-- The test accounts' mailbox.
+- The production canary's test mailbox (dev's is settled: the owner's test mailbox, ADR-027, 2026-11-17).
 - How long dev may hold masked data; a teardown leftover check; whether an import produces stream
-  records; whether the account stack stays up between builds.
-- Dependabot for pinned actions; GitHub run-log retention; narrowing CDK's bootstrap role if CDK is
-  chosen.
+  records.
+- Dependabot for pinned actions; GitHub run-log retention.
 
 **Legal review**
 

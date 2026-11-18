@@ -3,9 +3,9 @@
   "coachFirst": "Dana",
   "coachInitials": "DW",
   "coachBusinessEmail": "dana@whitfieldskating.com",
-  "myBookingsUrl": "https://bladebook.app/bookings",
-  "bookUrl": "https://bladebook.app/book",
-  "homeUrl": "https://bladebook.app/",
+  "myBookingsUrl": "https://family.bladebook.org/#/bookings",
+  "bookUrl": "https://family.bladebook.org/#/book",
+  "homeUrl": "https://family.bladebook.org/#/home",
   "familyFirst": "Tom",
   "noticeHours": "24",
   "inviterName": "Grace Chen",
@@ -36,5 +36,5 @@
       "share": "$25"
     }
   ],
-  "invitationUrl": "https://bladebook.app/invitations/8f2c1a"
+  "invitationUrl": "https://family.bladebook.org/#/invite/8f2c1a"
 }

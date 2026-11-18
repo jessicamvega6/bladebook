@@ -68,7 +68,7 @@ class CoachProfileServiceTest {
         tokens = 0;
         Supplier<CoachCode> random = CoachProfileService.randomCodes();
         service = new CoachProfileService(repo, () -> queued.isEmpty() ? random.get() : queued.poll(),
-                new CoachProfileService.ConfirmationMail(outbox, "https://bladebook.app/", clock, () -> "token-" + (++tokens)));
+                new CoachProfileService.ConfirmationMail(outbox, "https://app.bladebook.test/", clock, () -> "token-" + (++tokens)));
         ctx = new AccessContext(UUID.randomUUID().toString());
     }
 
@@ -290,7 +290,7 @@ class CoachProfileServiceTest {
         assertThat(e.fromName()).isEqualTo("BladeBook");
         assertThat(e.replyTo()).isNull();
         assertThat(e.data()).containsEntry("coachFirst", "Dana").containsEntry("newEmail", "lessons@dana.com")
-                .containsEntry("confirmUrl", "https://bladebook.app/coach/#/confirm-email/token-1")
+                .containsEntry("confirmUrl", "https://app.bladebook.test/#/confirm-email/token-1")
                 .containsEntry("expiresAt", "Thu, Nov 19 at 2:15 PM"); // 3 days, in the coach's time zone
         // only the token's hash is kept
         assertThat(p.pendingBusinessEmails().get("lessons@dana.com"))
@@ -432,7 +432,7 @@ class CoachProfileServiceTest {
     void anEmailThatCantBeSentIsSaidSoAndResendStillWorks() {
         CoachProfileService failing = new CoachProfileService(repo, CoachProfileService.randomCodes(),
                 new CoachProfileService.ConfirmationMail(e -> { throw new IllegalStateException("SES down"); },
-                        "https://bladebook.app", clock, () -> "token-x"));
+                        "https://app.bladebook.test", clock, () -> "token-x"));
         failing.completeSignup(ctx, LOGIN, sameEmail());
 
         assertThatThrownBy(() -> failing.addBusinessEmail(ctx, "club@dana.com", null))

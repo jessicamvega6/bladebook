@@ -44,7 +44,7 @@ final class Partners {
      * @param inviteId the invitation's ID, used when the code is another family's skater
      */
     Resolved resolve(ClientContext ctx, LinkedSkater host, String code, String inviteId) {
-        ShareRepository.CodeMatch match = shares.shareCode(code)
+        ShareRepository.CodeMatch match = shares.shareCode(ctx, code)
                 .orElseThrow(() -> DomainException.invalid("shareCode", WRONG));
         String hostFirst = first(host.studentName());
         if (match.studentId().equals(host.studentId())) {

@@ -76,13 +76,18 @@ public final class ShareRepository {
 
     // ------------------------------------------------------------------ the share code
 
-    /** The skater a share code belongs to, as typed (any case, dash or not), or empty when there's none. */
-    public Optional<CodeMatch> shareCode(String typed) {
+    /**
+     * The skater a share code belongs to, as typed (any case, dash or not), or empty when there's none. Read as the
+     * signed-in family: on AWS the first {@code client-tenant} session, which may read a {@code SKATERCODE#} item's
+     * {@code studentId} and name only (ADR-022; ADR-MASTER section 16). Never {@code code-lookup}, which reads
+     * {@code CODE#} items and nothing else (owner, 2026-11-17, I10).
+     */
+    public Optional<CodeMatch> shareCode(ClientContext ctx, String typed) {
         Optional<String> code = ShareCode.normalise(typed);
         if (code.isEmpty()) {
             return Optional.empty();
         }
-        Map<String, AttributeValue> m = clients.forCodeLookup().getItem(GetItemRequest.builder().tableName(table)
+        Map<String, AttributeValue> m = clients.clientFor(ctx).getItem(GetItemRequest.builder().tableName(table)
                 .key(FamilyItems.key(SKATERCODE + code.get(), "CODE"))
                 .projectionExpression("studentId, studentName").build()).item();
         if (m == null || m.isEmpty()) {

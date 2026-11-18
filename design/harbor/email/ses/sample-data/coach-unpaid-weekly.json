@@ -1,9 +1,9 @@
 {
   "coachFirst": "Dana",
-  "rinksideUrl": "https://bladebook.app/coach/rinkside",
-  "calendarUrl": "https://bladebook.app/coach/calendar",
-  "lessonsUrl": "https://bladebook.app/coach/lessons",
-  "paymentsUrl": "https://bladebook.app/coach/payments",
+  "rinksideUrl": "https://app.bladebook.org/rinkside/",
+  "calendarUrl": "https://app.bladebook.org/#/calendar",
+  "lessonsUrl": "https://app.bladebook.org/#/lessons",
+  "paymentsUrl": "https://app.bladebook.org/#/payments",
   "lessonCount": "4",
   "total": "$175",
   "threshold": "7 days",

@@ -12,17 +12,17 @@ const COACH = {
   coachBusinessEmail: 'dana@whitfieldskating.com',
 };
 const URLS = {
-  myBookingsUrl: 'https://bladebook.app/bookings',
-  bookUrl: 'https://bladebook.app/book',
-  homeUrl: 'https://bladebook.app/',
+  myBookingsUrl: 'https://family.bladebook.org/#/bookings',
+  bookUrl: 'https://family.bladebook.org/#/book',
+  homeUrl: 'https://family.bladebook.org/#/home',
 };
 const FAMILY = { ...COACH, ...URLS, familyFirst: 'Grace', noticeHours: '24' };
 const COACH_SELF = {
   coachFirst: 'Dana',
-  rinksideUrl: 'https://bladebook.app/coach/rinkside',
-  calendarUrl: 'https://bladebook.app/coach/calendar',
-  lessonsUrl: 'https://bladebook.app/coach/lessons',
-  paymentsUrl: 'https://bladebook.app/coach/payments',
+  rinksideUrl: 'https://app.bladebook.org/rinkside/',
+  calendarUrl: 'https://app.bladebook.org/#/calendar',
+  lessonsUrl: 'https://app.bladebook.org/#/lessons',
+  paymentsUrl: 'https://app.bladebook.org/#/payments',
 };
 
 /* Who each email comes from. Family emails: From "<coach> via BladeBook", Reply-To the coach's
@@ -240,7 +240,7 @@ export const TEMPLATES = [
         { date: 'Fri, Oct 23', time: '8:30 AM', share: '$25' },
         { date: 'Fri, Oct 30', time: '8:30 AM', share: '$25' },
       ],
-      invitationUrl: 'https://bladebook.app/invitations/8f2c1a',
+      invitationUrl: 'https://family.bladebook.org/#/invite/8f2c1a',
     },
   },
   {
@@ -514,7 +514,7 @@ export const TEMPLATES = [
       { fine: 'The button opens BladeBook. Sign in if asked, then choose Confirm. The link works once, for 3 days, until {{expiresAt}}.' },
       { fine: 'Didn’t ask for this? You can ignore this email. Nothing changes until the address is confirmed.' },
     ],
-    sample: { coachFirst: 'Dana', newEmail: 'dana@whitfieldskating.com', confirmUrl: 'https://bladebook.app/coach/confirm-email/4b7e9d', expiresAt: 'Fri, Oct 16 at 8:15 AM' },
+    sample: { coachFirst: 'Dana', newEmail: 'dana@whitfieldskating.com', confirmUrl: 'https://app.bladebook.org/#/confirm-email/4b7e9d', expiresAt: 'Fri, Oct 16 at 8:15 AM' },
   },
 ];
 

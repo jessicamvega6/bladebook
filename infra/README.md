@@ -8,7 +8,7 @@ reason (ADR-032).
 **Status (Batch 17a, 2026-11-16):** written and tested. In dev, `bladebook-dev-identity` is
 deployed. `bladebook-dev-app` waits for the account's CloudFront verification (below), and
 `bladebook-dev-deploy-access` waits for the deploy workflow. The rest of Batch 17,
-including the table, API and functions, is Batch 17b (`AI/implementation-plan.md`).
+including the table, API and functions, is split into Batches 17b and 17c (`AI/implementation-plan.md`).
 
 ## Stacks
 
@@ -17,7 +17,7 @@ account doesn't exist yet, so only dev's are built.
 
 | Stack | Holds | Lifetime |
 |---|---|---|
-| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first |
+| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first; kept between dev builds (I16, ADR-028) |
 | `bladebook-dev-app` | Both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
@@ -43,14 +43,15 @@ aws sso login --sso-session bladebook
 # Once per account, before the first deploy: ask AWS Support to verify the account for CloudFront
 # (see "New account: CloudFront verification" below).
 
-# Once per account: the roles CDK deploys through.
+# Once per account: the roles CDK deploys through. From Batch 17b, bootstrap with the execution
+# policy that denies reading table data, the access log and the data buckets (ADR-032, I13).
 npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
 
 npx cdk deploy bladebook-dev-identity bladebook-dev-app --profile bladebook-dev
 npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the workflow is added
 
-# Tear down (deletes dev's data: ADR-027 d4's rules apply first)
-npx cdk destroy bladebook-dev-app bladebook-dev-identity --profile bladebook-dev
+# Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
+npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
 
 ### New account: CloudFront verification
@@ -93,7 +94,9 @@ Change any of these in `lib/` and its test together.
   `nosniff`, no framing, `strict-origin-when-cross-origin`, and a `Permissions-Policy` that turns
   off the camera, microphone and location. Dev adds `X-Robots-Tag: noindex`.
 - **No Content Security Policy yet.** One written before the real build is served would likely
-  break it. Add it with Batch 17b's upload and test it there.
+  break it. Add it with Batch 17c's upload and test it there. *Ruled 2026-11-17 (I17): a strict
+  policy, only BladeBook's own site plus Cognito for sign-in, with Figtree served from BladeBook's
+  own files (ADR-MASTER §1).*
 - **The access-log archive moves to Deep Archive after 30 days**, to match ADR-017's archive.
   ADR-012 doesn't give a day.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**
@@ -105,6 +108,12 @@ Change any of these in `lib/` and its test together.
 
 - **Narrowing CDK's bootstrap execution policy.** It defaults to AdministratorAccess (ADR-032 Open).
 - **The `/health` rate limit** (ADR-MASTER §21). The WAF has the other six rules.
+- **The API behind CloudFront** (I1, 2026-11-17; ADR-019): 17b adds the CloudFront Function that
+  passes the visitor's address in a BladeBook header, the API's rate rules counting by it, the
+  secret origin header that locks the API to CloudFront, and the US-only rule on both
+  distributions: a CloudFront Function answering visitors outside the US with a plain-language
+  page (JSON on `/api/*`), not the built-in geographic restriction, whose 403 page would replace
+  the API's own 403s. No country rule on Cognito's firewall for now.
 - **CloudTrail data events.** Dev's trail writes to production's data-loading stack (ADR-027 d4),
   so it is built with production.
 - **The archive's expiry** (legal review; at least 210 days) and **the reports bucket's lifecycle**.
