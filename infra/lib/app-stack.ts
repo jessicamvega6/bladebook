@@ -14,6 +14,7 @@ import { dataRemovalPolicy, resourcePrefix } from './config.ts';
 import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
+import { Alarms } from './alarms.ts';
 import { Api } from './api.ts';
 import { Consumers } from './consumers.ts';
 import { Jobs } from './jobs.ts';
@@ -29,6 +30,9 @@ export interface AppStackProps extends StackProps {
   readonly familyAppClient: cognito.IUserPoolClient;
   /** Dev: the account stack's seed bucket, which the table is imported from (ADR-028). */
   readonly seedBucket?: s3.IBucket;
+  /** I26: the owner's phone for pages, and an address while US texts can't be sent. Deploy-time settings. */
+  readonly pagePhone?: string;
+  readonly pageEmail?: string;
 }
 
 export class AppStack extends Stack {
@@ -42,6 +46,7 @@ export class AppStack extends Stack {
   readonly api: Api;
   readonly consumers: Consumers;
   readonly jobs: Jobs;
+  readonly alarms?: Alarms;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -122,6 +127,25 @@ export class AppStack extends Stack {
       scheduleChange: this.consumers.functions.get('consumer-schedule-change')!,
       removalPolicy,
     });
+
+    // What pages the owner, and the morning dashboard (ADR-MASTER §16, §19; I25, I26).
+    if (cfg.alarms) {
+      this.alarms = new Alarms(this, 'Alarms', {
+        prefix,
+        ...(props.pagePhone ? { pagePhone: props.pagePhone } : {}),
+        ...(props.pageEmail ? { pageEmail: props.pageEmail } : {}),
+        consumers: this.consumers.functions,
+        consumerDeadLetters: this.consumers.deadLetters,
+        jobs: this.jobs.functions,
+        jobDeadLetters: this.jobs.deadLetters,
+        pipe: this.consumers.pipe,
+        pipeDeadLetters: this.consumers.pipeDeadLetters,
+        ttlArchiver: this.consumers.ttlArchiver,
+        accessLog: this.data.accessLog,
+        // Production only (I26): in dev, switching alarms on proves them; the up-check costs per check.
+        ...(cfg.retainData ? { upCheck: { siteHost: cfg.sites.coach.host, apiHost: cfg.sites.coach.host } } : {}),
+      });
+    }
 
     this.coachSite = new Website(this, 'CoachSite', {
       site: cfg.sites.coach,

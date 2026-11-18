@@ -15,15 +15,20 @@ export interface EnvStacks {
 }
 
 export function addEnvironment(app: App, given: EnvConfig): EnvStacks {
-  const cfg = withWafOverride(app, given);
+  const cfg = withAlarmsOverride(app, withWafOverride(app, given));
   const env = { account: cfg.account, region: cfg.region };
   const prefix = resourcePrefix(cfg);
   // ADR-027 (I15): the owner's test mailbox is a deploy-time setting, never in the repo.
   const testMailbox = app.node.tryGetContext('testMailbox') as string | undefined;
   const identity = new IdentityStack(app, `${prefix}-identity`, { env, cfg, ...(testMailbox ? { testMailbox } : {}) });
+  // I26: where pages go. Deploy-time settings, never in the repo.
+  const pagePhone = app.node.tryGetContext('pagePhone') as string | undefined;
+  const pageEmail = app.node.tryGetContext('pageEmail') as string | undefined;
   const appStack = new AppStack(app, `${prefix}-app`, {
     env,
     cfg,
+    ...(pagePhone ? { pagePhone } : {}),
+    ...(pageEmail ? { pageEmail } : {}),
     userPool: identity.userPool,
     coachAppClient: identity.coachClient,
     familyAppClient: identity.familyClient,
@@ -51,6 +56,15 @@ function withWafOverride(app: App, cfg: EnvConfig): EnvConfig {
   }
   if (waf !== 'block' && waf !== 'count') throw new Error(`waf must be block, count or off, not ${waf}`);
   return { ...cfg, waf: { enabled: true, mode: waf } };
+}
+
+/** ADR-MASTER §19: alarms in dev only to prove they fire, with `-c alarms=on` for one deploy; never off in production. */
+function withAlarmsOverride(app: App, cfg: EnvConfig): EnvConfig {
+  const v = app.node.tryGetContext('alarms') as string | undefined;
+  if (v === undefined) return cfg;
+  if (v !== 'on' && v !== 'off') throw new Error(`alarms must be on or off, not ${v}`);
+  if (v === 'off' && cfg.retainData) throw new Error(`${cfg.envName}: alarms live in production permanently (ADR-MASTER §19)`);
+  return { ...cfg, alarms: v === 'on' };
 }
 
 /** cdk-nag's AWS Solutions rules run on every synth; a finding fails it (ADR-001 A4, ADR-032). */

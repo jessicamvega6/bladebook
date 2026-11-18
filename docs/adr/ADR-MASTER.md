@@ -1614,6 +1614,12 @@ times and seats in that window.
 - Everything else is a morning dashboard read.
 - **Alarms live in production permanently.** In dev they are switched on only to prove they fire.
 
+*How they're built (Batch 17b, piece 7):* `infra/lib/alarms.ts`. Two differences from the list above,
+for the owner to confirm: **the Pipe has no iterator-age metric** (EventBridge Pipes publishes none), so
+its stall is alarmed on its dead-letter queue and its failed runs, and the archiver on its own iterator age;
+and **"`sched-year-close` pages if no run has completed by January 7" isn't built**: a CloudWatch alarm
+can't tell the date, so it needs a date-aware check (for example, the drift check reporting it in January).
+
 ### The event path
 
 **The Pipe (Streams → bus) has its own failure destination**, and its stream iterator age is

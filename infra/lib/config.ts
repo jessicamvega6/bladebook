@@ -41,6 +41,8 @@ export interface EnvConfig {
   readonly noindex: boolean;
   /** ADR-MASTER §12: the weekly unpaid reminder lists lessons unpaid longer than this (Parameter Store). */
   readonly unpaidThresholdDays: number;
+  /** ADR-MASTER §19: alarms and the up-check, on in production; in dev only to prove they fire (`-c alarms=on`). */
+  readonly alarms: boolean;
   /** ADR-019 / ADR-MASTER §17: wafEnabled (off deletes the ACL) and wafMode. */
   readonly waf: { readonly enabled: boolean; readonly mode: 'count' | 'block' };
   /** ADR-032 d2: the deploy role trusts exactly this repository and GitHub environment. */
@@ -74,6 +76,7 @@ export const dev: EnvConfig = {
   noindex: true,
   // ADR-MASTER §17: off in dev by default; turned on in block mode to rehearse.
   unpaidThresholdDays: 7,
+  alarms: false,
   waf: { enabled: false, mode: 'block' },
   github: { repo: githubRepo, environment: 'dev' },
   // ADR-011 8c: three to five coaches, about ten families.
@@ -96,6 +99,7 @@ export const prod: EnvConfig = {
   noindex: false,
   // ADR-MASTER §17: count mode for the first two weeks, then block.
   unpaidThresholdDays: 7,
+  alarms: true,
   waf: { enabled: true, mode: 'count' },
   github: { repo: githubRepo, environment: 'production' },
   // Production's canary accounts are settled when production is built (ADR-027 d7).

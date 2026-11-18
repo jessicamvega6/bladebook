@@ -186,6 +186,18 @@ Change any of these in `lib/` and its test together.
   list sees Cognito only. `origin-header` refuses any API request without CloudFront's secret, first. The
   `/health` limit is 100 per 5 minutes per address. Dev's is off: `-c waf=block` switches it on for one
   deploy, to rehearse (ADR-MASTER §17); production's can't be switched off.
+- **The alarms (`lib/alarms.ts`):** one paging topic, `<prefix>-pages`. Its phone (`-c pagePhone=…`) and,
+  until US texts work, its email (`-c pageEmail=…`) are deploy-time settings (I26). On in production; in dev
+  `-c alarms=on` switches them on for one deploy, to prove they fire. They page on:
+  - a job that didn't run, by its invocations or its completion metric; missing data counts as not run;
+  - the drift check's failed finish or missed cancellation (I25);
+  - the notifier's and schedule-change's dead-letter queues;
+  - the Pipe's queue and its failed runs, and the archiver falling behind the stream;
+  - SES bounce and complaint rates;
+  - the never-linked counts (a metric filter for the day; a Contributor Insights rule by family, fixed 15 minutes);
+  - and, in production, the up-check: two Route 53 health checks from US locations only.
+
+  Everything else is on the `<prefix>-morning` dashboard.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed

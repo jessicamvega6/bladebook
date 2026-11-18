@@ -822,3 +822,54 @@ describe('the TTL archiver (ADR-MASTER §2, §3, §20)', () => {
     assert.match(JSON.stringify(puts.Resource), /DataArchive/);
   });
 });
+
+describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
+  const alarmNames = (t: typeof prod.app) => Object.values(t.findResources('AWS::CloudWatch::Alarm')).map((a) => a.Properties.AlarmName).sort();
+  test('off in dev unless switched on to prove they fire; never off in production', () => {
+    dev.app.resourceCountIs('AWS::CloudWatch::Alarm', 0);
+    const on = build(testDev, { alarms: 'on' });
+    assert.ok(alarmNames(on.app).length > 10);
+    on.app.resourceCountIs('AWS::Route53::HealthCheck', 0); // the up-check is production's (I26)
+    assert.throws(() => build(testProd, { alarms: 'off' }), /permanently/);
+  });
+  test('production pages on what §19 lists, each through the one paging topic', () => {
+    assert.deepEqual(alarmNames(prod.app), [
+      'archiver-behind', 'change-notifier-queue', 'day-reminder-missed', 'drift-check-missed', 'drift-finish-failed',
+      'drift-missed-cancellation', 'never-linked-a-day', 'never-linked-one-family', 'pipe-failing', 'pipe-queue',
+      'roller-missed', 'schedule-change-queue', 'ses-bounces', 'ses-complaints', 'sweep-missed', 'unpaid-reminder-missed',
+      'up-api-down', 'up-site-down',
+    ].map((n) => `bladebook-prod-${n}`));
+    const [topicId] = Object.keys(prod.app.findResources('AWS::SNS::Topic'));
+    for (const a of Object.values(prod.app.findResources('AWS::CloudWatch::Alarm'))) {
+      assert.deepEqual(a.Properties.AlarmActions, [{ Ref: topicId }], a.Properties.AlarmName);
+    }
+  });
+  test('a job that stops running pages: missing data counts as not run', () => {
+    const missed = Object.values(prod.app.findResources('AWS::CloudWatch::Alarm')).filter((a) => /-missed$/.test(a.Properties.AlarmName));
+    assert.equal(missed.length, 5);
+    for (const a of missed) assert.equal(a.Properties.TreatMissingData, 'breaching', a.Properties.AlarmName);
+  });
+  test('pages go only where the deploy-time settings say; nothing is in the repo', () => {
+    prod.app.resourceCountIs('AWS::SNS::Subscription', 0);
+    const set = build(testProd, { pagePhone: '+15555550100', pageEmail: 'pages@example.com' });
+    const protocols = Object.values(set.app.findResources('AWS::SNS::Subscription')).map((s) => s.Properties.Protocol).sort();
+    assert.deepEqual(protocols, ['email', 'sms']);
+  });
+  test('never-linked asks: a metric filter for the day and a Contributor Insights rule by family', () => {
+    prod.app.hasResourceProperties('AWS::Logs::MetricFilter', { FilterPattern: '{ $.operation = "security:never-linked*" }' });
+    const rule = Object.values(prod.app.findResources('AWS::CloudWatch::InsightRule'))[0]!;
+    // The body names the log group by reference, so it's checked as text.
+    const body = JSON.stringify(rule.Properties.RuleBody);
+    assert.match(body, /\\"Keys\\":\[\\"\$\.actor\\"\]/);
+    assert.match(body, /\\"StartsWith\\":\[\\"security:never-linked\\"\]/);
+    assert.match(body, /DataAccessLog/);
+  });
+  test('the up-check checks from US locations only, so the US-only rule lets it in', () => {
+    const checks = Object.values(prod.app.findResources('AWS::Route53::HealthCheck'));
+    assert.equal(checks.length, 2);
+    for (const c of checks) {
+      assert.deepEqual(c.Properties.HealthCheckConfig.Regions, ['us-east-1', 'us-west-1', 'us-west-2']);
+    }
+    assert.deepEqual(checks.map((c) => c.Properties.HealthCheckConfig.ResourcePath).sort(), ['/', '/api/coach/health']);
+  });
+});
