@@ -163,7 +163,7 @@ what its single-item actions allow.
 | `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17). ~~`sns:Publish` to the operator alert topic only;~~ CloudWatch metrics, written as log lines (no permission needed): it pages through the alarms on them, like every other job (owner, 2026-11-18, I25) |
 | `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
-| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
+| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue. ~~If it fails, confirmation fails and the person tries again (ADR-023 d10).~~ *Cognito confirms the account first, so a failure leaves it confirmed with no group, and the person can't retry (found in dev, 2026-11-18). Its errors page the owner, who adds the group by hand (`docs/runbooks/stuck-account.md`; owner, 2026-11-18, I27).* |
 
 **Each role is held by `dynamodb:LeadingKeys` to the partitions it touches** (`COACH#`, `CLIENT#`,
 `SKATERCODE#`), and was written from what its code calls (Batch 17b; owner, 2026-11-18, I22 for the
@@ -1604,7 +1604,7 @@ times and seats in that window.
 - **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
   notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
-  sweep or roller as above; **DynamoDB Streams iterator age climbing** on the Pipe or the
+  sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the Pipe or the
   archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
 - **Pages go by SNS to the owner's phone**, never email. *Until the account can send US texts (owner,
   2026-11-18, I26):* US texts need a registered toll-free sender number, which the owner registers when
