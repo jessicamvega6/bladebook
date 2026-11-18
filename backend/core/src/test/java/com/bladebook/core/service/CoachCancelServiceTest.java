@@ -13,6 +13,7 @@ import com.bladebook.core.domain.CoachCancelRequest;
 import com.bladebook.core.domain.CoachCancelRequest.PickInput;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.LessonTime;
+import com.bladebook.core.domain.TempSchedule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -64,7 +65,7 @@ class CoachCancelServiceTest {
         scheduleRepo = new ScheduleRepository(t.f.clients, t.f.table);
         cancelRepo = new CancellationRepository(t.f.clients, t.f.table);
         booking = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), t.families, clock);
-        service = new CoachCancelService(scheduleRepo, cancelRepo, clock);
+        service = new CoachCancelService(scheduleRepo, cancelRepo, new ScheduleChangeService(scheduleRepo, t.coaches, clock), t.coaches, clock);
 
         dana = t.coach("Dana", DANA_CODE);
         new ScheduleService(scheduleRepo, t.coaches).save(dana, 0, List.of(mondayMornings(5000)));
@@ -118,69 +119,6 @@ class CoachCancelServiceTest {
     }
 
     @Test
-    void aDayAsksEachLessonAndOneFamilyWithTwoSkatersIsOneEmail() {
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
-                List.of(pick("06:00", "RELEASE"), pick("06:30", "HOLD"), pick("07:00", "RELEASE")), null));
-
-        assertThat(r.cancelled()).isEqualTo(3);
-        assertThat(r.held()).isEqualTo(1);
-        assertThat(r.families()).isEqualTo(2);
-        assertThat(status("06:00")).isEqualTo(LessonTime.Status.OPEN);
-        assertThat(status("06:30")).isEqualTo(LessonTime.Status.HELD);
-        assertThat(status("07:00")).isEqualTo(LessonTime.Status.OPEN);
-        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).isEmpty();
-        assertThat(cancelRepo.lines(dana)).hasSize(3);
-        ChangeBatch b = cancelRepo.batches(dana).get(0);
-        assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.DAY);
-        assertThat(b.executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
-        assertThat(b.lessonCount()).isEqualTo(3);
-        assertThat(b.clientCount()).isEqualTo(2);
-        assertThat(b.affectedFrom()).isEqualTo(MONDAY);
-    }
-
-    @Test
-    void aDayFromNowOnLeavesLessonsThatHaveStarted() {
-        now.set(Instant.parse("2026-11-16T12:15:00Z")); // Monday 6:15 AM: the 6:00 has started
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
-                List.of(pick("06:00", "RELEASE"), pick("06:30", "RELEASE")), null));
-        assertThat(r.cancelled()).isEqualTo(1);
-        assertThat(r.skipped()).isEqualTo(1);
-        assertThat(status("06:00")).isEqualTo(LessonTime.Status.BOOKED);
-        assertThat(status("06:30")).isEqualTo(LessonTime.Status.OPEN);
-    }
-
-    @Test
-    void theRestOfTheWeekHoldsEveryBookedLessonAndOpenTime() {
-        now.set(Instant.parse("2026-11-16T12:45:00Z")); // Monday 6:45 AM: 6:00 and 6:30 have started
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
-
-        assertThat(r.cancelled()).isEqualTo(1);          // Mia's 7:00
-        assertThat(r.held()).isEqualTo(1);
-        assertThat(r.openHeld()).isEqualTo(1);           // the open 7:30
-        assertThat(r.families()).isEqualTo(1);
-        assertThat(status("06:00")).isEqualTo(LessonTime.Status.BOOKED);
-        assertThat(status("06:30")).isEqualTo(LessonTime.Status.BOOKED);
-        assertThat(status("07:00")).isEqualTo(LessonTime.Status.HELD);
-        assertThat(status("07:30")).isEqualTo(LessonTime.Status.HELD);
-        // The weekly schedule isn't changed, so next Monday is untouched.
-        assertThat(scheduleRepo.lessonTimes(dana, MONDAY.plusDays(7), MONDAY.plusDays(7)))
-                .allMatch(l -> l.lessonStatus() == LessonTime.Status.OPEN);
-        assertThat(cancelRepo.batches(dana).get(0).batchSource()).isEqualTo(ChangeBatch.Source.WEEK);
-    }
-
-    @Test
-    void aLessonTheFamilyCancelledFirstIsSkippedAndNothingIsLeftHalfDone() {
-        new CancellationService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), cancelRepo,
-                Clock.fixed(BOOKED_AT, ZoneOffset.UTC)).cancel(park, dana.coachId(), ava, MONDAY, LocalTime.of(6, 0));
-
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
-                List.of(pick("06:00", "HOLD"), pick("06:30", "RELEASE")), null));
-        assertThat(r.cancelled()).isEqualTo(1);
-        assertThat(r.skipped()).isEqualTo(1);
-        assertThat(status("06:00")).isEqualTo(LessonTime.Status.OPEN);
-    }
-
-    @Test
     void nothingLeftToCancelIsRefused() {
         assertThatThrownBy(() -> service.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(pick("07:30", "HOLD")), null)))
                 .isInstanceOf(DomainException.class).hasMessage("These lessons have already started or were cancelled.");
@@ -188,7 +126,7 @@ class CoachCancelServiceTest {
     }
 
     @Test
-    void cancellingNeverChangesTheSchedule() {
+    void cancellingNeverChangesTheWeeklySchedule() {
         var before = new ScheduleService(scheduleRepo, t.coaches).schedule(dana);
         service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
         assertThat(new ScheduleService(scheduleRepo, t.coaches).schedule(dana)).isEqualTo(before);
@@ -230,57 +168,93 @@ class CoachCancelServiceTest {
         assertThat(cancelRepo.batches(dana)).isEmpty();
     }
 
+
+    // ---------------------------------------------------------------- a day or the week is time off (I24)
+
+    private static PickInput dayPick(String time) {
+        return new PickInput(MONDAY.toString(), time, null);
+    }
+
+    private List<TempSchedule> temps() {
+        return scheduleRepo.temps(dana);
+    }
+
     @Test
-    void inADayALessonThatChangedIsReadAgainAndCancelled() {
-        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5), seatsTaken("06:00", 1));
-
+    void aDayIsTimeOffCalledCancelledAndItsLessonsAreCancelledAsTheCoachs() {
         CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
-                List.of(pick("06:00", "RELEASE"), pick("06:30", "RELEASE")), null));
+                List.of(dayPick("06:00"), dayPick("06:30"), dayPick("07:00")), null));
 
+        assertThat(r).isEqualTo(new CoachCancelService.Result(3, 0, 0, 2, 0));
+        assertThat(temps()).singleElement().satisfies(t -> {
+            assertThat(t.kind()).isEqualTo(TempSchedule.Kind.TIME_OFF);
+            assertThat(t.name()).isEqualTo("Cancelled");
+            assertThat(t.startDate()).isEqualTo(MONDAY);
+            assertThat(t.endDate()).isEqualTo(MONDAY);
+        });
+        // No release-or-hold: the times leave the booking page, as for any time off.
+        assertThat(scheduleRepo.lessonTimes(dana, MONDAY, MONDAY)).isEmpty();
+        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).isEmpty();
+        assertThat(cancelRepo.lines(dana)).hasSize(3).allSatisfy(l -> assertThat(l.cancelledBy()).isEqualTo(ChangeBatch.By.COACH));
+        ChangeBatch b = cancelRepo.batches(dana).get(0);
+        assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.DAY);
+        assertThat(b.cancelledBy()).isEqualTo(ChangeBatch.By.COACH);
+        assertThat(b.executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
+        assertThat(b.clientCount()).isEqualTo(2);
+    }
+
+    @Test
+    void aDayFromNowOnLeavesLessonsThatHaveStarted() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z")); // Monday 6:15 AM: the 6:00 has started
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
+                List.of(dayPick("06:00"), dayPick("06:30"), dayPick("07:00")), null));
         assertThat(r.cancelled()).isEqualTo(2);
-        assertThat(r.skipped()).isZero();
-        assertThat(r.families()).isEqualTo(1);
-        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).extracting(s -> s.studentId()).containsExactly(mia);
+        assertThat(status("06:00")).isEqualTo(LessonTime.Status.BOOKED); // attendance and payment stay
+        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).extracting(s -> s.studentId()).containsExactly(ava);
     }
 
     @Test
-    void inADayALessonThatStillCantBeWrittenIsSkipped() {
-        WriteRaces.beforeNextWrites(seatsTaken("06:00", 5));
-
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
-                List.of(pick("06:00", "RELEASE"), pick("06:30", "RELEASE")), null));
-
-        assertThat(r.cancelled()).isEqualTo(1);
-        assertThat(r.skipped()).isEqualTo(1);
-        assertThat(cancelRepo.batches(dana).get(0).lessonCount()).isEqualTo(1);
-    }
-
-    @Test
-    void theRestOfTheWeekHoldsAnOpenTimeBookedMeanwhileByCancellingIt() {
-        now.set(Instant.parse("2026-11-16T12:45:00Z")); // Monday 6:45 AM: the 7:00 is booked, the 7:30 open
-        // The 7:00's cancel goes through; just before the 7:30 is held, the Parks book Jack into it.
-        WriteRaces.beforeNextWrites(WriteRaces.NOTHING, () -> book(park, jack, "07:30"));
-
+    void theRestOfTheWeekIsTimeOffFromTodayToSaturday() {
+        now.set(Instant.parse("2026-11-16T12:45:00Z")); // Monday 6:45 AM: 6:00 and 6:30 have started
         CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
 
-        assertThat(r.cancelled()).isEqualTo(2);
-        assertThat(r.held()).isEqualTo(2);
-        assertThat(r.openHeld()).isZero();
-        assertThat(r.families()).isEqualTo(2);
-        assertThat(r.skipped()).isZero();
-        assertThat(status("07:30")).isEqualTo(LessonTime.Status.HELD);
-        assertThat(cancelRepo.lines(dana)).extracting(CancellationLine::studentId).containsExactlyInAnyOrder(mia, jack);
+        assertThat(r).isEqualTo(new CoachCancelService.Result(1, 0, 0, 1, 0)); // Mia's 7:00
+        assertThat(temps()).singleElement().satisfies(t -> {
+            assertThat(t.startDate()).isEqualTo(MONDAY); // from today, not Sunday
+            assertThat(t.endDate()).isEqualTo(SUNDAY.plusDays(6));
+        });
+        assertThat(status("06:00")).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(status("06:30")).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(cancelRepo.batches(dana).get(0).batchSource()).isEqualTo(ChangeBatch.Source.WEEK);
     }
 
     @Test
-    void theRestOfTheWeekSkipsAnOpenTimeThatCantBeHeldOrCancelled() {
-        now.set(Instant.parse("2026-11-16T12:45:00Z"));
-        WriteRaces.beforeNextWrites(WriteRaces.NOTHING, seatsTaken("07:30", 1));
+    void aDayInsideASpecialScheduleSwitchesItsTimesOffAndKeepsTheRest() {
+        TempSchedule camp = new TempSchedule(UUID.randomUUID().toString(), TempSchedule.Kind.SPECIAL, "Camp", MONDAY,
+                MONDAY.plusDays(1), List.of(mondayMornings(5000)), java.util.Map.of());
+        scheduleRepo.saveTemp(dana, camp, null);
+        new ScheduleChangeService(scheduleRepo, t.coaches, Clock.fixed(now.get(), ZoneOffset.UTC)).apply(dana);
+        LocalDate tuesday = MONDAY.plusDays(1);
+        assertThat(scheduleRepo.lessonTimes(dana, tuesday, tuesday)).isNotEmpty();
 
-        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("WEEK", null, SUNDAY.toString()));
+        service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));
 
-        assertThat(r.cancelled()).isEqualTo(1);
-        assertThat(r.openHeld()).isZero();
-        assertThat(r.skipped()).isEqualTo(1);
+        assertThat(temps()).singleElement().satisfies(t -> { // no new time off: the camp is edited
+            assertThat(t.tempId()).isEqualTo(camp.tempId());
+            assertThat(t.endDate()).isEqualTo(tuesday);
+            assertThat(t.off().get(1).get(MONDAY)).hasSize(4); // 6:00 to 7:30
+        });
+        assertThat(scheduleRepo.lessonTimes(dana, MONDAY, MONDAY)).isEmpty();
+        assertThat(scheduleRepo.lessonTimes(dana, tuesday, tuesday)).hasSize(4); // the rest of the camp stays
+    }
+
+    @Test
+    void aDayAlreadyOffOrAlreadyOverHasNothingToCancel() {
+        service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));
+        assertThatThrownBy(() -> service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null)))
+                .isInstanceOf(DomainException.class);
+        now.set(Instant.parse("2026-11-18T15:00:00Z")); // Wednesday
+        assertThatThrownBy(() -> service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:30")), null)))
+                .isInstanceOf(DomainException.class);
+        assertThat(temps()).hasSize(1);
     }
 }

@@ -117,7 +117,7 @@ class NotificationServiceTest {
         shares = new ShareService(links, bookingRepo, t.families, shareRepo, cancelRepo, clock, invite);
         series = new RecurrenceService(links, bookingRepo, cancelRepo, clock, invite);
         sweep = new DeadlineSweepService(shareRepo, invite);
-        coachCancels = new CoachCancelService(scheduleRepo, cancelRepo, clock);
+        coachCancels = new CoachCancelService(scheduleRepo, cancelRepo, scheduleChange, t.coaches, clock);
         attendance = new AttendanceService(new AttendanceRepository(t.f.clients, t.f.table), scheduleRepo, t.studentRepo, t.coaches,
                 cancelRepo, clock);
         payments = new PaymentService(new PaymentRepository(t.f.clients, t.f.table), scheduleRepo, t.studentRepo, t.coaches, clock);

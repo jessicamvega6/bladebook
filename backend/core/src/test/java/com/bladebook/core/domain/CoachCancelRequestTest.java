@@ -26,18 +26,18 @@ class CoachCancelRequestTest {
     }
 
     @Test
-    void aDayAsksEachLessonOnItsOwn() {
+    void aDayAsksNoReleaseOrHold() {
+        // A day is time off (owner, 2026-11-18, I24): any choice sent is ignored, and none is needed.
         CoachCancelRequest r = CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "06:00", "RELEASE"),
-                pick("2026-11-16", "06:30", "HOLD")), null);
-        assertThat(r.picks()).extracting(CoachCancelRequest.Pick::after).containsExactly(AfterCancel.RELEASE, AfterCancel.HOLD);
+                pick("2026-11-16", "06:30", null)), null);
+        assertThat(r.picks()).extracting(CoachCancelRequest.Pick::after).containsOnlyNulls();
     }
 
     @Test
     void aRepeatedTimeIsCountedOnce() {
-        CoachCancelRequest r = CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "06:00", "RELEASE"),
-                pick("2026-11-16", "06:00", "HOLD")), null);
+        CoachCancelRequest r = CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "06:00", null),
+                pick("2026-11-16", "06:00", null)), null);
         assertThat(r.picks()).hasSize(1);
-        assertThat(r.picks().get(0).after()).isEqualTo(AfterCancel.RELEASE);
     }
 
     @Test
@@ -75,7 +75,7 @@ class CoachCancelRequestTest {
         assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", List.of(), null)).hasMessage("Choose at least one lesson to cancel.");
         assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", null, null)).hasMessage("Choose at least one lesson to cancel.");
         assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "6am", "HOLD")), null)).hasMessage("That time isn’t valid.");
-        assertThatThrownBy(() -> CoachCancelRequest.parse("DAY", List.of(pick("2026-11-16", "06:00", "KEEP")), null))
+        assertThatThrownBy(() -> CoachCancelRequest.parse("LESSON", List.of(pick("2026-11-16", "06:00", "KEEP")), null))
                 .hasMessage("Choose release or hold for each lesson.");
         List<CoachCancelRequest.PickInput> withNull = new ArrayList<>();
         withNull.add(null);

@@ -136,7 +136,9 @@ export interface LessonDto {
 
 /** Cancelling from the calendar (Batch 5). A lesson or a day asks each lesson; the week names only its Sunday. */
 export type CancelBody =
-  | { scope: 'LESSON' | 'DAY'; picks: Array<{ date: string; startTime: string; after: 'RELEASE' | 'HOLD' }> }
+  | { scope: 'LESSON'; picks: Array<{ date: string; startTime: string; after: 'RELEASE' | 'HOLD' }> }
+  // A day is time off: no release-or-hold (owner, 2026-11-18, I24).
+  | { scope: 'DAY'; picks: Array<{ date: string; startTime: string }> }
   | { scope: 'WEEK'; weekStart: string };
 
 /** What was done. {@code skipped}: lessons that started or were cancelled since the preview, left alone. */

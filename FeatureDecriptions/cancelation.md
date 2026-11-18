@@ -1,4 +1,10 @@
 *Updated 2026-10-12 to match the Harbor design (bookings-cancel.html, recurrence.html, calendar-week.html, cancel-preview.html). The design is the source of truth.*
+
+*Changed by the owner, 2026-11-18 (I24): cancelling a whole day or the rest of the week no longer asks release
+or hold, and doesn't hold times. Those dates become a time off named "Cancelled" (inside a special schedule, those
+dates become no lessons), and families get the "cancelled by the coach" email. Only a single lesson asks release
+or hold. Where the text below says otherwise for a day or a week, this note wins.*
+
 *2026-11-08: the product rules from ADR-009 (Cancellation) and ADR-015 (Late cancellation and no-show charges) were moved
 here; the ADRs keep only the architecture.*
 
