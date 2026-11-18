@@ -145,17 +145,49 @@ describe('firewall (ADR-019)', () => {
     dev.app.resourceCountIs('AWS::WAFv2::WebACL', 0);
   });
   const prodAcl = Object.values(prod.app.findResources('AWS::WAFv2::WebACL'))[0]?.Properties;
-  test('production: three managed groups and three rate rules, counting at first', () => {
+  test('production: the origin rule, three managed groups and five rate rules, counting at first', () => {
     const rules = prodAcl.Rules as Array<Record<string, any>>;
-    assert.equal(rules.length, 6);
+    assert.equal(rules.length, 9);
     const limits = Object.fromEntries(
       rules.filter((r) => r.Statement.RateBasedStatement).map((r) => [r.Name, r.Statement.RateBasedStatement.Limit]),
     );
-    assert.deepEqual(limits, { 'rate-all': 1000, 'rate-public-lookups': 20, 'rate-cognito-auth': 10 });
+    assert.deepEqual(limits, { 'rate-all-api': 1000, 'rate-all-cognito': 1000, 'rate-public-lookups': 20,
+      'rate-cognito-auth': 10, 'rate-health': 100 });
     for (const r of rules) {
       if (r.Statement.ManagedRuleGroupStatement) assert.deepEqual(r.OverrideAction, { Count: {} });
       else assert.deepEqual(r.Action, { Count: {} });
     }
+  });
+  const rule = (name: string) => (prodAcl.Rules as Array<Record<string, any>>).find((r) => r.Name === name)!;
+  test('the API\'s rate rules count the visitor\'s address from CloudFront\'s header; Cognito\'s the connecting address', () => {
+    for (const name of ['rate-all-api', 'rate-public-lookups', 'rate-health']) {
+      const r = rule(name).Statement.RateBasedStatement;
+      assert.equal(r.AggregateKeyType, 'FORWARDED_IP', name);
+      assert.deepEqual(r.ForwardedIPConfig, { HeaderName: 'x-bladebook-viewer-ip', FallbackBehavior: 'NO_MATCH' }, name);
+      assert.match(JSON.stringify(r.ScopeDownStatement), /\.execute-api\./, name);
+    }
+    for (const name of ['rate-all-cognito', 'rate-cognito-auth']) {
+      const r = rule(name).Statement.RateBasedStatement;
+      assert.equal(r.AggregateKeyType, 'IP', name);
+      assert.match(JSON.stringify(r.ScopeDownStatement), /NotStatement/, name);
+    }
+    // The reputation list sees only Cognito: API requests arrive from CloudFront's addresses (I1).
+    assert.ok(rule('AWSManagedRulesAmazonIpReputationList').Statement.ManagedRuleGroupStatement.ScopeDownStatement.NotStatement);
+  });
+  test('an API request without CloudFront\'s origin secret is refused first, and the secret isn\'t in the template', () => {
+    const r = rule('origin-header');
+    assert.equal(r.Priority, 0);
+    const [isApi, notSecret] = r.Statement.AndStatement.Statements;
+    assert.match(JSON.stringify(isApi), /\.execute-api\./);
+    const match = notSecret.NotStatement.Statement.ByteMatchStatement;
+    assert.deepEqual(match.FieldToMatch, { SingleHeader: { Name: 'x-bladebook-origin' } });
+    assert.match(JSON.stringify(match.SearchString), /resolve:secretsmanager/);
+  });
+  test('-c waf=block switches dev\'s on for a rehearsal; production\'s can\'t be switched off', () => {
+    const on = build(testDev, { waf: 'block' });
+    on.app.resourceCountIs('AWS::WAFv2::WebACL', 1);
+    assert.throws(() => build(testProd, { waf: 'off' }), /never off in production/);
+    assert.throws(() => build(testDev, { waf: 'maybe' }), /block, count or off/);
   });
   test('block mode blocks', () => {
     const blocking = build({ ...testDev, waf: { enabled: true, mode: 'block' } });

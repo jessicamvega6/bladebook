@@ -180,6 +180,12 @@ Change any of these in `lib/` and its test together.
   A new archiver's stream connection starts at the stream's newest record and takes a few minutes to
   begin, so a TTL removal in those first minutes isn't archived (seen in dev, 2026-11-18; the second
   test item was archived). Production has no item due that early.
+- **The firewall (`lib/firewall.ts`):** one web ACL on the user pool and the API's stage. A request is the
+  API's when its Host is API Gateway's (`.execute-api.`); otherwise Cognito's. The API's rules count by the
+  visitor's address from `x-bladebook-viewer-ip`; Cognito's by the connecting address; the IP reputation
+  list sees Cognito only. `origin-header` refuses any API request without CloudFront's secret, first. The
+  `/health` limit is 100 per 5 minutes per address. Dev's is off: `-c waf=block` switches it on for one
+  deploy, to rehearse (ADR-MASTER §17); production's can't be switched off.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed

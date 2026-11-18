@@ -4,7 +4,7 @@
 // - Every route that needs a signed-in person has API Gateway's built-in Cognito authorizer; Spring checks the token
 //   again (audience, group, sign-in age), so the authorizer is the first of two gates.
 // - CloudFront adds a secret header (`x-bladebook-origin`) to every request it sends here; both functions refuse a
-//   request without it (OriginCheck in each API), and so does the firewall's rule (Batch 17b, piece 10).
+//   request without it (OriginCheck in each API), and so does the firewall's origin-header rule (Batch 17b, piece 7).
 // - The functions' execution roles hold no DynamoDB actions (tenant-roles.ts).
 
 import { existsSync } from 'node:fs';

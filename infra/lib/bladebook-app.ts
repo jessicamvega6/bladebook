@@ -14,7 +14,8 @@ export interface EnvStacks {
   readonly deployAccess: DeployAccessStack;
 }
 
-export function addEnvironment(app: App, cfg: EnvConfig): EnvStacks {
+export function addEnvironment(app: App, given: EnvConfig): EnvStacks {
+  const cfg = withWafOverride(app, given);
   const env = { account: cfg.account, region: cfg.region };
   const prefix = resourcePrefix(cfg);
   // ADR-027 (I15): the owner's test mailbox is a deploy-time setting, never in the repo.
@@ -34,6 +35,22 @@ export function addEnvironment(app: App, cfg: EnvConfig): EnvStacks {
     Tags.of(stack).add('environment', cfg.envName);
   }
   return { identity, app: appStack, deployAccess };
+}
+
+/**
+ * ADR-MASTER §17: dev's firewall is off, and switched on to rehearse before launch and before releases that change the
+ * API's routes or request shapes. `-c waf=block` (or `count`, or `off`) does that for one deploy. Production's firewall
+ * is never off, so `off` is refused there.
+ */
+function withWafOverride(app: App, cfg: EnvConfig): EnvConfig {
+  const waf = app.node.tryGetContext('waf') as string | undefined;
+  if (waf === undefined) return cfg;
+  if (waf === 'off') {
+    if (cfg.retainData) throw new Error(`${cfg.envName}: the firewall is never off in production (ADR-MASTER §17)`);
+    return { ...cfg, waf: { ...cfg.waf, enabled: false } };
+  }
+  if (waf !== 'block' && waf !== 'count') throw new Error(`waf must be block, count or off, not ${waf}`);
+  return { ...cfg, waf: { enabled: true, mode: waf } };
 }
 
 /** cdk-nag's AWS Solutions rules run on every synth; a finding fails it (ADR-001 A4, ADR-032). */

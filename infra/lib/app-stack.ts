@@ -147,7 +147,7 @@ export class AppStack extends Stack {
     }
 
     if (cfg.waf.enabled) {
-      this.firewall = new Firewall(this, 'Firewall', { name: prefix, mode: cfg.waf.mode, removalPolicy });
+      this.firewall = new Firewall(this, 'Firewall', { name: prefix, mode: cfg.waf.mode, originSecret: this.api.originSecret, removalPolicy });
       this.firewall.associate('UserPoolAssociation', props.userPool.userPoolArn);
       this.firewall.associate('ApiAssociation', this.api.restApi.deploymentStage.stageArn);
     }
