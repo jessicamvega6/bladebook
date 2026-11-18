@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
+import { templateFiles } from '../lib/email.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
 import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
@@ -320,8 +321,10 @@ describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
       for (const s of statements) {
         const a = actions(s).sort();
         if (a[0]!.startsWith('secretsmanager:')) {
-          assert.deepEqual(a, ['secretsmanager:DescribeSecret', 'secretsmanager:GetSecretValue']);
+          assert.deepEqual(a, ['secretsmanager:GetSecretValue']);
           assert.ok(JSON.stringify(s.Resource).includes('OriginSecret'));
+        } else if (a[0]!.startsWith('ses:')) {
+          assert.equal(fn, 'api-coach:'); // its one template: the email tests below
         } else {
           assert.deepEqual(a, ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
         }
@@ -447,5 +450,45 @@ describe('the API (ADR-MASTER §1, §17)', () => {
       assert.equal(header.HeaderName, 'x-bladebook-origin');
       assert.match(JSON.stringify(header.HeaderValue), /resolve:secretsmanager/);
     }
+  });
+});
+
+describe('email (ADR-MASTER §13; §2, I9)', () => {
+  const policies = (t: typeof dev.app, roleRef: RegExp) => Object.values(t.findResources('AWS::IAM::Policy'))
+    .filter((p) => (p.Properties.Roles as { Ref: string }[]).some((r) => roleRef.test(r.Ref)))
+    .flatMap((p) => p.Properties.PolicyDocument.Statement as Record<string, any>[]);
+  const ses = (statements: Record<string, any>[]) =>
+    statements.filter((s) => [s.Action].flat().some((a: string) => a.startsWith('ses:')));
+
+  test('every built template is loaded into SES under its own name', () => {
+    const names = templateFiles().map((t) => t.TemplateName).sort();
+    assert.ok(names.includes('business-email-confirmation'));
+    const loaded = Object.values(dev.app.findResources('AWS::SES::Template')).map((t) => t.Properties.Template.TemplateName);
+    assert.deepEqual(loaded.sort(), names);
+  });
+  test('api-coach may send the business-email confirmation only, from the sending address only', () => {
+    const [s, ...more] = ses(policies(dev.app, /ApiCoachRole/));
+    assert.equal(more.length, 0);
+    assert.equal(s.Action, 'ses:SendTemplatedEmail');
+    assert.deepEqual(s.Condition, { StringEquals: { 'ses:FromAddress': 'lessons@dev.bladebook.org' } });
+    const templates = JSON.stringify(s.Resource).match(/:template\/[\w-]+/g);
+    assert.deepEqual(templates, [':template/business-email-confirmation']);
+    assert.ok(!JSON.stringify(s.Resource).includes('template/*'));
+  });
+  test('api-client and the tenant roles may send no email', () => {
+    for (const role of [/ApiClientRole/, /CoachTenant/, /ClientTenant/, /CodeLookup/]) {
+      assert.deepEqual(ses(policies(dev.app, role)), [], role.source);
+    }
+    for (const r of Object.values(dev.app.findResources('AWS::IAM::Role'))) {
+      assert.ok(!JSON.stringify(r.Properties.Policies ?? []).includes('ses:'));
+    }
+  });
+  test('api-coach is told the sending addresses; production has none until its email domain is chosen', () => {
+    const coach = Object.values(dev.app.findResources('AWS::Lambda::Function'))
+      .find((f) => String(f.Properties.FunctionName).endsWith('-api-coach'))!;
+    assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_FROM, 'lessons@dev.bladebook.org');
+    assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_NOREPLY, 'no-reply@dev.bladebook.org');
+    prod.app.resourceCountIs('AWS::SES::Template', 0);
+    assert.deepEqual(ses(policies(prod.app, /ApiCoachRole/)), []);
   });
 });

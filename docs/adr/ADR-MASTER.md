@@ -165,6 +165,10 @@ what its single-item actions allow.
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
 | `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
 
+**Every email is sent from a stored SES template**, so IAM sees each `ses:SendEmail` in this table as
+`ses:SendTemplatedEmail`, and that is the action granted: a role can send nothing but templates (found
+deploying `api-coach`'s, 2026-11-17).
+
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18), with `logs:CreateLogStream` and `logs:PutLogEvents` on that group only. Every event consumer has a dead-letter queue (§19). Key-management
 permissions follow the keys that encrypt the table and buckets.

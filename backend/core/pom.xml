@@ -52,17 +52,31 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- AWS mode: emails through SES's stored templates (ADR-MASTER section 13). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sesv2</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- One HTTP client for the SDK, not the Apache and Netty pair it pulls in by default. -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
         </dependency>
 
-        <!-- Reads the shared cases at the repo root, schedule-cases.json (ADR-013 decision 3b). -->
+        <!-- SES's template data (SesMailer), and the shared cases at the repo root, schedule-cases.json (ADR-013 d3b). -->
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- DynamoDB Local in Docker for the repository and service tests (ADR-013). -->

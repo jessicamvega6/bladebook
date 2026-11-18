@@ -15,6 +15,7 @@ import type { EnvConfig } from './config.ts';
 import { DataBuckets } from './data-buckets.ts';
 import { Firewall } from './firewall.ts';
 import { Api } from './api.ts';
+import { Email } from './email.ts';
 import { BladebookTable } from './table.ts';
 import { TenantRoles } from './tenant-roles.ts';
 import { Website } from './website.ts';
@@ -35,6 +36,7 @@ export class AppStack extends Stack {
   readonly firewall?: Firewall;
   readonly table: BladebookTable;
   readonly tenants: TenantRoles;
+  readonly email?: Email;
   readonly api: Api;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
@@ -72,6 +74,9 @@ export class AppStack extends Stack {
     // The database gate (ADR-MASTER §16): the API functions reach the table only through these.
     this.tenants = new TenantRoles(this, 'Tenants', { table: this.table.table });
 
+    // SES's templates and sending addresses (ADR-MASTER §13); none until the environment has an email domain.
+    this.email = cfg.emailDomain ? new Email(this, 'Email', { domain: cfg.emailDomain.name }) : undefined;
+
     this.api = new Api(this, 'Api', {
       prefix,
       table: this.table.table,
@@ -82,8 +87,11 @@ export class AppStack extends Stack {
       familyAppClientId: props.familyAppClient.userPoolClientId,
       coachSiteUrl: `https://${cfg.sites.coach.host}`,
       familySiteUrl: `https://${cfg.sites.family.host}`,
+      ...(this.email ? { mail: { from: this.email.from, noReply: this.email.noReply } } : {}),
       removalPolicy,
     });
+    // api-coach sends one email itself, the business-email confirmation (ADR-016; ADR-MASTER §2, I9).
+    this.email?.sendOnly(this.tenants.apiCoachRole, ['business-email-confirmation']);
 
     this.coachSite = new Website(this, 'CoachSite', {
       site: cfg.sites.coach,

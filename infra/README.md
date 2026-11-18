@@ -137,6 +137,13 @@ Change any of these in `lib/` and its test together.
   decision 2), so every synth, diff and deploy packages the current code: `api-coach` and
   `api-client` are deployed from `backend/<module>/target/<module>-lambda.zip`
   (`backend/lambda-zip.xml`). The tests use a stand-in package instead (`bladebook:placeholderCode`).
+- **Email (`lib/email.ts`):** every template in `design/harbor/email/ses/` is loaded into SES under its
+  own name, unprefixed (one environment per account). A role's SES permission names its templates one
+  by one, is held to the From address (`ses:FromAddress`), and covers any identity, because the
+  sandbox also checks the recipient's. `api-coach` may send only `business-email-confirmation`
+  (ADR-MASTER §2, I9). Checked in dev, 2026-11-17: SES accepted that template sent to SES's test
+  address, and IAM's policy simulator refused another template, another From address, and an
+  untemplated `ses:SendEmail`.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed

@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Duration, RemovalPolicy, Validations } from 'aws-cdk-lib';
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import type * as cognito from 'aws-cdk-lib/aws-cognito';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -50,6 +51,8 @@ export interface ApiProps {
   readonly familyAppClientId: string;
   readonly coachSiteUrl: string;
   readonly familySiteUrl: string;
+  /** The sending addresses for `api-coach`'s one email; unset until the environment has an email domain. */
+  readonly mail?: { readonly from: string; readonly noReply: string };
   readonly removalPolicy: RemovalPolicy;
 }
 
@@ -102,11 +105,16 @@ export class Api extends Construct {
           ...env,
         },
       });
-      this.originSecret.grantRead(role);
+      // GetSecretValue only (ADR-MASTER §2): not grantRead, which adds DescribeSecret.
+      role.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [this.originSecret.secretArn],
+      }));
       return f;
     };
     this.apiCoach = fn('api-coach', props.tenants.apiCoachRole, {
       BLADEBOOK_AUTH_COACHAPPCLIENTID: props.coachAppClientId,
+      ...(props.mail ? { BLADEBOOK_MAIL_FROM: props.mail.from, BLADEBOOK_MAIL_NOREPLY: props.mail.noReply } : {}),
       BLADEBOOK_ROLES_COACHTENANT: props.tenants.coachTenant.roleArn,
     });
     this.apiClient = fn('api-client', props.tenants.apiClientRole, {
