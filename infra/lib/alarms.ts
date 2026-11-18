@@ -8,8 +8,9 @@
 // - The up-check (production only, I26) calls the coach site's home page and the API's /health from US locations
 //   only, so the US-only rule lets it in.
 
-import { Duration, Validations } from 'aws-cdk-lib';
+import { Duration, Stack, Validations } from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import type * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -66,6 +67,19 @@ export class Alarms extends Construct {
       displayName: 'BladeBook',
       enforceSSL: true,
     });
+    // enforceSSL gives the topic a policy, which replaces SNS's default one, so CloudWatch must be let in explicitly:
+    // this account's alarms with this environment's prefix only (found proving the alarms in dev, 2026-11-18).
+    const { account, region, partition } = Stack.of(this);
+    this.topic.addToResourcePolicy(new iam.PolicyStatement({
+      sid: 'AlarmsMayPage',
+      principals: [new iam.ServicePrincipal('cloudwatch.amazonaws.com')],
+      actions: ['sns:Publish'],
+      resources: [this.topic.topicArn],
+      conditions: {
+        StringEquals: { 'aws:SourceAccount': account },
+        ArnLike: { 'aws:SourceArn': `arn:${partition}:cloudwatch:${region}:${account}:alarm:${props.prefix}-*` },
+      },
+    }));
     if (props.pagePhone) this.topic.addSubscription(new subs.SmsSubscription(props.pagePhone));
     if (props.pageEmail) this.topic.addSubscription(new subs.EmailSubscription(props.pageEmail));
     Validations.of(this.topic).acknowledge({

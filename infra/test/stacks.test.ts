@@ -844,6 +844,15 @@ describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
       assert.deepEqual(a.Properties.AlarmActions, [{ Ref: topicId }], a.Properties.AlarmName);
     }
   });
+  test('CloudWatch may publish to the topic, for this account\'s own alarms only', () => {
+    // The topic's policy replaces SNS's default, so without this every page fails (found in dev, 2026-11-18).
+    const policy = Object.values(prod.app.findResources('AWS::SNS::TopicPolicy'))[0]!.Properties.PolicyDocument.Statement as any[];
+    const allow = policy.find((st) => st.Sid === 'AlarmsMayPage');
+    assert.deepEqual(allow.Principal, { Service: 'cloudwatch.amazonaws.com' });
+    assert.equal(allow.Action, 'sns:Publish');
+    assert.ok(allow.Condition.StringEquals['aws:SourceAccount']);
+    assert.match(JSON.stringify(allow.Condition.ArnLike['aws:SourceArn']), /alarm:bladebook-prod-\*/);
+  });
   test('a job that stops running pages: missing data counts as not run', () => {
     const missed = Object.values(prod.app.findResources('AWS::CloudWatch::Alarm')).filter((a) => /-missed$/.test(a.Properties.AlarmName));
     assert.equal(missed.length, 5);
