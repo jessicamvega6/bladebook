@@ -170,13 +170,16 @@ Change any of these in `lib/` and its test together.
   `consumer-schedule-change` (`{"reconcile": "<coachId>"}`, the role's one `lambda:InvokeFunction`),
   which settles the batch and writes any difference as a `RECONCILE` batch. What's left goes out as metrics
   (`DriftReconcileFailed`, `DriftMissedCancellations`, `DriftOutstandingReprices`, `DriftCheckCompleted`)
-  for piece 7's alarms; it publishes to no SNS topic itself.
+  for piece 7's alarms; it publishes to no SNS topic itself (owner, 2026-11-18, I25).
 - **The TTL archiver (`consumer-ttl-archiver`):** the stream's second reader (with the Pipe), filtered to
   removals by the DynamoDB service. Each old image goes to the archive bucket at
   `coach=<id>/student=<id|none>/type=<itemType>/<date>/<sha256 of the key>.json`, tagged `itemType`, so a
   retried batch rewrites the same objects. Its role may put and tag objects there and read the stream,
   nothing else; it writes no access-log lines, since it reads no one's data for anyone. No dead-letter
   queue (ADR-MASTER §19): Lambda retries a batch until it succeeds, halving it on an error.
+  A new archiver's stream connection starts at the stream's newest record and takes a few minutes to
+  begin, so a TTL removal in those first minutes isn't archived (seen in dev, 2026-11-18; the second
+  test item was archived). Production has no item due that early.
 - **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
   timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
 - **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed
