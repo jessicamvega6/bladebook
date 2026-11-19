@@ -69,6 +69,19 @@ AdministratorAccess and its lookup role AWS's ReadOnlyAccess, which includes rea
   the quiet path: reading data without a change that shows in the repo.
 - Production's account is bootstrapped this way from its first deploy.
 
+**Amended — 2026-11-19.** *Decided by the owner (Batch 17b, I29 in `AI/plan-history.md`).* **How the workflows are
+built before production exists:**
+- **Every merge into `main` tags a version** once its checks pass, and attaches the Lambda archives the checks
+  built, with their SHA-256 sums, to that tag's GitHub Release. The deploy downloads them and checks the sums, so it
+  ships exactly what was tested, never a rebuild.
+- **The deploy workflow is started by hand** with a tag and an environment. Dev deploys any tag built from `main`.
+  The production job is written but refuses to run until production's account exists.
+- **Deploy-time settings** (the test mailbox, the page phone and email) are GitHub **environment secrets**, not
+  variables, because a public repository's run logs are public and only secrets are masked in them.
+- **The GitHub settings of decision 2** are set with `gh`: environments `dev` and `production`, both deploying from
+  `main` only, production waiting for the owner's approval; and `main`'s ruleset with no bypass, so the owner too
+  merges only by pull request.
+
 ---
 
 ## Context

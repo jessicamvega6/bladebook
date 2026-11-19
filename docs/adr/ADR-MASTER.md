@@ -1870,6 +1870,10 @@ database-gate tests; reproducing an incident (masked build).
   **after the owner's approval**, then runs the post-deploy check. A failed check means the owner
   rolls back.
 - The least-privilege infrastructure check (`cdk-nag`) runs as a build gate.
+- *How it's built before production exists (owner, 2026-11-19, I29):* the merge's checks build the Lambda
+  archives once; the tag's GitHub Release holds them with their SHA-256 sums. The deploy workflow is started by hand
+  with a tag: dev deploys it; the production job refuses to run until production's account exists. Deploy-time
+  settings are environment secrets, masked in the public run logs. The website upload comes with Batch 17c.
 - **Before any workflow deploys to either account, all of these are in place:**
   1. every action pinned to a **full commit hash** (version in a comment); as few third-party
      actions as possible;
