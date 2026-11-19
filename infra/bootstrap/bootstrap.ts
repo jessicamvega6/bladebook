@@ -30,7 +30,8 @@ const document = JSON.stringify(dataDenyPolicy(cfg));
 const withProfile = profile ? ['--profile', profile] : [];
 
 function aws(...a: string[]): string {
-  return execFileSync('aws', [...a, ...withProfile, '--output', 'json'], { encoding: 'utf8' });
+  // stderr is kept quiet: get-policy's "not found" is the expected answer the first time.
+  return execFileSync('aws', [...a, ...withProfile, '--output', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 if (dryRun) {
