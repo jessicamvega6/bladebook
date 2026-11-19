@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
 import { CONSUMERS, EVENT_PATTERNS, INVITE_ATTRIBUTES, PIPE_DETAIL_TYPE, PIPE_FILTER, PIPE_SOURCE } from '../lib/consumers.ts';
+import { DATA_BUCKETS, dataBucketPattern, dataDenyStatements, LOG_READS, OBJECT_READS, TABLE_READS } from '../lib/data-deny.ts';
 import { templateFiles } from '../lib/email.ts';
 import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
@@ -258,11 +259,52 @@ describe('deploy access (ADR-032 d2)', () => {
     );
     assert.doesNotMatch(JSON.stringify(trust(dev.deployAccess)), /\*/);
   });
-  test('can only assume CDK\'s bootstrap roles', () => {
-    const statements = Object.values(dev.deployAccess.findResources('AWS::IAM::Policy'))[0].Properties.PolicyDocument.Statement;
-    assert.equal(statements.length, 1);
-    assert.deepEqual(statements[0].Action, ['sts:AssumeRole', 'sts:TagSession']);
-    assert.equal(statements[0].Resource.length, 4);
+  const statements = () => Object.values(dev.deployAccess.findResources('AWS::IAM::Policy'))[0].Properties.PolicyDocument.Statement;
+  test('may assume only CDK\'s deploy and file-publishing roles, never the lookup role (I13)', () => {
+    const allows = statements().filter((s: { Effect: string }) => s.Effect === 'Allow');
+    assert.equal(allows.length, 1);
+    assert.deepEqual(allows[0].Action, ['sts:AssumeRole', 'sts:TagSession']);
+    const roles = JSON.stringify(allows[0].Resource);
+    assert.match(roles, /cdk-hnb659fds-deploy-role-/);
+    assert.match(roles, /cdk-hnb659fds-file-publishing-role-/);
+    assert.doesNotMatch(roles, /lookup|image-publishing/);
+  });
+  test('carries the data denies too, as a second layer (I13)', () => {
+    const denies = statements().filter((s: { Effect: string }) => s.Effect === 'Deny');
+    assert.deepEqual(denies.map((s: { Sid: string }) => s.Sid), ['NoTableItems', 'NoAccessLog', 'NoDataObjects']);
+    assert.deepEqual(denies[0].Action, TABLE_READS);
+  });
+});
+
+describe('the data denies (ADR-032, I13)', () => {
+  const [items, log, objects] = dataDenyStatements(testDev);
+  test('table items: every read and export, on every table in the account', () => {
+    for (const a of ['dynamodb:GetItem', 'dynamodb:BatchGetItem', 'dynamodb:Query', 'dynamodb:Scan', 'dynamodb:PartiQLSelect',
+      'dynamodb:ExportTableToPointInTime', 'dynamodb:GetRecords']) assert.ok(items!.Action.includes(a), a);
+    assert.deepEqual(items!.Resource, [`arn:aws:dynamodb:*:${testDev.account}:table/*`]);
+  });
+  test('the access-log group\'s lines, and nothing that isn\'t a read', () => {
+    assert.deepEqual(log!.Action, LOG_READS);
+    assert.deepEqual(log!.Resource, [
+      `arn:aws:logs:us-east-1:${testDev.account}:log-group:/bladebook-dev/access-log`,
+      `arn:aws:logs:us-east-1:${testDev.account}:log-group:/bladebook-dev/access-log:*`,
+    ]);
+    for (const a of log!.Action) assert.doesNotMatch(a, /Put|Create(LogGroup|LogStream)|Subscription/);
+  });
+  test('the data buckets\' objects match the names CloudFormation generates; not the seed or website buckets', () => {
+    assert.deepEqual(objects!.Action, OBJECT_READS);
+    const buckets = Object.keys(dev.app.findResources('AWS::S3::Bucket'));
+    for (const b of DATA_BUCKETS) {
+      // A generated name is `<stack>-<logical ID>-<random>`, lowercased.
+      const named = buckets.filter((id) => `bladebook-dev-app-${id.toLowerCase()}`.startsWith(dataBucketPattern(testDev, b)));
+      assert.equal(named.length, 1, `${b}: ${named.join(', ')}`);
+    }
+    const seed = Object.keys(dev.identity.findResources('AWS::S3::Bucket'));
+    assert.equal(seed.length, 1);
+    for (const p of objects!.Resource) {
+      assert.doesNotMatch(p, /identity|seed|site/i);
+      assert.ok(!`bladebook-dev-identity-${seed[0]!.toLowerCase()}`.startsWith(p.slice('arn:aws:s3:::'.length, -3)));
+    }
   });
 });
 

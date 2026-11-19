@@ -1,3 +1,10 @@
+# The checks every pull request needs (ADR-013 d2, ADR-032), and, on every merge into main, a tagged version
+# (ADR-032, amended 2026-11-19, I29): the Lambda archives these checks built, with their SHA-256 sums, attached to
+# the tag's GitHub Release. The deploy workflow (deploy.yml) ships exactly those files, never a rebuild.
+#
+# ADR-032 d2: every action is pinned to a full commit hash, its version in a comment; the token is read-only except
+# where a job says otherwise; no pull_request_target, so a fork's pull request never gets more than read access.
+
 name: CI
 
 on:
@@ -10,7 +17,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A merge's run is never cancelled, or its version would never be tagged.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
@@ -21,10 +29,10 @@ jobs:
         working-directory: backend
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: '17'   # must match <maven.compiler.release> in backend/pom.xml
@@ -32,6 +40,18 @@ jobs:
 
       - name: Build and test
         run: ./mvnw -B verify
+
+      - name: Keep the Lambda archives (merges only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lambda-archives
+          path: |
+            backend/api-coach/target/api-coach-lambda.zip
+            backend/api-client/target/api-client-lambda.zip
+            backend/consumers/target/consumers-lambda.zip
+          if-no-files-found: error
+          retention-days: 1
 
   web:
     runs-on: ubuntu-latest
@@ -41,10 +61,10 @@ jobs:
         working-directory: web
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: web/package.json   # reads "engines.node"
           cache: npm
@@ -58,3 +78,60 @@ jobs:
 
       - name: Type-check and build
         run: npm run build
+
+  # The infrastructure's tests, cdk-nag included: a finding fails the synth (ADR-001 A4, ADR-032).
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: infra/package.json   # reads "engines.node"
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  release:
+    name: Tag this version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, web, infra]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write   # to create the tag and its release; nothing else
+    steps:
+      - name: Fetch the archives this run built
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: lambda-archives
+          path: archives
+
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd archives
+          find . -name '*.zip' -exec mv {} . \;
+          sha256sum ./*-lambda.zip | sed 's| \./| |' > SHA256SUMS
+          cat SHA256SUMS
+          tag="v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$tag" --notes "Built and tested from ${GITHUB_SHA} on main." \
+            ./*-lambda.zip SHA256SUMS
+          echo "Tagged **$tag** from \`${GITHUB_SHA}\`." >> "$GITHUB_STEP_SUMMARY"

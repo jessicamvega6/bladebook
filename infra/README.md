@@ -9,8 +9,9 @@ reason (ADR-032).
 `bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
 both websites (still empty), the table built from the seed file, the tenant roles, and the API
 (`api-coach` and `api-client` behind API Gateway, served under `/api/*` on each site's host). The
-event backbone and the scheduled jobs come next; `bladebook-dev-deploy-access` waits for the deploy
-workflow (`AI/implementation-plan.md`).
+event backbone, the scheduled jobs, the firewall, the alarms and `auth-post-confirmation` followed.
+Piece 9 adds the deploy workflow, the bootstrap's data denies and `bladebook-dev-deploy-access`
+(see "The deploy workflow" below).
 
 ## Stacks
 
@@ -37,7 +38,8 @@ npm test            # 31 tests, including a cdk-nag synth of dev and production
 npm run typecheck
 ```
 
-Deploying to dev (by hand: ADR-032 allows hand-run dev builds before the deploy workflow exists):
+Deploying to dev by hand (ADR-032 allows it, with the owner's own sign-in; the deploy workflow below is the
+other way in):
 
 ```sh
 aws sso login --sso-session bladebook
@@ -45,27 +47,51 @@ aws sso login --sso-session bladebook
 # Once per account, before the first deploy: ask AWS Support to verify the account for CloudFront
 # (see "New account: CloudFront verification" below).
 
-# Once per account: the roles CDK deploys through. From Batch 17b, bootstrap with the execution
-# policy that denies reading table data, the access log and the data buckets (ADR-032, I13).
-npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
+# Once per account, and again whenever lib/data-deny.ts changes: the roles CDK deploys through, with
+# AdministratorAccess plus the managed policy that denies reading table items, the access log and the
+# data buckets (ADR-032, I13). --dry-run prints the policy and the command.
+node bootstrap/bootstrap.ts dev --profile bladebook-dev
 
 npx cdk deploy bladebook-dev-identity --profile bladebook-dev
 node seed/seed.ts                      # the seed file (needs Docker and Java 17; see "The seed file")
 npx cdk deploy bladebook-dev-app --profile bladebook-dev
 node seed/check-import.ts              # ADR-028 d5: destroy the app stack if this fails
-npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the workflow is added
+npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # GitHub's role: always by hand
 
 # Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
 npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
+
+### The deploy workflow (ADR-032, I13, I29)
+
+- **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
+  version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those
+  checks built and their `SHA256SUMS`.
+- **`.github/workflows/deploy.yml` is started by hand** from `main` (Actions → Deploy → Run workflow) with a
+  tag and an environment. It refuses a tag that isn't on `main`, downloads the tag's archives and checks
+  their sums, signs in to AWS through OpenID Connect as `<prefix>-github-deploy`, and runs
+  `cdk deploy <prefix>-identity <prefix>-app` with `--app 'node bin/bladebook.ts'` (no Maven build).
+  Production's run refuses until production's account ID is in `lib/config.ts`.
+- **It never deploys `<prefix>-deploy-access`**, which holds its own role: that stack is deployed by hand.
+- **What CDK may do** is set by the bootstrap (above): AdministratorAccess plus `<prefix>-cdk-deny-data`
+  (`lib/data-deny.ts`). GitHub's role carries the same denies, and can't assume the lookup role: lookups are
+  committed in `cdk.context.json`, and a new one is run once by hand.
+- **GitHub settings** (ADR-032 d2, set with `gh` on 2026-11-19):
+  - environments `dev` and `production`, each deploying from `main` only; `production` waits for the
+    owner's approval;
+  - environment secrets: `dev` has `TEST_MAILBOX`; `production` will have `PAGE_PHONE` and `PAGE_EMAIL`;
+  - `main`'s ruleset `protect-main`: pull requests only, the `backend`, `web` and `infra` checks, no force
+    pushes, and no bypass, the owner included;
+  - workflow tokens read-only by default; every action pinned to a full commit hash.
 
 ### The owner's test mailbox (dev's test accounts)
 
 Dev's test accounts are tagged addresses on the owner's test mailbox (ADR-027, I15). The repo is
 public, so the address is **never written into it**, including `cdk.json` and `cdk.context.json`.
 Give it to CDK as context instead: in your own `~/.cdk.json` (`{ "context": { "testMailbox": "…" } }`),
-or with `-c testMailbox=…` on each command. The deploy workflow passes it from a GitHub environment
-variable. Without it, the account stack builds no test accounts and synth prints a warning.
+or with `-c testMailbox=…` on each command. The deploy workflow passes it from the `dev` environment's
+secret `TEST_MAILBOX`: a secret, not a variable, because a public repository's run logs are public and only
+secrets are masked (the workflow masks the mailbox's domain too). Without it, the account stack builds no test accounts and synth prints a warning.
 
 After the first deploy with it set:
 
@@ -240,11 +266,11 @@ Change any of these in `lib/` and its test together.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**
   (`SignUp`, `InitiateAuth`, `RespondToAuthChallenge`). Prove it in the block-mode rehearsal.
 - **The dev deploy role trusts the GitHub environment `dev`** (`repo:jessicamvega6/bladebook:environment:dev`).
-  Production's trusts `production` (ADR-032). The role can only assume CDK's four bootstrap roles.
+  Production's trusts `production` (ADR-032). The role can only assume CDK's deploy and file-publishing roles,
+  and carries the data denies too (I13).
 
 ## Still open
 
-- **Narrowing CDK's bootstrap execution policy.** It defaults to AdministratorAccess (ADR-032 Open).
 - **The `/health` rate limit** (ADR-MASTER §21). The WAF has the other six rules.
 - **The API behind CloudFront** (I1, 2026-11-17; ADR-019): 17b adds the CloudFront Function that
   passes the visitor's address in a BladeBook header, the API's rate rules counting by it, the
