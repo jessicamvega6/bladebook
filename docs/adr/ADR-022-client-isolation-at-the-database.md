@@ -470,6 +470,12 @@ ADR-031.*
 client's own bookings move from GSI1 to a copy under `CLIENT#<sub>`, written in the same
 transaction as the booking.
 
+**Amended — 2026-11-20.** *Batch 17c (I11).* **Run against dev's real table and deployed roles: 76 passed, 0 failed**
+(`docs/runbooks/gate-results-20261120-155510.txt`). The script now reads the stack's outputs and the seed's records
+instead of building a sandbox copy, and runs as `bladebook-dev-gate-test`, a dev-only role the tenant roles trust. Every row 1–17 holds, against the written allowlist; row 15 returned seat keys, as accepted; the
+rows the 2026-10-13 note asked for (`LESSON#`, `SEAT#`, GSI4) are in. "Another family's accepted seat can't be
+changed" isn't a database row: decision 8 leaves it to the code's link check.
+
 *Answered 2026-10-05:*
 
 - **Row 1: GSI1 is locked to the family.** Client A could query GSI1 for `CLIENT#client-a`

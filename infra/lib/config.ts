@@ -59,6 +59,11 @@ export interface EnvConfig {
   readonly testAccounts?: { readonly coaches: number; readonly clients: number };
   /** ADR-028 d1: the table is created by one import from the seed bucket. Dev only. */
   readonly seedImport: boolean;
+  /**
+   * ADR-021 d7, ADR-022 d9 (I11): the database gate tests run against this environment's real table and tenant roles,
+   * through `<prefix>-gate-test`, a role the owner signs into, which the tenant roles trust. Dev only.
+   */
+  readonly gateTest: boolean;
 }
 
 const productName = 'BladeBook';
@@ -90,6 +95,7 @@ export const dev: EnvConfig = {
   // ADR-011 8c: three to five coaches, about ten families.
   testAccounts: { coaches: 3, clients: 10 },
   seedImport: true,
+  gateTest: true,
 };
 
 export const prod: EnvConfig = {
@@ -113,6 +119,7 @@ export const prod: EnvConfig = {
   github: { repo: githubRepo, environment: 'production' },
   // Production's canary accounts are settled when production is built (ADR-027 d7).
   seedImport: false,
+  gateTest: false,
 };
 
 export const environments: readonly EnvConfig[] = [dev, prod];

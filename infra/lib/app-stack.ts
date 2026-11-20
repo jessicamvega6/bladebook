@@ -82,7 +82,7 @@ export class AppStack extends Stack {
     });
 
     // The database gate (ADR-MASTER §16): the API functions reach the table only through these.
-    this.tenants = new TenantRoles(this, 'Tenants', { table: this.table.table });
+    this.tenants = new TenantRoles(this, 'Tenants', { table: this.table.table, ...(cfg.gateTest ? { gateTest: { prefix } } : {}) });
 
     // SES's templates and sending addresses (ADR-MASTER §13); none until the environment has an email domain.
     this.email = cfg.emailDomain ? new Email(this, 'Email', { domain: cfg.emailDomain.name }) : undefined;
@@ -187,6 +187,7 @@ export class AppStack extends Stack {
     new CfnOutput(this, 'CoachTenantRoleArn', { value: this.tenants.coachTenant.roleArn });
     new CfnOutput(this, 'ClientTenantRoleArn', { value: this.tenants.clientTenant.roleArn });
     new CfnOutput(this, 'CodeLookupRoleArn', { value: this.tenants.codeLookup.roleArn });
+    if (this.tenants.gateTest) new CfnOutput(this, 'GateTestRoleArn', { value: this.tenants.gateTest.roleArn });
     new CfnOutput(this, 'CoachSiteUrl', { value: `https://${cfg.sites.coach.host}/` });
     new CfnOutput(this, 'FamilySiteUrl', { value: `https://${cfg.sites.family.host}/` });
     new CfnOutput(this, 'CoachSiteBucket', { value: this.coachSite.bucket.bucketName });

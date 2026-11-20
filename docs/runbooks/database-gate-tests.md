@@ -1,259 +1,143 @@
 # Runbook: Database-Gate Tests
 
-**Status:** Run 2026-10-05: all checks passed, twice. Blockers #4 and #5 are cleared. Re-run whenever a tenant role's policy changes.
-
-**Changing in Batch 17c** (*owner, 2026-11-17, I11; ADR-021 amended*): the script will run against **dev's real
-table and tenant roles**, read from the stack's outputs, instead of building its own table and roles with copied
-policies in a sandbox account. Its test records move into dev's seed file, and in dev only the tenant roles trust a
-gate-test role you sign into. Until then, the steps below describe the old sandbox run. *Since 2026-11-17 (Batch
-17b) the real policies are in `infra/lib/tenant-roles.ts`, deployed in dev; the script's copies must match them.
-Since 2026-11-20 the family allowlists are in `backend/core/src/main/resources/bladebook/client-read-allowlist.json`,
-which the role is built from and local mode enforces (`LocalFamilyPolicy`).*
-
-**Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
-`client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):
-
-- **Payment-type switches** (*added 2026-11-06*, ADR-022 amended): the allowlist now carries
-  `acceptsCash`, `acceptsCashapp`, `acceptsVenmo` and `acceptsPaypal` in place of
-  `displayPaymentTypesToClients`. The script's policy is updated. Re-run the allowlist row so an
-  `ACTIVE` family can read the four switches, and a read naming `displayPaymentTypesToClients`
-  is refused.
-
-- **Share codes** ([ADR-026](../adr/ADR-026-shared-lessons-by-invitation.md) Consequences): a
-  share-code lookup returns `studentId` and the display name only (*widened 2026-10-20,
-  ADR-022*); any other attribute, no projection, or a `Query` is refused.
-- **Lessons and seats** ([ADR-031](../adr/ADR-031-lessons-and-seats.md) Consequences and
-  revision): rows for `LESSON#`, `SEAT#` and `SEATEND#` items and the deadline index (GSI4);
-  the family's availability read of a lesson time leaves out `pendingLeave`; a family session
-  can't change another family's accepted seat in any way.
-- **Only accepted skaters can share** ([ADR-033](../adr/ADR-033-invite-only-accepted-skaters.md)
-  Consequences, decisions 2 and 2a): a booking transaction whose invited seat names a skater who
-  isn't `ACTIVE` with the coach is refused whole (its `ConditionCheckItem` on
-  `COACH#<coachId>/STUDENT#<studentId>` fails); for the share-check, a `GetItem` of a `STUDENT#`
-  item projecting only `studentStatus` is allowed for an `ACTIVE` session, refused with any other
-  `STUDENT#` attribute, and refused for a `PENDING` session.
-- **Batch reads** (*added 2026-11-17*, ADR-022 amended, row 14): `client-tenant`'s read statement
-  now allows `BatchGetItem`. A batch read of coach X's `LESSON#` keys with the allowlisted
-  projection is allowed for an `ACTIVE` session; it is refused with any other attribute, with no
-  projection, with any key in another coach's partition, or for a `PENDING` session.
-- **The written allowlist** (*added 2026-11-17*, ADR-022 amended, rows 15 to 17): the policy's
-  attribute list is replaced. Record that a `Query` of the `SEAT#` range projecting `PK`/`SK`
-  returns keys (accepted risk); a read of another family's seat naming `studentName`,
-  `clientId`, `seatStatus` or `partnerName` is refused; the family's own seat by key with
-  `idempotencyKey` only is allowed; GSI1 returns every attribute of the family's own seats and
-  nothing of another family's.
-**Clears:** blockers **#4** and **#5** in `Blockers-Before-Coding.md`.
+**Status:** Run 2026-11-20 against dev's real table and deployed tenant roles: **76 passed, 0 failed**
+([`gate-results-20261120-155510.txt`](gate-results-20261120-155510.txt)). Re-run whenever a tenant role's policy, the
+family allowlist (`backend/core/src/main/resources/bladebook/client-read-allowlist.json`) or the key layout changes.
+**Clears:** blockers **#4**, **#5** and **#23** in `Blockers-Before-Coding.md`; closes G-26 and SC-3 in the root
+`README.md`.
 **Source:** [ADR-021](../adr/ADR-021-tenant-isolation-at-the-database.md) decision 7 and
-[ADR-022](../adr/ADR-022-client-isolation-at-the-database.md) decision 9.
+[ADR-022](../adr/ADR-022-client-isolation-at-the-database.md) decision 9; ruling I11 (`AI/plan-history.md`).
 **Script:** [`database-gate-tests.sh`](database-gate-tests.sh), in this folder.
 
 ---
 
 ## What this answers
 
-BladeBook relies on DynamoDB itself to keep coaches and families apart, not only on its own
-code. Each request runs under a temporary role tagged with who is asking, and the role's
-policy only reaches that person's data. DynamoDB Local ignores permissions, so this has to be
-proven against a real table.
+BladeBook relies on DynamoDB itself to keep coaches and families apart, not only on its own code. Each request runs
+under a temporary role tagged with who is asking, and the role's policy only reaches that person's data. DynamoDB Local
+ignores permissions, so this has to be proven against a real table. (Local mode plays the family roles' policies too,
+`LocalFamilyPolicy`, so the backend's tests catch most mistakes first; this run is the proof.)
 
-The run checks 19 rows from the two ADRs (about 40 individual attempts). Most confirm what the
-design expects. Three are genuinely unknown:
-
-| Row | Question | If the answer is no |
-|---|---|---|
-| **021-3** | Does the policy lock a **GSI3** query (the coach's unpaid list) to that coach? | GSI3 comes off the coach role; the unpaid list is read from the main table by date. |
-| **022-1b / 022-2b** | Does the policy lock a **GSI1** query (a family's own bookings) to that family? | Every booking also writes a copy under the family's `CLIENT#` partition, in the same transaction. |
-| **022-9** | When a family's booking attempt fails because the slot is taken, does DynamoDB hand back the other family's booking? | Nothing changes in the design. It tells you the ArchUnit rule that forbids asking for it is the only guard. |
+**Since 2026-11-20 (I11) it tests the real thing:** dev's table and the roles CDK deployed
+(`infra/lib/tenant-roles.ts`), read from the stack's outputs. Nothing is copied. Before, the script built its own
+table and roles from policies pasted from the ADRs, in a sandbox account; those runs are under Results, below.
 
 ---
 
-## Cost and safety
+## How it works
 
-- **Cost:** under one cent. An on-demand table with about 12 items and about 60 requests, and
-  four IAM roles, which are free. Delete everything at the end (step 8).
-- **Scope:** the script only creates and deletes resources named `bb-gate-*`: one table,
-  `bb-gate-test`, and roles `bb-gate-exec`, `bb-gate-coach-tenant`, `bb-gate-client-tenant`
-  and `bb-gate-code-lookup`. It never touches anything else.
-- **Data:** made-up coaches (`coach-a`, `coach-b`), families (`client-a`, `client-b`) and
-  `@example.com` addresses. No real data.
-- **Your identity:** you run setup, seed and teardown as yourself. Every test runs as one of
-  the temporary roles, never as you. A test that can't get its role reports `NOSESSION`
-  rather than quietly running with your permissions.
-- **Every step asks before it creates or deletes anything** and shows the account and region.
-
----
-
-## Before you start
-
-You need:
-
-1. **An AWS account where you can create IAM roles and DynamoDB tables.** An administrator
-   sign-in is simplest. Use a personal or sandbox account, not one with production data.
-2. **The AWS CLI, version 2.13 or newer.** Check with `aws --version`. (Yours was 2.36 on
-   2026-10-05.)
-3. **`jq`.** It's built into recent macOS; check with `jq --version`, or `brew install jq`.
-4. **About 15 minutes.**
-
-The region defaults to `us-east-1`, the region in `architecture.md` §12. To use another, put
-`AWS_REGION=us-west-2` in front of each command.
+- **The records are the seed's.** Dev's table is created from the seed file (ADR-028), so the script picks, by key
+  only, coach A (the coach whose booked seats come from the most families), families A and B (two of them), coach B,
+  two of coach A's lesson times, an `ACTIVE` and a `PENDING` skater, coach A's code and a share code. Nothing personal
+  is printed or saved: the results file holds row names and outcomes only.
+- **Every test runs as a tenant session**, started from `bladebook-dev-gate-test`. That role exists in dev only, you
+  sign into it, and it can do nothing but start tenant sessions under the same tag rules as the APIs. It has no
+  DynamoDB access of its own (row 021-8 proves it). An infra test keeps it, and the tenant roles' trust in it, out of
+  production.
+- **Your own sign-in** only reads the stack's outputs, lists the table's keys to pick the records, and deletes what the
+  run wrote.
+- **The run writes very little, and deletes it:** `TEST#…` items (no event consumer matches them, so no email or
+  event follows) and one `CODE#GATE…` code claim. Writes that should be refused carry a condition that can't pass, so
+  even a wrongly allowed one changes nothing. Everything listed is deleted when the run ends, even if it fails;
+  `clean` removes leftovers of an interrupted run.
+- **Cost:** a fraction of a cent.
 
 ---
 
 ## Steps
 
-### 1. Sign in to AWS
-
-If you use IAM Identity Center (SSO):
+### 1. Sign in to dev
 ```
-aws sso login --profile <your-profile>
-export AWS_PROFILE=<your-profile>
+aws sso login --sso-session bladebook
+export AWS_PROFILE=bladebook-dev
 ```
-If you use access keys, `aws configure` once is enough.
+Dev's app stack must be deployed (`infra/README.md`), since the script reads its outputs (`TableName`, the three tenant
+role ARNs and `GateTestRoleArn`).
 
-Check you're in the right account:
+### 2. Run it
 ```
-aws sts get-caller-identity
+docs/runbooks/database-gate-tests.sh run
 ```
-The `Account` number is where everything will be created.
-
-### 2. Go to this folder
+About a minute. Each line looks like:
 ```
-cd docs/runbooks
+PASS  022-14d  expected DENY     got DENY      BatchGetItem with a key in coach B
 ```
+`got` is **ALLOW** (it worked), **DENY** (AccessDenied), **CONDFAIL** (a condition failed, as expected for rows 9a and
+12), **ERROR** (something else; the message is printed underneath) or **NOSESSION** (a role couldn't be assumed).
+The results are saved to `docs/runbooks/gate-results-<date>-<time>.txt`.
 
-### 3. Create the table and roles
+### 3. If it stopped partway
 ```
-./database-gate-tests.sh setup
+docs/runbooks/database-gate-tests.sh clean
 ```
-It shows the account, region and your identity, and asks `Continue? [y/N]`. Type `y`.
+Deletes any `TEST#…` item and `CODE#GATE…` claim left in the table.
 
-It creates:
+### 4. If a row fails
 
-- the table `bb-gate-test` with the same key layout as the real one: `PK`, `SK`, and indexes
-  `GSI1`, `GSI2`, `GSI3`;
-- `bb-gate-exec`, a stand-in for a Lambda function's execution role. It can switch into the
-  tenant roles and has **no DynamoDB permissions of its own**;
-- `bb-gate-coach-tenant`, `bb-gate-client-tenant` and `bb-gate-code-lookup`, with the exact
-  policies from ADR-021 decisions 2 and 5 and ADR-022 decisions 3, 4, 6, 7 and 8.
-
-It finishes with a 20-second wait so IAM has time to see the new roles. If setup stops partway,
-run it again: it keeps whatever already exists.
-
-### 4. Add the sample data
-```
-./database-gate-tests.sh seed
-```
-Writes 12 items: two coaches, two families who are both coach A's, one booking each, the
-students, the family's link item and coach code `DANA7K2Q`.
-
-### 5. Run the tests
-```
-./database-gate-tests.sh run
-```
-Takes about a minute. Each line looks like:
-```
-PASS  021-3a   expected ALLOW    got ALLOW     OPEN · Query GSI3 for own coach
-```
-- **PASS**: the database did what the ADR expects.
-- **FAIL**: it didn't. See step 7.
-- **INFO**: row 022-9, which records an answer rather than passing or failing.
-- `got` is **ALLOW** (it worked), **DENY** (AccessDenied), **CONDFAIL** (a condition
-  failed), **ERROR** (something else; the message is printed underneath) or **NOSESSION**
-  (the role couldn't be assumed).
-
-Lines marked **OPEN** are the unknown questions. The run ends with a summary that answers them
-in plain words. Everything is also saved to `gate-results-<date>-<time>.txt` in this folder.
-
-### 6. Read the summary
-
-The summary prints one line per open question. What each means:
-
-| Summary line | What to do |
-|---|---|
-| *Blocker #4 (GSI3): the index IS locked to the coach.* | Nothing. ADR-021 stands. |
-| *Blocker #4 (GSI3): … Take GSI3 off coach-tenant* | The fallback in ADR-021 decision 7: the unpaid list (pattern 11) is served from the main table by date range, filtered on `paymentStatus`. |
-| *Blocker #5 (GSI1): the index IS locked to the family.* | Nothing. ADR-022 stands. |
-| *Blocker #5 (GSI1): … Use the CLIENT# booking copy* | The fallback in ADR-022 decision 9: each booking also writes a copy under `CLIENT#<sub>` in the same transaction, and cancel, re-price and attendance keep it in step. Needs its own ADR amendment. |
-| *Row 9: … DOES NOT LEAK* or *DENIED* | Nothing. The ArchUnit rule is a second guard. |
-| *Row 9: … LEAKS* | Expected by ADR-022 decision 8. Keep the ArchUnit rule on `api-client` and give it a test of its own; it is the only guard. |
-
-### 7. If any other row fails
-
-A FAIL outside the open rows means a policy doesn't do what its ADR says. **Don't change the
-policy to make it pass** without deciding what the ADR should say. Note the row, then:
+A FAIL means a deployed policy doesn't do what its ADR says. **Don't change the policy to make it pass** without
+deciding what the ADR should say. Note the row, then:
 
 | Failing rows | Likely cause |
 |---|---|
-| **022-5c and 022-11a** (both `GetItem` with a projection) fail, while the `Query` rows with projections pass | DynamoDB may not set `dynamodb:Select` on a `GetItem`, so `StringEquals` on it never matches. The usual fix is `StringEqualsIfExists`, but then check that **022-11c** (no projection) still denies. Record which way it went. |
-| **021-7a or 021-7b** allowed | The trust policy's tag conditions aren't holding. A session could start without a `coachId` tag. Serious: fix before building. |
-| **021-4v** fails | A denied transaction partly wrote. Not expected from DynamoDB; re-run once to rule out a stale item. |
-| Any **DENY** row that came back **ALLOW** | A real isolation gap. Stop and record it before any coach or family code is written. |
-| Lots of **NOSESSION** | Roles weren't ready. Wait a minute and run step 5 again. |
+| Any **DENY** row that came back **ALLOW** | A real isolation gap. Stop and record it. |
+| **021-7a or 021-7b** allowed | The trust policy's tag conditions aren't holding. Serious: fix before anything else. |
+| **021-4v** or **022-12v** fail | A refused transaction partly wrote. Not expected from DynamoDB; run `clean` and re-run once. |
+| An **ALLOW** row on a read came back **DENY** | The allowlist is missing an attribute the code needs (`client-read-allowlist.json`). The backend's local policy would usually have caught it first. |
+| Lots of **NOSESSION** | The gate role or the tenant roles changed moments ago. Wait a minute and run again. |
 
-### 8. Delete everything
-```
-./database-gate-tests.sh teardown
-```
-Asks before deleting, then removes the table and the four roles. Run it even after a failed
-run. It's safe to run twice.
+### 5. Record the result
 
-### 9. Record the result
-
-1. Keep the results file: rename it `gate-results-<date>.txt` and commit it next to this
-   runbook, or paste its summary below.
-2. Add a dated amendment to **ADR-021** (decision 7) and **ADR-022** (decision 9) with the
-   outcome of the open rows, following the ADR convention in `architecture.md` §11.
-3. In `Blockers-Before-Coding.md`, strike through **#4** and **#5** with the date, or replace
-   them with the fallback work if an index wasn't locked.
-4. Tell Claude the summary lines. The C4 map, the repository design and any fallback ADR
-   follow from them.
+Commit the results file next to this runbook, update the Status line above, and add the outcome to ADR-021 decision 7
+and ADR-022 decision 9 if a row's answer changed.
 
 ---
 
-## Troubleshooting
+## The rows
 
-| Message | Fix |
-|---|---|
-| `not signed in to AWS` | Step 1. With SSO, sessions expire; run `aws sso login` again. |
-| Setup stopped partway | Run step 3 again. It keeps a table or role that already exists and only creates what's missing. |
-| `IAM doesn't see the new role yet; waiting…` | Normal. IAM takes a few seconds to recognise a new role; setup retries for up to a minute. |
-| `MalformedPolicyDocument … Invalid principal` and setup stops | IAM took over a minute. Run step 3 again. |
-| `could not assume bb-gate-exec` | Your identity can't assume roles in this account, or IAM is still propagating. Wait a minute; if it persists, sign in as an administrator. |
-| `ExpiredToken` partway through a run | The temporary sessions last an hour. Just run step 5 again. |
-| `Unknown options: --return-values-on-condition-check-failure` | The AWS CLI is too old. Update it (`brew upgrade awscli`). |
+**ADR-021 decision 7** (as coach A's `coach-tenant` session): 1a–1b own profile and partition allowed; 2a–2e coach B
+refused for every action; 3a–3b GSI3 locked to the coach; 4 a transaction across two coaches refused whole, 4v nothing
+of it written; 5 own item plus a `CODE#` claim allowed; 6a–6e `CLIENT#` writes, GSI1, GSI2, GSI4 and `Scan` refused;
+7a–7b a session without the `coachId` tag, or with an extra tag key, refused; 8 the gate role's own credentials refused.
 
----
+**ADR-022 decision 9** (as family A's `client-tenant` sessions): 1–2 own partition and GSI1 allowed, family B's
+refused; 3 lesson times and the weekly schedule with allowlisted fields allowed; 4 `pendingLeave`, a seat's
+`studentName` or `clientId`, or no projection refused; 5 a `PENDING` session reads nothing of the coach, an `ACTIVE` one
+reads the profile's public fields but not `loginEmail`; 6 coach B refused; 7 a conditional write into coach A allowed,
+into coach B refused; 8 `ReturnValues ALL_OLD` refused; 9 a failing write onto family B's seat: without a return option
+it fails its condition (the write is allowed), with `ReturnValuesOnConditionCheckFailure ALL_OLD` it's refused, so
+nothing leaks; 10 the first session (no coach tag) reads nothing of the coach; 11 `code-lookup` reads a code's name
+fields only, and the first session resolves a code's `coachId`; 12 a transaction naming a `PENDING` skater refused
+whole, 12v nothing written; 13 the share-check reads `studentStatus` only, while `ACTIVE`; 14 `BatchGetItem` of lesson
+times with the allowlist only, in coach A only, while `ACTIVE`; 15 the seats' keys can be listed (accepted risk: skater
+IDs, no names); 16 family B's seat details refused, the family's own seat's `idempotencyKey` allowed; 17 GSI1 returns the
+family's own seats in full and nothing of family B's.
 
-## What the script mirrors, and what it doesn't
+**ADR-MASTER §16 and I30:** sc-1a–1d a share code gives its `studentId` and `studentName` only, and not to
+`code-lookup`; gsi4 a family can't query GSI4; i30-a own items plus one coach's in a transaction through that coach's
+session (waiting) allowed; i30-b the same through the first session refused.
 
-- **Mirrors:** the key layout, the three indexes, and the policies as written in ADR-021 and
-  ADR-022 on 2026-10-05. If those policies change, update the script before re-running.
-- **Simplifies:** the real execution roles are Lambda roles; here `bb-gate-exec` stands in,
-  assumed by you. The trust conditions on the tenant roles are the same. Source identity and
-  session names (ADR-021 decision 8) aren't tested; they don't affect access.
-- **Doesn't cover:** the code-level checks (the client link check, ADR-012's `AccessContext`,
-  the ArchUnit rules). Those are ADR-013's tests, written with the code.
+**Not a database row:** "a family session can't change another family's accepted seat" (Blocker 23). Writes into the
+coach's partition can't be limited by family (ADR-022 decision 8); that stays the code's link check, in ADR-013's
+cross-tenant tests.
 
 ---
 
 ## Results
 
-### 2026-10-05, account 307202557124, us-east-1
+### 2026-11-20, dev (793581837527), us-east-1, the real table and deployed roles
 
-**45 passed, 0 failed.** File: [`gate-results-20261005-174949.txt`](gate-results-20261005-174949.txt).
+**76 passed, 0 failed.** File: [`gate-results-20261120-155510.txt`](gate-results-20261120-155510.txt).
 
-- **Blocker #4 (GSI3): locked to the coach.** ADR-021 stands as written.
-- **Blocker #5 (GSI1): locked to the family.** ADR-022 stands as written.
-- **Row 9: refused with an access error.** The first run only matched the word in a debug log,
-  so the script gained a control check and was re-run.
+- Every ADR-021 and ADR-022 row holds against the deployed roles, including ADR-022's 2026-11-17 allowlist,
+  `BatchGetItem` (row 14) and the share-check (row 13).
+- **Row 15, as accepted:** 15 seat keys of coach A came back to family A, with skater IDs and no names.
+- **Row 9:** with `ALL_OLD` on failure the write is refused by IAM, as in 2026-10.
+- **I30:** a family's write into a coach's partition works only through that coach's session, which is why
+  registration now writes one coach at a time.
 
-### 2026-10-05, second run (row 9 confirmation)
+### Earlier: 2026-10-05, a sandbox account with copied policies
 
-**46 passed, 0 failed.** File: [`gate-results-20261005-175359.txt`](gate-results-20261005-175359.txt).
-
-- **022-9a (control):** booking client B's taken slot with no return option fails its
-  condition, so the write itself is allowed.
-- **022-9b:** the same attempt with `ReturnValuesOnConditionCheckFailure = ALL_OLD` is refused
-  with `AccessDeniedException`.
-- **Conclusion:** the `client-tenant` policy blocks the leak at the database. ADR-022 decision 8
-  amended; the ArchUnit rule stays as a second guard.
+46 passed, 0 failed, over two runs ([`gate-results-20261005-174949.txt`](gate-results-20261005-174949.txt),
+[`gate-results-20261005-175359.txt`](gate-results-20261005-175359.txt)). GSI3 locked to the coach (Blocker #4), GSI1
+locked to the family (Blocker #5), and row 9 refused by IAM. Those runs used the 2026-10 key layout (`SLOT#`,
+`BOOKING#`), which no longer exists.

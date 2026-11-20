@@ -160,9 +160,9 @@ in `cdk.context.json`. Commit that file, so later synths (and CI) don't need the
 
 Change any of these in `lib/` and its test together.
 
-- **The tenant roles' policies (`lib/tenant-roles.ts`) follow the gate tests'**
-  (`docs/runbooks/database-gate-tests.sh`), with ADR-022's 2026-11-17 allowlist. Change one and the
-  other together, and re-run the gate tests. The allowlists themselves live in one file,
+- **The tenant roles' policies (`lib/tenant-roles.ts`) are what the gate tests test**
+  (`docs/runbooks/database-gate-tests.sh`, run against dev's deployed roles through the dev-only
+  `bladebook-dev-gate-test` role, I11; 76 of 76 on 2026-11-20). Change a policy, then re-run them. The allowlists themselves live in one file,
   `backend/core/src/main/resources/bladebook/client-read-allowlist.json`: this stack builds the role from it,
   and core.data's local mode enforces it (`LocalFamilyPolicy`), so a family read or write AWS would refuse
   fails in the backend's tests too (17c, I30). Two details no ADR names: the trust policies also allow

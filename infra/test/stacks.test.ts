@@ -418,6 +418,38 @@ describe('dev test accounts and seed bucket (ADR-027 d3, ADR-028, I15, I18)', ()
 });
 
 
+describe('the gate tests\' role (ADR-021 d7, ADR-022 d9, I11)', () => {
+  const role = (t: typeof dev.app) => Object.entries(t.findResources('AWS::IAM::Role'))
+    .filter(([, r]) => r.Properties.RoleName === 'bladebook-dev-gate-test' || r.Properties.RoleName === 'bladebook-prod-gate-test');
+  const tenants = (t: typeof dev.app) => Object.values(t.findResources('AWS::IAM::Role'))
+    .filter((r) => /^(coach-tenant|client-tenant|code-lookup):/.test(String(r.Properties.Description)));
+  test('dev only: production has no gate role, and its tenant roles trust only the APIs', () => {
+    assert.equal(role(prod.app).length, 0);
+    assert.equal(role(dev.app).length, 1);
+    for (const r of tenants(prod.app)) assert.doesNotMatch(JSON.stringify(r.Properties.AssumeRolePolicyDocument), /GateTest/);
+  });
+  test('in dev each tenant role trusts it beside its API, under the same tag rules', () => {
+    const [id] = role(dev.app)[0]!;
+    assert.equal(tenants(dev.app).length, 3);
+    for (const r of tenants(dev.app)) {
+      for (const st of r.Properties.AssumeRolePolicyDocument.Statement) {
+        const aws = JSON.stringify(st.Principal.AWS);
+        assert.match(aws, new RegExp(id), 'the gate role is a principal');
+        assert.match(aws, /ApiC(oach|lient)Role/, 'beside the API');
+      }
+    }
+  });
+  test('it can only start tenant sessions: no DynamoDB, nothing else', () => {
+    const [id] = role(dev.app)[0]!;
+    const statements = Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(id))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as { Action: string[] }[]);
+    assert.deepEqual(statements.flatMap((st) => [st.Action].flat()).sort(),
+      ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
+    assert.ok(!JSON.stringify(role(dev.app)[0]![1].Properties).includes('dynamodb'));
+  });
+});
+
 describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
   type Statement = { Sid?: string; Action: string | string[]; Resource?: unknown; Condition?: Record<string, Record<string, unknown>> };
   const roles = dev.app.findResources('AWS::IAM::Role');

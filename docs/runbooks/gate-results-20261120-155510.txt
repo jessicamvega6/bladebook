@@ -1,0 +1,89 @@
+BladeBook database-gate tests · bladebook-dev and its tenant roles (bladebook-dev-app) · us-east-1 · Fri Nov 20 15:55:10 CST 2026
+Seed records: coach A, coach B, families A and B (seats with coach A), 3 lesson times, 2 skaters (ACTIVE, PENDING), 2 codes.
+
+== ADR-021 decision 7 · coach-tenant, as coach A ==
+PASS  021-1a   expected ALLOW    got ALLOW     GetItem own profile
+PASS  021-1b   expected ALLOW    got ALLOW     Query own partition
+PASS  021-2a   expected DENY     got DENY      GetItem coach B's profile
+PASS  021-2b   expected DENY     got DENY      Query coach B's partition
+PASS  021-2c   expected DENY     got DENY      PutItem into coach B
+PASS  021-2d   expected DENY     got DENY      UpdateItem coach B's profile
+PASS  021-2e   expected DENY     got DENY      DeleteItem coach B's profile
+PASS  021-3a   expected ALLOW    got ALLOW     Query GSI3 for own coach
+PASS  021-3b   expected DENY     got DENY      Query GSI3 for coach B
+PASS  021-4    expected DENY     got DENY      Transaction: one item in A, one in B
+PASS  021-4v   nothing from the denied transaction was written
+PASS  021-5    expected ALLOW    got ALLOW     Transaction: own item plus a CODE# claim
+PASS  021-6a   expected DENY     got DENY      PutItem under CLIENT#
+PASS  021-6b   expected DENY     got DENY      Query GSI1
+PASS  021-6c   expected DENY     got DENY      Query GSI2
+PASS  021-6d   expected DENY     got DENY      Scan the table
+PASS  021-6e   expected DENY     got DENY      Query GSI4 (the deadline sweep's only)
+PASS  021-7a   expected DENY     got DENY      AssumeRole with no coachId tag
+PASS  021-7b   expected DENY     got DENY      AssumeRole with an extra tag key
+PASS  021-8    expected DENY     got DENY      DynamoDB with the gate role's own credentials
+
+== ADR-022 decision 9 · client-tenant, as family A of coach A ==
+PASS  022-1a   expected ALLOW    got ALLOW     Query own CLIENT# partition
+PASS  022-1b   expected ALLOW    got ALLOW     Query GSI1 for own seats
+PASS  022-2a   expected DENY     got DENY      Query family B's partition
+PASS  022-2b   expected DENY     got DENY      Query GSI1 for family B
+PASS  022-3a   expected ALLOW    got ALLOW     Coach's lesson times, allowlisted fields
+PASS  022-3b   expected ALLOW    got ALLOW     Coach's weekly schedule, allowlisted
+PASS  022-4a   expected DENY     got DENY      Lesson times with pendingLeave
+PASS  022-4b   expected DENY     got DENY      Seats with studentName
+PASS  022-4c   expected DENY     got DENY      Seats with clientId
+PASS  022-4d   expected DENY     got DENY      Lesson times with no projection
+PASS  022-5a   expected DENY     got DENY      PENDING: coach's lesson times
+PASS  022-5b   expected DENY     got DENY      PENDING: coach's profile
+PASS  022-5c   expected ALLOW    got ALLOW     ACTIVE: coach's profile
+PASS  022-5d   expected DENY     got DENY      ACTIVE: coach's profile with loginEmail
+PASS  022-6a   expected DENY     got DENY      Coach B's profile
+PASS  022-6b   expected DENY     got DENY      Coach B's lesson times
+PASS  022-7a   expected ALLOW    got ALLOW     Conditional write into coach A
+PASS  022-7b   expected DENY     got DENY      Conditional write into coach B
+PASS  022-8    expected DENY     got DENY      Write to coach A with ReturnValues ALL_OLD
+PASS  022-9a   expected CONDFAIL got CONDFAIL  Control: write onto family B's seat, no return values
+PASS  022-9b   With ALL_OLD on failure: refused by IAM, nothing comes back
+PASS  022-10a  expected DENY     got DENY      First session (clientId only): coach's lesson times
+PASS  022-10b  expected ALLOW    got ALLOW     First session: own profile
+PASS  022-11a  expected ALLOW    got ALLOW     code-lookup: code with its name fields
+PASS  022-11b  expected DENY     got DENY      code-lookup: code with createdAt
+PASS  022-11c  expected DENY     got DENY      code-lookup: code, no projection
+PASS  022-11d  expected DENY     got DENY      code-lookup: Query a code
+PASS  022-11e  expected DENY     got DENY      code-lookup: coach's profile
+PASS  022-11f  expected DENY     got DENY      code-lookup: a family's profile
+PASS  022-11g  expected ALLOW    got ALLOW     First session: the code with coachId (registration resolves it)
+PASS  022-12   expected CONDFAIL got CONDFAIL  Transaction naming a PENDING skater: refused whole
+PASS  022-12v  nothing from the refused transaction was written
+PASS  022-13a  expected ALLOW    got ALLOW     Share-check: a skater's studentStatus only
+PASS  022-13b  expected DENY     got DENY      Share-check with studentName
+PASS  022-13c  expected DENY     got DENY      Share-check, no projection
+PASS  022-13d  expected DENY     got DENY      Share-check as a PENDING session
+PASS  022-14a  expected ALLOW    got ALLOW     BatchGetItem lesson times, allowlisted
+PASS  022-14b  expected DENY     got DENY      BatchGetItem with pendingLeave
+PASS  022-14c  expected DENY     got DENY      BatchGetItem, no projection
+PASS  022-14d  expected DENY     got DENY      BatchGetItem with a key in coach B
+PASS  022-14e  expected DENY     got DENY      BatchGetItem as a PENDING session
+PASS  022-15   expected ALLOW    got ALLOW     Seats' keys only (accepted risk: skater IDs, no names)
+INFO  022-15r  15 seat keys came back, as the 2026-11-17 amendment accepts
+PASS  022-16a  expected DENY     got DENY      Family B's seat with studentName
+PASS  022-16b  expected DENY     got DENY      Family B's seat with clientId
+PASS  022-16c  expected DENY     got DENY      Family B's seat with seatStatus
+PASS  022-16d  expected DENY     got DENY      Family B's seat with partnerName
+PASS  022-16e  expected ALLOW    got ALLOW     Own seat with idempotencyKey, consistent
+PASS  022-17a  expected ALLOW    got ALLOW     GSI1: own seats, every attribute
+PASS  022-17b  expected DENY     got DENY      GSI1: family B's seats
+
+== ADR-MASTER §16 and I30 · share codes, the deadline index, one coach per write ==
+PASS  sc-1a    expected ALLOW    got ALLOW     Share code: studentId and studentName
+PASS  sc-1b    expected DENY     got DENY      Share code with clientId
+PASS  sc-1c    expected DENY     got DENY      Share code, no projection
+PASS  sc-1d    expected DENY     got DENY      code-lookup: a share code
+PASS  gsi4     expected DENY     got DENY      A family querying GSI4
+PASS  i30-a    expected ALLOW    got ALLOW     Own items plus one coach's, through that coach's (waiting) session
+PASS  i30-b    expected DENY     got DENY      The same through the first session (no coach tag)
+
+== Summary ==
+76 passed, 0 failed.
+Results saved to docs/runbooks/gate-results-20261120-155510.txt. The TEST# items and the CODE#GATE code are deleted on exit.
