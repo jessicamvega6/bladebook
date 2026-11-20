@@ -26,11 +26,35 @@ export interface WebsiteProps {
   readonly site: SiteConfig;
   readonly zone: route53.IHostedZone;
   readonly noindex: boolean;
+  readonly csp: 'report-only' | 'enforce';
   readonly removalPolicy: RemovalPolicy;
   /** Sends `/api/*` to the API. */
   readonly api?: Api;
   /** The built website to upload: a folder from `siteFiles`. */
   readonly files: string;
+}
+
+/**
+ * The Content Security Policy (I17; ADR-MASTER section 1): BladeBook's own files only, plus Cognito, which the sign-in
+ * forms call directly (ADR-023 d11). No inline scripts or styles (the built pages have none), no framing, plugins, base
+ * changes or forms posting elsewhere. Fonts are BladeBook's own (Figtree, web/src/shared/styles/fonts.css).
+ */
+export function contentSecurityPolicy(region: string): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    `connect-src 'self' https://cognito-idp.${region}.amazonaws.com`,
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
 }
 
 /** Hashed file names change with their content, so a browser may keep them a year. */
@@ -186,11 +210,17 @@ export class Website extends Construct {
           referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
           override: true,
         },
+        ...(props.csp === 'enforce'
+          ? { contentSecurityPolicy: { contentSecurityPolicy: contentSecurityPolicy(Stack.of(this).region), override: true } }
+          : {}),
       },
       customHeadersBehavior: {
         customHeaders: [
           { header: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()', override: true },
           ...(props.noindex ? [{ header: 'X-Robots-Tag', value: 'noindex, nofollow', override: true }] : []),
+          ...(props.csp === 'report-only'
+            ? [{ header: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicy(Stack.of(this).region), override: true }]
+            : []),
         ],
       },
     });

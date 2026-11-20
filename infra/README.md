@@ -268,10 +268,11 @@ Change any of these in `lib/` and its test together.
 - **Security headers on both sites:** HTTP Strict Transport Security (HSTS) for two years,
   `nosniff`, no framing, `strict-origin-when-cross-origin`, and a `Permissions-Policy` that turns
   off the camera, microphone and location. Dev adds `X-Robots-Tag: noindex`.
-- **No Content Security Policy yet.** One written before the real build is served would likely
-  break it. Add it with Batch 17c's upload and test it there. *Ruled 2026-11-17 (I17): a strict
-  policy, only BladeBook's own site plus Cognito for sign-in, with Figtree served from BladeBook's
-  own files (ADR-MASTER §1).*
+- **The Content Security Policy** (I17, ADR-MASTER §1; `contentSecurityPolicy()` in `lib/website.ts`): only
+  BladeBook's own files, plus Cognito for sign-in; Figtree is served from the site. `config.ts`'s `csp` sets it per
+  environment: production enforces it, dev sends it as `Content-Security-Policy-Report-Only` until Batch 18's
+  real sign-in lets every signed-in page be clicked through (the three sign-in screens reported nothing on
+  2026-11-20).
 - **The access-log archive moves to Deep Archive after 30 days**, to match ADR-017's archive.
   ADR-012 doesn't give a day.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**

@@ -39,6 +39,11 @@ export interface EnvConfig {
   readonly retainData: boolean;
   /** Ask search engines not to index the sites (ADR-027: dev is not indexed). */
   readonly noindex: boolean;
+  /**
+   * The Content Security Policy (I17): `report-only` while it's proved (the browser reports what it would block, and
+   * blocks nothing), then `enforce`.
+   */
+  readonly csp: 'report-only' | 'enforce';
   /** ADR-MASTER §12: the weekly unpaid reminder lists lessons unpaid longer than this (Parameter Store). */
   readonly unpaidThresholdDays: number;
   /** ADR-MASTER §19: alarms and the up-check, on in production; in dev only to prove they fire (`-c alarms=on`). */
@@ -74,6 +79,9 @@ export const dev: EnvConfig = {
   emailDomain: { name: 'dev.bladebook.org' },
   retainData: false,
   noindex: true,
+  // I17 (ADR-MASTER section 1): report-only until a click-through of every page reports nothing. On 2026-11-20 the
+  // three sign-in screens reported nothing; the signed-in pages need Batch 18's real sign-in, which then enforces it.
+  csp: 'report-only',
   // ADR-MASTER §17: off in dev by default; turned on in block mode to rehearse.
   unpaidThresholdDays: 7,
   alarms: false,
@@ -97,6 +105,7 @@ export const prod: EnvConfig = {
   emailDomain: undefined,
   retainData: true,
   noindex: false,
+  csp: 'enforce',
   // ADR-MASTER §17: count mode for the first two weeks, then block.
   unpaidThresholdDays: 7,
   alarms: true,
