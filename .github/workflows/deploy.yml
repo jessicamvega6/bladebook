@@ -148,7 +148,10 @@ jobs:
             echo "AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds")"
             echo "AWS_REGION=${{ steps.target.outputs.region }}"
           } >> "$GITHUB_ENV"
-          aws sts get-caller-identity --query Arn --output text
+          # $GITHUB_ENV reaches later steps only, so this check is given the credentials itself.
+          AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<<"$creds") AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds") \
+            AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds") AWS_REGION="${{ steps.target.outputs.region }}" \
+            aws sts get-caller-identity --query Arn --output text
 
       - name: Deploy
         working-directory: infra
