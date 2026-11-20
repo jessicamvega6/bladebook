@@ -87,6 +87,11 @@ separation rests on the API checks. **Amends** [ADR-016](ADR-016-coach-signup.md
 [ADR-011](ADR-011-staging-environment.md) decision 7a and
 [ADR-027](ADR-027-on-demand-dev-environment.md).
 
+**Amended — 2026-11-20.** *Decided by the owner (I31 in `AI/plan-history.md`).* **No sign-in stand-in in shipped
+code.** From Batch 18 the websites sign in only through Cognito, locally too: local development signs in against dev's
+real user pool with real passwords, and the local APIs accept that pool's tokens. The APIs' token stub and its
+`/api/*/local/token` routes leave their shipped code; tests mint tokens from test-only code.
+
 **Amended — 2026-11-12.** *Decided by the owner.* **Decision 11's sign-in library is AWS Amplify's
 Auth module** (`aws-amplify` version 6, the sign-in part only), keeping SRP. It handles every Cognito
 call the forms make, the MFA and new-password challenges, and token refresh. It is the free,
