@@ -391,7 +391,10 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 5. For each skater they choose which of the entered coaches the skater joins, and give the
    skater's **registration number** (below).
 6. Registration writes the `SKATER#` items, and one link and one `PENDING` `STUDENT#` record per
-   skater per coach. The coach's name is copied onto each link item.
+   skater per coach. The coach's name is copied onto each link item. *One transaction per coach, each
+   through that coach's own session (ADR-022 d8), the profile and skaters with the first; if a later
+   coach's write fails, the family is registered with the earlier coaches and told to add the missed one
+   from Profile → Add a coach. The same for adding a skater (owner, 2026-11-20, I30).*
 
 ### Approval
 
