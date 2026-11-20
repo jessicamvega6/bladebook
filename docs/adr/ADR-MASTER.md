@@ -1879,7 +1879,8 @@ database-gate tests; reproducing an incident (masked build).
      actions as possible;
   2. AWS reached **only through OIDC**; no stored keys;
   3. the role trust policy checks `aud = sts.amazonaws.com` and `sub` exactly — for production,
-     `repo:<owner>/<repo>:environment:production`; no wildcards;
+     `repo:<owner>/<repo>:environment:production` (*in GitHub's immutable form, with the owner's and repository's
+     ID numbers, 2026-11-20*); no wildcards;
   4. production deploys run in a GitHub environment `production` that **requires approval** and
      allows only `main`;
   5. `main` protected: no direct or force pushes; pull requests with the checks passing; the

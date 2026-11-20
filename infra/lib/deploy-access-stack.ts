@@ -44,7 +44,7 @@ export class DeployAccessStack extends Stack {
       assumedBy: new iam.WebIdentityPrincipal(provider.oidcProviderArn, {
         StringEquals: {
           [`${GITHUB_ISSUER}:aud`]: 'sts.amazonaws.com',
-          [`${GITHUB_ISSUER}:sub`]: `repo:${cfg.github.repo}:environment:${cfg.github.environment}`,
+          [`${GITHUB_ISSUER}:sub`]: `repo:${cfg.github.subjectRepo}:environment:${cfg.github.environment}`,
         },
       }),
     });
