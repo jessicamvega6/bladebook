@@ -6,7 +6,9 @@
 table and tenant roles**, read from the stack's outputs, instead of building its own table and roles with copied
 policies in a sandbox account. Its test records move into dev's seed file, and in dev only the tenant roles trust a
 gate-test role you sign into. Until then, the steps below describe the old sandbox run. *Since 2026-11-17 (Batch
-17b) the real policies are in `infra/lib/tenant-roles.ts`, deployed in dev; the script's copies must match them.*
+17b) the real policies are in `infra/lib/tenant-roles.ts`, deployed in dev; the script's copies must match them.
+Since 2026-11-20 the family allowlists are in `backend/core/src/main/resources/bladebook/client-read-allowlist.json`,
+which the role is built from and local mode enforces (`LocalFamilyPolicy`).*
 
 **Rows to add before the next run** (*added 2026-10-20*; the script doesn't have these yet, and
 `client-tenant`'s policy has changed since the 2026-10-05 run, so re-run once they're in):

@@ -7,30 +7,30 @@
 // allowlist and BatchGetItem, and ADR-MASTER §16's share-code read. Change a statement here and in that script together,
 // and re-run the gate tests (ADR-022 decision 9).
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Validations } from 'aws-cdk-lib';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
-/** What a family may read in an `ACTIVE` coach's partition (ADR-022 decision 6, written 2026-11-17). Fails closed. */
-export const COACH_PUBLIC_ATTRIBUTES = [
-  'PK', 'SK',
-  'days', 'blocks', 'scheduleVersion', 'tempKind', 'scheduleName', 'startDate', 'endDate',
-  'lessonDate', 'startTime', 'startsAtUtc', 'coachTz', 'durationMinutes',
-  'priceMinor', 'currency', 'lessonStatus', 'shareCount', 'joinOrder', 'blockSeq',
-  'requiredNoticeHours', 'maxSkaters', 'seatsTaken',
-  'idempotencyKey', 'studentStatus',
-  'firstName', 'lastName', 'coachTimezone',
-  'displayPhoneToClients', 'displayEmailToClients', 'businessEmail', 'phone',
-  'acceptsCash', 'acceptsCashapp', 'acceptsVenmo', 'acceptsPaypal',
-  'cashappHandle', 'venmoHandle', 'paypalHandle',
-] as const;
+/**
+ * The read allowlists, from the one copy both sides use: core's `client-read-allowlist.json`, which core.data's local mode
+ * also enforces (ADR-022 d3, d6, d7; written 2026-11-17, I2). They fail closed.
+ */
+const allowlist = JSON.parse(readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../../backend/core/src/main/resources/bladebook/client-read-allowlist.json'), 'utf8',
+)) as { coachPublic: string[]; coachCode: string[]; skaterCode: string[] };
+
+/** What a family may read in an `ACTIVE` coach's partition (ADR-022 decision 6). */
+export const COACH_PUBLIC_ATTRIBUTES: readonly string[] = allowlist.coachPublic;
 
 /** A `CODE#` item's fields: what the code screen shows (ADR-022 decision 7). */
-export const CODE_ATTRIBUTES = ['PK', 'SK', 'coachId', 'coachFirstName', 'coachLastName', 'profilePhotoKey'] as const;
+export const CODE_ATTRIBUTES: readonly string[] = allowlist.coachCode;
 
 /** A `SKATERCODE#` item's fields: the skater's ID and display name (ADR-MASTER §16, ADR-026). */
-export const SKATER_CODE_ATTRIBUTES = ['PK', 'SK', 'studentId', 'studentName'] as const;
+export const SKATER_CODE_ATTRIBUTES: readonly string[] = allowlist.skaterCode;
 
 const ITEM_WRITES = ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem', 'dynamodb:ConditionCheckItem'];
 

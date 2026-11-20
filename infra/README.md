@@ -154,7 +154,10 @@ Change any of these in `lib/` and its test together.
 
 - **The tenant roles' policies (`lib/tenant-roles.ts`) follow the gate tests'**
   (`docs/runbooks/database-gate-tests.sh`), with ADR-022's 2026-11-17 allowlist. Change one and the
-  other together, and re-run the gate tests. Two details no ADR names: the trust policies also allow
+  other together, and re-run the gate tests. The allowlists themselves live in one file,
+  `backend/core/src/main/resources/bladebook/client-read-allowlist.json`: this stack builds the role from it,
+  and core.data's local mode enforces it (`LocalFamilyPolicy`), so a family read or write AWS would refuse
+  fails in the backend's tests too (17c, I30). Two details no ADR names: the trust policies also allow
   `sts:SetSourceIdentity`, so each session carries the person's `sub` as its source identity; and
   `coach-tenant` may `BatchGetItem` in its own partition, as `client-tenant` may in its own.
   ADR-MASTER §16 says the policy also refuses `ReturnValuesOnConditionCheckFailure` on the client

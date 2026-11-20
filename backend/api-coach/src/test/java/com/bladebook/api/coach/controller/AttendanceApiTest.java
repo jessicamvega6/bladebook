@@ -7,6 +7,8 @@ import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.FamilyRepository;
+import com.bladebook.core.domain.RegistrationRules;
+import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.LinkedSkater;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -112,8 +114,8 @@ class AttendanceApiTest {
     void setUp() throws Exception {
         email = "coach-" + UUID.randomUUID() + "@example.com";
         token = stub.coachToken(email);
-        call("POST", "/api/coach/signup", token, "{\"firstName\":\"Dana\",\"lastName\":\"Whitfield\",\"useLoginEmail\":true,"
-                + "\"coachTimezone\":\"America/Chicago\",\"currency\":\"USD\",\"paymentTypes\":[]}");
+        String code = call("POST", "/api/coach/signup", token, "{\"firstName\":\"Dana\",\"lastName\":\"Whitfield\",\"useLoginEmail\":true,"
+                + "\"coachTimezone\":\"America/Chicago\",\"currency\":\"USD\",\"paymentTypes\":[]}").body().get("coachCode").asString();
         // The coach's ID is the token's subject, as Cognito's would be.
         String coachId = JSON.readTree(java.util.Base64.getUrlDecoder().decode(token.split("\\.")[1])).get("sub").asString();
         dana = new AccessContext(coachId);
@@ -137,7 +139,9 @@ class AttendanceApiTest {
                 ClientRelationship.GUARDIAN, Instant.now());
         StudentRecord r = new StudentRecord(coachId, ava, family.clientId(), StudentStatus.PENDING, k.name(), true, ClientRelationship.GUARDIAN,
                 "Sarah Park", "sarah@example.com", "(205) 555-0196", SkatingOrg.USFS, "1234567", Instant.now());
-        new FamilyRepository(clients, table).register(family, p, List.of(k), List.of(r), Map.of(coachId, new CoachName("Dana", "Whitfield")));
+        // Registration resolves the code in the family's session, as RegistrationService does (I30).
+        CodeRepository.Found coach = new CodeRepository(clients, table).resolve(family, RegistrationRules.code(code)).orElseThrow();
+        new FamilyRepository(clients, table).register(family, p, List.of(k), List.of(r), List.of(coach));
         new StudentRepository(clients, table).approve(dana, ava);
         new SyncRepository(clients, table).setLinkStatus(family.clientId(), coachId, ava, StudentStatus.ACTIVE);
         linked = new ClientLinks(clients, table).requireActive(family, coachId, ava);

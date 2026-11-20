@@ -42,10 +42,6 @@ import java.util.Optional;
  */
 public final class CancellationRepository {
 
-    /** What the family's read of its own seat names (ADR-MASTER section 16). */
-    private static final List<String> SEAT_FIELDS = List.of("PK", "lessonDate", "startTime", "studentId", "clientId",
-            "studentName", "seatStatus", "startsAtUtc", "coachTz", "durationMinutes", "joinedAt", "idempotencyKey", "recurrenceId",
-            "bookedIntervalWeeks", "inviteId", "invitedStudentId", "partnerName", "partnerStatus", "choiceAnswerBy", "freedPlace");
 
     private final TenantClients clients;
     private final String table;
@@ -57,20 +53,24 @@ public final class CancellationRepository {
 
     // --------------------------------------------------------------------- the family
 
-    /** The family's own seat for one skater and time, read strongly consistent, or empty if there's none. */
+    /**
+     * The family's own seat for one skater and time, or empty if there's none. Read from GSI1, which {@code LeadingKeys}
+     * locks to the family: in the coach's partition a seat gives up only {@code idempotencyKey} (ADR-022, amended
+     * 2026-11-17, I2). The index can be a moment behind a write, which is safe: the cancel's own conditions check the seat
+     * is still this family's and still booked, so a stale read fails the write rather than touching anything else.
+     */
     public Optional<Seat> ownSeat(ClientContext ctx, LinkedSkater skater, LocalDate date, LocalTime start) {
-        Map<String, String> names = new HashMap<>();
-        for (int i = 0; i < SEAT_FIELDS.size(); i++) {
-            names.put("#a" + i, SEAT_FIELDS.get(i));
-        }
-        Map<String, AttributeValue> m = clients.clientFor(ctx, skater.coach()).getItem(GetItemRequest.builder().tableName(table)
-                .consistentRead(true).key(FamilyItems.key("COACH#" + skater.coachId(), Seat.key(date, start, skater.studentId())))
-                .projectionExpression(String.join(", ", names.keySet())).expressionAttributeNames(names)
-                .build()).item();
-        if (m == null || m.isEmpty() || !skater.clientId().equals(FamilyItems.str(m, "clientId"))) {
-            return Optional.empty();
-        }
-        return Optional.of(SeatItems.seat(m));
+        QueryResponse r = clients.clientFor(ctx).query(QueryRequest.builder().tableName(table).indexName("GSI1")
+                .keyConditionExpression("GSI1PK = :c AND GSI1SK = :s")
+                .filterExpression("PK = :p AND studentId = :k")
+                .expressionAttributeValues(Map.of(
+                        ":c", FamilyItems.s("CLIENT#" + skater.clientId()),
+                        ":s", FamilyItems.s(SeatItems.SEAT + date + "#" + start),
+                        ":p", FamilyItems.s("COACH#" + skater.coachId()),
+                        ":k", FamilyItems.s(skater.studentId())))
+                .build());
+        return r.items().stream().filter(m -> skater.clientId().equals(FamilyItems.str(m, "clientId")))
+                .findFirst().map(SeatItems::seat);
     }
 
     /**

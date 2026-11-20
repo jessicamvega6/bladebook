@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.dynamodb.model.Update;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,70 +56,98 @@ public final class FamilyRepository {
     // ------------------------------------------------------------------ writes
 
     /**
-     * Registration in one transaction: the profile, the {@code SKATER#} items, and per skater per coach a
-     * link and a {@code PENDING} {@code STUDENT#} record (ADR-MASTER section 5, step 6).
+     * Registration: the profile, the {@code SKATER#} items, and per skater per coach a link and a {@code PENDING}
+     * {@code STUDENT#} record (ADR-MASTER section 5, step 6). One transaction per coach, each through that coach's own
+     * session, the profile and skaters with the first (owner, 2026-11-20, I30).
      *
-     * @param coachNames each coach's name, copied onto the links
-     * @throws DomainException CONFLICT if the family already has a profile
+     * @param coaches each coach the records name, resolved from its code: its session's tag and its name for the links
+     * @throws DomainException CONFLICT if the family already has a profile, or if a later coach's write failed: the
+     *                         family is then registered with the earlier coaches and told to add the missed ones
      */
     public void register(ClientContext ctx, FamilyProfile profile, List<Skater> skaters, List<StudentRecord> students,
-                         Map<String, CoachName> coachNames) {
+                         List<CodeRepository.Found> coaches) {
         if (!profile.clientId().equals(ctx.clientId())) {
             throw new IllegalArgumentException("profile does not belong to the caller");
         }
-        List<TransactWriteItem> writes = new ArrayList<>();
-        writes.add(put(FamilyItems.profileItem(profile)));
+        List<TransactWriteItem> own = new ArrayList<>();
+        own.add(put(FamilyItems.profileItem(profile)));
         for (Skater k : skaters) {
-            writes.add(put(FamilyItems.skaterItem(ctx.clientId(), profile.relationship(), k)));
+            own.add(put(FamilyItems.skaterItem(ctx.clientId(), profile.relationship(), k)));
         }
-        for (StudentRecord r : students) {
-            if (!r.clientId().equals(ctx.clientId()) || r.status() != StudentStatus.PENDING) {
-                throw new IllegalArgumentException("registration writes only the caller's PENDING records");
-            }
-            writes.add(put(FamilyItems.linkItem(r, coachNames.get(r.coachId()))));
-            writes.add(put(FamilyItems.studentItem(r)));
-        }
-        try {
-            clients.clientFor(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(writes).build());
-        } catch (TransactionCanceledException e) {
-            if (e.hasCancellationReasons() && e.cancellationReasons().stream().anyMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
-                throw DomainException.conflict(ALREADY);
-            }
-            throw e;
-        }
+        perCoach(ctx, own, students, coaches, ALREADY, "You’re signed up");
     }
 
     /**
      * Profile → Add a skater (A9; ADR-025 item k): the {@code SKATER#} item, and a link and a {@code PENDING} record per coach
-     * picked, in one transaction. With no coach, only the skater: no coach is asked about someone they won't teach.
+     * picked, one transaction per coach (I30). With no coach, only the skater: no coach is asked about someone they won't
+     * teach.
+     *
+     * @param coaches the family's own approved coaches picked, from its links
      */
-    public void addSkater(ClientContext ctx, ClientRelationship rel, Skater k, List<StudentRecord> students, Map<String, CoachName> coachNames) {
-        List<TransactWriteItem> writes = new ArrayList<>();
-        writes.add(put(FamilyItems.skaterItem(ctx.clientId(), rel, k)));
-        writes.addAll(pending(ctx, students, coachNames));
-        write(ctx, writes, "That skater was just added. Reload the page.");
+    public void addSkater(ClientContext ctx, ClientRelationship rel, Skater k, List<StudentRecord> students,
+                          List<CodeRepository.Found> coaches) {
+        perCoach(ctx, List.of(put(FamilyItems.skaterItem(ctx.clientId(), rel, k))), students, coaches,
+                "That skater was just added. Reload the page.", k.name() + " is added");
     }
 
-    /** Profile → Add a coach (ADR-025 d2): a link and a {@code PENDING} record per skater, each waiting for that coach alone. */
-    public void addCoach(ClientContext ctx, List<StudentRecord> students, Map<String, CoachName> coachNames) {
-        write(ctx, pending(ctx, students, coachNames), "One of those skaters was just sent to that coach. Reload the page.");
+    /** Add a coach: a link and a {@code PENDING} record per chosen skater, for one coach (ADR-025 item k). */
+    public void addCoach(ClientContext ctx, List<StudentRecord> students, CodeRepository.Found coach) {
+        perCoach(ctx, List.of(), students, List.of(coach), "One of those skaters was just sent to that coach. Reload the page.", "");
     }
 
-    private List<TransactWriteItem> pending(ClientContext ctx, List<StudentRecord> students, Map<String, CoachName> coachNames) {
-        List<TransactWriteItem> writes = new ArrayList<>();
+    /**
+     * {@code own} (the family's own items) with the first coach's records, then each further coach's, each through that
+     * coach's session (ADR-022 d8, I30). A conflict on the first is {@code conflict}; a failure on a later one leaves the
+     * earlier writes standing and names the coaches it missed.
+     */
+    private void perCoach(ClientContext ctx, List<TransactWriteItem> own, List<StudentRecord> students,
+                          List<CodeRepository.Found> coaches, String conflict, String done) {
+        Map<String, CodeRepository.Found> byId = new LinkedHashMap<>();
+        coaches.forEach(c -> byId.put(c.coachId(), c));
+        Map<String, List<TransactWriteItem>> writes = new LinkedHashMap<>();
         for (StudentRecord r : students) {
             if (!r.clientId().equals(ctx.clientId()) || r.status() != StudentStatus.PENDING) {
                 throw new IllegalArgumentException("a family writes only its own PENDING records");
             }
-            writes.add(put(FamilyItems.linkItem(r, coachNames.get(r.coachId()))));
-            writes.add(put(FamilyItems.studentItem(r)));
+            CodeRepository.Found coach = byId.get(r.coachId());
+            if (coach == null) {
+                throw new IllegalArgumentException("a record names a coach that wasn't resolved");
+            }
+            List<TransactWriteItem> w = writes.computeIfAbsent(r.coachId(), id -> new ArrayList<>());
+            w.add(put(FamilyItems.linkItem(r, coach.name())));
+            w.add(put(FamilyItems.studentItem(r)));
         }
-        return writes;
+        if (writes.isEmpty()) {
+            write(clients.clientFor(ctx), own, conflict);
+            return;
+        }
+        List<String> missed = new ArrayList<>();
+        boolean first = true;
+        for (Map.Entry<String, List<TransactWriteItem>> e : writes.entrySet()) {
+            CodeRepository.Found coach = byId.get(e.getKey());
+            List<TransactWriteItem> items = new ArrayList<>(first ? own : List.of());
+            items.addAll(e.getValue());
+            DynamoDbClient db = clients.clientFor(ctx, coach.coach());
+            if (first) {
+                write(db, items, conflict);
+                first = false;
+                continue;
+            }
+            try {
+                write(db, items, conflict);
+            } catch (RuntimeException ex) {
+                missed.add("Coach " + coach.name().firstName());
+            }
+        }
+        if (!missed.isEmpty()) {
+            throw DomainException.conflict(done + ", but we couldn’t send your request to " + String.join(", ", missed)
+                    + ". Add them again from Profile → Add a coach.");
+        }
     }
 
-    private void write(ClientContext ctx, List<TransactWriteItem> writes, String conflict) {
+    private static void write(DynamoDbClient db, List<TransactWriteItem> writes, String conflict) {
         try {
-            clients.clientFor(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(writes).build());
+            db.transactWriteItems(TransactWriteItemsRequest.builder().transactItems(writes).build());
         } catch (TransactionCanceledException e) {
             if (e.hasCancellationReasons() && e.cancellationReasons().stream().anyMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
                 throw DomainException.conflict(conflict);
