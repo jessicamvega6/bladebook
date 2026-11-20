@@ -109,6 +109,20 @@ jobs:
             cp "$RUNNER_TEMP/archives/$m-lambda.zip" "backend/$m/target/"
           done
 
+      - name: Refuse a dev deploy without the test mailbox
+        if: inputs.environment == 'dev'
+        env:
+          TEST_MAILBOX: ${{ secrets.TEST_MAILBOX }}
+        run: |
+          # Without it, the account stack treats dev as having no test mailbox and deletes the test accounts and the
+          # mailbox's SES identity (ADR-027, I15). Stops before anything in AWS changes. Prints neither the value nor
+          # what's wrong with it, only that it isn't usable.
+          if [[ ! "$TEST_MAILBOX" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+            echo "::error::The dev environment's TEST_MAILBOX secret is missing or isn't an email address. Set it (Settings → Environments → dev) and run again."
+            exit 1
+          fi
+          echo "TEST_MAILBOX: set"
+
       - name: Mask the deploy-time settings
         env:
           TEST_MAILBOX: ${{ secrets.TEST_MAILBOX }}
