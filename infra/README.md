@@ -7,7 +7,8 @@ reason (ADR-032).
 
 **Status (Batch 17b, under way, 2026-11-17):** in dev, `bladebook-dev-identity` and
 `bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
-both websites (still empty), the table built from the seed file, the tenant roles, and the API
+both websites (uploaded by the stack since 17c: the coach site at `/` with rinkside at `/rinkside/`, the family
+site at `/`), the table built from the seed file, the tenant roles, and the API
 (`api-coach` and `api-client` behind API Gateway, served under `/api/*` on each site's host). The
 event backbone, the scheduled jobs, the firewall, the alarms and `auth-post-confirmation` followed.
 Piece 9 adds the deploy workflow, the bootstrap's data denies and `bladebook-dev-deploy-access`
@@ -63,6 +64,13 @@ npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
 
 ### The deploy workflow (ADR-032, I13, I29)
+
+- **The websites (17c):** `npm run build` in `web/` assembles `web/dist-sites/coach/` and `web/dist-sites/family/`
+  (`web/scripts/sites.mjs`), and `cdk.json` runs it before each synth, as it runs Maven. The app stack uploads them
+  itself (`lib/website.ts`, CDK's `BucketDeployment`): `assets/` with `public, max-age=31536000, immutable`, then the
+  pages and rinkside's service worker with `no-cache`, then CloudFront's copies are cleared. Nothing is pruned. GitHub's
+  role gets no new permission: the upload runs as CloudFormation. A merge's release carries `websites.tar.gz`, which
+  the deploy unpacks into `web/dist-sites/`.
 
 - **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
   version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those

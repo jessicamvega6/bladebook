@@ -75,10 +75,10 @@ the US-only check), SES (every template, and `api-coach`'s confirmation email), 
 - **Still disabled on screen:** the coach Profile's *Account* tab (Batch 18).
 - `infra/` holds the CDK (TypeScript) app from Batches 17a and 17b. In dev, `bladebook-dev-identity` (the user pool,
   its groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox) and
-  `bladebook-dev-app` (both websites behind CloudFront, still empty, the table built from the seed file and the tenant
+  `bladebook-dev-app` (both websites behind CloudFront, uploaded by the stack since 17c, the table built from the seed file and the tenant
   roles) are
   deployed, and so is `bladebook-dev-deploy-access` (GitHub's deploy role, 2026-11-19); dev is bootstrapped with the
-  data denies (I13). The websites are still empty until 17c's upload, so the app itself still runs locally only.
+  data denies (I13). Both websites load in dev since 17c, but signing in needs Batch 18, so the app itself still runs locally only.
 
 ## 3. Blocked outside this work
 

@@ -6,7 +6,7 @@ import { DATA_BUCKETS, dataBucketPattern, dataDenyStatements, LOG_READS, OBJECT_
 import { templateFiles } from '../lib/email.ts';
 import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
-import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
+import { apiRequestCode, ASSET_CACHE, PAGE_CACHE, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
 
 const dev = build(testDev);
@@ -113,6 +113,22 @@ describe('websites', () => {
   test('dev asks search engines not to index; production does not', () => {
     assert.equal(robotsHeaders(dev.app).length, 2);
     assert.equal(robotsHeaders(prod.app).length, 0);
+  });
+  test('each website uploads its build: hashed files cached a year, then the pages, rechecked, then CloudFront cleared', () => {
+    const uploads = Object.entries(dev.app.findResources('Custom::CDKBucketDeployment'));
+    assert.equal(uploads.length, 4);
+    for (const site of ['CoachSite', 'FamilySite']) {
+      const mine = uploads.filter(([id]) => id.startsWith(site));
+      const [assetsId, assets] = mine.find(([id]) => id.includes('UploadAssets'))!;
+      const [, pages] = mine.find(([id]) => id.includes('UploadPages'))!;
+      assert.equal(assets.Properties.DestinationBucketKeyPrefix, 'assets/');
+      assert.deepEqual(assets.Properties.SystemMetadata, { 'cache-control': ASSET_CACHE });
+      assert.deepEqual(pages.Properties.SystemMetadata, { 'cache-control': PAGE_CACHE });
+      for (const u of [assets, pages]) assert.equal(u.Properties.Prune, false);
+      assert.deepEqual(pages.Properties.DistributionPaths, ['/*']);
+      assert.ok(assets.Properties.DistributionId === undefined, 'the assets alone don\'t clear CloudFront');
+      assert.ok(JSON.stringify(pages.DependsOn ?? []).includes(assetsId.slice(0, 20)), `${site}: pages after assets`);
+    }
   });
 });
 

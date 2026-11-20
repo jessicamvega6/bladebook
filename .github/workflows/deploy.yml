@@ -5,8 +5,8 @@
 # - dev: the GitHub environment `dev`, main only. Deploys the account stack and the app stack.
 # - production: the GitHub environment `production`, main only, waits for the owner's approval. Refuses to run until
 #   production's account ID is in infra/lib/config.ts. ADR-032's post-deploy check is added with production.
-# Not here: the deploy-access stack, which holds this workflow's own role and is deployed by hand; the website
-# upload (Batch 17c).
+# The app stack uploads the tag's websites itself (17c). Not here: the deploy-access stack, which holds this workflow's
+# own role and is deployed by hand.
 #
 # ADR-032 d2: actions pinned to full commit hashes; AWS reached only through OpenID Connect, with no stored keys; the
 # role trusts only this repository's environment. Deploy-time settings are environment secrets, so the public run
@@ -96,7 +96,7 @@ jobs:
             (await import('node:fs')).appendFileSync(process.env.GITHUB_OUTPUT, out.join('\n') + '\n');
           "
 
-      - name: Fetch the tag's Lambda archives and check their sums
+      - name: Fetch the tag's Lambda archives and websites, and check their sums
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -108,6 +108,10 @@ jobs:
             mkdir -p "backend/$m/target"
             cp "$RUNNER_TEMP/archives/$m-lambda.zip" "backend/$m/target/"
           done
+          # The stack uploads them to each website's bucket (infra/lib/website.ts, 17c).
+          mkdir -p web/dist-sites
+          tar -xzf "$RUNNER_TEMP/archives/websites.tar.gz" -C web/dist-sites
+          test -f web/dist-sites/coach/index.html && test -f web/dist-sites/family/index.html
 
       - name: Refuse a dev deploy without the test mailbox
         if: inputs.environment == 'dev'
@@ -163,7 +167,7 @@ jobs:
           if [ -n "$TEST_MAILBOX" ]; then context+=(-c "testMailbox=$TEST_MAILBOX"); fi
           if [ -n "$PAGE_PHONE" ]; then context+=(-c "pagePhone=$PAGE_PHONE"); fi
           if [ -n "$PAGE_EMAIL" ]; then context+=(-c "pageEmail=$PAGE_EMAIL"); fi
-          # --app skips cdk.json's Maven build: the archives are the tag's, fetched above.
+          # --app skips cdk.json's Maven and website builds: the archives and websites are the tag's, fetched above.
           # shellcheck disable=SC2086
           npx cdk deploy $STACKS --app 'node bin/bladebook.ts' "${context[@]}" \
             --require-approval never --progress events

@@ -3,7 +3,8 @@
 // the firewall. Batch 17b adds the table (built from the seed import), the API, the functions,
 // the event backbone and the scheduled jobs.
 
-import { CfnOutput, Stack } from 'aws-cdk-lib';
+import { CfnOutput, Stack, Validations } from 'aws-cdk-lib';
+import type { CfnElement } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import type * as cognito from 'aws-cdk-lib/aws-cognito';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
@@ -21,7 +22,7 @@ import { Jobs } from './jobs.ts';
 import { Email } from './email.ts';
 import { BladebookTable } from './table.ts';
 import { TenantRoles } from './tenant-roles.ts';
-import { Website } from './website.ts';
+import { siteFiles, Website } from './website.ts';
 
 export interface AppStackProps extends StackProps {
   readonly cfg: EnvConfig;
@@ -154,6 +155,7 @@ export class AppStack extends Stack {
       noindex: cfg.noindex,
       removalPolicy,
       api: this.api,
+      files: siteFiles(this, 'coach'),
     });
     this.familySite = new Website(this, 'FamilySite', {
       site: cfg.sites.family,
@@ -161,7 +163,9 @@ export class AppStack extends Stack {
       noindex: cfg.noindex,
       removalPolicy,
       api: this.api,
+      files: siteFiles(this, 'family'),
     });
+    acknowledgeSiteUpload(this, [this.coachSite.bucket, this.familySite.bucket]);
 
 
     if (cfg.emailDomain) {
@@ -186,4 +190,26 @@ export class AppStack extends Stack {
     new CfnOutput(this, 'CoachSiteBucket', { value: this.coachSite.bucket.bucketName });
     new CfnOutput(this, 'FamilySiteBucket', { value: this.familySite.bucket.bucketName });
   }
+}
+
+/**
+ * CDK's own upload function (one per stack, behind both websites' `BucketDeployment`s), whose role CDK writes. Its
+ * findings, with the reasons (ADR-032: every finding has a written reason).
+ */
+function acknowledgeSiteUpload(stack: Stack, buckets: s3.IBucket[]): void {
+  const upload = stack.node.children.find((c) => c.node.id.startsWith('Custom::CDKBucketDeployment'));
+  if (!upload) throw new Error('no site upload function: did BucketDeployment change?');
+  const reason = 'CDK\'s BucketDeployment function, which copies the built website from CDK\'s asset bucket into the site '
+    + 'bucket and clears CloudFront\'s copies (17c). Its role is written by CDK, limited to those two buckets and invalidations.';
+  Validations.of(upload).acknowledge(
+    { id: 'AwsSolutions-IAM4[Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole]', reason },
+    ...['s3:Abort*', 's3:DeleteObject*', 's3:GetBucket*', 's3:GetObject*', 's3:List*']
+      .map((a) => ({ id: `AwsSolutions-IAM5[Action::${a}]`, reason })),
+    { id: 'AwsSolutions-IAM5[Resource::*]', reason: `${reason} CloudFront invalidations can't be limited to a distribution.` },
+    { id: `AwsSolutions-IAM5[Resource::arn:<AWS::Partition>:s3:::cdk-hnb659fds-assets-${stack.account}-${stack.region}/*]`, reason },
+    ...buckets.map((b) => ({
+      id: `AwsSolutions-IAM5[Resource::<${stack.getLogicalId(b.node.defaultChild as CfnElement)}.Arn>/*]`, reason,
+    })),
+    { id: 'AwsSolutions-L1', reason: 'CDK picks the upload function\'s runtime; it moves with aws-cdk-lib.' },
+  );
 }
