@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../shared/api/client';
+import { COACH_HOME } from '../shared/sites';
 import { coachSession, emailFromToken } from '../shared/auth/localAuth';
 import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
@@ -296,7 +297,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
     <div className="phone">
       <header className="phone__head">
         <div>
-          <a className="rk-home" href="/coach/"><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
+          <a className="rk-home" href={COACH_HOME}><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
           <div className="phone__title">{tab === 'account' ? 'Account' : tab === 'unsent' ? 'Not sent' : tab === 'week' ? 'This week' : 'Today'}</div>
           <div className="phone__sub">{tab === 'account' ? 'Rinkside page' : tab === 'unsent' ? 'Check-ins the server turned down'
             : tab === 'week' ? (!online ? 'No signal' : week ? weekRange(week) : 'Cancel lessons') : sub}</div>
@@ -522,7 +523,7 @@ function NotSentList({ list, onDone }: { list: Unsent[]; onDone: (u: Unsent) => 
           <p className="rk-reason">{u.reason}</p>
           {goesTomorrow(u) && <p className="fine">Will be removed tomorrow.</p>}
           <div className="rl__btns">
-            <a className="btn btn--secondary btn--sm" href="/coach/#/lessons" target="_blank" rel="noreferrer"><span>Record on the website</span></a>
+            <a className="btn btn--secondary btn--sm" href={`${COACH_HOME}#/lessons`} target="_blank" rel="noreferrer"><span>Record on the website</span></a>
             <button type="button" className="btn btn--primary btn--sm" onClick={() => onDone(u)}><span>Done</span></button>
           </div>
         </article>
