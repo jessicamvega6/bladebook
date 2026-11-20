@@ -46,7 +46,12 @@ export interface EnvConfig {
   /** ADR-019 / ADR-MASTER §17: wafEnabled (off deletes the ACL) and wafMode. */
   readonly waf: { readonly enabled: boolean; readonly mode: 'count' | 'block' };
   /** ADR-032 d2: the deploy role trusts exactly this repository and GitHub environment. */
-  readonly github: { readonly repo: string; readonly environment: string };
+  /**
+   * `repo` is the repository's name. `subjectRepo` is how GitHub names it in its OpenID Connect token's `sub`: the
+   * repository uses immutable subjects, `<owner>@<owner ID>/<repo>@<repo ID>`, so a renamed or recreated repository with
+   * the same name can't match (ADR-032 d2.3).
+   */
+  readonly github: { readonly repo: string; readonly subjectRepo: string; readonly environment: string };
   /**
    * ADR-011 8c / ADR-027 d3: the fixed pools of test accounts the account stack creates, on the
    * owner's test mailbox (a deploy-time setting, never in the repo). Undefined: none.
@@ -58,6 +63,8 @@ export interface EnvConfig {
 
 const productName = 'BladeBook';
 const githubRepo = 'jessicamvega6/bladebook';
+// GitHub's IDs for the owner (167584982) and the repository (1315357281): `gh api repos/jessicamvega6/bladebook`.
+const githubSubjectRepo = 'jessicamvega6@167584982/bladebook@1315357281';
 
 export const dev: EnvConfig = {
   envName: 'dev',
@@ -78,7 +85,7 @@ export const dev: EnvConfig = {
   unpaidThresholdDays: 7,
   alarms: false,
   waf: { enabled: false, mode: 'block' },
-  github: { repo: githubRepo, environment: 'dev' },
+  github: { repo: githubRepo, subjectRepo: githubSubjectRepo, environment: 'dev' },
   // ADR-011 8c: three to five coaches, about ten families.
   testAccounts: { coaches: 3, clients: 10 },
   seedImport: true,
@@ -101,7 +108,7 @@ export const prod: EnvConfig = {
   unpaidThresholdDays: 7,
   alarms: true,
   waf: { enabled: true, mode: 'count' },
-  github: { repo: githubRepo, environment: 'production' },
+  github: { repo: githubRepo, subjectRepo: githubSubjectRepo, environment: 'production' },
   // Production's canary accounts are settled when production is built (ADR-027 d7).
   seedImport: false,
 };
