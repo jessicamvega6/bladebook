@@ -5,10 +5,13 @@ BladeBook's AWS infrastructure, written with the AWS Cloud Development Kit (CDK)
 every synth against the AWS Solutions rules and fails it on any finding that has no written
 reason (ADR-032).
 
-**Status (Batch 17a, 2026-11-16):** written and tested. In dev, `bladebook-dev-identity` is
-deployed. `bladebook-dev-app` waits for the account's CloudFront verification (below), and
-`bladebook-dev-deploy-access` waits for the deploy workflow. The rest of Batch 17,
-including the table, API and functions, is split into Batches 17b and 17c (`AI/implementation-plan.md`).
+**Status (Batch 17b, under way, 2026-11-17):** in dev, `bladebook-dev-identity` and
+`bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
+both websites (still empty), the table built from the seed file, the tenant roles, and the API
+(`api-coach` and `api-client` behind API Gateway, served under `/api/*` on each site's host). The
+event backbone, the scheduled jobs, the firewall, the alarms and `auth-post-confirmation` followed.
+Piece 9 adds the deploy workflow, the bootstrap's data denies and `bladebook-dev-deploy-access`
+(see "The deploy workflow" below).
 
 ## Stacks
 
@@ -17,8 +20,8 @@ account doesn't exist yet, so only dev's are built.
 
 | Stack | Holds | Lifetime |
 |---|---|---|
-| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, and the `coach-web` and `family-web` app clients | Built first; kept between dev builds (I16, ADR-028) |
-| `bladebook-dev-app` | Both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
+| `bladebook-dev-identity` | The account stack (ADR-028 d4): the Cognito user pool, the `Coach` and `Client` groups, the `coach-web` and `family-web` app clients, and in dev the test accounts (3 coaches, 10 families) and the seed file's bucket | Built first; kept between dev builds (I16, ADR-028) |
+| `bladebook-dev-app` | The table (in dev, created from the seed bucket's `seed/current/`), both websites (S3 + CloudFront + certificate + DNS records), the data buckets (archive, reports, access-log archive), the access log and its Firehose stream, SES for `dev.bladebook.org`, the tenant roles (`coach-tenant`, `client-tenant`, `code-lookup`) and the API functions' execution roles, the event bus, its Pipe and the seven consumers with their dead-letter queues, the scheduled jobs and their schedules, and the Web Application Firewall (WAF) when switched on | Destroyed when dev's work is done (ADR-027) |
 | `bladebook-dev-deploy-access` | GitHub's OpenID Connect (OIDC) provider and the deploy role (ADR-032 d2) | Kept between dev builds |
 
 | Website | Dev | Production |
@@ -31,11 +34,12 @@ account doesn't exist yet, so only dev's are built.
 ```sh
 cd infra
 npm ci
-npm test            # 23 tests, including a cdk-nag synth of dev and production
+npm test            # 31 tests, including a cdk-nag synth of dev and production
 npm run typecheck
 ```
 
-Deploying to dev (by hand: ADR-032 allows hand-run dev builds before the deploy workflow exists):
+Deploying to dev by hand (ADR-032 allows it, with the owner's own sign-in; the deploy workflow below is the
+other way in):
 
 ```sh
 aws sso login --sso-session bladebook
@@ -43,16 +47,83 @@ aws sso login --sso-session bladebook
 # Once per account, before the first deploy: ask AWS Support to verify the account for CloudFront
 # (see "New account: CloudFront verification" below).
 
-# Once per account: the roles CDK deploys through. From Batch 17b, bootstrap with the execution
-# policy that denies reading table data, the access log and the data buckets (ADR-032, I13).
-npx cdk bootstrap aws://793581837527/us-east-1 --profile bladebook-dev
+# Once per account, and again whenever lib/data-deny.ts changes: the roles CDK deploys through, with
+# AdministratorAccess plus the managed policy that denies reading table items, the access log and the
+# data buckets (ADR-032, I13). --dry-run prints the policy and the command.
+node bootstrap/bootstrap.ts dev --profile bladebook-dev
 
-npx cdk deploy bladebook-dev-identity bladebook-dev-app --profile bladebook-dev
-npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # when the workflow is added
+npx cdk deploy bladebook-dev-identity --profile bladebook-dev
+node seed/seed.ts                      # the seed file (needs Docker and Java 17; see "The seed file")
+npx cdk deploy bladebook-dev-app --profile bladebook-dev
+node seed/check-import.ts              # ADR-028 d5: destroy the app stack if this fails
+npx cdk deploy bladebook-dev-deploy-access --profile bladebook-dev   # GitHub's role: always by hand
 
 # Tear down (deletes dev's data: ADR-027 d4's rules apply first). The identity stack is kept.
 npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
+
+### The deploy workflow (ADR-032, I13, I29)
+
+- **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
+  version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those
+  checks built and their `SHA256SUMS`.
+- **`.github/workflows/deploy.yml` is started by hand** from `main` (Actions → Deploy → Run workflow) with a
+  tag and an environment. It refuses a tag that isn't on `main`, downloads the tag's archives and checks
+  their sums, signs in to AWS through OpenID Connect as `<prefix>-github-deploy`, and runs
+  `cdk deploy <prefix>-identity <prefix>-app` with `--app 'node bin/bladebook.ts'` (no Maven build).
+  Production's run refuses until production's account ID is in `lib/config.ts`.
+- **It never deploys `<prefix>-deploy-access`**, which holds its own role: that stack is deployed by hand.
+- **What CDK may do** is set by the bootstrap (above): AdministratorAccess plus `<prefix>-cdk-deny-data`
+  (`lib/data-deny.ts`). GitHub's role carries the same denies, and can't assume the lookup role: lookups are
+  committed in `cdk.context.json`, and a new one is run once by hand.
+- **GitHub settings** (ADR-032 d2, set with `gh` on 2026-11-19):
+  - environments `dev` and `production`, each deploying from `main` only; `production` waits for the
+    owner's approval;
+  - environment secrets: `dev` has `TEST_MAILBOX`; `production` will have `PAGE_PHONE` and `PAGE_EMAIL`;
+  - `main`'s ruleset `protect-main`: pull requests only, the `backend`, `web` and `infra` checks, no force
+    pushes, and no bypass, the owner included;
+  - workflow tokens read-only by default; every action pinned to a full commit hash.
+
+### The owner's test mailbox (dev's test accounts)
+
+Dev's test accounts are tagged addresses on the owner's test mailbox (ADR-027, I15). The repo is
+public, so the address is **never written into it**, including `cdk.json` and `cdk.context.json`.
+Give it to CDK as context instead: in your own `~/.cdk.json` (`{ "context": { "testMailbox": "…" } }`),
+or with `-c testMailbox=…` on each command. The deploy workflow passes it from the `dev` environment's
+secret `TEST_MAILBOX`: a secret, not a variable, because a public repository's run logs are public and only
+secrets are masked (the workflow masks the mailbox's domain too). Without it, the account stack builds no test accounts and synth prints a warning.
+
+After the first deploy with it set:
+
+- the accounts' shared password is in Secrets Manager (output `TestAccountsPasswordSecret`);
+- add the three DKIM CNAME records printed as `TestMailboxDkim1`–`3` on the mailbox's domain, by
+  hand, so dev's SES can send to the tagged addresses.
+
+**Build order (ADR-028 d4):** the identity stack, then the seed script writes `seed/current/` in the
+seed bucket, then the app stack, whose table is created from that file. Deploying the app stack
+before a seed file exists fails.
+
+### The seed file
+
+`seed/seed.ts` writes the one file dev's table is created from (ADR-028). It doesn't write items
+itself: it starts both APIs from `backend/` in the local profile against a fresh `bladebook-seed`
+table on DynamoDB Local (ports 18080 and 18081, so it doesn't clash with a local run), and the
+people in `seed/scenario.ts` sign up, post schedules, link, get approved and book through the
+real routes. The local token stub is given the test accounts' real Cognito `sub`s, read by email
+from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you can sign
+in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
+are counted into `seed/current.manifest.json`, and both are uploaded to the seed bucket, replacing
+the last seed. `--no-upload` stops before the upload; `--skip-build` reuses the built jars.
+
+What's in it: three coaches (one with two-skater lessons), ten families (guardians and adult
+skaters, one with two coaches), 18 lessons booked, two weekly series, one cancellation, and two
+families left waiting for approval. Payments and attendance need lessons in the past, so the seed
+has none yet. Its local copy is in `seed/out/`, which git ignores: it holds the test mailbox's
+addresses.
+
+`seed/check-import.ts` then compares the table's import with the manifest: the import must be
+complete, with no errors, and must have read and imported exactly the manifest's item count. It
+exits 1 otherwise, and the app stack must be destroyed.
 
 ### New account: CloudFront verification
 
@@ -61,7 +132,8 @@ verification, `bladebook-<env>-app` fails with `Your account must be verified be
 CloudFront resources` (403) and rolls back. The identity stack has no CloudFront resources, so it
 deploys without verification.
 
-Dev's account (793581837527) was asked on 2026-11-16 (case 179485860000682). **Production's
+Dev's account (793581837527) was asked on 2026-11-16 (case 179485860000682) and verified by
+2026-11-17, when `bladebook-dev-app` first deployed. **Production's
 account needs the same step as soon as it is created, a day or more before its first deploy.**
 
 1. Open AWS Support Center in the new account and choose **Create case**.
@@ -80,6 +152,98 @@ in `cdk.context.json`. Commit that file, so later synths (and CI) don't need the
 
 Change any of these in `lib/` and its test together.
 
+- **The tenant roles' policies (`lib/tenant-roles.ts`) follow the gate tests'**
+  (`docs/runbooks/database-gate-tests.sh`), with ADR-022's 2026-11-17 allowlist. Change one and the
+  other together, and re-run the gate tests. Two details no ADR names: the trust policies also allow
+  `sts:SetSourceIdentity`, so each session carries the person's `sub` as its source identity; and
+  `coach-tenant` may `BatchGetItem` in its own partition, as `client-tenant` may in its own.
+  ADR-MASTER §16 says the policy also refuses `ReturnValuesOnConditionCheckFailure` on the client
+  path, but IAM has no condition key for it, so only the ArchUnit rule holds that.
+- **`cdk.json`'s app command runs `./mvnw -q -DskipTests package` in `backend/` first** (ADR-001
+  decision 2), so every synth, diff and deploy packages the current code: `api-coach` and
+  `api-client` are deployed from `backend/<module>/target/<module>-lambda.zip`
+  (`backend/lambda-zip.xml`). The tests use a stand-in package instead (`bladebook:placeholderCode`).
+- **Email (`lib/email.ts`):** every template in `design/harbor/email/ses/` is loaded into SES under its
+  own name, unprefixed (one environment per account). A role's SES permission names its templates one
+  by one, is held to the From address (`ses:FromAddress`), and covers any identity, because the
+  sandbox also checks the recipient's. `api-coach` may send only `business-email-confirmation`
+  (ADR-MASTER §2, I9). Checked in dev, 2026-11-17: SES accepted that template sent to SES's test
+  address, and IAM's policy simulator refused another template, another From address, and an
+  untemplated `ses:SendEmail`.
+- **The access log (`lib/api.ts`):** both API functions get the group's name
+  (`BLADEBOOK_ACCESSLOGGROUP`) and `logs:CreateLogStream` and `logs:PutLogEvents` on that group
+  only, never a read (ADR-MASTER §18, I12). Each container writes its own stream,
+  `<date>/<function>/<random>`. Checked in dev, 2026-11-17: a coach's Students page writes one line
+  with API Gateway's request ID, the visitor's address and the field names; the coach's own profile
+  writes none.
+- **The event backbone (`lib/consumers.ts`):** one Pipe reads the table's stream and puts each record,
+  unchanged, on the `<prefix>-events` bus, dropping TTL removals; its own dead-letter queue catches what it
+  couldn't put. One rule per named event (`EVENT_PATTERNS`, each tested against sample records and near
+  misses) invokes its consumer from `consumers-lambda.zip`. Each consumer has its own role (no
+  `AWSLambdaBasicExecutionRole`: its own log group only), DynamoDB actions held by leading key to the
+  partitions it touches (ADR-MASTER §2, I22), SES for its own templates only, and one dead-letter queue
+  for both the rule and the function (two Lambda retries). 1,024 MB; one minute, five for
+  `consumer-schedule-change`.
+- **The scheduled jobs (`lib/jobs.ts`):** EventBridge Scheduler runs each `sched-*` function in
+  `America/Chicago` with the time it's for (`<aws.scheduler.scheduled-time>`); the job takes that time's
+  date. `sched-year-close` is a second schedule on the roller's function. The two reminders and the drift
+  check have a dead-letter queue; the roller, year close and sweep report a completion metric instead (CloudWatch's
+  embedded metric format, namespace `BladeBook`, by `Function`). The unpaid threshold is the Parameter
+  Store setting `/<prefix>/unpaid-reminder/threshold-days`, read on every run; a deploy sets it back
+  to `config.ts`'s value. Roles: ADR-MASTER §2, I23.
+- **The drift check (`sched-drift-check`, 3:00 AM Central):** reads only (GSI2, and `GetItem` and `Query`
+  in each coach's partition). A coach with a batch stuck for over an hour is handed to
+  `consumer-schedule-change` (`{"reconcile": "<coachId>"}`, the role's one `lambda:InvokeFunction`),
+  which settles the batch and writes any difference as a `RECONCILE` batch. What's left goes out as metrics
+  (`DriftReconcileFailed`, `DriftMissedCancellations`, `DriftOutstandingReprices`, `DriftCheckCompleted`)
+  for piece 7's alarms; it publishes to no SNS topic itself (owner, 2026-11-18, I25).
+- **The TTL archiver (`consumer-ttl-archiver`):** the stream's second reader (with the Pipe), filtered to
+  removals by the DynamoDB service. Each old image goes to the archive bucket at
+  `coach=<id>/student=<id|none>/type=<itemType>/<date>/<sha256 of the key>.json`, tagged `itemType`, so a
+  retried batch rewrites the same objects. Its role may put and tag objects there and read the stream,
+  nothing else; it writes no access-log lines, since it reads no one's data for anyone. No dead-letter
+  queue (ADR-MASTER §19): Lambda retries a batch until it succeeds, halving it on an error.
+  A new archiver's stream connection starts at the stream's newest record and takes a few minutes to
+  begin, so a TTL removal in those first minutes isn't archived (seen in dev, 2026-11-18; the second
+  test item was archived). Production has no item due that early.
+- **The firewall (`lib/firewall.ts`):** one web ACL on the user pool and the API's stage. A request is the
+  API's when its Host is API Gateway's (`.execute-api.`); otherwise Cognito's. The API's rules count by the
+  visitor's address from `x-bladebook-viewer-ip`; Cognito's by the connecting address; the IP reputation
+  list sees Cognito only. `origin-header` refuses any API request without CloudFront's secret, first. The
+  `/health` limit is 100 per 5 minutes per address. Dev's is off: `-c waf=block` switches it on for one
+  deploy, to rehearse (ADR-MASTER §17); production's can't be switched off.
+- **The alarms (`lib/alarms.ts`):** one paging topic, `<prefix>-pages`. Its phone (`-c pagePhone=…`) and,
+  until US texts work, its email (`-c pageEmail=…`) are deploy-time settings (I26). On in production; in dev
+  `-c alarms=on` switches them on for one deploy, to prove they fire. They page on:
+  - a job that didn't run, by its invocations or its completion metric; missing data counts as not run;
+  - the drift check's failed finish or missed cancellation (I25);
+  - the notifier's and schedule-change's dead-letter queues;
+  - the Pipe's queue and its failed runs (Pipes publishes no iterator age), and the archiver falling behind
+    the stream (I28);
+  - SES bounce and complaint rates;
+  - the never-linked counts (a metric filter for the day; a Contributor Insights rule by family, fixed 15 minutes);
+  - and, in production, the up-check: two Route 53 health checks from US locations only.
+
+  Everything else is on the `<prefix>-morning` dashboard, the year close included: it doesn't page, and a
+  missed one is run by hand (I28).
+- **`auth-post-confirmation` (identity stack):** adds `Coach` or `Client` by the app client a new account
+  confirmed through, never by anything the person typed (ADR-023 d10). The pool names it by the ARN its
+  fixed name gives, so the function can hold both clients' IDs without a dependency loop. One permission,
+  `cognito-idp:AdminAddUserToGroup` on this pool; only Cognito, for this pool, may invoke it. 2,048 MB and
+  5 seconds, Cognito's own wait, with its call held to 3.5 seconds. Cognito confirms first, so a failure
+  leaves the account with no group: its errors page (`post-confirmation-errors`) and the owner adds the group
+  by hand (`docs/runbooks/stuck-account.md`, I27).
+- **The API functions:** 1,536 MB (memory also buys CPU, which Spring's start needs) and a 29-second
+  timeout, API Gateway's own limit. Their logs and the API's access log are kept 30 days.
+- **API Gateway's account-wide logging role** is created by this stack and kept when it's destroyed
+  (it holds no data, and a rebuilt dev needs it again). Without it the stage can't write access logs.
+- **Both API roles may read the origin secret** (`secretsmanager:GetSecretValue` on that one secret,
+  ADR-MASTER §2's role table). It's how each API checks CloudFront's header.
+- **"United States only" means the 50 states and DC** (CloudFront's `US`). The territories (Puerto
+  Rico, Guam, the US Virgin Islands, American Samoa, the Northern Mariana Islands and the minor
+  outlying islands) have their own country codes and are refused (owner, 2026-11-17). A visitor
+  with no country header is refused too, so a configuration mistake shows at once.
+- **No CORS on the API**: the sites call it on their own host through CloudFront.
 - **Region `us-east-1`.** The cost model and the gate tests already assume it, and CloudFront's
   certificates must be there.
 - **Cognito's Lite plan.** Threat protection (the Plus plan) is replaced by ADR-019's WAF rate rules.
@@ -102,11 +266,11 @@ Change any of these in `lib/` and its test together.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**
   (`SignUp`, `InitiateAuth`, `RespondToAuthChallenge`). Prove it in the block-mode rehearsal.
 - **The dev deploy role trusts the GitHub environment `dev`** (`repo:jessicamvega6/bladebook:environment:dev`).
-  Production's trusts `production` (ADR-032). The role can only assume CDK's four bootstrap roles.
+  Production's trusts `production` (ADR-032). The role can only assume CDK's deploy and file-publishing roles,
+  and carries the data denies too (I13).
 
 ## Still open
 
-- **Narrowing CDK's bootstrap execution policy.** It defaults to AdministratorAccess (ADR-032 Open).
 - **The `/health` rate limit** (ADR-MASTER §21). The WAF has the other six rules.
 - **The API behind CloudFront** (I1, 2026-11-17; ADR-019): 17b adds the CloudFront Function that
   passes the visitor's address in a BladeBook header, the API's rate rules counting by it, the

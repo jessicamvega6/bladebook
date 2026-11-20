@@ -21,6 +21,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,6 +116,45 @@ public final class ChangeBatchRepository {
 
     public void finish(AccessContext ctx, ChangeBatch executed) {
         db(ctx).putItem(b -> b.tableName(table).item(CancellationItems.header(ctx.coachId(), executed, "COMPLETE")));
+    }
+
+    /**
+     * Batches whose header isn't {@code EXECUTED} and was written before {@code before}: stuck, since a batch runs in
+     * seconds (ADR-MASTER section 19: over an hour). Oldest first.
+     */
+    public List<ChangeBatch> unfinished(AccessContext ctx, Instant before) {
+        return query(ctx, CancellationItems.BATCH).stream().map(CancellationItems::batch)
+                .filter(b -> b.executionStatus() != ChangeBatch.Execution.EXECUTED && b.createdAt().isBefore(before)).toList();
+    }
+
+    /**
+     * Settles a stuck batch (ADR-MASTER section 19, "reconcile, never replay"): every line still {@code PLANNED} is skipped
+     * as {@code NO_LONGER_NEEDED}, since the reconcile that follows works the difference out again from the schedule as it
+     * is now; the header becomes {@code EXECUTED} with what was carried out, so the notifier tells those families only.
+     *
+     * @return lines skipped
+     */
+    public int settle(AccessContext ctx, ChangeBatch stuck) {
+        List<String> planned = new ArrayList<>();
+        Set<String> families = new HashSet<>();
+        int done = 0;
+        for (String prefix : List.of(CancellationItems.LINE, CancellationItems.REPRICED)) {
+            for (Map<String, AttributeValue> m : query(ctx, prefix + stuck.stamp() + "#" + stuck.batchId() + "#")) {
+                String status = FamilyItems.str(m, "executionStatus");
+                if (ChangeBatch.Execution.PLANNED.name().equals(status)) {
+                    planned.add(m.get("SK").s());
+                } else if (ChangeBatch.Execution.EXECUTED.name().equals(status)) {
+                    done++;
+                    String client = FamilyItems.str(m, "clientId");
+                    if (client != null) {
+                        families.add(client);
+                    }
+                }
+            }
+        }
+        skip(ctx, planned, "NO_LONGER_NEEDED");
+        finish(ctx, stuck.executed(done, families.size()));
+        return planned.size();
     }
 
     /** The newest schedule-change batch (the weekly schedule or a dated one), with any lines skipped as passed. */

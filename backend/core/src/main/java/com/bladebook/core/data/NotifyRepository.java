@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.dynamodb.model.Select;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.time.Instant;
@@ -105,10 +106,13 @@ public final class NotifyRepository {
         return get("COACH#" + coachId, FamilyItems.STUDENT + studentId).map(FamilyItems::student);
     }
 
-    /** Every coach with a profile. Only the nightly roller uses it; on AWS it's a scan of the profiles too. */
+    /**
+     * Every coach with a profile, for the roller and the year close. Reads the keys only: their roles may scan nothing
+     * else (ADR-MASTER section 2), and the profiles hold personal data the jobs don't need.
+     */
     public List<String> coachIds() {
         List<String> out = new ArrayList<>();
-        scan("begins_with(PK, :c) AND SK = :p", Map.of(":c", FamilyItems.s("COACH#"), ":p", FamilyItems.s("PROFILE")), null,
+        scan("begins_with(PK, :c) AND SK = :p", Map.of(":c", FamilyItems.s("COACH#"), ":p", FamilyItems.s("PROFILE")), null, true,
                 m -> out.add(m.get("PK").s().substring("COACH#".length())));
         return out;
     }
@@ -195,7 +199,7 @@ public final class NotifyRepository {
     /** GSI3, scanned (ADR-MASTER section 2): every seat still unpaid, across coaches. */
     public List<SeatRow> unpaid() {
         List<SeatRow> out = new ArrayList<>();
-        scan(null, Map.of(), LocalTable.GSI3, m -> out.add(seatRow(m)));
+        scan(null, Map.of(), LocalTable.GSI3, false, m -> out.add(seatRow(m)));
         return out;
     }
 
@@ -313,7 +317,8 @@ public final class NotifyRepository {
         return out;
     }
 
-    private void scan(String filter, Map<String, AttributeValue> values, String index, java.util.function.Consumer<Map<String, AttributeValue>> each) {
+    private void scan(String filter, Map<String, AttributeValue> values, String index, boolean keysOnly,
+                      java.util.function.Consumer<Map<String, AttributeValue>> each) {
         Map<String, AttributeValue> start = null;
         do {
             ScanRequest.Builder b = ScanRequest.builder().tableName(table).exclusiveStartKey(start);
@@ -322,6 +327,9 @@ public final class NotifyRepository {
             }
             if (filter != null) {
                 b.filterExpression(filter).expressionAttributeValues(values);
+            }
+            if (keysOnly) {
+                b.projectionExpression("PK, SK").select(Select.SPECIFIC_ATTRIBUTES);
             }
             ScanResponse r = db().scan(b.build());
             r.items().forEach(each);

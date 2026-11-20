@@ -393,6 +393,11 @@ Decision 7 refuses a token without a group, so the group must be on the account 
   through the family app client (decision 9). The group comes only from the app client ID in the
   event, never from anything the person typed.
 - **The website then refreshes its tokens**, so the first signed-in request carries the group.
+- *Amended 2026-11-18 (owner, I27):* **Cognito confirms the account before the trigger runs**, so a failed trigger
+  leaves the account confirmed with no group, and the person can't retry (found building it, Batch 17b). The trigger
+  keeps its call inside Cognito's 5 seconds, its errors page the owner, and the owner adds the group by hand
+  (`docs/runbooks/stuck-account.md`). A self-repair route was weighed and set aside: it would give an internet-facing
+  API role a Cognito admin permission, for a failure expected to be rare at launch.
 - **One small function with one permission:** `cognito-idp:AdminAddUserToGroup` on this user
   pool. It brings BladeBook to seventeen functions. *Sixteen in MVP since 2026-11-11 (ADR-001).*
 - **A coach who is also a parent:** adding `Client` to an existing coach account is a separate

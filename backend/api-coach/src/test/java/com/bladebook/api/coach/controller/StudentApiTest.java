@@ -2,6 +2,7 @@ package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
 import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.FamilyRepository;
@@ -125,6 +126,28 @@ class StudentApiTest {
         assertThat(ava.get("clientEmail").asString()).isEqualTo("sarah@example.com");
         assertThat(ava.get("skatingOrg").asString()).isEqualTo("USFS");
         assertThat(ava.get("relationship").asString()).isEqualTo("GUARDIAN");
+    }
+
+    @Test
+    void theReadIsLoggedWithTheRequestAndAFailedLogWriteSendsNoneOfIt() throws Exception {
+        List<AccessLog.Line> lines = new java.util.concurrent.CopyOnWriteArrayList<>();
+        try {
+            AccessLog.install(lines::addAll, Clock.systemUTC());
+            assertThat(call("GET", "/api/coach/students", token, null).status()).isEqualTo(200);
+            AccessLog.Line l = lines.stream().filter(x -> x.operation().equals("students")).findFirst().orElseThrow();
+            assertThat(l.requestId()).startsWith("local-");
+            assertThat(l.source()).isNotBlank();
+            assertThat(l.fields()).contains("clientEmail");
+
+            AccessLog.install(x -> {
+                throw new IllegalStateException("CloudWatch is down");
+            }, Clock.systemUTC());
+            Res failed = call("GET", "/api/coach/students", token, null);
+            assertThat(failed.status()).isEqualTo(500);
+            assertThat(failed.body().toString()).doesNotContain("Sarah").doesNotContain("sarah@example.com");
+        } finally {
+            AccessLog.install(AccessLog.APPLICATION_LOG, Clock.systemUTC());
+        }
     }
 
     @Test

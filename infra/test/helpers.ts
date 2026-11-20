@@ -28,8 +28,11 @@ export interface Built {
   readonly deployAccess: Template;
 }
 
-export function build(cfg: EnvConfig): Built {
-  const app = new App();
+/** A stand-in for the owner's test mailbox, which is never in the repo. */
+export const TEST_MAILBOX = 'owner+dev@mailbox.test';
+
+export function build(cfg: EnvConfig, context: Record<string, string> = {}): Built {
+  const app = new App({ context: { 'bladebook:placeholderCode': 'true', ...context } });
   const stacks = addEnvironment(app, cfg);
   return {
     stacks,
@@ -40,8 +43,8 @@ export function build(cfg: EnvConfig): Built {
 }
 
 /** Synthesizes with cdk-nag on and returns the error, if any. */
-export function synthWithSecurityChecks(cfgs: readonly EnvConfig[]): Error | undefined {
-  const app = new App();
+export function synthWithSecurityChecks(cfgs: readonly EnvConfig[], context: Record<string, string> = {}): Error | undefined {
+  const app = new App({ context: { 'bladebook:placeholderCode': 'true', ...context } });
   for (const cfg of cfgs) addEnvironment(app, cfg);
   addSecurityChecks(app);
   try {

@@ -41,6 +41,16 @@ public class CoreConfig {
      * DynamoDB Local. {@link TenantClients#local} refuses any endpoint that isn't localhost. The
      * table is made on start if it's missing.
      */
+    /**
+     * On AWS: the tenant roles, assumed per request with the caller's tags (ADR-MASTER section 16). Their ARNs come from
+     * the function's environment.
+     */
+    @Bean
+    @Profile("!local")
+    TenantClients awsTenantClients(@Value("${bladebook.roles.coach-tenant}") String coachTenant) {
+        return TenantClients.aws(new TenantClients.Roles(coachTenant, null, null));
+    }
+
     @Bean
     @Profile("local")
     TenantClients localTenantClients(@Value("${bladebook.dynamodb.endpoint}") URI endpoint,

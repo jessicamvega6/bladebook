@@ -200,7 +200,9 @@ S3 counts whole days and removes expired files with some delay, so a file can la
   table today, with fixed client IDs. It must instead write an import file and take each test
   account's `sub` by email. *Changed 2026-10-20: the owner removed `terraform/bladebook_seed.py`.
   A new seed script that writes an import file will be written under `infra/` once the IaC tool
-  is chosen (ADR-001 A4).*
+  is chosen (ADR-001 A4).* *Written 2026-11-17 (Batch 17b): `infra/seed/seed.ts` drives the real APIs in the local
+  profile against DynamoDB Local with the test accounts' `sub`s, and `infra/seed/check-import.ts`
+  is decision 5's check (see `infra/README.md`, "The seed file").*
 - **A dev table can't be topped up.** A test that needs one more record means adding it to the
   seed script and rebuilding.
 

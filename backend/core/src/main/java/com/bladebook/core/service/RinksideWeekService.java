@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -84,6 +85,17 @@ public final class RinksideWeekService {
     }
 
     public RinkWeek week(AccessContext ctx) {
+        RinkWeek out = buildWeek(ctx);
+        List<WeekSkater> skaters = out.days().stream().flatMap(d -> d.lessons().stream()).flatMap(l -> l.skaters().stream()).toList();
+        if (!skaters.isEmpty()) {
+            AccessLog.coachRead(ctx, "rinkside-week", new AccessLog.Ids()
+                    .addAll("studentId", skaters.stream().map(WeekSkater::studentId).toList())
+                    .addAll("clientId", skaters.stream().map(WeekSkater::familyId).toList()), List.of("shortName", "familyName"));
+        }
+        return out;
+    }
+
+    private RinkWeek buildWeek(AccessContext ctx) {
         CoachProfile coach = coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."));
         Instant now = clock.instant();
         ZonedDateTime local = now.atZone(ZoneId.of(coach.coachTimezone()));

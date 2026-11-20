@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,8 +56,15 @@ public class ApiExceptionHandler {
             HttpStatus status = HttpStatus.valueOf(((ErrorResponse) e).getStatusCode().value());
             return body(status, status.is4xxClientError() ? "BAD_REQUEST" : "SERVER", status.getReasonPhrase(), null);
         }
-        // The type only: messages can hold request values.
-        LOG.error("Unhandled {}", e.getClass().getName());
+        // The type only: messages can hold request values. An AWS error adds its service, code and request ID, which
+        // hold none and are what CloudTrail and AWS Support need.
+        AwsServiceException aws = awsCause(e);
+        if (aws != null && aws.awsErrorDetails() != null) {
+            LOG.error("Unhandled {} ({} {}, request {})", e.getClass().getName(), aws.awsErrorDetails().serviceName(),
+                    aws.awsErrorDetails().errorCode(), aws.requestId());
+        } else {
+            LOG.error("Unhandled {}", e.getClass().getName());
+        }
         return body(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER", "Something went wrong on our side. Try again.", null);
     }
 
@@ -68,5 +76,14 @@ public class ApiExceptionHandler {
             m.put("field", field);
         }
         return ResponseEntity.status(status).body(m);
+    }
+
+    private static AwsServiceException awsCause(Throwable e) {
+        for (Throwable t = e; t != null && t.getCause() != t; t = t.getCause()) {
+            if (t instanceof AwsServiceException a) {
+                return a;
+            }
+        }
+        return null;
     }
 }

@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.ChangeBatchRepository;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
@@ -115,6 +116,50 @@ public final class ScheduleChangeService {
         Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
         int[] counts = runBatch(ctx, source, by, booked, seats, now);
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
+    }
+
+    /** What a reconcile did: stuck batches settled, and the new batch's result. */
+    public record Reconciled(int settled, Result result) {
+    }
+
+    /**
+     * {@code reconcile-schedule} and {@code sched-drift-check}'s finish (ADR-MASTER section 19; ADR-010, 2026-11-17):
+     * first settles every batch stuck for over an hour (its remaining lines skipped, its header {@code EXECUTED} with what
+     * was done), then compares the lesson times the schedule makes with the stored ones and writes any difference as a new
+     * {@code RECONCILE} batch. Safe to run any time: a batch still running (under an hour) is left alone.
+     */
+    public Reconciled reconcile(AccessContext ctx) {
+        int settled = 0;
+        for (ChangeBatch b : batches.unfinished(ctx, clock.instant().minus(STUCK))) {
+            batches.settle(ctx, b);
+            settled++;
+        }
+        return new Reconciled(settled, apply(ctx, ChangeBatch.Source.RECONCILE));
+    }
+
+    /** What a check finds for one coach, reading only (ADR-MASTER section 19, "Drift check"). */
+    public record Drift(int stuckBatches, int missedCancellations, int outstandingReprices) {
+        public boolean clean() {
+            return stuckBatches == 0 && missedCancellations == 0 && outstandingReprices == 0;
+        }
+    }
+
+    /**
+     * {@code sched-drift-check} for one coach, writing nothing: batches stuck for over an hour, and the evaluator's verdict
+     * on the stored lesson times and seats from today on: booked lessons the schedule no longer makes (should have been
+     * cancelled) and booked lessons at the wrong price.
+     */
+    public Drift drift(AccessContext ctx) {
+        CoachProfile coach = coach(ctx);
+        ZoneId zone = ZoneId.of(coach.coachTimezone());
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, zone);
+        LocalDate until = Weeks.storeUntil(today);
+        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, today, until), today, until, zone,
+                coach.currency().name(), coach.requiredNoticeHours(), now);
+        ScheduleChange verdict = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now);
+        return new Drift(batches.unfinished(ctx, now.minus(STUCK)).size(), verdict.cancel().size(), verdict.reprice().size());
     }
 
     /**
@@ -240,6 +285,12 @@ public final class ScheduleChangeService {
      * change doesn't reach them.
      */
     public Preview previewWeekly(AccessContext ctx, List<BlockTemplate> templates) {
+        Preview out = buildPreviewWeekly(ctx, templates);
+        log(ctx, "schedule-preview", out);
+        return out;
+    }
+
+    private Preview buildPreviewWeekly(AccessContext ctx, List<BlockTemplate> templates) {
         List<String> problems = ScheduleRules.problems(templates);
         if (!problems.isEmpty()) {
             throw DomainException.invalid("blocks", String.join("\n", problems));
@@ -257,6 +308,12 @@ public final class ScheduleChangeService {
      * deleting {@code previous}, so the weekly schedule applies to its dates again.
      */
     public Preview previewTemp(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
+        Preview out = buildPreviewTemp(ctx, proposed, previous);
+        log(ctx, "temp-preview", out);
+        return out;
+    }
+
+    private Preview buildPreviewTemp(AccessContext ctx, TempSchedule proposed, TempSchedule previous) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(coach(ctx).coachTimezone()));
         Map<LocalDate, List<ScheduleBlock>> overrides = new HashMap<>(schedules.overrides(ctx, today, Weeks.storeUntil(today)));
         if (previous != null) {
@@ -272,6 +329,14 @@ public final class ScheduleChangeService {
 
     /** The newest schedule-change batch, for the save status. */
     public Optional<Status> status(AccessContext ctx) {
+        Optional<Status> out = buildStatus(ctx);
+        out.filter(st -> !st.passed().isEmpty()).ifPresent(st -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
+                .addAll("studentId", st.passed().stream().map(CancellationLine::studentId).toList())
+                .addAll("clientId", st.passed().stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
+        return out;
+    }
+
+    private Optional<Status> buildStatus(AccessContext ctx) {
         Instant now = clock.instant();
         return batches.latest(ctx).map(l -> new Status(l.batch(),
                 l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed()));
@@ -302,5 +367,16 @@ public final class ScheduleChangeService {
 
     private CoachProfile coach(AccessContext ctx) {
         return coaches.find(ctx).orElseThrow(() -> DomainException.notFound("Finish setting up your account first."));
+    }
+
+    /** One access-log line for the skaters a preview names (ADR-MASTER section 18). */
+    private static void log(AccessContext ctx, String operation, Preview p) {
+        List<Who> who = java.util.stream.Stream.of(p.cancel(), p.reprice(), p.kept())
+                .flatMap(List::stream).flatMap(i -> i.skaters().stream()).toList();
+        if (!who.isEmpty()) {
+            AccessLog.coachRead(ctx, operation, new AccessLog.Ids()
+                    .addAll("studentId", who.stream().map(Who::studentId).toList())
+                    .addAll("clientId", who.stream().map(Who::familyId).toList()), List.of("name"));
+        }
     }
 }

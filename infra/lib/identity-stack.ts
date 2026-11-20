@@ -1,22 +1,37 @@
-// The account stack (ADR-028 d4): the Cognito user pool, its two groups and the two website
-// app clients. Built before the application stack. The auth-post-confirmation trigger and the
-// dev test accounts come with the backend wiring and the seed (Batch 17b).
+// The account stack (ADR-028 d4): the Cognito user pool, its two groups, the two website app
+// clients and, in dev, the test accounts and the seed file's bucket. Built before the application
+// stack, and kept between dev builds (I16). The auth-post-confirmation trigger comes with the
+// backend wiring (Batch 17b).
 
-import { CfnOutput, Duration, Stack, Validations } from 'aws-cdk-lib';
+import { Annotations, ArnFormat, CfnOutput, Duration, RemovalPolicy, Stack, Validations } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
+import { backendCode } from './api.ts';
 import { dataRemovalPolicy, resourcePrefix } from './config.ts';
 import type { EnvConfig } from './config.ts';
+import { mailboxDomain, TestAccounts, testAccounts } from './test-accounts.ts';
 
 export interface IdentityStackProps extends StackProps {
   readonly cfg: EnvConfig;
+  /**
+   * The owner's test mailbox (ADR-027, I15): CDK context `testMailbox`, from a GitHub environment
+   * variable or the owner's own ~/.cdk.json. Never written into the repo.
+   */
+  readonly testMailbox?: string;
 }
 
 export class IdentityStack extends Stack {
   readonly userPool: cognito.UserPool;
   readonly coachClient: cognito.UserPoolClient;
   readonly familyClient: cognito.UserPoolClient;
+  readonly seedBucket?: s3.Bucket;
+  readonly testAccounts?: TestAccounts;
 
   constructor(scope: Construct, id: string, props: IdentityStackProps) {
     super(scope, id, props);
@@ -83,6 +98,58 @@ export class IdentityStack extends Stack {
       refreshTokenValidity: Duration.minutes(60),
     });
 
+    // ---------------------------------------------------------------------- auth-post-confirmation (ADR-023 d10)
+    // Adds Coach or Client by the app client a new account confirmed through. It needs both clients' IDs, and the pool
+    // needs it as its trigger: so the pool names it by its ARN, built from its fixed name, not by a reference, and
+    // CloudFormation sees no loop. Cognito calls it synchronously and waits 5 seconds; a failure fails the
+    // confirmation and the person tries again, so it has no dead-letter queue.
+    const triggerName = `${prefix}-auth-post-confirmation`;
+    const triggerArn = Stack.of(this).formatArn({
+      service: 'lambda', resource: 'function', resourceName: triggerName, arnFormat: ArnFormat.COLON_RESOURCE_NAME,
+    });
+    (this.userPool.node.defaultChild as cognito.CfnUserPool).lambdaConfig = { postConfirmation: triggerArn };
+    const triggerLogs = new logs.LogGroup(this, 'PostConfirmationLogs', {
+      logGroupName: `/aws/lambda/${triggerName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: dataRemovalPolicy(cfg),
+    });
+    const triggerRole = new iam.Role(this, 'PostConfirmationRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: 'auth-post-confirmation: adds a new account to Coach or Client in this pool only (ADR-023 d10).',
+    });
+    triggerRole.addToPolicy(new iam.PolicyStatement({ actions: ['logs:CreateLogStream', 'logs:PutLogEvents'], resources: [triggerLogs.logGroupArn] }));
+    // ADR-MASTER §2: one permission, on this user pool.
+    triggerRole.addToPolicy(new iam.PolicyStatement({ actions: ['cognito-idp:AdminAddUserToGroup'], resources: [this.userPool.userPoolArn] }));
+    const trigger = new lambda.Function(this, 'PostConfirmation', {
+      functionName: triggerName,
+      description: 'Adds Coach or Client by the app client the account confirmed through (ADR-023 d10)',
+      runtime: lambda.Runtime.JAVA_17_AL2023,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'com.bladebook.consumers.handler.PostConfirmation::handleRequest',
+      code: backendCode(this, 'consumers'),
+      role: triggerRole,
+      // Memory buys CPU, which a cold start needs inside Cognito's 5 seconds.
+      memorySize: 2048,
+      timeout: Duration.seconds(5),
+      logGroup: triggerLogs,
+      environment: {
+        BLADEBOOK_COACHCLIENTID: this.coachClient.userPoolClientId,
+        BLADEBOOK_FAMILYCLIENTID: this.familyClient.userPoolClientId,
+        JAVA_TOOL_OPTIONS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1',
+      },
+    });
+    new lambda.CfnPermission(this, 'CognitoMayInvoke', {
+      action: 'lambda:InvokeFunction',
+      functionName: trigger.functionName,
+      principal: 'cognito-idp.amazonaws.com',
+      sourceArn: this.userPool.userPoolArn,
+      sourceAccount: Stack.of(this).account,
+    });
+    Validations.of(trigger).acknowledge({
+      id: 'AwsSolutions-L1',
+      reason: 'java17.al2023 is the owner\'s choice (ADR-001 A10): Java 17, not the newest Java runtime.',
+    });
+
     Validations.of(this.userPool).acknowledge(
       {
         id: 'AwsSolutions-COG2',
@@ -97,6 +164,45 @@ export class IdentityStack extends Stack {
         reason: 'The Plus plan is charged per user for threat protection, which ADR-019 covers with the WAF instead.',
       },
     );
+
+    if (cfg.seedImport) {
+      // ADR-028 (I18): the seed file's bucket. A table import reads its file when the table is
+      // created, so the bucket comes first. Fake data only. Emptied and deleted with this stack.
+      this.seedBucket = new s3.Bucket(this, 'SeedBucket', {
+        encryption: s3.BucketEncryption.KMS_MANAGED,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+        enforceSSL: true,
+        versioned: false,
+        removalPolicy: RemovalPolicy.DESTROY,
+        autoDeleteObjects: true,
+      });
+      Validations.of(this.seedBucket).acknowledge({
+        id: 'AwsSolutions-S1',
+        reason: 'Holds only the generated seed file: fake data, rewritten by every seed (ADR-028).',
+      });
+      new CfnOutput(this, 'SeedBucketName', { value: this.seedBucket.bucketName });
+    }
+
+    if (cfg.testAccounts) {
+      if (props.testMailbox) {
+        const accounts = testAccounts(props.testMailbox, cfg.testAccounts);
+        this.testAccounts = new TestAccounts(this, 'TestAccounts', { userPool: this.userPool, accounts });
+        // ADR-027 (I15): dev's SES verifies the mailbox's domain once, so the sandbox accepts every
+        // tagged address. Its DKIM records are added by hand on that domain (outputs below).
+        const identity = new ses.EmailIdentity(this, 'TestMailboxDomain', {
+          identity: ses.Identity.domain(mailboxDomain(props.testMailbox)),
+        });
+        identity.dkimRecords.forEach((r, i) => {
+          new CfnOutput(this, `TestMailboxDkim${i + 1}`, { value: `${r.name} CNAME ${r.value}` });
+        });
+        new CfnOutput(this, 'TestAccountsPasswordSecret', { value: this.testAccounts.password.secretName });
+      } else {
+        Annotations.of(this).addWarning(
+          'No test accounts: set the CDK context value testMailbox (the owner\'s test mailbox) to create them.',
+        );
+      }
+    }
 
     // What the APIs and websites need: bladebook.auth.issuer and the two client IDs.
     new CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });

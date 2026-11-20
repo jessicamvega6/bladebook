@@ -26,8 +26,6 @@ public final class ClientLinks {
 
     static final String NOT_FOUND = "That skater couldn’t be found. Reload the page.";
 
-    /** The access-log stream on AWS. Locally it goes to the application log. */
-    private static final System.Logger SECURITY = System.getLogger("bladebook.security");
     private static final Pattern SAFE_ID = Pattern.compile("^[A-Za-z0-9-]{1,128}$");
 
     private final TenantClients clients;
@@ -66,8 +64,8 @@ public final class ClientLinks {
 
     private static void neverLinked(ClientContext ctx, String coachId, String studentId, String operation) {
         // IDs only, and only ones safe to print: an unsafe one is logged as its length.
-        SECURITY.log(System.Logger.Level.WARNING, "never-linked family={0} coachId={1} studentId={2} operation={3}",
-                ctx.clientId(), printable(coachId), printable(studentId), operation);
+        AccessLog.security("family", ctx.clientId(), "never-linked-" + operation,
+                new AccessLog.Ids().add("coachId", printable(coachId)).add("studentId", printable(studentId)));
         throw DomainException.noSuchItem(NOT_FOUND);
     }
 

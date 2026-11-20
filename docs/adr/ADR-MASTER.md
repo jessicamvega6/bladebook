@@ -148,22 +148,31 @@ what its single-item actions allow.
 
 | Function | DynamoDB | Indexes | Other services |
 |---|---|---|---|
-| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9) |
-| `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | none |
-| `consumer-booking-confirmation` | `GetItem`, `UpdateItem` | none | `ses:SendEmail` |
-| `consumer-payment-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail` (SNS from Phase 2) |
+| `api-coach` | **None on its own role.** Assumes `coach-tenant` per request (§16). | GSI3 only, via `coach-tenant` | `ses:SendEmail` for **one template only**, the business-email confirmation (`business-email-confirmation`, ADR-016), from the environment's sending address (`ses:FromAddress`). Written into the template's resource ARN where SES allows; 17b's infrastructure test checks that any other template is refused (owner, 2026-11-17, I9). `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
+| `api-client` | **None on its own role.** Assumes `client-tenant` per request, and `code-lookup` before sign-in (§16). | GSI1 only, via `client-tenant` | `secretsmanager:GetSecretValue` on the origin secret only, to check CloudFront's header (ADR-019, I1; owner, 2026-11-17) |
+| `consumer-booking-confirmation` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's (its guard). *Query added (owner, 2026-11-18, I22)* | none | `ses:SendEmail` |
+| `consumer-payment-reminder` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's. *Query added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I22)* | none | `ses:SendEmail` (SNS from Phase 2) |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `TransactWriteItems` | none | none |
-| `consumer-student-link` | `UpdateItem`, `DeleteItem`; `GetItem` on the coach profile | none | `ses:SendEmail` |
-| `consumer-family-sync` | `GetItem`, `Query` on the family's partition and the coaches' partitions; `UpdateItem` | none | none |
-| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`. **No `PutItem` or `DeleteItem.`** | as needed for reads | `ses:SendEmail`, `sns:Publish` |
+| `consumer-student-link` | `UpdateItem`, `DeleteItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
+| `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
+| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
-| `sched-day-reminder` | `GetItem`, `UpdateItem`, `TransactWriteItems`, `Query` on GSI2 | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
-| `sched-unpaid-reminder` | `Scan` on GSI3, `GetItem`, `UpdateItem` | **GSI3** (scanned) | `ses:SendEmail` |
-| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17); `sns:Publish` to the operator alert topic only; CloudWatch metrics |
+| `sched-day-reminder` | `Query` on GSI2; `GetItem` on the coach's and family's profiles; `UpdateItem` on the coach's partition (its guards). *Family profile added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I23)* | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
+| `sched-unpaid-reminder` | `Scan` on GSI3; `GetItem`, `Query` and `UpdateItem` in the coach's partition (the `Query` lists a lesson's seats, for a shared lesson's split, (owner, 2026-11-18, I23)). Reads its threshold with `ssm:GetParameter` on that one parameter | **GSI3** (scanned) | `ses:SendEmail` |
+| `sched-drift-check` | `Query` on GSI2 and the table, `GetItem` — **read-only** | **GSI2** | `lambda:InvokeFunction` on `consumer-schedule-change` only (to finish a stuck batch, 2026-11-17). ~~`sns:Publish` to the operator alert topic only;~~ CloudWatch metrics, written as log lines (no permission needed): it pages through the alarms on them, like every other job (owner, 2026-11-18, I25) |
 | `sched-lesson-roller` (with `sched-year-close`, its second rule) | `Scan` of the table limited by `dynamodb:Attributes` to `PK` and `SK` (with `Select = SPECIFIC_ATTRIBUTES`), to list the coaches; `GetItem`, `Query` and `PutItem` on the table. **No `UpdateItem` or `DeleteItem`**: it only adds lesson times and saves `CLOSEDYEAR#` items, each under an `attribute_not_exists` condition. *Written 2026-11-17 (owner; Blocker 24).* | none | CloudWatch metrics (its completion metric) |
 | `sched-deadline-sweep` | `Query` on GSI4 only; `GetItem`, `PutItem`, `UpdateItem` and `DeleteItem` on the table. **No `Query` or `Scan` of the table itself.** It deletes an expired invited seat or the staying seat on a no-answer, writes `SEATEND#`, `CHANGEBATCH#` and `CANCELLED#` items, and updates the lesson time and the deadline. One of three functions whose execution role can delete in any coach's partition (with `consumer-schedule-change` and `consumer-student-link`). *Written 2026-11-17 (owner; Blocker 24).* | **GSI4** (only this function) | none: it sends no email; its emails come from `consumer-invite` and `consumer-change-notifier` (owner, 2026-10-20) |
-| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue: if it fails, confirmation fails and the person tries again (ADR-023 d10). |
+| `auth-post-confirmation` | **None** | none | `cognito-idp:AdminAddUserToGroup` on this user pool only. Cognito calls it synchronously, so it has no dead-letter queue. ~~If it fails, confirmation fails and the person tries again (ADR-023 d10).~~ *Cognito confirms the account first, so a failure leaves it confirmed with no group, and the person can't retry (found in dev, 2026-11-18). Its errors page the owner, who adds the group by hand (`docs/runbooks/stuck-account.md`; owner, 2026-11-18, I27).* |
+
+**Each role is held by `dynamodb:LeadingKeys` to the partitions it touches** (`COACH#`, `CLIENT#`,
+`SKATERCODE#`), and was written from what its code calls (Batch 17b; owner, 2026-11-18, I22 for the
+consumers, I23 for the scheduled jobs). Inside
+`TransactWriteItems` each write is checked as its item action, so no role lists it.
+
+**Every email is sent from a stored SES template**, so IAM sees each `ses:SendEmail` in this table as
+`ses:SendTemplatedEmail`, and that is the action granted: a role can send nothing but templates (found
+deploying `api-coach`'s, 2026-11-17).
 
 Every function writes its own log group; those that read personal data also write the separate
 access-log group (§18), with `logs:CreateLogStream` and `logs:PutLogEvents` on that group only. Every event consumer has a dead-letter queue (§19). Key-management
@@ -285,7 +294,10 @@ absent or not `BOOKED`. The event's name is the rule's name; the record on the b
 - **Each rule's pattern is tested** in Batch 17b: sample stream records (each event's match and its near
   misses) are run against every pattern, so a pattern can't silently match too much or nothing.
 - **Consumers read the raw record** through one shared reader in `core` that turns DynamoDB's typed
-  attributes into the domain's types.
+  attributes into the domain's types (`core.data.TableRecord`, Batch 17b). Each consumer's handler is one line: it hands
+  the event to `core.events.EventConsumers`, which calls the same core service the API calls in-process locally.
+  `consumer-student-link` acts on the coach's two answers to a `PENDING` skater only (approved, or the record
+  removed), as locally.
 
 **Scheduled jobs have no event.** EventBridge Scheduler invokes each `sched-*` function directly, so
 nothing goes through the bus. Each schedule is **named after its function**: `sched-day-reminder`,
@@ -1444,7 +1456,8 @@ same coach (held by `LinkedSkater` and the ownership condition).
     firewall and the API check;
   - the **IP reputation list** protects Cognito only (accepted; revisit with a CloudFront ACL when
     its cost is small beside the bill);
-  - **both sites allow visitors from the United States only**, by a CloudFront Function on
+  - **both sites allow visitors from the United States only** (the 50 states and DC; the
+    territories are refused, owner 2026-11-17), by a CloudFront Function on
     every request (not the built-in geographic restriction, whose 403 page would also replace
     the API's 403s): a plain-language page on the site paths, a short JSON error on `/api/*`;
   - **no country rule on Cognito's firewall for now** (owner, 2026-11-17): Cognito's address
@@ -1484,7 +1497,28 @@ same coach (held by `LinkedSkater` and the ownership condition).
 - **Enforced by the compiler:** every `core/` method returning personal data takes an
   **`AccessContext`** and logs before returning; there is no overload without it. Plus the
   `DynamoDbClient` ArchUnit rule (§1).
+- **Not logged: a person reading their own details** (owner, 2026-11-17, I21): the coach's own
+  profile and its saves, and the family's own contact and skaters. A response that also carries
+  someone else's data is logged for that data only (the family's *My details* lists its coaches'
+  phone, email and payment handles, so those are logged).
+- **Not logged: the coach-code lookup before sign-in** (owner, 2026-11-17, I21). It returns only
+  the name a coach shares with the code; the firewall's rate rule guards it. By the same reasoning,
+  a coach's name on a family's pages isn't logged; the coach's phone, email and payment handles are.
+- **How it's built** (Batch 17b): `core.data.AccessLog` holds a request's lines; each API's
+  `AccessLogging` opens them with API Gateway's request ID and CloudFront's
+  `x-bladebook-viewer-ip`, and writes them before any response body. A line is JSON: time,
+  request ID, source, role, actor, `relationship` when known, operation, the IDs by kind, and the
+  field names. Security events (a family's never-linked ask) are lines too, `security:<what>`.
+- **A family line carries `clientRelationship` when the request already read the family's
+  account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
+  The fields named are those the run's **output uses** (the emails it sends, the records it writes), as for
+  the API and the consumers: the roller and the year close read profiles and skater records only to list
+  coaches and work out figures, so they write no line (owner, 2026-11-18, I23).
+  The event consumers do the same per event: role `consumer`, the function as actor, the event's name as
+  the operation, the IDs the record names and the fields that consumer reads, written when the event's work is done
+  (a failed write fails the event; the retry finds the guards set). Both are added with their functions (Batch 17b
+  pieces 5 and 6; owner, 2026-11-17, I21).
 - **Family reads are logged** with `clientRelationship`.
 - **Also logged:** contact reveals on the rinkside page, the rink-number download, archive
   restores (who, which coach and skater, reason, when), the link-check security events, the
@@ -1554,6 +1588,10 @@ times and seats in that window.
 | A lesson that should have been cancelled and wasn't | Page |
 | Only re-prices outstanding | Dashboard |
 
+**How it pages** (owner, 2026-11-18, I25): the drift check publishes nothing itself. Each run reports `DriftCheckCompleted`, `DriftReconcileFailed`, `DriftMissedCancellations` and `DriftOutstandingReprices` (namespace `BladeBook`, by `Function`); the alarms page on a failed finish or a missed cancellation above 0, and on no completed run for a night, and the re-prices go on the dashboard. The page is the alarm's wording; the run's log names the coach by ID.
+
+*How it's built (Batch 17b):* finishing is the reconcile, never a replay. `consumer-schedule-change`, invoked with `{"reconcile": "<coachId>"}`, settles each batch stuck for over an hour (its lines still `PLANNED` are skipped as `NO_LONGER_NEEDED`; its header becomes `EXECUTED` with what was done, so the notifier tells only those families), then writes any difference left as a `RECONCILE` batch. A batch still running is left alone, so it's safe to run any time; `reconcile-schedule` uses the same entry. A coach's day or week cancel (I24) left part-way is finished the same way, so its remaining families get the schedule-change email.
+
 ### Alarms
 
 - **Scheduled jobs:** a **dead man's switch** — `Invocations` `Sum < 1` over the window, with
@@ -1561,25 +1599,38 @@ times and seats in that window.
   (`DeadlineSweepCompleted`): the sweep pages after **2 hours** without a completed run; the
   roller shows on the dashboard after one missed night and pages after **3**. **`sched-year-close`**
   reports its own completion metric: a missed January morning shows on the dashboard (the next
-  morning's run catches up, since it's safe to run twice), and it pages if no run has completed by
-  **January 7**, its last day.
+  morning's run catches up, since it's safe to run twice). ~~It pages if no run has completed by
+  **January 7**, its last day.~~ *It doesn't page: the dashboard shows each January morning's run, and a
+  missed year close is run by hand, since it's safe to repeat (owner, 2026-11-18, I28).*
 - **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
   notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
-  sweep or roller as above; **DynamoDB Streams iterator age climbing** on the Pipe or the
-  archiver; the link-check alarms (§16); the up-check; a dev scanner finding.
-- **Pages go by SNS to the owner's phone**, never email.
+  sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the archiver, and
+  on the Pipe its dead-letter queue and its failed runs (EventBridge Pipes publishes no iterator age; I28); the link-check alarms (§16); the up-check; a dev scanner finding.
+- **Pages go by SNS to the owner's phone**, never email. *Until the account can send US texts (owner,
+  2026-11-18, I26):* US texts need a registered toll-free sender number, which the owner registers when
+  ready. Until it's approved, the paging topic **also emails** the owner; the email is removed once texts
+  work. The phone number and the address are **deploy-time settings, never in the repo**, like the test
+  mailbox.
 - Everything else is a morning dashboard read.
 - **Alarms live in production permanently.** In dev they are switched on only to prove they fire.
 
+*How they're built (Batch 17b, piece 7):* `infra/lib/alarms.ts`. Two differences from the first draft of
+this list, both accepted by the owner (2026-11-18, I28): **the Pipe has no iterator-age metric**
+(EventBridge Pipes publishes none), so its stall is alarmed on its dead-letter queue and its failed runs;
+a Pipe that stopped reading without failing would show only as the consumers' silence on the dashboard.
+And **the year close doesn't page**: a CloudWatch alarm can't tell the date, and a date-aware check (the
+drift check reporting a missing year close from January 7) was weighed and set aside for the dashboard.
+
 ### The event path
 
-**The Pipe (Streams → bus) has its own failure destination**, and its stream iterator age is
-alarmed: if it stalls, no consumer runs and no consumer alarm fires.
+**The Pipe (Streams → bus) has its own failure destination**, ~~and its stream iterator age is
+alarmed~~ *alarmed, with its failed runs (I28)*: if it stalls, no consumer runs and no consumer alarm fires.
 
 ### Checks on production
 
-- **Up-check, always on:** health checks call the website's home page and the API's **`/health`**
+- **Up-check, always on** *(production; in dev only when switched on to prove it fires — owner, 2026-11-18,
+  I26)*. **It checks from US locations only**, so the US-only rule (§17) lets it in. Health checks call the website's home page and the API's **`/health`**
   route (no sign-in, reads no data, returns "OK") about once a minute, alarming through the paging
   route.
 - **Post-deploy check:** the production deploy ends by running the **schedule-change-that-cancels
@@ -1819,6 +1870,10 @@ database-gate tests; reproducing an incident (masked build).
   **after the owner's approval**, then runs the post-deploy check. A failed check means the owner
   rolls back.
 - The least-privilege infrastructure check (`cdk-nag`) runs as a build gate.
+- *How it's built before production exists (owner, 2026-11-19, I29):* the merge's checks build the Lambda
+  archives once; the tag's GitHub Release holds them with their SHA-256 sums. The deploy workflow is started by hand
+  with a tag: dev deploys it; the production job refuses to run until production's account exists. Deploy-time
+  settings are environment secrets, masked in the public run logs. The website upload comes with Batch 17c.
 - **Before any workflow deploys to either account, all of these are in place:**
   1. every action pinned to a **full commit hash** (version in a comment); as few third-party
      actions as possible;
