@@ -186,8 +186,8 @@ Change any of these in `lib/` and its test together.
   `consumer-schedule-change`.
 - **The scheduled jobs (`lib/jobs.ts`):** EventBridge Scheduler runs each `sched-*` function in
   `America/Chicago` with the time it's for (`<aws.scheduler.scheduled-time>`); the job takes that time's
-  date. `sched-year-close` is a second schedule on the roller's function. Only the two reminders have a
-  dead-letter queue; the roller, year close and sweep report a completion metric instead (CloudWatch's
+  date. `sched-year-close` is a second schedule on the roller's function. The two reminders and the drift
+  check have a dead-letter queue; the roller, year close and sweep report a completion metric instead (CloudWatch's
   embedded metric format, namespace `BladeBook`, by `Function`). The unpaid threshold is the Parameter
   Store setting `/<prefix>/unpaid-reminder/threshold-days`, read on every run; a deploy sets it back
   to `config.ts`'s value. Roles: ADR-MASTER §2, I23.
