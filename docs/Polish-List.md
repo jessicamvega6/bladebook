@@ -19,6 +19,8 @@ prefer if you know.
 
 ## Family app
 
+- [ ] Book page: remove the **Taller = longer lesson** note from the legend
+  (`web/src/family/pages/Book.tsx:452`).
 - [ ] Log in page: add more space between the **Password** field, the **Forgot/change password**
   link and the **Log in** button; they sit too close together (`web/src/family/pages/Login.tsx:62`).
 - [ ] Home page: add padding to the bottom of the **Today** and **Coming up** cards
@@ -37,7 +39,15 @@ prefer if you know.
 
 ## Shared / everywhere
 
-- [ ]
+- [ ] **New feature:** sign-up pages, coach and family: let the password be shown, not just
+  dots, so people can check what they typed. Family sign-up has **Password** and
+  **Confirm password**; coach sign-up has **Password** only
+  (`web/src/coach/pages/SignIn.tsx:239`, `web/src/family/pages/Signup.tsx:260`).
+- [ ] Change any text that says **No ice** to **Not available**. In the app today that's the
+  day label on the family **Book** page for a day with no lesson times
+  (`web/src/family/pages/Book.tsx:403`); the designs under `design/harbor/` and
+  `FeatureDecriptions/Bookings` say it too. Leave "has no ice type" alone: that's a schedule
+  error about a block with no ice type picked, not a day without lessons.
 
 ## Code tidy-ups
 
