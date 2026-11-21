@@ -153,7 +153,8 @@ export const CONSUMERS: readonly ConsumerSpec[] = [
   },
   {
     name: 'consumer-schedule-change', handler: 'ScheduleChange', event: 'ScheduleChanged', templates: [],
-    dynamo: (t) => [allow(['GetItem', 'Query', 'PutItem', 'UpdateItem', 'DeleteItem'], [COACH], t)],
+    // ConditionCheckItem: a re-price checks the seats it was planned for in its transaction (2026-11-21).
+    dynamo: (t) => [allow(['GetItem', 'Query', 'PutItem', 'UpdateItem', 'DeleteItem', 'ConditionCheckItem'], [COACH], t)],
     timeout: Duration.minutes(5),
   },
   {
