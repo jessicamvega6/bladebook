@@ -17,6 +17,7 @@ import {
 } from '../../shared/logic/schedule';
 import type { CalendarDto, LessonDto, ScheduleApi } from '../api';
 import { CancelPreview, calRange, doneMessage, type CancelPlan } from './CancelPreview';
+import { Loading } from '../../shared/components/Loading';
 
 export type CalendarRoute = { view: 'month' | 'week' | 'day'; date: string };
 
@@ -65,7 +66,7 @@ export function Calendar({ api, route, onError }: { api: ScheduleApi; route: Cal
 
   if (!cal || cal.key !== key) {
     return <><div className="phead"><div className="phead__text"><h1 className="h1">Calendar</h1></div><div className="phead__actions">{views}</div></div>
-      <p className="muted" aria-busy="true">Loading…</p></>;
+      <Loading /></>;
   }
   const data = cal.data;
   const plan = cancel?.on === routeKey ? cancel.plan : null;

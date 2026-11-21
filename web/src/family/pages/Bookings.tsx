@@ -22,6 +22,7 @@ import { DAYS, DAYS_LONG, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate,
 import { noAnswer } from '../../shared/logic/sharing';
 import type { Family, FamilyApi, MyBookings, MyLesson, MySeries, Weekday } from '../api';
 import { ShareBox, WaitingCards, type ShareAnswer } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 /** Java's weekday names, Sunday first like DAYS. */
 const WEEKDAYS: Weekday[] = ['SUNDAY' as Weekday, 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -84,7 +85,7 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
     </div>
   );
   // One tree for loading and loaded, so the heading isn't replaced when the lessons arrive.
-  if (!data) return <>{false}{head}<p className="muted" aria-busy="true">Loading…</p></>;
+  if (!data) return <>{false}{head}<Loading /></>;
 
   // The coach filter lists only coaches with lessons coming up, once two or more have them (owner, 2026-10-13).
   const withLessons = approvedCoaches.filter((c) => data.upcoming.some((l) => l.coachId === c.coachId));
@@ -331,7 +332,7 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState('');
   useEffect(() => { api.myBookings().then(setData).catch(onError); }, [api, onError]);
-  if (!data) return <p className="muted" aria-busy="true">Loading…</p>;
+  if (!data) return <Loading />;
   const a: MySeries | undefined = (data.series ?? []).find((x) => x.coachId === coachId && x.recurrenceId === recurrenceId);
   if (!a) {
     return <Card><div className="pempty bk-pempty"><b>That repeating lesson has ended</b><a className="btn btn--secondary" href="#/bookings"><span>Back to my bookings</span></a></div></Card>;

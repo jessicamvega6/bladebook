@@ -18,6 +18,7 @@ import { Forgot, Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import { InvitePage } from './pages/Sharing';
 import { Signup } from './pages/Signup';
+import { Loading } from '../shared/components/Loading';
 
 type Load =
   | { state: 'loading' }
@@ -128,7 +129,7 @@ export function App() {
 
   let page;
   if (token === undefined) {
-    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+    page = <div className="app"><main className="main"><Loading page /></main></div>;
   } else if (signingUp || (!token && (route === '#/signup' || verifyEmail))) {
     page = (
       <Signup key={verifyEmail} token={token} verifyEmail={verifyEmail || undefined} onToken={(t) => { setSigningUp(true); setToken(t); }}
@@ -143,7 +144,7 @@ export function App() {
         onSignedIn={() => { setNotice(''); void auth.idToken().then((t) => { setToken(t); go('#/home'); }); }} />
     );
   } else if (load.state === 'loading' || load.state === 'no-account') {
-    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+    page = <div className="app"><main className="main"><Loading page /></main></div>;
   } else if (load.state === 'error') {
     page = <div className="app"><main className="main"><Banner tone="danger" title="Couldn’t load your account">{load.message}</Banner></main></div>;
   } else if (route === '#/profile') {

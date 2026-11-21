@@ -30,6 +30,7 @@ import { SignupDone } from './pages/SignupDone';
 import { Students } from './pages/Students';
 import { Today } from './pages/Today';
 import { todayIn, weekStart } from '../shared/logic/schedule';
+import { Loading } from '../shared/components/Loading';
 
 type Load =
   | { state: 'loading' }
@@ -158,7 +159,7 @@ export function App() {
 
   let page;
   if (token === undefined) {
-    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+    page = <div className="app"><main className="main"><Loading page /></main></div>;
   } else if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances || !todays) {
     // Signed out: BladeBook's own forms, talking to Cognito (ADR-023 d11). A business-email link opened while signed
     // out comes back to its confirm page after sign-in (ADR-016, 2026-11-12).
@@ -174,7 +175,7 @@ export function App() {
       page = <Login notice={notice} noticeTone={noticeOk ? 'success' : 'info'} onSignedIn={() => { void signedIn().then(inside); }} onVerify={() => go('#/signup/verify')} />;
     }
   } else if (load.state === 'loading') {
-    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+    page = <div className="app"><main className="main"><Loading page /></main></div>;
   } else if (load.state === 'error') {
     page = <div className="app"><main className="main"><Banner tone="danger" title="Couldn’t load your account">{load.message}</Banner></main></div>;
   } else if (load.state === 'no-profile') {
@@ -254,7 +255,7 @@ export function App() {
           {students
             ? <Students api={studentsApi} profile={profile} data={students} tab={route === '#/students' ? 'students' : 'pending'} onChange={setStudents} onError={handleError} />
             : studentsError ? <Banner tone="danger" title="Couldn’t load your students">{studentsError}</Banner>
-              : <p className="muted" aria-busy="true">Loading…</p>}
+              : <Loading />}
         </CoachShell>
       );
     } else if (route === '#/payments') {
