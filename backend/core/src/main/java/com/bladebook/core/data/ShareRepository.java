@@ -148,12 +148,16 @@ public final class ShareRepository {
         return write(clients.clientFor(ctx, invited.coach()), items);
     }
 
-    /** Decline, one date: the invited seat moves to {@code SEATEND#} as {@code DECLINED} and its place is freed. */
+    /**
+     * Decline, one date: the invited seat moves to {@code SEATEND#} as {@code DECLINED} and its place is freed. The same
+     * condition as accepting, the start included (ADR-MASTER section 8): once the lesson starts, the sweep expires it.
+     */
     public boolean decline(ClientContext ctx, LinkedSkater invited, Seat seat, Instant now) {
         List<TransactWriteItem> items = new ArrayList<>();
         items.add(TransactWriteItem.builder().delete(Delete.builder().tableName(table).key(seatKey(seat.coachId(), seat.key()))
-                .conditionExpression("seatStatus = :invited AND attribute_not_exists(clientId) AND invitedClientId = :me")
-                .expressionAttributeValues(Map.of(":invited", FamilyItems.s(Seat.Status.INVITED.name()), ":me", FamilyItems.s(invited.clientId())))
+                .conditionExpression("seatStatus = :invited AND attribute_not_exists(clientId) AND invitedClientId = :me AND startsAtUtc > :now")
+                .expressionAttributeValues(Map.of(":invited", FamilyItems.s(Seat.Status.INVITED.name()), ":me", FamilyItems.s(invited.clientId()),
+                        ":now", FamilyItems.s(seconds(now))))
                 .build()).build());
         items.add(put(ended(seat, Ended.DECLINED, invited.clientId(), invited.clientId(), now)));
         items.add(placeFreed(seat.coachId(), seat.lessonDate(), seat.startTime()));
@@ -428,9 +432,11 @@ public final class ShareRepository {
     /**
      * {@code ANSWER}: the staying family didn't answer by the answer-by time, so their seat is cancelled with no charge,
      * through a change batch with {@code cancelledBy = NO_ANSWER}, and the time goes back on the coach's calendar
-     * (ADR-MASTER section 8, "Leaving"; section 14). Conditional on the same pending leave.
+     * (ADR-MASTER section 8, "Leaving"; section 14). Conditional on the same pending leave, the staying seat still
+     * {@code BOOKED} as read, and the lesson not started: a lesson under way, or a skater checked in, is never cancelled.
      *
-     * @param staying the staying skater's seat, or {@code null} when it's gone: then only the pending leave is cleared
+     * @param staying the staying skater's seat, or {@code null} when it's gone, checked in, or the lesson has started:
+     *                then only the pending leave is cleared, and the lesson stays as it is
      */
     public boolean cancelNoAnswer(String coachId, PendingLeave pending, Seat staying, ChangeBatch batch, CancellationLine line,
                                   LocalDate date, LocalTime start, Instant now) {
@@ -439,11 +445,13 @@ public final class ShareRepository {
         lv.put(":id", FamilyItems.s(pending.leaveId()));
         lv.put(":now", FamilyItems.s(seconds(now)));
         String set;
+        String cond = "pendingLeave.leaveId = :id AND pendingLeave.answerBy <= :now";
         if (staying != null) {
             items.add(TransactWriteItem.builder().delete(Delete.builder().tableName(table).key(seatKey(coachId, staying.key()))
-                    .conditionExpression("seatStatus = :st AND joinedAt = :j")
-                    .expressionAttributeValues(Map.of(":st", FamilyItems.s(staying.seatStatus().name()), ":j", FamilyItems.s(staying.joinedAt().toString())))
+                    .conditionExpression("seatStatus = :booked AND joinedAt = :j")
+                    .expressionAttributeValues(Map.of(":booked", FamilyItems.s(Seat.Status.BOOKED.name()), ":j", FamilyItems.s(staying.joinedAt().toString())))
                     .build()).build());
+            cond += " AND startsAtUtc > :now";
             items.add(put(CancellationItems.header(coachId, batch)));
             items.add(put(CancellationItems.line(coachId, line)));
             lv.put(":open", FamilyItems.s(LessonTime.Status.OPEN.name()));
@@ -454,7 +462,7 @@ public final class ShareRepository {
             set = "";
         }
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(seatKey(coachId, LessonTime.key(date, start)))
-                .conditionExpression("pendingLeave.leaveId = :id AND pendingLeave.answerBy <= :now")
+                .conditionExpression(cond)
                 .updateExpression(set + "REMOVE pendingLeave, GSI4PK, GSI4SK, dueKind, dueAt").expressionAttributeValues(lv).build()).build());
         return write(clients.forConsumer(), items);
     }

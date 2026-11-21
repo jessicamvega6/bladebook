@@ -234,14 +234,19 @@ public final class ShareService {
         }
         List<LocalDate> done = new ArrayList<>();
         List<LocalDate> skipped = new ArrayList<>();
+        boolean refused = false;
         for (Seat s : seats) {
-            boolean ok = !s.hasStarted(now) && (accept ? shares.accept(ctx, skater, s, now) : shares.decline(ctx, skater, s, now));
+            boolean started = s.hasStarted(now);
+            boolean ok = !started && (accept ? shares.accept(ctx, skater, s, now) : shares.decline(ctx, skater, s, now));
+            refused |= !started && !ok;
             (ok ? done : skipped).add(s.lessonDate());
             if (ok) {
                 events.seatsChanged(s.coachId(), s.lessonDate(), s.startTime());
             }
         }
-        if (accept && done.isEmpty()) {
+        // Nothing changed: never reported as done. A decline whose dates had all started is skipped, as it always was;
+        // one whose write was refused (answered in another window meanwhile) is no longer available, as for accepting.
+        if (done.isEmpty() && (accept || refused)) {
             throw DomainException.conflict(GONE);
         }
         return new Answered(skater.studentName(), skater.coachFirstName(), first.share().partnerName(), done, skipped);
