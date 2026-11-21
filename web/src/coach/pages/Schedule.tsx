@@ -10,17 +10,21 @@
  * Not yet: time off and special schedules (Batch 6) and the save's impact preview (Batch 6; with no
  * bookings yet, Review shows the week and saves).
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { signInLocally } from '../../shared/auth/localAuth';
-import { Badge, Banner, Button, Card, Dialog, Icon } from '../../shared/components/harbor';
+import { AuthFailure, coachAuth } from '../../shared/auth';
+import { Badge, Banner, Button, Card, Dialog, Field, Icon } from '../../shared/components/harbor';
 import {
   DAYS, LESSON_LENGTHS, MAX_NAME, MAX_SKATERS, MAX_SPECIAL_DAYS, QUARTER_HOURS, addDays, dateRange, datesBetween, dayOfWeek, forDate,
-  formatClock, formatMoney, formatShort, formatTime, isOff, label, lessonsOn, longDate, nextSeq, oddCentsWarning, parseMoney, problems,
+  formatMoney, formatTime, isOff, label, lessonsOn, longDate, nextSeq, oddCentsWarning, parseMoney, problems,
   shortDate, slots, specialProblems, tempProblems, todayIn, toMinutes, type Template, type TempSummary,
 } from '../../shared/logic/schedule';
 import { scheduleApi, type PreviewDto, type Profile, type ScheduleApi, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
 import { ChangeReview } from './ScheduleReview';
+import { Loading } from '../../shared/components/Loading';
+
+/** "11:30 AM" kept on one line, for the narrow break note in the week view. */
+const unbroken = (t: string) => formatTime(t).replace(' ', '\u00a0');
 
 /** Pelham Civic Center's ice types (ADR-MASTER section 6). Families never see them. */
 const ICE_TYPES = [
@@ -71,10 +75,6 @@ function useSchedule(api: ScheduleApi, onError: (e: unknown) => void) {
     return () => { live = false; };
   }, [api, onError]);
   return data;
-}
-
-function Loading() {
-  return <p className="muted" aria-busy="true">Loading…</p>;
 }
 
 // ------------------------------------------------------------------ hub
@@ -270,9 +270,14 @@ export function TimeOffForm({ api, profile, onSaved, onToken, onError }: {
 export interface Saved { lessons: number; families: number; since: number }
 
 /**
- * Saving with the 15-minute sign-in (ADR-023 d4): a refused save asks to sign in again, keeps the edits, and retries
- * with the new sign-in (locally the token stub, SC-7).
+ * Saving with the 15-minute sign-in (ADR-023 d4): a refused save asks for the password again, keeps the edits, and
+ * retries with the new sign-in. A wrong password leaves the coach signed in as before, edits and all (shared/auth),
+ * but the third in a row signs them out, edits lost (owner, I33): several wrong passwords suggest it isn't the coach.
  */
+export const WRONG_PASSWORDS_ALLOWED = 3;
+/** The 401 code the coach website shows on Log in after the third wrong password (App's handleError). */
+export const SIGNED_OUT_WRONG_PASSWORDS = 'WRONG_PASSWORDS';
+
 export function useGuardedSave(profile: Profile, onToken: (t: string) => void, onError: (e: unknown) => void) {
   const [reauth, setReauth] = useState<null | ((api: ScheduleApi) => Promise<void>)>(null);
   const [busy, setBusy] = useState(false);
@@ -290,27 +295,58 @@ export function useGuardedSave(profile: Profile, onToken: (t: string) => void, o
       setBusy(false);
     }
   };
-  /** LOCAL STAND-IN for entering the password again (shortcut SC-1): a fresh stub sign-in, then the same save. */
-  const signInAndSave = async () => {
+  const [password, setPassword] = useState('');
+  const [reauthError, setReauthError] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
+  // Wrong passwords in a row, counted while this page is open; a right one starts again.
+  const [wrong, setWrong] = useState(0);
+  const closeReauth = () => { setReauth(null); setPassword(''); setReauthError(''); };
+  /** The password again (Cognito, from the browser; ADR-023 d11), then the same save with the new sign-in. */
+  const signInAndSave = async (e: FormEvent) => {
+    e.preventDefault();
     const save = reauth;
-    setReauth(null);
     if (!save) return;
+    if (!password) { setReauthError('Enter your password.'); return; }
+    setSigningIn(true);
+    setReauthError('');
     try {
-      const token = await signInLocally(profile.loginEmail);
-      onToken(token);
-      await run(scheduleApi(token), save);
-    } catch (e) {
-      onError(e);
+      await coachAuth().confirmPassword(profile.loginEmail, password);
+    } catch (err) {
+      setPassword('');
+      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' && wrong + 1 >= WRONG_PASSWORDS_ALLOWED) {
+        closeReauth();
+        setWrong(0);
+        await coachAuth().signOut();
+        onError(new ApiError(401, SIGNED_OUT_WRONG_PASSWORDS,
+          'You were signed out after too many wrong passwords. Your changes weren’t saved.'));
+        return;
+      }
+      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD') setWrong(wrong + 1);
+      setReauthError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+      return;
+    } finally {
+      setSigningIn(false);
     }
+    setWrong(0);
+    closeReauth();
+    const token = await coachAuth().idToken();
+    if (token) onToken(token);
+    await run(scheduleApi(() => coachAuth().idToken()), save);
   };
   const dialog = reauth && (
-    <Dialog onClose={() => setReauth(null)} labelledBy="reauth-title">
-      <h2 className="h2" id="reauth-title">Confirm it’s you</h2>
-      <p className="muted">Saving your schedule needs a sign-in from the last 15 minutes. Your changes are kept.</p>
-      <div className="actions">
-        <Button variant="secondary" onClick={() => setReauth(null)}>Not now</Button>
-        <Button onClick={signInAndSave}>Sign in again and save</Button>
-      </div>
+    <Dialog onClose={closeReauth} labelledBy="reauth-title">
+      <form onSubmit={signInAndSave} noValidate>
+        <h2 className="h2" id="reauth-title">Confirm it’s you</h2>
+        <p className="muted">Saving your schedule needs a sign-in from the last 15 minutes. Your changes are kept.</p>
+        {reauthError && <Banner tone="danger">{reauthError}</Banner>}
+        <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password"
+          hint={`For ${profile.loginEmail}`} />
+        <p className="fine">Warning: several wrong passwords will sign you out, and your changes won’t be saved.</p>
+        <div className="actions">
+          <Button variant="secondary" onClick={closeReauth}>Not now</Button>
+          <Button type="submit" disabled={signingIn}>Sign in again and save</Button>
+        </div>
+      </form>
     </Dialog>
   );
   return { run, busy, errors, setErrors, dialog };
@@ -482,7 +518,7 @@ export function ScheduleEditor({ api, profile, special, onSaved, onToken, onErro
           <Card title="Blocks" sub="Each block has one lesson length, price and ice type.">
             {drafts.map((d) => {
               const t = toTemplate(d), on = d.seq === current.seq;
-              const times = d.startTime ? `${formatShort(d.startTime)}–${formatShort(d.endTime ?? '19:00')}` : 'No times yet';
+              const times = d.startTime ? `${formatTime(d.startTime)} – ${formatTime(d.endTime ?? '19:00')}` : 'No times yet';
               return (
                 <div key={d.seq} className={`block${on ? ' is-editing' : ''}`}>
                   <span className={`block__bar${on ? '' : ' block__bar--other'}`} />
@@ -661,14 +697,14 @@ function WeekColumn({ name, head, day, drafts, totals, activeSeq, onToggle }: {
         const act = d.seq === activeSeq;
         return (
           <div key={d.seq} style={{ display: 'contents' }}>
-            {prevEnd && toMinutes(d.startTime!) > toMinutes(prevEnd) && <span className="wk__break">Break {formatShort(prevEnd)}–{formatShort(d.startTime!)}</span>}
+            {prevEnd && toMinutes(d.startTime!) > toMinutes(prevEnd) && <span className="wk__break">Break {unbroken(prevEnd)} – {unbroken(d.startTime!)}</span>}
             <div className={`wk__tag${act ? ' wk__tag--edit' : ''}`}>{d.lessonMinutes ?? 30} min · {t.priceMinor != null ? formatMoney(t.priceMinor) : '—'}</div>
             {slots(d.startTime, end, d.lessonMinutes).map((s) => {
               const off = isOff(t, day, s);
               return (
                 <button key={s} type="button" className={`wslot${off ? ' wslot--off' : act ? ' wslot--edit' : ''}${(d.lessonMinutes ?? 30) >= 60 ? ' wslot--60' : ''}`}
                   aria-pressed={!off} aria-label={`${name} ${formatTime(s)} ${off ? 'switched off' : 'on'}`} onClick={() => onToggle(d.seq, day, s)}>
-                  {formatClock(s)}
+                  {formatTime(s)}
                 </button>
               );
             })}

@@ -77,7 +77,7 @@ class RinksideWeekServiceTest {
         scheduleRepo = new ScheduleRepository(t.f.clients, t.f.table);
         cancelRepo = new CancellationRepository(t.f.clients, t.f.table);
         service = new RinksideWeekService(scheduleRepo, t.coaches, t.studentRepo, clock);
-        cancels = new CoachCancelService(scheduleRepo, cancelRepo, clock);
+        cancels = new CoachCancelService(scheduleRepo, cancelRepo, new ScheduleChangeService(scheduleRepo, t.coaches, clock), t.coaches, clock);
         booking = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), t.families, clock);
 
         dana = t.coach("Dana", DANA_CODE);
@@ -232,15 +232,14 @@ class RinksideWeekServiceTest {
     }
 
     @Test
-    void aWholeDayIsOneDayBatchWithEachLessonsOwnChoice() {
+    void aWholeDayIsTimeOffInOneDayBatch() {
+        // No release-or-hold for a day (owner, 2026-11-18, I24): it's time off, so its times leave the booking page.
         WeekDay wednesday = day(service.week(dana), WEDNESDAY);
         CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("DAY", wednesday.lessons().stream()
-                .map(l -> new PickInput(l.date().toString(), l.startTime().toString(), l.startTime().equals(LocalTime.of(6, 0)) ? "HOLD" : "RELEASE"))
-                .toList(), null));
+                .map(l -> new PickInput(l.date().toString(), l.startTime().toString(), null)).toList(), null));
 
-        assertThat(r).isEqualTo(new CoachCancelService.Result(2, 1, 0, 2, 0));
-        assertThat(status(WEDNESDAY, "06:00")).isEqualTo(LessonTime.Status.HELD);
-        assertThat(status(WEDNESDAY, "07:30")).isEqualTo(LessonTime.Status.OPEN);
+        assertThat(r).isEqualTo(new CoachCancelService.Result(2, 0, 0, 2, 0));
+        assertThat(scheduleRepo.lessonTimes(dana, WEDNESDAY, WEDNESDAY)).isEmpty();
         assertThat(cancelRepo.batches(dana)).singleElement().satisfies(b -> {
             assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.DAY);
             assertThat(b.affectedFrom()).isEqualTo(WEDNESDAY);
@@ -253,11 +252,10 @@ class RinksideWeekServiceTest {
     @Test
     void todaysWholeDayLeavesALessonThatStartedMeanwhileAndCountsIt() {
         CoachCancelService.Result r = cancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(
-                new PickInput(MONDAY.toString(), "06:30", "HOLD"),
-                new PickInput(MONDAY.toString(), "07:00", "HOLD")), null));
+                new PickInput(MONDAY.toString(), "06:30", null),
+                new PickInput(MONDAY.toString(), "07:00", null)), null));
 
-        assertThat(r.cancelled()).isEqualTo(1);
-        assertThat(r.skipped()).isEqualTo(1);
+        assertThat(r.cancelled()).isEqualTo(1); // the one that started is left out of the time off's batch
         assertThat(status(MONDAY, "06:30")).isEqualTo(LessonTime.Status.BOOKED);
     }
 
@@ -271,8 +269,9 @@ class RinksideWeekServiceTest {
 
         // What the tab showed is exactly what the whole-week cancel closed (S8).
         assertThat(r.cancelled()).isEqualTo(lessons);
-        assertThat(r.held()).isEqualTo(lessons);
-        assertThat(r.openHeld()).isEqualTo(open);
+        assertThat(r.held()).isZero(); // time off: nothing is held, the times are gone (I24)
+        assertThat(r.openHeld()).isZero();
+        assertThat(open).isPositive();
         RinkWeek after = service.week(dana);
         assertThat(after.days()).allSatisfy(d -> {
             assertThat(d.lessons()).isEmpty();

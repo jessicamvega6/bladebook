@@ -24,12 +24,13 @@ import {
 } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
 import {
-  DAYS, DAYS_LONG, MONTHS, MONTHS_LONG, addDays, dayOfWeek, formatClock, formatMoney, formatTime, longDate, monthEnd,
+  DAYS, DAYS_LONG, MONTHS, MONTHS_LONG, addDays, dayOfWeek, formatMoney, formatTime, longDate, monthEnd,
   shortDate, weekStart,
 } from '../../shared/logic/schedule';
 import { timezoneLabel } from '../../shared/logic/timezones';
 import type { BookBody, BookResult, BookingPage, Family, FamilyApi, TimeDto } from '../api';
 import { ShareBox, ShareResult, type ShareAnswer } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 type Skater = Family['skaters'][number];
 type CoachLink = Skater['coaches'][number];
@@ -187,7 +188,7 @@ export function Book({ family, api, route, onError }: {
       </>
     );
   }
-  if (!page) return <><Head title="Book a lesson" actions={pickers} /><p className="muted" aria-busy="true">Loading…</p></>;
+  if (!page) return <><Head title="Book a lesson" actions={pickers} /><Loading /></>;
 
   const panel = (
     <PicksPanel picks={picks} onRemove={remove} onContinue={() => setConfirming(true)} />
@@ -431,7 +432,7 @@ function DayPage({ page, kid, coachId, picks, date, pickers, kept, panel, onTogg
                 const label = st === 'yours' ? `${firstName(mine!.studentName)}’s lesson` : st === 'taken' ? 'Taken' : st === 'past' ? 'Past' : formatMoney(t.priceMinor);
                 const cls = `slot slot--${t.durationMinutes} ${st === 'picked' ? 'slot--mine' : st === 'taken' || st === 'past' ? 'slot--taken' : st === 'yours' ? 'slot--taken bk-yours' : 'slot--open'}`;
                 const inner = <>
-                  <span className="slot__time">{formatTime(t.startTime)}<small> – {formatClock(t.endTime)}</small></span>
+                  <span className="slot__time">{formatTime(t.startTime)}<small> – {formatTime(t.endTime)}</small></span>
                   <span className="slot__len">{t.durationMinutes} min</span>
                   <span className="slot__price">{label}</span>
                   <span className="slot__mark">{st === 'picked' ? <Icon name="check" size={14} /> : st === 'yours' ? <Icon name="check" size={12} /> : null}</span>

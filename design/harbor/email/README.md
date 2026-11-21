@@ -142,8 +142,10 @@ default, it sends from Cognito's own address with a low daily limit.
 
 ## Open questions
 
-1. **The sending address.** The templates assume `lessons@<domain>` for From and `no-reply@<domain>` for coach
-   emails. The domain isn't chosen yet.
+1. ~~**The sending address.** The templates assume `lessons@<domain>` for From and `no-reply@<domain>` for coach
+   emails. The domain isn't chosen yet.~~ *Settled 2026-11-17 (owner, I19): both are settings per environment, as the
+   templates assume; dev uses `lessons@dev.bladebook.org` and `no-reply@dev.bladebook.org`. Production's wait on its
+   email domain (ADR-MASTER §13).*
 2. **Who sends the business-email confirmation.** `architecture.md` doesn't name a function; it's marked `api-coach` here.
 3. **The undecided emails** below.
 

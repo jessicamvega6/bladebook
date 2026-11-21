@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const row = (startTime: string, fullName: string, o: Partial<PaymentRowDto> = {}): PaymentRowDto => ({
   date: '2026-11-16', startTime, durationMinutes: 30, studentId: fullName, fullName, familyName: 'Sarah Park', relationship: 'GUARDIAN',
-  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], closedYear: null, ...o,
+  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], closedYear: null, viewOnly: false, ...o,
 });
 
 const VIEW: PaymentsDto = {
@@ -122,4 +122,32 @@ test('Undo on a payment that counted in a closed year asks first; other paid les
   await userEvent.click(within(screen.getByText('Mia Rossi').closest('tr')!).getByRole('button', { name: 'Undo' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   await waitFor(() => expect(posts).toEqual(['/api/coach/payments/undo Ava Park', '/api/coach/payments/undo Mia Rossi']));
+});
+
+test('a lesson from before last year is view only: a paid one says so, an unpaid one offers Waive alone', async () => {
+  // G-39, Batch 27 (owner, 2026-11-15 and 2026-11-16): the server says which rows are view only.
+  const view: PaymentsDto = { ...VIEW, rows: [
+    row('06:00', 'Ava Park', { date: '2024-12-30', status: 'PAID', paidVia: 'VENMO', viewOnly: true }),
+    row('06:30', 'Jack Park', { date: '2024-12-30', viewOnly: true }),
+    row('07:00', 'Mia Rossi', { date: '2024-12-30', status: 'WAIVED', viewOnly: true }),
+    row('07:30', 'Leo Martin', { date: '2025-01-06', status: 'PAID', paidVia: 'VENMO' })] };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(view), { status: 200 }))));
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  await screen.findByRole('heading', { name: 'Unpaid lessons' });
+  await userEvent.click(screen.getByRole('button', { name: 'All' }));
+
+  const ava = (await screen.findByText('Ava Park')).closest('tr')!;
+  expect(within(ava).queryAllByRole('button')).toEqual([]);
+  expect(within(ava).getByText('View only')).toHaveAttribute('title', 'Lessons from before January 1, 2025 can be viewed but not changed.');
+  expect(within(ava).getByText('Venmo')).toBeInTheDocument();                 // how they paid still shows…
+  expect(within(ava).queryByRole('link')).not.toBeInTheDocument();              // …but can't be changed
+
+  const jack = screen.getByText('Jack Park').closest('tr')!;
+  expect(within(jack).getAllByRole('button').map((b) => b.textContent)).toEqual(['Waive']);
+  expect(within(screen.getByText('Mia Rossi').closest('tr')!).getByText('Final')).toBeInTheDocument();
+
+  const leo = screen.getByText('Leo Martin').closest('tr')!;                    // last year's lesson stays editable
+  expect(within(leo).getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+  expect(within(leo).getByRole('link', { name: 'Change' })).toBeInTheDocument();
 });

@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { fakes } from '../../test/fakeAuth';
 import type { RegistrationBody } from '../api';
 import { json, WAITING } from '../testData';
 import { Signup } from './Signup';
@@ -15,7 +16,6 @@ function serve() {
     if (url === '/api/client/coach-codes/7K2QM9XT') return json(200, DANA);
     if (url === '/api/client/coach-codes/4R8TWH6C') return json(200, BEN);
     if (url.startsWith('/api/client/coach-codes/')) return json(404, { error: 'NO_COACH', message: 'x' });
-    if (url === '/api/client/local/token') return json(200, { idToken: 'tok' });
     if (url === '/api/client/me') return json(404, { error: 'NO_ACCOUNT', message: 'Finish signing up first.' });
     if (url === '/api/client/registration') { sent = JSON.parse(init!.body as string); return json(201, WAITING); }
     return json(500, {});
@@ -35,6 +35,15 @@ function start(token: string | null = null) {
 
 async function enterCode(code: string) {
   await userEvent.type(screen.getByLabelText(/code/i), code);
+}
+
+/** Step 3: Cognito's code (the fake's right one is 123456), which signs the family in. */
+async function verify(props: { onToken: ReturnType<typeof vi.fn> }, rerender: (t: string) => void) {
+  expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('Code'), '123456');
+  await userEvent.click(screen.getByRole('button', { name: 'Verify email' }));
+  await waitFor(() => expect(props.onToken).toHaveBeenCalledWith(fakes.family.token));
+  rerender(fakes.family.token!);
 }
 
 async function details(user = userEvent) {
@@ -91,8 +100,9 @@ test('a guardian signs up two children and lands on the waiting page', async () 
 
   await details();
   await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
-  await waitFor(() => expect(props.onToken).toHaveBeenCalledWith('tok'));
-  rerender('tok');
+  // The password goes to Cognito (here the fake), never to api-client.
+  expect(fakes.family.calls).toEqual(['signUp sarah@example.com']);
+  await verify(props, rerender);
 
   expect(await screen.findByRole('heading', { name: 'Who’s skating?' })).toBeInTheDocument();
   const send = screen.getByRole('button', { name: /Send to Coach Dana/ });
@@ -121,7 +131,7 @@ test('a guardian signs up two children and lands on the waiting page', async () 
 });
 
 test('an adult skating themselves sends one skater under their own name', async () => {
-  const { rerender } = start();
+  const { props, rerender } = start();
   await enterCode('7K2QM9XT');
   await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
   await userEvent.click(screen.getByRole('button', { name: 'Me (18 or older)' }));
@@ -132,7 +142,7 @@ test('an adult skating themselves sends one skater under their own name', async 
   await userEvent.type(screen.getByLabelText('Password'), 'Skate!2026');
   await userEvent.type(screen.getByLabelText('Confirm password'), 'Skate!2026');
   await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
-  rerender('tok');
+  await verify(props, rerender);
 
   expect(await screen.findByRole('heading', { name: 'You’re the skater' })).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText('Member number'), 'lts 4815');
@@ -234,14 +244,9 @@ test('“Change who the lessons are for” goes back to step 2 with the guardian
   expect(screen.getByRole('button', { name: 'A child I’m guardian of' })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('an email that already has a family account is refused on step 2, not after step 4', async () => {
+test('an email that already has an account is refused on step 2, by Cognito, not after step 4', async () => {
   const { props } = start();
-  vi.stubGlobal('fetch', vi.fn((url: string) => {
-    if (url === '/api/client/coach-codes/7K2QM9XT') return json(200, DANA);
-    if (url === '/api/client/local/token') return json(200, { idToken: 'tok' });
-    if (url === '/api/client/me') return json(200, WAITING);
-    return json(500, {});
-  }));
+  fakes.family.taken.add('sarah@example.com');
   await enterCode('7K2QM9XT');
   await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
   await details();
@@ -251,6 +256,27 @@ test('an email that already has a family account is refused on step 2, not after
   expect(await screen.findByText('You already have an account with this email')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Log in instead' })).toHaveAttribute('href', '#/login');
   expect(props.onToken).not.toHaveBeenCalled();
-  expect(sessionStorage.getItem('bb.family.idToken')).toBeNull();
+  expect(fakes.family.token).toBeNull();
+  expect(screen.getByRole('heading', { name: 'About you' })).toBeInTheDocument();
+});
+
+test('the email code: a wrong one says so, Resend sends another, and Use a different email goes back', async () => {
+  const { props } = start();
+  await enterCode('7K2QM9XT');
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
+  await details();
+  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+  expect(await screen.findByText(/We sent a 6-digit code to/)).toHaveTextContent('sarah@example.com');
+  await userEvent.type(screen.getByLabelText('Code'), '999999');
+  await userEvent.click(screen.getByRole('button', { name: 'Verify email' }));
+  expect(await screen.findByText('That code isn’t right. Check the email and try again.')).toBeInTheDocument();
+  expect(props.onToken).not.toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+  expect(await screen.findByText('We sent a new code.')).toBeInTheDocument();
+  expect(fakes.family.calls).toContain('resendSignUpCode sarah@example.com');
+
+  await userEvent.click(screen.getByRole('button', { name: 'Use a different email' }));
   expect(screen.getByRole('heading', { name: 'About you' })).toBeInTheDocument();
 });

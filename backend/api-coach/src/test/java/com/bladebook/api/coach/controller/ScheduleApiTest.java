@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The weekly schedule and the coach's calendar over HTTP (Batch 2). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ScheduleApiTest {
 
     @DynamicPropertySource
@@ -45,7 +45,7 @@ class ScheduleApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     private String email;
     private String token;
@@ -161,19 +161,20 @@ class ScheduleApiTest {
     }
 
     @Test
-    void cancelRestOfAFutureWeekHoldsEveryOpenTimeAndTheScheduleStays() throws Exception {
+    void cancelRestOfAFutureWeekIsTimeOffAndTheWeeklyScheduleStays() throws Exception {
+        // A week is time off called "Cancelled" (owner, 2026-11-18, I24): its times are gone, the next week is untouched.
         call("PUT", "/api/coach/schedule", token, everyDay(0));
         LocalDate sunday = nextSunday();
 
         Res r = call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"WEEK\",\"weekStart\":\"" + sunday + "\"}");
 
         assertThat(r.status()).isEqualTo(200);
-        assertThat(r.body().get("openHeld").asInt()).isEqualTo(7);
+        assertThat(r.body().get("openHeld").asInt()).isZero();
         assertThat(r.body().get("cancelled").asInt()).isZero();
         assertThat(r.body().get("families").asInt()).isZero();
         Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(13), token, null);
         for (int i = 0; i < 14; i++) {
-            assertThat(cal.body().get("days").get(i).get("lessons").get(0).get("lessonStatus").asString()).isEqualTo(i < 7 ? "HELD" : "OPEN");
+            assertThat(cal.body().get("days").get(i).get("lessons").size()).as("day " + i).isEqualTo(i < 7 ? 0 : 1);
         }
         assertThat(call("GET", "/api/coach/schedule", token, null).body().get("scheduleVersion").asLong()).isEqualTo(1);
     }
@@ -190,7 +191,7 @@ class ScheduleApiTest {
     @Test
     void aCancelWithNoScopeOrChoiceIsInvalid() throws Exception {
         assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"MONTH\"}").status()).isEqualTo(400);
-        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"DAY\",\"picks\":[{\"date\":\"" + nextSunday()
+        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"LESSON\",\"picks\":[{\"date\":\"" + nextSunday()
                 + "\",\"startTime\":\"09:00\"}]}").s("message")).isEqualTo("Choose release or hold for each lesson.");
     }
 

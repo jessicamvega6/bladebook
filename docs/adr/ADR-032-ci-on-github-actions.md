@@ -50,6 +50,38 @@ matched without extra machinery. Instead:
   live for the few minutes between the deploy and the failed check. *Revisit* when there are
   more coaches or more than one person merging.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I13 in `AI/plan-history.md`).* **How deploy
+roles are kept from personal data** (decision 2.7). CDK's default bootstrap gives CloudFormation's execution role
+AdministratorAccess and its lookup role AWS's ReadOnlyAccess, which includes reading table items and log lines;
+17a's GitHub role could assume the lookup role. Built in 17b, before the deploy workflow is first switched on:
+- **GitHub's role no longer assumes the lookup role.** Lookup results are committed in `infra/cdk.context.json`, so
+  CI needs no lookups; a new lookup is run once by hand and its result committed.
+- **Each account is bootstrapped with a custom execution policy**: AdministratorAccess plus an explicit **deny** on
+  reading or exporting the table's items (`GetItem`, `BatchGetItem`, `Query`, `Scan`, PartiQL reads,
+  `ExportTableToPointInTime`, stream reads), on reading the access-log group, and on reading objects in the
+  reports, archive and access-log buckets. An explicit deny wins over any allow. Dev's **seed bucket** is not
+  denied, because the table import reads it through CloudFormation, and it holds only fake data.
+- **The same denies on GitHub's own role**, as a second layer.
+- An infrastructure test asserts the denies on GitHub's role and that it can't assume the lookup role; the
+  bootstrap policy is a file in `infra/`, so the bootstrap command is repeatable.
+- **Not closed, accepted:** a deploy can still *create* a function that reads the table, as BladeBook's own
+  functions must. Decision 2's review, `main`-only deploys and production's approval guard that. The denies close
+  the quiet path: reading data without a change that shows in the repo.
+- Production's account is bootstrapped this way from its first deploy.
+
+**Amended — 2026-11-19.** *Decided by the owner (Batch 17b, I29 in `AI/plan-history.md`).* **How the workflows are
+built before production exists:**
+- **Every merge into `main` tags a version** once its checks pass, and attaches the Lambda archives the checks
+  built, with their SHA-256 sums, to that tag's GitHub Release. The deploy downloads them and checks the sums, so it
+  ships exactly what was tested, never a rebuild.
+- **The deploy workflow is started by hand** with a tag and an environment. Dev deploys any tag built from `main`.
+  The production job is written but refuses to run until production's account exists.
+- **Deploy-time settings** (the test mailbox, the page phone and email) are GitHub **environment secrets**, not
+  variables, because a public repository's run logs are public and only secrets are masked in them.
+- **The GitHub settings of decision 2** are set with `gh`: environments `dev` and `production`, both deploying from
+  `main` only, production waiting for the owner's approval; and `main`'s ruleset with no bypass, so the owner too
+  merges only by pull request.
+
 ---
 
 ## Context
@@ -104,7 +136,9 @@ on request** (ADR-028 decision 2).
 3. **The AWS trust rule is locked to this repository and branch.** The role's trust policy
    checks the token's `aud` (`sts.amazonaws.com`) and its `sub` exactly. For production,
    `sub` must match this repository's production environment
-   (`repo:<owner>/<repo>:environment:production`). Wildcards that would admit another
+   (`repo:<owner>/<repo>:environment:production`; *2026-11-20: the repository uses GitHub's immutable subjects,
+   so the trust names `repo:<owner>@<owner ID>/<repo>@<repo ID>:environment:production`, which a renamed or
+   recreated repository can't match*). Wildcards that would admit another
    repository, a fork or any branch are not allowed.
 4. **A production deploy waits for the owner's approval.** Production deploys run in a GitHub
    environment named `production` that requires a reviewer's approval and allows deploys only
@@ -161,6 +195,7 @@ runs in this pipeline as a build gate once ADR-001 A4 is settled. *A4 settled 20
   personal-data access log). Deploy roles must not read the table's data or that log. If CDK is
   chosen (ADR-001 A4), narrow its default bootstrap execution role, which has full administrator
   access unless changed. *Added 2026-10-15.* *CDK was chosen 2026-11-12, so this applies.*
+  **Settled 2026-11-17 by the owner (I13):** amendment above.
 - ~~**How a passing dev run is recorded on the commit**, given that dev may be built by hand:
   for example, the dev flows run from a workflow against the dev stack the owner built, and
   set a commit status; or the owner's run sets it. *Added 2026-10-15.*~~ *Gone 2026-10-15: the

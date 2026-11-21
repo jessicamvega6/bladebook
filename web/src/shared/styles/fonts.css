@@ -1,0 +1,7 @@
+/* Figtree from BladeBook's own files on every page, not Google Fonts (I17; ADR-MASTER section 1): the Content Security
+   Policy allows fonts only from the site itself. Latin, the weights the pages use. SIL Open Font License. */
+@import '@fontsource/figtree/latin-400.css';
+@import '@fontsource/figtree/latin-500.css';
+@import '@fontsource/figtree/latin-600.css';
+@import '@fontsource/figtree/latin-700.css';
+@import '@fontsource/figtree/latin-800.css';

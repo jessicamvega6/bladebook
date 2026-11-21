@@ -1,12 +1,14 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.ClientLinks;
 import com.bladebook.core.data.FamilyRepository;
+import com.bladebook.core.domain.RegistrationRules;
+import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.LinkedSkater;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -53,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The rinkside page and the Lessons page over HTTP (Batch 7). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class AttendanceApiTest {
 
     @DynamicPropertySource
@@ -69,7 +71,7 @@ class AttendanceApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     TenantClients clients;
@@ -112,8 +114,8 @@ class AttendanceApiTest {
     void setUp() throws Exception {
         email = "coach-" + UUID.randomUUID() + "@example.com";
         token = stub.coachToken(email);
-        call("POST", "/api/coach/signup", token, "{\"firstName\":\"Dana\",\"lastName\":\"Whitfield\",\"useLoginEmail\":true,"
-                + "\"coachTimezone\":\"America/Chicago\",\"currency\":\"USD\",\"paymentTypes\":[]}");
+        String code = call("POST", "/api/coach/signup", token, "{\"firstName\":\"Dana\",\"lastName\":\"Whitfield\",\"useLoginEmail\":true,"
+                + "\"coachTimezone\":\"America/Chicago\",\"currency\":\"USD\",\"paymentTypes\":[]}").body().get("coachCode").asString();
         // The coach's ID is the token's subject, as Cognito's would be.
         String coachId = JSON.readTree(java.util.Base64.getUrlDecoder().decode(token.split("\\.")[1])).get("sub").asString();
         dana = new AccessContext(coachId);
@@ -137,7 +139,9 @@ class AttendanceApiTest {
                 ClientRelationship.GUARDIAN, Instant.now());
         StudentRecord r = new StudentRecord(coachId, ava, family.clientId(), StudentStatus.PENDING, k.name(), true, ClientRelationship.GUARDIAN,
                 "Sarah Park", "sarah@example.com", "(205) 555-0196", SkatingOrg.USFS, "1234567", Instant.now());
-        new FamilyRepository(clients, table).register(family, p, List.of(k), List.of(r), Map.of(coachId, new CoachName("Dana", "Whitfield")));
+        // Registration resolves the code in the family's session, as RegistrationService does (I30).
+        CodeRepository.Found coach = new CodeRepository(clients, table).resolve(family, RegistrationRules.code(code)).orElseThrow();
+        new FamilyRepository(clients, table).register(family, p, List.of(k), List.of(r), List.of(coach));
         new StudentRepository(clients, table).approve(dana, ava);
         new SyncRepository(clients, table).setLinkStatus(family.clientId(), coachId, ava, StudentStatus.ACTIVE);
         linked = new ClientLinks(clients, table).requireActive(family, coachId, ava);
@@ -149,6 +153,30 @@ class AttendanceApiTest {
     private String outcome(String outcome, Instant at) {
         return "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"outcome\":\"" + outcome
                 + "\",\"outcomeAt\":\"" + at + "\"}";
+    }
+
+    /** The coach website's Today page (Batch 22): the same lesson, with its price, counted this week and as unpaid. */
+    @Test
+    void theTodayPageListsTheLessonAndCountsItThisWeekAndUnpaid() throws Exception {
+        Res day = call("GET", "/api/coach/today", token, null);
+        assertThat(day.status()).isEqualTo(200);
+        assertThat(day.s("today")).isEqualTo(today.toString());
+        assertThat(day.s("currency")).isEqualTo("USD");
+        assertThat(day.s("nextLessonDate")).isNull();
+        JsonNode lesson = day.body().get("lessons").get(0);
+        assertThat(lesson.get("startTime").asString()).isEqualTo(started.toString());
+        assertThat(lesson.get("held").asBoolean()).isFalse();
+        assertThat(lesson.get("next").asBoolean()).isFalse();   // it has started
+        JsonNode skater = lesson.get("skaters").get(0);
+        assertThat(skater.get("name").asString()).isEqualTo("Ava Park");
+        assertThat(skater.get("amountMinor").asInt()).isEqualTo(5000);
+        assertThat(skater.get("attendance").asString()).isEqualTo("BOOKED");
+        assertThat(day.body().get("week").get("count").asInt()).isEqualTo(1);
+        assertThat(day.body().get("week").get("amounts").get("USD").asLong()).isEqualTo(5000);
+        assertThat(day.body().get("unpaid").get("count").asInt()).isEqualTo(1);
+        assertThat(day.body().get("unpaid").get("amounts").get("USD").asLong()).isEqualTo(5000);
+
+        assertThat(call("GET", "/api/coach/today", null, null).status()).isEqualTo(401);
     }
 
     @Test
@@ -209,6 +237,8 @@ class AttendanceApiTest {
         assertThat(list.body().get("choices").get(0).asString()).isEqualTo("OTHER");
         assertThat(list.body().get("thisYear").asInt()).isEqualTo(java.time.LocalDate.now(java.time.ZoneId.of("America/Chicago")).getYear());
         assertThat(row.path("closedYear").isNumber()).isFalse();             // unpaid: no closed year to warn about
+        assertThat(row.get("viewOnly").isBoolean()).isTrue();
+        assertThat(row.get("viewOnly").asBoolean()).isFalse();                // today's lesson: editable (Batch 27)
 
         String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
         Res paid = call("POST", "/api/coach/payments/paid", token, seat);

@@ -1,15 +1,15 @@
 ClientProfileView
 *Updated 2026-10-12 to match the Harbor design (design/harbor/client/static/profile*.html). The design is the source of truth.*
 
-is a form that allows the client to change their phone number, email, add a student, ~~remove a student,~~ pick a different profile picture (Phase 2)
+is a form that allows the client to change their phone number, ~~email,~~ add a student, ~~remove a student,~~ pick a different profile picture (Phase 2)
 
 *Design details:*
 Your details:
   Your name, mobile phone, and email.
-  Email: the family logs in with it. Changing it sends a code to the new address.
-    *Decided 2026-10-12:* entering that code reuses the sign-up verify screen (signup-3-verify.html): 6-digit code,
-    "Verify email", "Resend code" and "Use a different email". The old address stays the login until the code is
-    entered (Cognito's keep-original-until-verified setting).
+  Email: the family logs in with it. *Read-only (owner, 2026-11-20, I32): families don't change their login email.*
+    ~~Changing it sends a code to the new address. Entering that code reuses the sign-up verify screen; the old
+    address stays the login until the code is entered.~~ To change the password, a family uses "Forgot/change
+    password" on the log-in page (C_Client Log In.md).
   "Text me reminders" switch, with the SMS terms (same as sign-up). *Phase 2 (2026-10-12): all client SMS deferred.*
   Profile picture: shown, with the Phase 2 tag; choosing one is disabled.
 

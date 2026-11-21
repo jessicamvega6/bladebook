@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -73,6 +74,17 @@ public final class CalendarService {
 
     /** {@code from} to {@code to} inclusive, at most 42 days. */
     public CalendarView range(AccessContext ctx, LocalDate from, LocalDate to) {
+        CalendarView out = buildRange(ctx, from, to);
+        List<Booked> booked = out.days().stream().flatMap(d -> d.booked().stream()).toList();
+        if (!booked.isEmpty()) {
+            AccessLog.coachRead(ctx, "calendar", new AccessLog.Ids()
+                    .addAll("studentId", booked.stream().map(Booked::studentId).toList())
+                    .addAll("clientId", booked.stream().map(Booked::familyId).toList()), List.of("shortName", "fullName", "familyName"));
+        }
+        return out;
+    }
+
+    private CalendarView buildRange(AccessContext ctx, LocalDate from, LocalDate to) {
         if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_DAYS) {
             throw DomainException.invalid("to", "Pick up to six weeks at a time.");
         }

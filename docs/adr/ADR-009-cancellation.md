@@ -78,6 +78,40 @@ worked out by the same plan *Cancel rest of week* carries out, so the whole-week
 exactly what it holds. (Built first with a fourth value, `SELECTION`, for picks across days; the
 owner ruled it out the same day, and it was never merged.)
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I8 in `AI/plan-history.md`).*
+**A coach's cancel of more than one lesson writes its whole plan before carrying any of it out**,
+the way a schedule save does (ADR-MASTER §9): the change-batch header, then a `PLANNED`
+`CANCELLED#` line for every seat it cancels and a planned hold for every open time it closes, each
+carrying the coach's release-or-hold choice; then each lesson in turn, marking its lines
+`EXECUTED`; then the header. A failure part-way leaves every remaining lesson written down, so it
+can be finished: `sched-drift-check` hands a batch unfinished for over an hour to
+`consumer-schedule-change`, which carries out the remaining lines (ADR-010 d5k, amended the same
+day). Before this, the lines were written `EXECUTED` one lesson at a time, so a failure left the
+rest of the coach's choice recorded nowhere (root `README.md` SC-14).
+
+**Amended — 2026-11-18.** *Decided by the owner (ruling I24 in `AI/plan-history.md`), while building
+the 2026-11-17 amendment above.* That amendment had no place to plan a lesson nobody booked: a
+`CANCELLED#` line is one per booked seat. The owner changed the feature instead:
+**a whole day or the rest of the week is time off, not a cancellation lesson by lesson.**
+- *Cancel this day* and *Cancel rest of week* (on the website and the rinkside page) write a **time
+  off named "Cancelled"** for those dates (ADR-008: a temporary schedule with no blocks), from today
+  on for the week. **There is no release-or-hold question**, and nothing is held: the times leave the
+  booking page, as for any time off. The coach can rename or delete it like any time off.
+- **Inside a special schedule**, that schedule's times are switched off on those dates and the rest of
+  it stays; dates already in a time off are already empty. A cancel never shows an overlap error.
+- **The schedule change** (ADR-006, ADR-MASTER §9) cancels the booked lessons in one planned batch,
+  run in the same request and **recorded as the coach's** (`cancelledBy = COACH`, `batchSource`
+  `DAY` or `WEEK`), so families get the *cancelled by the coach* email (decision 9) and a batch that
+  stops part-way is finished like any schedule change. This replaces the 2026-11-17 amendment's
+  multi-lesson plan.
+- **Lessons that have started stay**, with their attendance and payment.
+- **Only *this lesson* asks release or hold** (decision 5), and it is one transaction, so it can't stop
+  part-way.
+
+So the 2026-11-08 and 2026-11-16 amendments' "the rest of the week holds everything" and "a whole day
+still asks release-or-hold for each lesson", and decisions 5 and 5a where they apply to a day or a
+week, no longer describe what happens.
+
 ---
 
 ## Context
@@ -276,7 +310,8 @@ booked slots with the student's name. Cancellation happens from there, in three 
 3. **This week** — an emergency.
 
 Each asks one question: **release the time for rebooking, or keep it unbookable?** *This week
-always holds, and holds open times too (Status, 2026-11-08).*
+always holds, and holds open times too (Status, 2026-11-08).* *Since 2026-11-18 (I24) only a single
+lesson asks; a day or a week is time off (Status).*
 
 - **Release** — ~~the booking item is deleted.~~ *each seat moves to a `CANCELLED#` line and
   the lesson time goes back to `OPEN` (ADR-031 decision 2, 2026-10-13).* The slot returns to
@@ -326,6 +361,7 @@ anything else in range, and not a feature.
 *Added 2026-09-22.* The rinkside app offers cancellation from a cancel section and from the
 check-in list (screens and rules: `FeatureDecriptions/Coach App`, moved 2026-11-08).
 
+*Since 2026-11-18 (I24, Status), a whole day and the whole week are time off, with no question.*
 *Amended 2026-11-08 (Status):* the cancel section's **whole week** holds every booked lesson and
 open time left in the week, with no release-or-hold question, like the week view's *Cancel rest
 of week*. Everything else below still applies to the other choices.

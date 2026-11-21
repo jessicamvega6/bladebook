@@ -79,7 +79,7 @@ SCREENS.login = () => authShell(card(`
   ${state.auth.notice ? banner('success', state.auth.notice) : ''}
   ${INP('ac-login-email', 'Email', 'auth.email', { type: 'email' })}
   ${INP('ac-login-pw', 'Password', 'auth.pw', { type: 'password', placeholder: '••••••••' })}
-  <div class="fine"><a class="link" href="${href('forgot')}">Forgot your password?</a></div>
+  <div class="fine"><a class="link" href="${href('forgot')}">Forgot/change password</a></div>
   ${B('Log in', 'primary', 'acLogin', { block: true, lg: true })}`),
   help('First time here?', `You need a code from your coach to sign up. <a class="link" href="${href('signup')}">Sign up with a coach code</a>.`));
 
@@ -190,7 +190,7 @@ const acCoachCard = cid => {
       : lines.length ? `<div class="ac-contact">${lines.join('')}</div>` : `<p class="fine">Reply to any lesson email to reach Coach ${esc(p.first)}.</p>`}`, { title: multi ? '' : 'Your coach', cls: 'ac-coachcard' });
 };
 const acCoachCards = () => `${multiCoach() ? `<div class="ac-cardshead">Your coaches</div>` : ''}${myCoachIds().map(acCoachCard).join('')}`;
-const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtShortT(l.t)}</b><small>${l.iso === TODAY ? 'Today' : dDow(l.iso)}</small></span>${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${coachTag(l).replace(/^ · /, '')}${coachTag(l) ? ' · ' : ''}${l.len} min · ${money(l.price)}${bkRepeatsLabel(l) ? ' · ' + bkRepeatsLabel(l) : ''}${l.with ? ' · shared' : l.invited ? ' · invited to share' : ''}`)}`,
+const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtT(l.t)}</b><small>${l.iso === TODAY ? 'Today' : dDow(l.iso)}</small></span>${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${coachTag(l).replace(/^ · /, '')}${coachTag(l) ? ' · ' : ''}${l.len} min · ${money(l.price)}${bkRepeatsLabel(l) ? ' · ' + bkRepeatsLabel(l) : ''}${l.with ? ' · shared' : l.invited ? ' · invited to share' : ''}`)}`,
   isStarted(l) ? statusBadge(l) : badge('Booked', 'primary'));
 
 /** Invitations for this family's skaters that are still open, to answer. */
@@ -294,7 +294,7 @@ SCREENS.profile = () => {
     ${pageHead('Profile', multi ? 'How your coaches and BladeBook reach you.' : 'How Coach ' + esc(coachFirst()) + ' and BladeBook reach you.')}
     ${card(`
       ${INP('ac-pr-name', self ? 'Your name' : `Your name (${state.me.rel.toLowerCase()})`, 'me.name')}
-      <div class="grid2">${INP('ac-pr-phone', 'Mobile phone', 'me.phone', { type: 'tel' })}${INP('ac-pr-email', 'Email', 'me.email', { type: 'email', hint: 'You log in with this. Changing it sends a code to the new address.' })}</div>
+      <div class="grid2">${INP('ac-pr-phone', 'Mobile phone', 'me.phone', { type: 'tel' })}<div class="fieldset"><div class="label">Email</div><div class="input input--readonly"><span class="input__val">${esc(state.me.email)}</span></div><div class="hint">You log in with this.</div></div></div>
       ${smsLater()}
       <div class="fieldset"><div class="label">Profile picture ${badge('Phase 2', 'neutral')}</div><div class="photo-pick">${avatar(initials(state.me.name), 'lg')}${B('Choose a picture', 'secondary', '', { sm: true, disabled: true })}<span class="hint">Picking a picture comes in Phase 2.</span></div></div>`,
       { title: 'Your details' })}

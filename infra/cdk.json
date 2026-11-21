@@ -1,0 +1,10 @@
+{
+  "app": "cd ../backend && ./mvnw -q -DskipTests package && cd ../web && npm run --silent build 1>&2 && cd ../infra && node bin/bladebook.ts",
+  "watch": {
+    "include": [
+      "bin/**",
+      "lib/**"
+    ]
+  },
+  "context": {}
+}

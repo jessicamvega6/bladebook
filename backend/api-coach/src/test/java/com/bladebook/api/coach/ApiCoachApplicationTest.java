@@ -7,7 +7,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ApiCoachApplicationTest {
 
     @DynamicPropertySource

@@ -40,19 +40,23 @@ public class NotificationConfig {
         return new LocalOutbox(clock);
     }
 
-    /** SES isn't set up until the infrastructure batch (Batch 17); outside the local profile nothing is deployed yet. */
+    /**
+     * On AWS {@code api-client} sends no email: its role has no SES permission (ADR-MASTER section 2). The emails its writes
+     * cause are sent by the consumers on the table's stream. Locally the same services send them in-process (SC-20).
+     */
     @Bean
     @Profile("!local")
-    Mailer sesNotSetUp() {
+    Mailer noEmailFromApiClient() {
         return e -> {
-            throw new IllegalStateException("Email isn't set up yet: SES comes with the infrastructure (Batch 17).");
+            throw new IllegalStateException("api-client sends no email on AWS; the consumers send " + e.template() + ".");
         };
     }
 
     @Bean
     NotificationService notificationService(NotifyRepository repo, Mailer mailer, Clock clock,
-                                            @Value("${bladebook.site-url:http://localhost:5173}") String site) {
-        return new NotificationService(repo, mailer, new NotificationService.Links(site), clock);
+                                            @Value("${bladebook.coach-site-url:http://localhost:5173/coach}") String coachSite,
+                                            @Value("${bladebook.family-site-url:http://localhost:5173/family}") String familySite) {
+        return new NotificationService(repo, mailer, new NotificationService.Links(coachSite, familySite), clock);
     }
 
     @Bean

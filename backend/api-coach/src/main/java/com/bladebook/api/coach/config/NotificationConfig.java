@@ -8,6 +8,7 @@ import com.bladebook.core.service.Mailer;
 import com.bladebook.core.service.NotificationService;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.ScheduledJobs;
+import com.bladebook.core.service.SesMailer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,7 +24,7 @@ import java.time.Clock;
 
 /**
  * The emails and the jobs that send them (Batch 13). On AWS each consumer and job is its own function, triggered by the
- * table's stream or the Scheduler, and the mailer is SES (Batch 17). Locally three listed shortcuts stand in: the stream
+ * table's stream or the Scheduler, and the mailer is SES. Locally three listed shortcuts stand in: the stream
  * ({@link LocalStreamRouter} after each request, SC-20), the outbox ({@link LocalOutbox}, SC-21) and the Scheduler
  * ({@link LocalJobs}, SC-22).
  */
@@ -42,19 +43,21 @@ public class NotificationConfig {
         return new LocalOutbox(clock);
     }
 
-    /** SES isn't set up until the infrastructure batch (Batch 17); outside the local profile nothing is deployed yet. */
+    /**
+     * On AWS: SES. {@code api-coach}'s role may send only the business-email confirmation (ADR-MASTER section 2, I9); every
+     * other email comes from a consumer or a scheduled job, each its own function.
+     */
     @Bean
     @Profile("!local")
-    Mailer sesNotSetUp() {
-        return e -> {
-            throw new IllegalStateException("Email isn't set up yet: SES comes with the infrastructure (Batch 17).");
-        };
+    Mailer sesMailer(@Value("${bladebook.mail.from}") String from, @Value("${bladebook.mail.no-reply}") String noReply) {
+        return SesMailer.aws(new SesMailer.Senders(from, noReply));
     }
 
     @Bean
     NotificationService notificationService(NotifyRepository repo, Mailer mailer, Clock clock,
-                                            @Value("${bladebook.site-url:http://localhost:5173}") String site) {
-        return new NotificationService(repo, mailer, new NotificationService.Links(site), clock);
+                                            @Value("${bladebook.coach-site-url:http://localhost:5173/coach}") String coachSite,
+                                            @Value("${bladebook.family-site-url:http://localhost:5173/family}") String familySite) {
+        return new NotificationService(repo, mailer, new NotificationService.Links(coachSite, familySite), clock);
     }
 
     /** The unpaid threshold is a setting (ADR-MASTER section 12: Parameter Store on AWS). Blank: the Monday email sends nothing. */

@@ -16,6 +16,7 @@ import { firstName } from '../../shared/logic/names';
 import { DAYS, DAYS_LONG, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate } from '../../shared/logic/schedule';
 import { codeState, noAnswer, normaliseShareCode, splitLine } from '../../shared/logic/sharing';
 import type { Family, FamilyApi, Invitation, MyLesson } from '../api';
+import { Loading } from '../../shared/components/Loading';
 
 const dDow = (date: string) => `${DAYS[dayOfWeek(date)]}, ${shortDate(date)}`;
 const dateBlock = (date: string) => (
@@ -204,7 +205,7 @@ export function InvitePage({ api, inviteId, onError }: { api: FamilyApi; inviteI
   };
 
   const crumb = <div className="crumb"><a className="link" href="#/home"><Icon name="arrowL" size={14} /> Home</a></div>;
-  if (inv === undefined) return <p className="muted" aria-busy="true">Loading…</p>;
+  if (inv === undefined) return <Loading />;
   if (inv === null) {
     return (
       <>{crumb}<div className="hero bk-hero--warn"><span className="hero__icon"><Icon name="clock" size={26} /></span>

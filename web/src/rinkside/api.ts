@@ -1,5 +1,5 @@
 /** The rinkside page's calls to api-coach (Batch 7). Its routes keep a 4-hour session (ADR-023 d6). */
-import { apiFetch } from '../shared/api/client';
+import { apiFetch, type TokenSource } from '../shared/api/client';
 
 export type Shown = 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
 
@@ -22,7 +22,7 @@ export interface RinkWeek { coachTimezone: string; today: string; now: string; w
 
 export interface CancelResult { cancelled: number; held: number; openHeld: number; families: number; skipped: number }
 
-export function rinkApi(token: string) {
+export function rinkApi(token: TokenSource) {
   return {
     today: () => apiFetch<RinkDay>('/api/coach/rinkside/today', { token }),
     /** {@code outcomeAt}: the tap time on this phone. A repeat answers with what was recorded first. */
@@ -43,13 +43,13 @@ export function rinkApi(token: string) {
       apiFetch<CancelResult>('/api/coach/rinkside/cancel', {
         method: 'POST', token, body: { scope: 'LESSON', picks: [{ date: l.date, startTime: l.startTime, after: hold ? 'HOLD' : 'RELEASE' }] },
       }),
-    /** A whole day: every lesson left that day, each released or held (S9), as one DAY batch. */
-    cancelDay: (lessons: Array<{ date: string; startTime: string; hold: boolean }>) =>
+    /** A whole day: time off called "Cancelled" for that day, no release-or-hold (owner, 2026-11-18, I24). */
+    cancelDay: (lessons: Array<{ date: string; startTime: string }>) =>
       apiFetch<CancelResult>('/api/coach/rinkside/cancel', {
         method: 'POST', token,
-        body: { scope: 'DAY', picks: lessons.map((p) => ({ date: p.date, startTime: p.startTime, after: p.hold ? 'HOLD' : 'RELEASE' })) },
+        body: { scope: 'DAY', picks: lessons.map((p) => ({ date: p.date, startTime: p.startTime })) },
       }),
-    /** Cancel rest of week: sends only its Sunday; the server holds every booked lesson and open time left (S8). */
+    /** Cancel rest of week: sends only its Sunday; the server makes the rest of it, from now on, time off (I24). */
     cancelWeek: (weekStart: string) =>
       apiFetch<CancelResult>('/api/coach/rinkside/cancel', { method: 'POST', token, body: { scope: 'WEEK', weekStart } }),
   };

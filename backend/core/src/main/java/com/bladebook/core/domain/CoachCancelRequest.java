@@ -16,6 +16,7 @@ import java.util.Map;
  */
 public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, LocalDate weekStart) {
 
+    /** {@code after}: the release-or-hold choice, for one lesson only; null for a day (I24). */
     public record Pick(LocalDate date, LocalTime startTime, AfterCancel after) {
     }
 
@@ -60,7 +61,9 @@ public record CoachCancelRequest(ChangeBatch.Source scope, List<Pick> picks, Loc
             if (p == null) {
                 throw DomainException.invalid("picks", "Choose at least one lesson to cancel.");
             }
-            Pick pick = new Pick(date(p.date(), "date"), time(p.startTime()), AfterCancel.parse(p.after()));
+            // Only one lesson asks release or hold; a day is time off (owner, 2026-11-18, I24).
+            AfterCancel after = source == ChangeBatch.Source.DAY ? null : AfterCancel.parse(p.after());
+            Pick pick = new Pick(date(p.date(), "date"), time(p.startTime()), after);
             unique.putIfAbsent(pick.date() + "#" + pick.startTime(), pick);
         }
         List<Pick> out = new ArrayList<>(unique.values());

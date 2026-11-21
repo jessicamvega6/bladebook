@@ -215,3 +215,14 @@ test('less often keeps the next lesson and every other one; stopping keeps nothi
   await userEvent.click(screen.getByRole('button', { name: /Cancel all future lessons/ }));
   expect(what).toHaveTextContent('4 lessons cancelled · 0 lessons kept');
 });
+
+test('a series already every 4 weeks says it is at the limit offered (owner, 2026-11-20)', async () => {
+  at('2026-11-22T13:00:00Z');
+  const series = (date: string): MyLesson => lesson({ date, startsAtUtc: `${date}T13:00:00Z`, recurrenceId: 'r1', intervalWeeks: 4 });
+  const data: MyBookings = { upcoming: ['2026-11-23', '2026-12-21'].map(series), recent: [], series: [{ coachId: 'dana',
+    recurrenceId: 'r1', studentId: 'ava', studentName: 'Ava Park', coachFirstName: 'Dana', weekday: 'MONDAY', startTime: '07:00', intervalWeeks: 4,
+    endDate: '2026-12-21', lessonsLeft: 2, lastLesson: '2026-12-21' }] };
+  render(<SeriesChange api={fakeApi(data)} coachId="dana" recurrenceId="r1" onError={vi.fn()} />);
+  expect(await screen.findByRole('button', { name: /Make it less frequent/ })).toHaveTextContent('Already at the limit offered: every 4 weeks');
+  expect(screen.queryByText(/the least often/)).not.toBeInTheDocument();
+});

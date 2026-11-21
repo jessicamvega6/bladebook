@@ -27,5 +27,49 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-events</artifactId>
         </dependency>
+        <!-- auth-post-confirmation: adds a new account to its group (ADR-023 d10). -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cognitoidentityprovider</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <!-- The Lambda package (backend/lambda-zip.xml): target/consumers-lambda.zip, one package for every consumer. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>lambda-zip</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>${maven.multiModuleProjectDirectory}/lambda-zip.xml</descriptor>
+                            </descriptors>
+                            <finalName>${project.artifactId}-lambda</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

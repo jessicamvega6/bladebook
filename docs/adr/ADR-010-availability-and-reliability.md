@@ -77,6 +77,16 @@ is Phase 2. Until it ships, the restore runbook has no erased-ID list to re-appl
 **Amended — 2026-11-11.** *Decided by the owner:* the end-of-day report is Phase 2. Its row in
 decision 1's tolerance table and its re-run-for-that-date rule apply once it ships.
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I8 in `AI/plan-history.md`).*
+**Decision 5k's drift check now finishes a stuck batch instead of only paging.** For each batch
+unfinished for more than an hour, it invokes `consumer-schedule-change` directly (as
+`reconcile-schedule` does) to finish **that batch only**, and waits for the answer; it **pages
+only if the finish fails**. It still writes nothing to the table itself: its role gains
+`lambda:InvokeFunction` on `consumer-schedule-change` and nothing else. A lesson that should have
+been cancelled and wasn't still pages, and re-prices still go to the dashboard; `reconcile-schedule`
+stays the operator's command for those. This covers a coach's multi-lesson cancel too, which now
+writes its plan first (ADR-009, amended the same day).
+
 ---
 
 ## Context
@@ -450,7 +460,7 @@ coach can hand-edit one booking's price. Until that is settled, a reconcile coul
 hand-edited price. Cancellations do not depend on it.~~ *Settled 2026-10-13 (owner, ADR-031):
 per-lesson price editing is removed, so a reconcile has no hand-set price to overwrite.*
 
-**5k. A nightly drift check alerts, and fixes nothing.** A new scheduled function,
+**5k. A nightly drift check alerts, and fixes nothing.** *(Amended 2026-11-17: it finishes a stuck batch through `consumer-schedule-change`; see Status.)* A new scheduled function,
 **`sched-drift-check`**, runs the reconcile's checks in dry-run form every night — **read-only**,
 with no ability to change anything.
 

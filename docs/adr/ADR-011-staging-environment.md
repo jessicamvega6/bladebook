@@ -456,6 +456,7 @@ no default list: name every coach.*
 Created once in the staging Cognito pool and kept across refreshes, so their `sub`s never
 change:
 
+- *Addresses amended 2026-11-17 by ADR-027: tagged addresses on the owner's test mailbox (`…+dev-coach-a@…`), kept out of the repo, replace `example.com`.*
 - **Test coaches** — three to five: `coach-a@example.com`, `coach-b@example.com`, …
 - **Test clients** — about ten: `client-1@example.com`, `client-2@example.com`, …
 

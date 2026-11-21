@@ -1,5 +1,5 @@
 /** Typed calls to api-coach for the profile and sign-up (Batch 1). */
-import { apiFetch } from '../shared/api/client';
+import { apiFetch, type TokenSource } from '../shared/api/client';
 
 export type PaymentTypeName = 'CASH' | 'CASHAPP' | 'VENMO' | 'PAYPAL';
 
@@ -71,7 +71,7 @@ export interface PaymentsBody {
   paymentTypes: PaymentType[];
 }
 
-export function coachApi(token: string) {
+export function coachApi(token: TokenSource) {
   const call = <T>(path: string, method: 'GET' | 'POST' | 'PUT' = 'GET', body?: unknown) =>
     apiFetch<T>(`/api/coach${path}`, { method, body, token });
   return {
@@ -136,7 +136,9 @@ export interface LessonDto {
 
 /** Cancelling from the calendar (Batch 5). A lesson or a day asks each lesson; the week names only its Sunday. */
 export type CancelBody =
-  | { scope: 'LESSON' | 'DAY'; picks: Array<{ date: string; startTime: string; after: 'RELEASE' | 'HOLD' }> }
+  | { scope: 'LESSON'; picks: Array<{ date: string; startTime: string; after: 'RELEASE' | 'HOLD' }> }
+  // A day is time off: no release-or-hold (owner, 2026-11-18, I24).
+  | { scope: 'DAY'; picks: Array<{ date: string; startTime: string }> }
   | { scope: 'WEEK'; weekStart: string };
 
 /** What was done. {@code skipped}: lessons that started or were cancelled since the preview, left alone. */
@@ -176,7 +178,7 @@ export interface ChangeStatusDto {
   lessonCount: number; clientCount: number; stuck: boolean; passed: ImpactDto[];
 }
 
-export function scheduleApi(token: string) {
+export function scheduleApi(token: TokenSource) {
   const call = <T>(path: string, method: 'GET' | 'PUT' | 'POST' | 'DELETE' = 'GET', body?: unknown) =>
     apiFetch<T>(`/api/coach${path}`, { method, body, token });
   return {
@@ -228,7 +230,7 @@ export interface StudentsDto {
   pending: StudentDto[];
 }
 
-export function studentApi(token: string) {
+export function studentApi(token: TokenSource) {
   return {
     list: () => apiFetch<StudentsDto>('/api/coach/students', { token }),
     approve: (studentIds: string[]) => apiFetch<StudentsDto>('/api/coach/students/approve', { method: 'POST', body: { studentIds }, token }),
@@ -246,7 +248,7 @@ export interface PastLessonDto {
   skater: { studentId: string; shortName: string; fullName: string; familyName: string | null; status: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED'; outcomeAt: string | null };
 }
 
-export function lessonsApi(token: string) {
+export function lessonsApi(token: TokenSource) {
   return {
     list: (from: string, to: string) => apiFetch<PastLessonDto[]>(`/api/coach/lessons?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
     /** A correction overwrites whatever was recorded at the rink (R1). */
@@ -271,6 +273,8 @@ export interface PaymentRowDto {
   amountMinor: number; currency: string; status: PayStatus; paidVia: PaidVia | null; sharedWith: string[];
   /** On a paid lesson whose payment counted in a year that has closed, that year (worked out by the server); else null. */
   closedYear: number | null;
+  /** Dated before January 1 of last year: only Waive is offered, on an unpaid one (G-39, Batch 27). */
+  viewOnly: boolean;
 }
 
 /** Totals per currency, never across. */
@@ -285,7 +289,7 @@ export interface PaymentsDto {
   thisYear: number;
 }
 
-export function paymentsApi(token: string) {
+export function paymentsApi(token: TokenSource) {
   const seat = (r: PaymentRowDto, paidVia?: PaidVia | null) => ({ date: r.date, startTime: r.startTime, studentId: r.studentId, paidVia: paidVia ?? null });
   const post = (path: string, body: unknown) => apiFetch<PaymentRowDto>(`/api/coach/payments/${path}`, { method: 'POST', body, token, idempotent: true });
   return {
@@ -318,7 +322,7 @@ export interface FinanceYearDto {
   undoneLessons: number; undoneGross: Record<string, number>; currency: string;
 }
 
-export function financesApi(token: string) {
+export function financesApi(token: TokenSource) {
   return {
     year: (year: number) => apiFetch<FinanceYearDto>(`/api/coach/finances?year=${year}`, { token }),
     /** The summary CSV for this year or last: no skater names. */
@@ -327,3 +331,32 @@ export function financesApi(token: string) {
 }
 
 export type FinancesApi = ReturnType<typeof financesApi>;
+
+// ------------------------------------------------------------- Batch 22
+
+/** One skater in one of today's lessons, at their share of the price. */
+export interface TodaySkaterDto {
+  studentId: string; name: string; amountMinor: number; currency: string;
+  attendance: 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
+}
+
+/** A booked lesson time (skaters in the order they joined) or a held one (no skaters). {@code next}: the next to start. */
+export interface TodayLessonDto { startTime: string; durationMinutes: number; held: boolean; next: boolean; skaters: TodaySkaterDto[] }
+
+/** A count of skaters' lessons and their amounts per currency, never added across. */
+export interface FiguresDto { count: number; amounts: Record<string, number> }
+
+/**
+ * The Today page (G-6): dates and times are the coach's own. {@code nextLessonDate}: only when today has no lessons.
+ * {@code week}: every lesson booked Sunday to Saturday; {@code unpaid}: every lesson that has started and is still unpaid.
+ */
+export interface TodayDto {
+  coachTimezone: string; currency: string; today: string; now: string; weekStart: string; weekEnd: string;
+  lessons: TodayLessonDto[]; nextLessonDate: string | null; week: FiguresDto; unpaid: FiguresDto;
+}
+
+export function todayApi(token: TokenSource) {
+  return { today: () => apiFetch<TodayDto>('/api/coach/today', { token }) };
+}
+
+export type TodayApi = ReturnType<typeof todayApi>;

@@ -1,5 +1,8 @@
 package com.bladebook.core.service;
 
+import com.bladebook.core.data.AccessLog;
+import com.bladebook.core.data.AccessLogCapture;
+
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.StudentRecord;
@@ -29,6 +32,19 @@ class StudentServiceTest {
 
     private List<String> ids() {
         return t.studentRepo.list(dana).stream().map(StudentRecord::studentId).toList();
+    }
+
+    @Test
+    void theListIsLoggedWithEveryShownFieldsNameAndNoValues() {
+        try (AccessLogCapture log = AccessLogCapture.start()) {
+            StudentService.Lists l = t.students.list(dana);
+            AccessLog.Line line = log.only("students");
+            assertThat(line.ids().get("studentId")).containsExactlyInAnyOrderElementsOf(ids());
+            assertThat(line.fields()).contains("registrationNumber", "clientEmail", "clientPhone", "studentName");
+            for (StudentRecord r : l.pending()) {
+                assertThat(line.json()).doesNotContain(r.studentName()).doesNotContain(r.clientEmail());
+            }
+        }
     }
 
     @Test

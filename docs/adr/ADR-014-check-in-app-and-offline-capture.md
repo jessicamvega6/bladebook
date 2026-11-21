@@ -22,10 +22,10 @@ item-type separation) stands.
 **Superseded in part — 2026-10-05** by [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md).
 Decisions **10** (a separate Cognito app client) and **11** (a separate function,
 `api-checkin`) are withdrawn, with the parts of **11a** about `api-checkin`'s role. Check-in
-is a section of the coach website at `/coach/rinkside`, signs in through the website's app
+is a section of the coach website at ~~`/coach/rinkside`~~ `/rinkside/` *(ADR-023, 2026-11-16)*, signs in through the website's app
 client, and its routes run in `api-coach`. A recent sign-in guards schedule saves instead.
 Every decision about working at the rink stands: 1, 1a, 2a, 3, 4, 4a, 5 (service worker now
-scoped to `/coach/rinkside/`), 5a, 6, 7, 8 and 9b.
+scoped to ~~`/coach/rinkside/`~~ `/rinkside/`, I14), 5a, 6, 7, 8 and 9b.
 
 **Amended — 2026-10-13.** *Decided by the owner.* Since ADR-023's amendment of 2026-10-12 the
 rinkside page runs in an ordinary browser tab, where Safari may remove the site's stored data

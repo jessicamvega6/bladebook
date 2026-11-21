@@ -22,6 +22,7 @@ import { DAYS, DAYS_LONG, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate,
 import { noAnswer } from '../../shared/logic/sharing';
 import type { Family, FamilyApi, MyBookings, MyLesson, MySeries, Weekday } from '../api';
 import { ShareBox, WaitingCards, type ShareAnswer } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 /** Java's weekday names, Sunday first like DAYS. */
 const WEEKDAYS: Weekday[] = ['SUNDAY' as Weekday, 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -84,7 +85,7 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
     </div>
   );
   // One tree for loading and loaded, so the heading isn't replaced when the lessons arrive.
-  if (!data) return <>{false}{head}<p className="muted" aria-busy="true">Loading…</p></>;
+  if (!data) return <>{false}{head}<Loading /></>;
 
   // The coach filter lists only coaches with lessons coming up, once two or more have them (owner, 2026-10-13).
   const withLessons = approvedCoaches.filter((c) => data.upcoming.some((l) => l.coachId === c.coachId));
@@ -331,7 +332,7 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState('');
   useEffect(() => { api.myBookings().then(setData).catch(onError); }, [api, onError]);
-  if (!data) return <p className="muted" aria-busy="true">Loading…</p>;
+  if (!data) return <Loading />;
   const a: MySeries | undefined = (data.series ?? []).find((x) => x.coachId === coachId && x.recurrenceId === recurrenceId);
   if (!a) {
     return <Card><div className="pempty bk-pempty"><b>That repeating lesson has ended</b><a className="btn btn--secondary" href="#/bookings"><span>Back to my bookings</span></a></div></Card>;
@@ -346,7 +347,7 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
   const weeks = (x: string, y: string) => Math.round((Date.parse(`${y}T00:00:00Z`) - Date.parse(`${x}T00:00:00Z`)) / (7 * 864e5));
   const plan = future.map((l) => ({ l, cut: mode === 2 ? true : mode === 0 ? !!end && l.date > end : weeks(future[0]!.date, l.date) % next !== 0 }));
   const err = mode === 0 ? (!end ? 'Pick a new last date.' : end >= a.endDate ? `Pick a date before ${shortDate(a.endDate)}. To add lessons, book again.` : end < today ? 'Pick a date from today on.' : '')
-    : mode === 1 ? (a.intervalWeeks >= 4 ? 'Already every 4 weeks, the least often.' : '') : '';
+    : mode === 1 ? (a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks.' : '') : '';
   const cut = err ? [] : plan.filter((p) => p.cut);
   const lateLs = cut.filter((p) => insideNotice(p.l)).map((p) => p.l);
   const h = lateLs[0]?.requiredNoticeHours ?? 24;
@@ -397,7 +398,7 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
             <div className="bk-optfield"><div className={`field${mode === 0 && err && end ? ' field--error' : ''}`}><label className="label" htmlFor="bk-rec-end">New last date</label>
               <input id="bk-rec-end" type="date" className="ctl" value={end} onChange={(e) => setEnd(e.target.value)} />
               {err && end && <div className="hint hint--error"><Icon name="alert" size={14} />{err}</div>}</div></div>)}
-          {!shared && opt(1, 'repeat', 'Make it less frequent', a.intervalWeeks >= 4 ? 'Already every 4 weeks, the least often' : `Now ${every}`,
+          {!shared && opt(1, 'repeat', 'Make it less frequent', a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks' : `Now ${every}`,
             a.intervalWeeks >= 4 ? undefined : <div className="bk-optfield"><div className="field"><label className="label" htmlFor="bk-rec-int">Repeats</label>
               <select id="bk-rec-int" className="ctl" value={next} onChange={(e) => setIntervalWeeks(Number(e.target.value))}>
                 {[2, 3, 4].filter((n) => n > a.intervalWeeks).map((n) => <option key={n} value={n}>Every {n} weeks</option>)}

@@ -6,10 +6,9 @@
  * Three ways to cancel, and only three (owner, 2026-11-16): one lesson, a whole day, or the rest of the week. Lessons on
  * different days are cancelled one by one.
  * - Each lesson's *Cancel* asks release or hold for that lesson (S9) and is sent as LESSON.
- * - A day with two or more lessons has *Cancel whole day*: one confirmation asking release or hold for each lesson (S9),
- *   sent as DAY.
- * - *Cancel rest of week*, at the top, holds every booked lesson and open time left, with no release-or-hold question
- *   (S8). Its confirmation lists everything it closes.
+ * - A day with two or more lessons has *Cancel whole day*, sent as DAY, and *Cancel rest of week*, at the top, sent as
+ *   WEEK. Both make those dates time off called "Cancelled", with no release-or-hold question (owner, 2026-11-18, I24).
+ *   Each confirmation lists the lessons it cancels.
  * - With no signal the tab shows no lessons, only "The week needs a connection" (R5): the phone keeps today's lessons
  *   only, and cancelling needs signal anyway.
  *
@@ -23,7 +22,7 @@ import type { OpenTime, RinkWeek, WeekLesson } from './api';
 /** The open confirmation: one lesson, a whole day (each lesson's hold choice by pickKey), or the rest of the week. */
 export type WeekSheet =
   | { kind: 'lesson'; lesson: WeekLesson; hold: boolean; error: string; busy: boolean }
-  | { kind: 'day'; date: string; holds: Record<string, boolean>; error: string; busy: boolean }
+  | { kind: 'day'; date: string; picks: string[]; error: string; busy: boolean }
   | { kind: 'all'; error: string; busy: boolean };
 
 export const pickKey = (l: { date: string; startTime: string }) => `${l.date}#${l.startTime}`;
@@ -84,7 +83,7 @@ const lessonLine = (l: WeekLesson) => (
 export function WeekTab({ week, sheet, onSheet, onCancelLesson, onCancelDay, onCancelAll }: {
   week: RinkWeek; sheet: WeekSheet | null; onSheet: (s: WeekSheet | null) => void;
   onCancelLesson: (l: WeekLesson, hold: boolean) => void;
-  onCancelDay: (lessons: Array<WeekLesson & { hold: boolean }>) => void;
+  onCancelDay: (lessons: WeekLesson[]) => void;
   onCancelAll: () => void;
 }) {
   const all = restOfWeek(week);
@@ -97,7 +96,7 @@ export function WeekTab({ week, sheet, onSheet, onCancelLesson, onCancelDay, onC
     <>
       {all.lessons.length + all.open.length > 0 && (
         <section className="rk-card"><b>Cancel the rest of the week</b>
-          <p className="fine">Holds everything left from now to Saturday: {plural(all.lessons.length, 'lesson')} and {plural(all.open.length, 'open time')}. Families can’t book them. Your schedule doesn’t change.</p>
+          <p className="fine">Makes the rest of the week, from now to Saturday, time off called “Cancelled”: {plural(all.lessons.length, 'lesson')} cancelled, and families can’t book it. Your weekly schedule doesn’t change.</p>
           <button type="button" className="btn btn--danger-outline btn--block" onClick={() => onSheet({ kind: 'all', error: '', busy: false })}>
             <Icon name="calOff" size={16} /><span>Cancel rest of week</span></button>
         </section>
@@ -113,7 +112,7 @@ export function WeekTab({ week, sheet, onSheet, onCancelLesson, onCancelDay, onC
             <div className="rk-day__head"><b>{head}</b>
               {d.lessons.length > 1 && (
                 <button type="button" className="link rk-day__cancel"
-                  onClick={() => onSheet({ kind: 'day', date: d.date, holds: Object.fromEntries(d.lessons.map((l) => [pickKey(l), false])), error: '', busy: false })}>
+                  onClick={() => onSheet({ kind: 'day', date: d.date, picks: d.lessons.map(pickKey), error: '', busy: false })}>
                   Cancel whole day</button>
               )}</div>
             {d.lessons.map((l) => (
@@ -147,36 +146,33 @@ export function WeekTab({ week, sheet, onSheet, onCancelLesson, onCancelDay, onC
               </div>
             );
           })() : sheet.kind === 'day' ? (() => {
-            const ls = lessonsOn(sheet.date).filter((l) => pickKey(l) in sheet.holds);
-            const held = ls.filter((l) => sheet.holds[pickKey(l)]).length;
+            const ls = lessonsOn(sheet.date).filter((l) => sheet.picks.includes(pickKey(l)));
             return (
               <div className="sheet" role="dialog" aria-modal="true" aria-label="Cancel day"><span className="sheet__grab" />
                 <h2 className="h2">Cancel all of {dayName(sheet.date)}?</h2>
-                <p className="fine">{plural(ls.length, 'lesson')}. For each one, choose whether the time can be booked again.</p>
+                <p className="fine">The day becomes time off called “Cancelled”: its {plural(ls.length, 'lesson')} are cancelled, and families can’t book it.</p>
                 {ls.map((l) => (
                   <div key={pickKey(l)} className="rk-pick">
                     <div className="rk-pick__row rk-pick__row--plain">{lessonLine(l)}</div>
-                    <AfterChoice hold={sheet.holds[pickKey(l)]!} label={`After cancelling ${rkName(l)} at ${formatTime(l.startTime)}`}
-                      onHold={(hold) => onSheet({ ...sheet, holds: { ...sheet.holds, [pickKey(l)]: hold } })} />
                   </div>
                 ))}
-                <p className="fine">{emailed(ls)}{held ? ` ${plural(held, 'held time')} stay${held === 1 ? 's' : ''} closed for good.` : ''} This can’t be undone.</p>
+                <p className="fine">{emailed(ls)} This can’t be undone.</p>
                 {sheet.error && <Banner tone="danger">{sheet.error}</Banner>}
                 <Button variant="danger" block lg disabled={sheet.busy || !ls.length}
-                  onClick={() => onCancelDay(ls.map((l) => ({ ...l, hold: sheet.holds[pickKey(l)]! })))}>
+                  onClick={() => onCancelDay(ls)}>
                   {sheet.busy ? 'Cancelling…' : `Cancel ${plural(ls.length, 'lesson')}`}</Button>
                 <Button variant="secondary" block lg disabled={sheet.busy} onClick={() => onSheet(null)}>Keep them</Button>
               </div>
             );
           })() : (() => {
             const fams = families(all.lessons);
-            const openRow = (o: OpenTime) => <li key={`open-${pickKey(o)}`}><span className="num">{when(o)}</span><b>Open</b><Badge tone="warning" icon="lock">Hold</Badge></li>;
+            const openRow = (o: OpenTime) => <li key={`open-${pickKey(o)}`}><span className="num">{when(o)}</span><b>Open</b><Badge tone="warning" icon="lock">Time off</Badge></li>;
             return (
               <div className="sheet" role="dialog" aria-modal="true" aria-label="Confirm cancellation"><span className="sheet__grab" />
                 <h2 className="h2">Cancel the rest of the week?</h2>
-                <p className="fine">Everything left from now to Saturday is held closed. Nobody can book these times.</p>
+                <p className="fine">Everything left from now to Saturday becomes time off called “Cancelled”. Nobody can book these times.</p>
                 <ul className="rk-confirm">
-                  {all.lessons.map((l) => <li key={pickKey(l)}><span className="num">{when(l)}</span><b>{rkName(l)}</b><Badge tone="warning" icon="lock">Hold</Badge></li>)}
+                  {all.lessons.map((l) => <li key={pickKey(l)}><span className="num">{when(l)}</span><b>{rkName(l)}</b><Badge tone="warning" icon="lock">Time off</Badge></li>)}
                   {all.open.map(openRow)}
                 </ul>
                 <p className="fine">{fams.length ? `${fams.join(', ')} will be emailed. ` : ''}Your weekly schedule doesn’t change, so next week is untouched. This can’t be undone.</p>

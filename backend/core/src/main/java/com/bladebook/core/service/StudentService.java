@@ -1,6 +1,7 @@
 package com.bladebook.core.service;
 
 import com.bladebook.core.data.AccessContext;
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.StudentRepository;
 import com.bladebook.core.domain.DomainException;
 import com.bladebook.core.domain.StudentRecord;
@@ -43,8 +44,19 @@ public final class StudentService {
                 .thenComparing(StudentRecord::studentName, String.CASE_INSENSITIVE_ORDER));
         pending.sort(Comparator.comparing(StudentRecord::signedUpAt).thenComparing(StudentRecord::clientId)
                 .thenComparing(StudentRecord::studentName, String.CASE_INSENSITIVE_ORDER));
+        List<StudentRecord> all = new ArrayList<>(active);
+        all.addAll(pending);
+        if (!all.isEmpty()) {
+            AccessLog.coachRead(ctx, "students", new AccessLog.Ids()
+                    .addAll("studentId", all.stream().map(StudentRecord::studentId).toList())
+                    .addAll("clientId", all.stream().map(StudentRecord::clientId).toList()), FIELDS);
+        }
         return new Lists(active, pending);
     }
+
+    /** What the Students page shows of each skater and family (ADR-MASTER section 18 logs the names). */
+    static final List<String> FIELDS = List.of("studentName", "isMinor", "relationship", "clientName", "clientEmail",
+            "clientPhone", "skatingOrg", "registrationNumber");
 
     /** Approve one skater, or a whole family's ("Approve all"). Each is its own write. */
     public List<StudentRecord> approve(AccessContext ctx, List<String> studentIds) {

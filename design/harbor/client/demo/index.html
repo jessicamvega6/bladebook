@@ -736,7 +736,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .ac-contact { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--text-2); }
 .bb .ac-contact span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .bb .ac-when { width: 64px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }
-.bb .ac-when b { font-size: 14px; color: var(--text); }
+.bb .ac-when b { font-size: 14px; color: var(--text); white-space: nowrap; }
 .bb .ac-when small { font-size: 12px; color: var(--text-3); }
 .bb .ac-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-2); }
 .bb .ac-steps b { color: var(--text); }
@@ -752,7 +752,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .card__body > .row:has(+ .ac-code) { border-bottom: 0; }
 .bb .ac-hero--wait .hero__icon { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning-soft) 50%, transparent); }
 @media (max-width: 760px) {
-  .bb .ac-when { width: 52px; }
+  .bb .ac-when { width: 64px; }
   .bb .ac-code { padding-left: 20px; }
   .bb .ac-code__btns { margin-left: 0; }
 }
@@ -828,7 +828,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .bk-share__sibs { display: flex; flex-direction: column; gap: 6px; }
 .bb .bk-share__sibs .listbox { background: var(--surface); border-radius: var(--r-md); }
 .bb .bk-shared { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--primary-text); font-weight: var(--w-med); }
-@media (max-width: 980px) { .bb .bk-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 980px) { .bb .bk-split, .bb .split--tl { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .bb .tl { grid-template-columns: minmax(0, 1fr); }
   .bb .bk-optfield { padding-left: 4px; }
@@ -2062,7 +2062,7 @@ SCREENS.login = () => authShell(card(`
   ${state.auth.notice ? banner('success', state.auth.notice) : ''}
   ${INP('ac-login-email', 'Email', 'auth.email', { type: 'email' })}
   ${INP('ac-login-pw', 'Password', 'auth.pw', { type: 'password', placeholder: '••••••••' })}
-  <div class="fine"><a class="link" href="${href('forgot')}">Forgot your password?</a></div>
+  <div class="fine"><a class="link" href="${href('forgot')}">Forgot/change password</a></div>
   ${B('Log in', 'primary', 'acLogin', { block: true, lg: true })}`),
   help('First time here?', `You need a code from your coach to sign up. <a class="link" href="${href('signup')}">Sign up with a coach code</a>.`));
 
@@ -2173,7 +2173,7 @@ const acCoachCard = cid => {
       : lines.length ? `<div class="ac-contact">${lines.join('')}</div>` : `<p class="fine">Reply to any lesson email to reach Coach ${esc(p.first)}.</p>`}`, { title: multi ? '' : 'Your coach', cls: 'ac-coachcard' });
 };
 const acCoachCards = () => `${multiCoach() ? `<div class="ac-cardshead">Your coaches</div>` : ''}${myCoachIds().map(acCoachCard).join('')}`;
-const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtShortT(l.t)}</b><small>${l.iso === TODAY ? 'Today' : dDow(l.iso)}</small></span>${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${coachTag(l).replace(/^ · /, '')}${coachTag(l) ? ' · ' : ''}${l.len} min · ${money(l.price)}${bkRepeatsLabel(l) ? ' · ' + bkRepeatsLabel(l) : ''}${l.with ? ' · shared' : l.invited ? ' · invited to share' : ''}`)}`,
+const acLessonRow = l => row(`<span class="ac-when num"><b>${fmtT(l.t)}</b><small>${l.iso === TODAY ? 'Today' : dDow(l.iso)}</small></span>${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(nameOf(l)), `${coachTag(l).replace(/^ · /, '')}${coachTag(l) ? ' · ' : ''}${l.len} min · ${money(l.price)}${bkRepeatsLabel(l) ? ' · ' + bkRepeatsLabel(l) : ''}${l.with ? ' · shared' : l.invited ? ' · invited to share' : ''}`)}`,
   isStarted(l) ? statusBadge(l) : badge('Booked', 'primary'));
 
 /** Invitations for this family's skaters that are still open, to answer. */
@@ -2277,7 +2277,7 @@ SCREENS.profile = () => {
     ${pageHead('Profile', multi ? 'How your coaches and BladeBook reach you.' : 'How Coach ' + esc(coachFirst()) + ' and BladeBook reach you.')}
     ${card(`
       ${INP('ac-pr-name', self ? 'Your name' : `Your name (${state.me.rel.toLowerCase()})`, 'me.name')}
-      <div class="grid2">${INP('ac-pr-phone', 'Mobile phone', 'me.phone', { type: 'tel' })}${INP('ac-pr-email', 'Email', 'me.email', { type: 'email', hint: 'You log in with this. Changing it sends a code to the new address.' })}</div>
+      <div class="grid2">${INP('ac-pr-phone', 'Mobile phone', 'me.phone', { type: 'tel' })}<div class="fieldset"><div class="label">Email</div><div class="input input--readonly"><span class="input__val">${esc(state.me.email)}</span></div><div class="hint">You log in with this.</div></div></div>
       ${smsLater()}
       <div class="fieldset"><div class="label">Profile picture ${badge('Phase 2', 'neutral')}</div><div class="photo-pick">${avatar(initials(state.me.name), 'lg')}${B('Choose a picture', 'secondary', '', { sm: true, disabled: true })}<span class="hint">Picking a picture comes in Phase 2.</span></div></div>`,
       { title: 'Your details' })}
@@ -2618,11 +2618,11 @@ function bkSlotState(cid, iso, s, k) {
   return { st: 'open' };
 }
 function bkSlot(cid, iso, s, k) {
-  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len).replace(' AM', '').replace(' PM', '');
+  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len);
   const price = priceAt(cid, k.id, s), cl = (st === 'open' || st === 'sel') && bkClash(cid, k.id, iso, s.t, s.len);
   const label = st === 'yours' ? `${esc(firstName(who.name))}’s lesson` : st === 'taken' ? 'Taken' : st === 'past' ? 'Past' : money(price);
   const cls = `slot slot--${s.len} ${st === 'sel' ? 'slot--mine' : st === 'taken' || st === 'past' ? 'slot--taken' : st === 'yours' ? 'slot--taken bk-yours' : 'slot--open'}${cl ? ' bk-clash' : ''}`;
-  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtShortT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
+  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
   const inner = `<span class="slot__time">${fmtT(s.t)}<small> – ${end}</small></span>${len}<span class="slot__price">${label}</span><span class="slot__mark">${st === 'sel' ? ic('check', 14) : st === 'yours' ? ic('check', 12) : ''}</span>`;
   if (st === 'open' || st === 'sel') return `<button type="button" class="${cls}"${actAttr('bkToggle', [iso, s.t, cid])} aria-pressed="${st === 'sel'}">${inner}</button>`;
   return `<div class="${cls}">${inner}</div>`;
@@ -3003,7 +3003,7 @@ SCREENS.recurrence = () => {
     <div class="split split--even">
       ${card(`
         ${a.shared ? banner('info', 'This series is shared with another skater', 'You can cancel one lesson (from My bookings) or the whole series. Ending it earlier and making it less frequent come back once no lesson still to come is shared.') : `${opt(0, 'calendar', 'End it earlier', `Last lesson now: ${dShort(a.end)}`, `<div class="bk-optfield">${INP('bk-rec-end', 'New last date', 'ui.bk.rec.end', { type: 'date', live: true, error: err })}</div>`)}
-        ${opt(1, 'repeat', 'Make it less frequent', a.interval >= 4 ? 'Already every 4 weeks, the least often' : `Now ${bkEveryLabel(a.interval)}`, a.interval >= 4 ? '' : `<div class="bk-optfield">${SEL('bk-rec-int', 'Repeats', 'ui.bk.rec.interval', [1, 2, 3, 4].filter(n => n > a.interval).map(n => [n, `Every ${n} weeks`]), { num: true })}</div>`)}`}
+        ${opt(1, 'repeat', 'Make it less frequent', a.interval >= 4 ? 'Already at the limit offered: every 4 weeks' : `Now ${bkEveryLabel(a.interval)}`, a.interval >= 4 ? '' : `<div class="bk-optfield">${SEL('bk-rec-int', 'Repeats', 'ui.bk.rec.interval', [1, 2, 3, 4].filter(n => n > a.interval).map(n => [n, `Every ${n} weeks`]), { num: true })}</div>`)}`}
         ${opt(2, 'calOff', 'Cancel all future lessons', a.lessons.some(l => l.iso === TODAY && !isStarted(l)) ? 'Today’s lesson is kept' : `${plural(plan.length, 'lesson')} from tomorrow on`)}`, { title: 'What do you want to change?' })}
       ${card(`
         ${shown.length ? `<div class="timeline-list">${shown.map(p => `<div class="tli tli--${p.cut ? 'cut' : 'keep'}"><span class="tli__dot">${ic(p.cut ? 'x' : 'check', 12)}</span><span class="tli__d">${dDow(p.l.iso)} · ${fmtT(p.l.t)}</span><span class="tli__s">${p.cut ? (lateLs.includes(p.l) ? 'Cancelled · late' : 'Cancelled') : 'Kept'}</span></div>`).join('')}</div>${plan.length > shown.length ? `<p class="fine">and ${plural(plan.length - shown.length, 'more lesson')}: ${plural(plan.slice(10).filter(p => p.cut).length, 'cancelled', 'cancelled')}</p>` : ''}` : '<p class="fine">No lessons after today.</p>'}

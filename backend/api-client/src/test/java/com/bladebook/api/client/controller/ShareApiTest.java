@@ -1,7 +1,7 @@
 package com.bladebook.api.client.controller;
 
 import com.bladebook.api.client.LocalDynamo;
-import com.bladebook.api.client.security.LocalTokenStub;
+import com.bladebook.api.client.security.TestTokenStub;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.ScheduleRepository;
@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Shared lessons over HTTP (Batch 11): share codes on Profile, the share-check, booking with a code, and the answer. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ShareApiTest {
 
     @DynamicPropertySource
@@ -59,7 +59,7 @@ class ShareApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     TenantClients clients;

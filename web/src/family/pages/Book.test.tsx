@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { fakes } from '../../test/fakeAuth';
 import { App } from '../App';
 import type { BookResult, BookingPage, Family } from '../api';
 import { APPROVED, BEN_PAGE, DANA_PAGE, LESSONS, TWO_COACHES, WAITING, json } from '../testData';
@@ -39,7 +40,7 @@ function server(family: Family, pages: Record<string, BookingPage>, book: (b: Se
 }
 
 function open(hash: string) {
-  sessionStorage.setItem('bb.family.idToken', 'tok');
+  fakes.family.signedInAs('sarah@example.com');
   window.location.hash = hash;
   render(<App />);
 }

@@ -1,5 +1,8 @@
 package com.bladebook.core.service;
 
+import com.bladebook.core.domain.PaymentTypes;
+
+import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.FamilyRepository;
 import com.bladebook.core.data.LinkedCoach;
@@ -62,6 +65,40 @@ public final class FamilyService {
 
     /** @throws DomainException NOT_FOUND when the family hasn't finished signing up */
     public FamilyView view(ClientContext ctx) {
+        FamilyView out = buildView(ctx);
+        List<String> fields = new java.util.ArrayList<>();
+        List<String> coachIds = new java.util.ArrayList<>();
+        for (CoachView c : out.coaches()) {
+            CoachPublicProfile d = c.details();
+            if (d == null) {
+                continue;
+            }
+            boolean shown = false;
+            if (d.shownPhone() != null) {
+                fields.add("coaches.details.phone");
+                shown = true;
+            }
+            if (d.shownEmail() != null) {
+                fields.add("coaches.details.email");
+                shown = true;
+            }
+            if (java.util.Arrays.stream(PaymentTypes.Type.values()).anyMatch(t -> d.payments().handle(t).isPresent())) {
+                fields.add("coaches.details.payments.handle");
+                shown = true;
+            }
+            if (shown) {
+                coachIds.add(c.coachId());
+            }
+        }
+        if (!coachIds.isEmpty()) {
+            AccessLog.familyRead(ctx, out.contact() == null || out.contact().relationship() == null ? null
+                    : out.contact().relationship().name(), "family-coach-details", new AccessLog.Ids().addAll("coachId", coachIds),
+                    new java.util.TreeSet<>(fields));
+        }
+        return out;
+    }
+
+    private FamilyView buildView(ClientContext ctx) {
         FamilyAccount a = families.account(ctx).orElseThrow(() -> DomainException.notFound("Finish signing up first."));
         FamilyStanding standing = a.standing();
 

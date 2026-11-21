@@ -131,11 +131,11 @@ function bkSlotState(cid, iso, s, k) {
   return { st: 'open' };
 }
 function bkSlot(cid, iso, s, k) {
-  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len).replace(' AM', '').replace(' PM', '');
+  const { st, who } = bkSlotState(cid, iso, s, k), end = fmtT(s.t + s.len);
   const price = priceAt(cid, k.id, s), cl = (st === 'open' || st === 'sel') && bkClash(cid, k.id, iso, s.t, s.len);
   const label = st === 'yours' ? `${esc(firstName(who.name))}’s lesson` : st === 'taken' ? 'Taken' : st === 'past' ? 'Past' : money(price);
   const cls = `slot slot--${s.len} ${st === 'sel' ? 'slot--mine' : st === 'taken' || st === 'past' ? 'slot--taken' : st === 'yours' ? 'slot--taken bk-yours' : 'slot--open'}${cl ? ' bk-clash' : ''}`;
-  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtShortT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
+  const len = cl ? `<span class="slot__len bk-clash__note" title="Overlaps ${bkClashText(cl).replace(/^L/, 'l').replace(/^Y/, 'y')}">${ic('alert', 12)}Overlaps ${esc(coachById(cl.coach).first)} ${fmtT(cl.t)}</span>` : `<span class="slot__len">${s.len} min</span>`;
   const inner = `<span class="slot__time">${fmtT(s.t)}<small> – ${end}</small></span>${len}<span class="slot__price">${label}</span><span class="slot__mark">${st === 'sel' ? ic('check', 14) : st === 'yours' ? ic('check', 12) : ''}</span>`;
   if (st === 'open' || st === 'sel') return `<button type="button" class="${cls}"${actAttr('bkToggle', [iso, s.t, cid])} aria-pressed="${st === 'sel'}">${inner}</button>`;
   return `<div class="${cls}">${inner}</div>`;
@@ -516,7 +516,7 @@ SCREENS.recurrence = () => {
     <div class="split split--even">
       ${card(`
         ${a.shared ? banner('info', 'This series is shared with another skater', 'You can cancel one lesson (from My bookings) or the whole series. Ending it earlier and making it less frequent come back once no lesson still to come is shared.') : `${opt(0, 'calendar', 'End it earlier', `Last lesson now: ${dShort(a.end)}`, `<div class="bk-optfield">${INP('bk-rec-end', 'New last date', 'ui.bk.rec.end', { type: 'date', live: true, error: err })}</div>`)}
-        ${opt(1, 'repeat', 'Make it less frequent', a.interval >= 4 ? 'Already every 4 weeks, the least often' : `Now ${bkEveryLabel(a.interval)}`, a.interval >= 4 ? '' : `<div class="bk-optfield">${SEL('bk-rec-int', 'Repeats', 'ui.bk.rec.interval', [1, 2, 3, 4].filter(n => n > a.interval).map(n => [n, `Every ${n} weeks`]), { num: true })}</div>`)}`}
+        ${opt(1, 'repeat', 'Make it less frequent', a.interval >= 4 ? 'Already at the limit offered: every 4 weeks' : `Now ${bkEveryLabel(a.interval)}`, a.interval >= 4 ? '' : `<div class="bk-optfield">${SEL('bk-rec-int', 'Repeats', 'ui.bk.rec.interval', [1, 2, 3, 4].filter(n => n > a.interval).map(n => [n, `Every ${n} weeks`]), { num: true })}</div>`)}`}
         ${opt(2, 'calOff', 'Cancel all future lessons', a.lessons.some(l => l.iso === TODAY && !isStarted(l)) ? 'Today’s lesson is kept' : `${plural(plan.length, 'lesson')} from tomorrow on`)}`, { title: 'What do you want to change?' })}
       ${card(`
         ${shown.length ? `<div class="timeline-list">${shown.map(p => `<div class="tli tli--${p.cut ? 'cut' : 'keep'}"><span class="tli__dot">${ic(p.cut ? 'x' : 'check', 12)}</span><span class="tli__d">${dDow(p.l.iso)} · ${fmtT(p.l.t)}</span><span class="tli__s">${p.cut ? (lateLs.includes(p.l) ? 'Cancelled · late' : 'Cancelled') : 'Kept'}</span></div>`).join('')}</div>${plan.length > shown.length ? `<p class="fine">and ${plural(plan.length - shown.length, 'more lesson')}: ${plural(plan.slice(10).filter(p => p.cut).length, 'cancelled', 'cancelled')}</p>` : ''}` : '<p class="fine">No lessons after today.</p>'}

@@ -9,7 +9,7 @@
  * Batch 10, offline (R2–R5; C_Rinkside Offline.md): today's lessons are kept on the phone (names and times, no contact
  * details); with no signal Present / No-show is saved on the phone and sent when signal returns; an entry the server
  * turns down (a wrong clock) goes to Not sent; a lesson the family cancelled meanwhile shows as cancelled. Logging out
- * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/coach/rinkside/sw.js)
+ * keeps the queue, which sends after the same coach logs in again (R2). The service worker (public/rinkside/sw.js)
  * keeps the page itself.
  *
  * Batch 23, the Week tab (G-28; WeekTab.tsx): the week's lessons; cancel one lesson, a whole day, or the rest of the week (S8); with
@@ -17,7 +17,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../shared/api/client';
-import { coachSession, emailFromToken } from '../shared/auth/localAuth';
+import { COACH_HOME } from '../shared/sites';
+import { coachAuth, emailFromToken } from '../shared/auth';
 import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
 import { DAYS, MONTHS, dayOfWeek, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
@@ -26,6 +27,7 @@ import { WeekOffline, WeekTab, weekRange, type WeekSheet } from './WeekTab';
 import {
   addUnsent, dequeue, enqueue, goesTomorrow, queue, queuedFor, removeUnsent, saveDay, savedDay, unsent, type Queued, type Unsent,
 } from './offline';
+import { Loading } from '../shared/components/Loading';
 
 const RINK = 'Pelham Civic Center';
 type Tab = 'today' | 'week' | 'account' | 'unsent';
@@ -67,33 +69,51 @@ function useHash(): string {
   return hash;
 }
 
+const auth = coachAuth();
+
 export function App() {
-  const [token, setToken] = useState<string | null>(() => coachSession.getToken());
+  // undefined while this tab's sign-in is looked up. Requests get a current token from the sign-in (auth.idToken),
+  // refreshed as needed for the page's 4 hours (ADR-023 d6).
+  const [token, setToken] = useState<string | null | undefined>(undefined);
   const [notice, setNotice] = useState('');
-  const api = useMemo(() => (token ? rinkApi(token) : null), [token]);
-  const signOut = useCallback((message = '') => { coachSession.signOut(); setToken(null); setNotice(message); }, []);
+  useEffect(() => {
+    let live = true;
+    auth.idToken().then((t) => { if (live) setToken(t); }).catch(() => { if (live) setToken(null); });
+    return () => { live = false; };
+  }, []);
+  const api = useMemo(() => (token ? rinkApi(auth.idToken) : null), [token]);
+  const signOut = useCallback((message = '') => {
+    // The log-in shows once the tab's sign-in is gone (see shared/auth's signOut).
+    void auth.signOut().then(() => { setToken(null); setNotice(message); });
+  }, []);
+  if (token === undefined) return <div className="bb rk-app" aria-busy="true" />;
   return (
     <div className="bb rk-app">
       {!token || !api
-        ? <SignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); }} />
+        ? <SignIn notice={notice} onSignedIn={async () => { setNotice(''); setToken(await auth.idToken()); }} />
         : <Signed api={api} email={emailFromToken(token)} onSignOut={signOut} />}
     </div>
   );
 }
 
-/** Log in: the coach website's sign-in. LOCAL STAND-IN (SC-1): the email alone signs in; no password is checked. */
-function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: (token: string) => void }) {
+/** Log in: the coach website's sign-in (ADR-023 d2), BladeBook's own form talking to Cognito (d11). */
+function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: () => Promise<void> }) {
   const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
   const waiting = queue().length;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!email.includes('@')) { setError('Enter your login email.'); return; }
+    if (!email.includes('@') || !pw) { setError('Enter your login email and password.'); return; }
     setBusy(true);
+    setError('');
     try {
-      onSignedIn(await coachSession.signIn(email.trim()));
+      const next = await auth.signIn(email, pw);
+      if (next === 'confirm-email') setError('Finish signing up on the BladeBook website first: verify your email there.');
+      else await onSignedIn();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That didn’t work. Try again.');
+      setPw('');
     } finally {
       setBusy(false);
     }
@@ -108,13 +128,15 @@ function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: (token: st
           {notice && <Banner tone="warning">{notice}</Banner>}
           {waiting > 0 && <div className="pbanner pbanner--warn"><Icon name="clock" size={18} /><div><b>{plural(waiting, 'check-in')} waiting on this phone</b>
             <span>Saved before you logged out. They send after you log in.</span></div></div>}
-          <div className="field"><label className="label" htmlFor="rk-email">Login email</label>
-            <input id="rk-email" type="email" className="ctl" value={email} autoComplete="username" onChange={(e) => { setEmail(e.target.value); setError(''); }} />
-            {error && <div className="hint hint--error"><Icon name="alert" size={14} />{error}</div>}</div>
-          <div className="field"><label className="label" htmlFor="rk-pw">Password</label>
-            <input id="rk-pw" type="password" className="ctl" placeholder="••••••••" autoComplete="current-password" />
-            <div className="hint">Local stand-in: any password works.</div></div>
-          <Button block lg onClick={() => void submit()} disabled={busy}>Log in</Button>
+          <form onSubmit={(e) => { e.preventDefault(); void submit(); }} noValidate>
+            <div className="field"><label className="label" htmlFor="rk-email">Login email</label>
+              <input id="rk-email" type="email" className="ctl" value={email} autoComplete="username" onChange={(e) => { setEmail(e.target.value); setError(''); }} /></div>
+            <div className="field"><label className="label" htmlFor="rk-pw">Password</label>
+              <input id="rk-pw" type="password" className="ctl" placeholder="••••••••" autoComplete="current-password" value={pw}
+                onChange={(e) => { setPw(e.target.value); setError(''); }} />
+              {error && <div className="hint hint--error"><Icon name="alert" size={14} />{error}</div>}</div>
+            <Button type="submit" block lg disabled={busy}>Log in</Button>
+          </form>
           <p className="fine">This app shows today’s lessons, records attendance and cancels lessons. Your schedule, students and payments stay on the website.</p>
         </div>
       </div>
@@ -296,7 +318,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
     <div className="phone">
       <header className="phone__head">
         <div>
-          <a className="rk-home" href="/coach/"><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
+          <a className="rk-home" href={COACH_HOME}><Icon name="arrowL" size={16} /><span>Your dashboard</span></a>
           <div className="phone__title">{tab === 'account' ? 'Account' : tab === 'unsent' ? 'Not sent' : tab === 'week' ? 'This week' : 'Today'}</div>
           <div className="phone__sub">{tab === 'account' ? 'Rinkside page' : tab === 'unsent' ? 'Check-ins the server turned down'
             : tab === 'week' ? (!online ? 'No signal' : week ? weekRange(week) : 'Cancel lessons') : sub}</div>
@@ -316,12 +338,11 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         {error && <Banner tone="danger">{error}</Banner>}
         {tab === 'week' ? (
           !online ? <WeekOffline />
-            : !week ? <p className="muted" aria-busy="true">Loading this week’s lessons…</p>
+            : !week ? <Loading text="Loading this week’s lessons…" />
               : <WeekTab week={week} sheet={weekSheet} onSheet={setWeekSheet}
                   onCancelLesson={(l, hold) => void weekCancel(() => api.cancelLesson(l, hold), cancelled)}
                   onCancelDay={(ls) => void weekCancel(() => api.cancelDay(ls), cancelled)}
-                  onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), (r) =>
-                    `${plural(r.cancelled, 'lesson')} cancelled and ${plural(r.openHeld, 'open time')} closed.`)} />
+                  onCancelAll={() => void weekCancel(() => api.cancelWeek(week.weekStart), cancelled)} />
         ) : tab === 'account' ? (
           <>
             <section className="rk-card"><div className="rk-who"><Avatar name={day?.coachFirstName ?? email} /><div><b>{day?.coachFirstName ? `Coach ${day.coachFirstName}` : 'Signed in'}</b><span className="muted-sm">{email}</span></div></div>
@@ -337,7 +358,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
           <div className="pempty"><span className="pempty__icon"><Icon name="wifiOff" size={28} /></span><h2 className="h2">Today’s lessons haven’t loaded</h2>
             <p>This phone hasn’t had signal since you opened the app. Open it once with signal before you leave for the rink, and today’s lessons are saved for when there’s none.</p>
             <Button block lg icon="refresh" onClick={() => { const on = navigator.onLine !== false; setOnline(on); if (on) void load(); else setToast('Still no signal. Try again near the entrance.'); }}>Try again</Button></div>
-        ) : !day ? <p className="muted" aria-busy="true">Loading today’s lessons…</p> : (
+        ) : !day ? <Loading text="Loading today’s lessons…" /> : (
           <>
             {!online && <div className="pbanner pbanner--warn"><Icon name="wifiOff" size={18} /><div><b>No signal since {since}</b>
               <span>{saved.size ? `${plural(saved.size, 'check-in')} saved on this phone. They’ll send when signal comes back.` : 'Keep recording. Check-ins are saved on this phone and send when signal comes back.'}</span></div></div>}
@@ -487,7 +508,7 @@ function ContactSheet({ sheet, online, onClose, onCopied }: { sheet: Extract<She
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label="Contact details"><span className="sheet__grab" />
       {sheet.error ? <><h2 className="h2">{sheet.s.fullName}</h2><Banner tone="danger">{sheet.error}</Banner></>
-        : !c ? <p className="muted" aria-busy="true">Loading…</p> : (
+        : !c ? <Loading /> : (
           <>
             <h2 className="h2">{c.studentName}</h2>
             <p className="fine">{c.relationship === 'SELF' ? 'Books for themselves' : `${c.clientName} · guardian`}{c.isMinor ? ' · minor' : ''}</p>
@@ -523,7 +544,7 @@ function NotSentList({ list, onDone }: { list: Unsent[]; onDone: (u: Unsent) => 
           <p className="rk-reason">{u.reason}</p>
           {goesTomorrow(u) && <p className="fine">Will be removed tomorrow.</p>}
           <div className="rl__btns">
-            <a className="btn btn--secondary btn--sm" href="/coach/#/lessons" target="_blank" rel="noreferrer"><span>Record on the website</span></a>
+            <a className="btn btn--secondary btn--sm" href={`${COACH_HOME}#/lessons`} target="_blank" rel="noreferrer"><span>Record on the website</span></a>
             <button type="button" className="btn btn--primary btn--sm" onClick={() => onDone(u)}><span>Done</span></button>
           </div>
         </article>

@@ -104,6 +104,52 @@ listed. Like the contact details, they are read only for an `ACTIVE` family, and
 types the coach has switched on. Decision 9's allowlist row is re-run with the new attribute
 names (`docs/runbooks/database-gate-tests.md`).
 
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17c, conflict I2 in `AI/plan-history.md`).*
+**`BatchGetItem` joins `GetItem` and `Query` in decision 3's `CoachPartitionPublicRead`
+statement, under the same conditions** (`LeadingKeys`, the attribute allowlist,
+`SPECIFIC_ATTRIBUTES` and `linkStatus = ACTIVE`). The family's *My bookings* page prices its own
+lessons by reading their lesson times by key, up to 100 in one call, because a seat carries no
+amount (ADR-031). IAM checks a batch read item by item under the same conditions, so this reads
+nothing a `GetItem` couldn't. Decision 9 gains row 14 to prove it.
+
+**Amended — 2026-11-17, later.** *Decided by the owner (Batch 17c, conflict I2 in
+`AI/plan-history.md`).* **Decision 3's read allowlist is written**, replacing the 2026-10-13 note,
+on one assumption: **a family can list every key in its coach's partition.** `dynamodb:Attributes`
+must name the key attributes (`PK`, `SK`) for DynamoDB to use them, so no policy can stop a
+`Query` returning keys, and a seat's key holds the skater's ID (`SEAT#<date>#<time>#<studentId>`).
+So nothing on the allowlist may identify a person:
+- **The family's own seat details come from GSI1**, which `LeadingKeys` locks to the family:
+  the skater's name, the family ID, the status, the shared-lesson fields and everything a cancel
+  needs. Reading them there can be a moment behind a write, which is safe: the cancel's own
+  condition checks the seat is the family's, so a stale read fails the write rather than touching
+  another family's seat.
+- **In the coach's partition, a seat gives up only `idempotencyKey`**, a random value from the
+  family's own request. The retry check (ADR-031 decision 8) stays one strongly consistent
+  `GetItem` of the family's own seat key; whether the seat exists and that value are all it needs.
+- **Every attribute on the list holds nothing about a person on any item type.** IAM allows an
+  attribute name on every item in the partition, so a name that's harmless on one item type must
+  never be reused for personal data on another (`STUDENT#` items use `studentName`,
+  `clientName`, `clientEmail` and `clientPhone`, none of which is on the list). Adding an attribute
+  to the list re-runs decision 9.
+- **Accepted risk:** a family can list which lesson times are booked (availability already shows
+  that) and other skaters' random IDs, with no names. With an ID it can read only that skater's
+  `studentStatus` (the share-check, ADR-033 d2a).
+- **Dropped from the list**, because no code reads them: `bookingStatus`, `tempId`,
+  `profilePhotoKey` (photos are Phase 2) and `paymentInstructions`.
+
+Decision 9 gains rows 15 to 17.
+
+**Amended — 2026-11-20.** *Decided by the owner (Batch 17c, I30 in `AI/plan-history.md`).* **Writes into
+several coaches' partitions go one coach at a time.** Registration, adding a skater and adding a coach
+wrote every chosen coach's `PENDING` `STUDENT#` record in one transaction through the first session,
+which carries no `coachId`, so decision 8 refuses them on AWS. A session is tagged with one coach, and a
+family may pick up to ten. So each coach gets its own transaction through its own second session (its
+`STUDENT#` records and the family's link items for it); the profile and `SKATER#` items go with the
+first. Decision 8's guarantee stands unchanged: a family's writes land only in a coach it resolved.
+Accepted: if a later coach's write fails after the SDK's retries, the family is registered with the
+earlier coaches and is told to add the missed one from Profile → Add a coach. Local mode now plays this
+role's policy (`LocalFamilyPolicy`), which is how this was found.
+
 ---
 
 ## Context
@@ -236,27 +282,31 @@ registration writes it onto the link item.
 
 ```json
 { "Sid": "CoachPartitionPublicRead",
-  "Action": ["dynamodb:GetItem", "dynamodb:Query"],
+  "Action": ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query"],
   "Resource": "<table ARN>",
   "Condition": {
     "ForAllValues:StringEquals": {
       "dynamodb:LeadingKeys": ["COACH#${aws:PrincipalTag/coachId}"],
       "dynamodb:Attributes": ["PK", "SK",
-        "days", "blocks", "scheduleName", "tempId", "startDate", "endDate",
-        "durationMinutes", "bookingStatus",
-        "firstName", "lastName", "coachTimezone", "currency", "requiredNoticeHours",
-        "profilePhotoKey", "displayPhoneToClients", "displayEmailToClients",
+        "days", "blocks", "scheduleVersion", "tempKind", "scheduleName", "startDate", "endDate",
+        "lessonDate", "startTime", "startsAtUtc", "coachTz", "durationMinutes",
+        "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq",
+        "requiredNoticeHours", "maxSkaters", "seatsTaken",
+        "idempotencyKey", "studentStatus",
+        "firstName", "lastName", "coachTimezone",
+        "displayPhoneToClients", "displayEmailToClients", "businessEmail", "phone",
         "acceptsCash", "acceptsCashapp", "acceptsVenmo", "acceptsPaypal",
-        "businessEmail", "phone", "paymentInstructions",
         "cashappHandle", "venmoHandle", "paypalHandle"] },
     "StringEquals": { "dynamodb:Select": "SPECIFIC_ATTRIBUTES",
                       "aws:PrincipalTag/linkStatus": "ACTIVE" } } }
 ```
 
-*Note — 2026-10-13: under [ADR-031](ADR-031-lessons-and-seats.md) availability is one range
+~~*Note — 2026-10-13: under [ADR-031](ADR-031-lessons-and-seats.md) availability is one range
 query on `LESSON#` items, so this list must cover the lesson-time attributes availability needs
 (in place of `bookingStatus`), and allow the family's own `SEAT#` read used for retry attribution
-(decision 8). The revised list is not written yet; it fails closed until it is.*
+(decision 8). The revised list is not written yet; it fails closed until it is.*~~ *Written
+2026-11-17 (amendment above): the family's own seat details come from GSI1, and a seat gives up
+only `idempotencyKey` here.*
 
 What this gives, and why it meets **requirement 2**:
 
@@ -403,6 +453,10 @@ Runs against a real table, alongside ADR-021 decision 7:
 | 11 | The `code-lookup` role: `GetItem CODE#K` with the decision 7 attributes; then with any other attribute, no projection, a `Query`, or any read of `COACH#` or `CLIENT#` | allowed; then all denied |
 | 12 | *Added 2026-10-20 (ADR-033).* A booking `TransactWriteItems` whose invited seat names a skater not `ACTIVE` with coach X (`ConditionCheckItem` on `COACH#X/STUDENT#…`, `studentStatus = ACTIVE`) | whole transaction refused, nothing returned |
 | 13 | *Added 2026-10-20 (ADR-033 d2a).* `GetItem COACH#X/STUDENT#…` with projection `studentStatus` only, as an `ACTIVE` session; then with any other attribute, no projection, or as a `PENDING` session | allowed; then all denied |
+| 14 | *Added 2026-11-17.* `BatchGetItem` of `COACH#X/LESSON#…` keys with the allowlisted projection, as an `ACTIVE` session; then with any attribute not on the allowlist, no projection, any key in `COACH#Y`, or as a `PENDING` session | allowed; then all denied |
+| 15 | *Added 2026-11-17.* `Query COACH#X` over the `SEAT#` range projecting `PK` and `SK` | **allowed (accepted risk):** record that keys, with skater IDs, come back |
+| 16 | *Added 2026-11-17.* `GetItem` of another family's seat in `COACH#X` with `studentName`, `clientId`, `seatStatus` or `partnerName` in the projection; then the family's own seat with `idempotencyKey` only, strongly consistent | all denied; then allowed |
+| 17 | *Added 2026-11-17.* `Query` GSI1 with `GSI1PK = CLIENT#A` for its seats with every seat attribute; then `GSI1PK = CLIENT#B` | allowed; then denied |
 
 *Note — 2026-10-13: [ADR-031](ADR-031-lessons-and-seats.md) needs rows here for `LESSON#`,
 `SEAT#`, `SEATEND#` and GSI4 — at least: `LESSON#` items readable with the allowlisted
@@ -415,6 +469,12 @@ ADR-031.*
 `LeadingKeys` on an index query checks the index's partition key. If it does not, the
 client's own bookings move from GSI1 to a copy under `CLIENT#<sub>`, written in the same
 transaction as the booking.
+
+**Amended — 2026-11-20.** *Batch 17c (I11).* **Run against dev's real table and deployed roles: 76 passed, 0 failed**
+(`docs/runbooks/gate-results-20261120-155510.txt`). The script now reads the stack's outputs and the seed's records
+instead of building a sandbox copy, and runs as `bladebook-dev-gate-test`, a dev-only role the tenant roles trust. Every row 1–17 holds, against the written allowlist; row 15 returned seat keys, as accepted; the
+rows the 2026-10-13 note asked for (`LESSON#`, `SEAT#`, GSI4) are in. "Another family's accepted seat can't be
+changed" isn't a database row: decision 8 leaves it to the code's link check.
 
 *Answered 2026-10-05:*
 

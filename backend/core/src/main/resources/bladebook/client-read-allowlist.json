@@ -1,0 +1,17 @@
+{
+  "_about": "What client-tenant may read outside the family's own partition (ADR-022 d3, d7; amended 2026-11-17, I2). The one copy: infra/lib/tenant-roles.ts builds the role from it, and core.data's local mode enforces it (LocalFamilyPolicy). Nothing here may identify a person on any item type. Adding a name re-runs ADR-022 decision 9.",
+  "coachPublic": [
+    "PK", "SK",
+    "days", "blocks", "scheduleVersion", "tempKind", "scheduleName", "startDate", "endDate",
+    "lessonDate", "startTime", "startsAtUtc", "coachTz", "durationMinutes",
+    "priceMinor", "currency", "lessonStatus", "shareCount", "joinOrder", "blockSeq",
+    "requiredNoticeHours", "maxSkaters", "seatsTaken",
+    "idempotencyKey", "studentStatus",
+    "firstName", "lastName", "coachTimezone",
+    "displayPhoneToClients", "displayEmailToClients", "businessEmail", "phone",
+    "acceptsCash", "acceptsCashapp", "acceptsVenmo", "acceptsPaypal",
+    "cashappHandle", "venmoHandle", "paypalHandle"
+  ],
+  "coachCode": ["PK", "SK", "coachId", "coachFirstName", "coachLastName", "profilePhotoKey"],
+  "skaterCode": ["PK", "SK", "studentId", "studentName"]
+}

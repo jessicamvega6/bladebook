@@ -5,6 +5,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { fakes } from '../test/fakeAuth';
 import type { RinkDay, RinkWeek, WeekLesson } from './api';
 import { App } from './App';
 
@@ -47,7 +48,7 @@ const cancels = (calls: ReturnType<typeof server>) => calls.filter((c) => c.url 
 
 beforeEach(() => {
   sessionStorage.clear(); localStorage.clear();
-  sessionStorage.setItem('bb.coach.idToken', 'h.eyJlbWFpbCI6ImRhbmFAZ21haWwuY29tIn0.s');
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/week';
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -57,7 +58,7 @@ test('the Week tab lists today to Saturday: what can be cancelled, what has star
   render(<App />);
   expect(await screen.findByText('Mon, Nov 16 – Sat, Nov 21 · cancel lessons')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Week' })).toHaveAttribute('aria-current', 'page');
-  expect(screen.getByText(/Holds everything left from now to Saturday: 3 lessons and 1 open time\./)).toBeInTheDocument();
+  expect(screen.getByText(/Makes the rest of the week, from now to Saturday, time off called “Cancelled”: 3 lessons cancelled/)).toBeInTheDocument();
   const today = screen.getByRole('region', { name: 'Today, Nov 16' });
   expect(within(today).getByText('Leo M.')).toBeInTheDocument();
   expect(within(today).getByText('2 lessons already started and can’t be cancelled.')).toBeInTheDocument();
@@ -96,23 +97,23 @@ test('one lesson: its own confirmation asks release or hold and sends LESSON', a
   await waitFor(() => expect(calls.filter((c) => c.url === '/api/coach/rinkside/week')).toHaveLength(2));
 });
 
-test('a whole day: one confirmation asks release or hold for each lesson and sends DAY', async () => {
-  const calls = server({ '/api/coach/rinkside/cancel': () => json({ cancelled: 2, held: 1, openHeld: 0, families: 3, skipped: 0 }) });
+test('a whole day is time off: one confirmation, no release-or-hold, sent as DAY (I24)', async () => {
+  const calls = server({ '/api/coach/rinkside/cancel': () => json({ cancelled: 2, held: 0, openHeld: 0, families: 3, skipped: 0 }) });
   render(<App />);
   const wed = await screen.findByRole('region', { name: 'Wed, Nov 18' });
   await userEvent.click(within(wed).getByRole('button', { name: 'Cancel whole day' }));
 
   const sheet = screen.getByRole('dialog', { name: 'Cancel day' });
   expect(within(sheet).getByRole('heading', { name: 'Cancel all of Wed, Nov 18?' })).toBeInTheDocument();
-  expect(sheet).toHaveTextContent('2 lessons. For each one, choose whether the time can be booked again.');
-  await userEvent.click(within(within(sheet).getByRole('group', { name: 'After cancelling Leo M. at 10:00 AM' })).getByRole('button', { name: 'Hold closed' }));
-  expect(sheet).toHaveTextContent('Ana Rivera, Lily Chen, Kate Martin will be emailed. 1 held time stays closed for good. This can’t be undone.');
+  expect(sheet).toHaveTextContent('The day becomes time off called “Cancelled”: its 2 lessons are cancelled, and families can’t book it.');
+  expect(within(sheet).queryByRole('group')).not.toBeInTheDocument();
+  expect(sheet).toHaveTextContent('Ana Rivera, Lily Chen, Kate Martin will be emailed. This can’t be undone.');
   await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel 2 lessons' }));
 
-  expect(await screen.findByText('2 lessons cancelled, 1 held closed. 3 families will be emailed.')).toBeInTheDocument();
+  expect(await screen.findByText('2 lessons cancelled. 3 families will be emailed.')).toBeInTheDocument();
   expect(cancels(calls)[0]!.body).toEqual({ scope: 'DAY', picks: [
-    { date: '2026-11-18', startTime: '06:00', after: 'RELEASE' },
-    { date: '2026-11-18', startTime: '10:00', after: 'HOLD' },
+    { date: '2026-11-18', startTime: '06:00' },
+    { date: '2026-11-18', startTime: '10:00' },
   ] });
 });
 
@@ -126,21 +127,21 @@ test('Keep lesson closes the confirmation and sends nothing', async () => {
   expect(cancels(calls)).toHaveLength(0);
 });
 
-test('Cancel rest of week lists everything it holds, asks nothing per lesson, and sends only its Sunday', async () => {
-  const calls = server({ '/api/coach/rinkside/cancel': () => json({ cancelled: 3, held: 3, openHeld: 1, families: 3, skipped: 0 }) });
+test('Cancel rest of week lists everything it closes as time off, asks nothing per lesson, and sends only its Sunday', async () => {
+  const calls = server({ '/api/coach/rinkside/cancel': () => json({ cancelled: 3, held: 0, openHeld: 0, families: 3, skipped: 0 }) });
   render(<App />);
   await userEvent.click(await screen.findByRole('button', { name: 'Cancel rest of week' }));
   const sheet = screen.getByRole('dialog', { name: 'Confirm cancellation' });
   expect(within(sheet).getByRole('heading', { name: 'Cancel the rest of the week?' })).toBeInTheDocument();
   const rows = within(sheet).getAllByRole('listitem');
   expect(rows).toHaveLength(4);
-  expect(rows.every((r) => r.textContent!.endsWith('Hold'))).toBe(true);
+  expect(rows.every((r) => r.textContent!.endsWith('Time off'))).toBe(true);
   expect(rows[3]).toHaveTextContent('Today · 10:30 AMOpen');
   expect(within(sheet).queryByRole('button', { name: 'Release' })).not.toBeInTheDocument();
   expect(sheet).toHaveTextContent('Kate Martin, Ana Rivera, Lily Chen will be emailed. Your weekly schedule doesn’t change, so next week is untouched.');
   await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel 3 lessons and 1 open time' }));
 
-  expect(await screen.findByText('3 lessons cancelled and 1 open time closed. 3 families will be emailed.')).toBeInTheDocument();
+  expect(await screen.findByText('3 lessons cancelled. 3 families will be emailed.')).toBeInTheDocument();
   expect(cancels(calls)[0]!.body).toEqual({ scope: 'WEEK', weekStart: '2026-11-15' });
 });
 

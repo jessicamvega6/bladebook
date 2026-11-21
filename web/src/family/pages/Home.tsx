@@ -11,9 +11,10 @@
 import { Avatar, Badge, Banner, Card, Icon, Row } from '../../shared/components/harbor';
 import { repeatsText } from '../../shared/logic/booking';
 import { firstName, joinNames } from '../../shared/logic/names';
-import { DAYS, formatMoney, formatShort, shortDate, todayIn } from '../../shared/logic/schedule';
+import { DAYS, formatMoney, formatTime, shortDate, todayIn } from '../../shared/logic/schedule';
 import type { Family, FamilyApi, Invitation, MyLesson } from '../api';
 import { InvitationsCard, WaitingCards } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 type Coach = Family['coaches'][number];
 type Skater = Family['skaters'][number];
@@ -120,7 +121,7 @@ const shareNote = (l: MyLesson) => {
 
 function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDate: boolean }) {
   return (
-    <Row lead={<><span className="ac-when num"><b>{formatShort(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
+    <Row lead={<><span className="ac-when num"><b>{formatTime(l.startTime)}</b></span><Avatar name={l.studentName} size="sm" /></>}
       title={<>{l.studentName}{showDate && <span className="ac-date">{dateOf(l.date)}</span>}</>}
       sub={`${multi ? `Coach ${l.coachFirstName} · ` : ''}${l.durationMinutes} min${l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`}${l.recurrenceId && l.intervalWeeks ? ` · ${repeatsText(l.intervalWeeks)}` : ''}${shareNote(l)}`}
       side={<Badge tone="primary">Booked</Badge>} />
@@ -130,7 +131,7 @@ function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDa
 const dateOf = (date: string) => `${DAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]}, ${shortDate(date)}`;
 
 function Lessons({ lessons, multi }: { lessons: MyLesson[] | null; multi: boolean }) {
-  if (!lessons) return <Card title="Today"><p className="muted" aria-busy="true">Loading…</p></Card>;
+  if (!lessons) return <Card title="Today"><Loading /></Card>;
   const now = Date.now();
   const today = lessons.filter((l) => l.date === todayIn(l.coachTz));
   // Coming up starts tomorrow: today's lessons are in the Today card (owner, 2026-11-11).
@@ -141,7 +142,7 @@ function Lessons({ lessons, multi }: { lessons: MyLesson[] | null; multi: boolea
       <Card title="Today" sub={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} flush>
         {today.length ? today.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} showDate={false} />)
           : <div className="pempty"><span className="pempty__icon"><Icon name="calendar" size={22} /></span><b>No lessons today</b>
-              <span className="muted">{first ? `Next: ${firstName(first.studentName)}, ${dateOf(first.date)} at ${formatShort(first.startTime)}` : 'Nothing booked yet.'}</span></div>}
+              <span className="muted">{first ? `Next: ${firstName(first.studentName)}, ${dateOf(first.date)} at ${formatTime(first.startTime)}` : 'Nothing booked yet.'}</span></div>}
       </Card>
       <Card title="Coming up" flush action={<a className="link" href="#/bookings">All bookings</a>}>
         {next.length ? next.map((l) => <LessonRow key={l.coachId + l.studentId + l.date + l.startTime} l={l} multi={multi} showDate />)

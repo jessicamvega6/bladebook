@@ -71,7 +71,7 @@ class FamilyRepositoryTest {
         Skater lily = FamilyTestData.skater("Lily Park");
 
         assertThatThrownBy(() -> families.register(family, p, List.of(lily),
-                List.of(FamilyTestData.pending(dana.coachId(), lily, p)), Map.of(dana.coachId(), new CoachName("Dana", "Whitfield"))))
+                List.of(FamilyTestData.pending(dana.coachId(), lily, p)), List.of(FamilyTestData.found(dana.coachId()))))
                 .isInstanceOfSatisfying(DomainException.class, e -> assertThat(e.reason()).isEqualTo(DomainException.Reason.CONFLICT));
 
         assertThat(families.account(family).orElseThrow().skaters()).containsExactly(ava);
@@ -134,5 +134,40 @@ class FamilyRepositoryTest {
         assertThat(l.coachId()).isEqualTo(dana.coachId());
         assertThat(l.studentId()).isEqualTo(ava.studentId());
         assertThat(l.studentName()).isEqualTo("Ava Park");
+    }
+
+    @Test
+    void eachCoachIsWrittenInItsOwnTransactionAndALaterFailureNamesTheMissedCoach() {
+        Skater ava = FamilyTestData.skater("Ava Park");
+        ClientContext family = new ClientContext(UUID.randomUUID().toString());
+        FamilyProfile p = FamilyTestData.profile(family);
+        // Ava's record is already with Ben, so Ben's transaction fails; Dana's, written first, stands (I30).
+        f.clients.forSetup().putItem(software.amazon.awssdk.services.dynamodb.model.PutItemRequest.builder().tableName(f.table)
+                .item(FamilyItems.studentItem(FamilyTestData.pending(ben.coachId(), ava, p))).build());
+
+        assertThatThrownBy(() -> families.register(family, p, List.of(ava),
+                List.of(FamilyTestData.pending(dana.coachId(), ava, p), FamilyTestData.pending(ben.coachId(), ava, p)),
+                List.of(FamilyTestData.found(dana.coachId()), FamilyTestData.found(ben.coachId()))))
+                .isInstanceOfSatisfying(DomainException.class, e -> {
+                    assertThat(e.reason()).isEqualTo(DomainException.Reason.CONFLICT);
+                    assertThat(e.getMessage()).contains("You’re signed up", "Coach Dana", "Profile → Add a coach");
+                });
+
+        FamilyAccount a = families.account(family).orElseThrow();
+        assertThat(a.skaters()).containsExactly(ava);
+        assertThat(a.links()).extracting(SkaterLink::coachId).containsExactly(dana.coachId());
+        assertThat(students.list(dana)).extracting(StudentRecord::studentName).containsExactly("Ava Park");
+    }
+
+    @Test
+    void aRecordForACoachThatWasntResolvedIsRefusedBeforeAnythingIsWritten() {
+        Skater ava = FamilyTestData.skater("Ava Park");
+        ClientContext family = new ClientContext(UUID.randomUUID().toString());
+        FamilyProfile p = FamilyTestData.profile(family);
+
+        assertThatThrownBy(() -> families.register(family, p, List.of(ava),
+                List.of(FamilyTestData.pending(ben.coachId(), ava, p)), List.of(FamilyTestData.found(dana.coachId()))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(families.account(family)).isEmpty();
     }
 }
