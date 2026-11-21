@@ -30,6 +30,7 @@ import {
 import { timezoneLabel } from '../../shared/logic/timezones';
 import type { BookBody, BookResult, BookingPage, Family, FamilyApi, TimeDto } from '../api';
 import { ShareBox, ShareResult, type ShareAnswer } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 type Skater = Family['skaters'][number];
 type CoachLink = Skater['coaches'][number];
@@ -187,7 +188,7 @@ export function Book({ family, api, route, onError }: {
       </>
     );
   }
-  if (!page) return <><Head title="Book a lesson" actions={pickers} /><p className="muted" aria-busy="true">Loading…</p></>;
+  if (!page) return <><Head title="Book a lesson" actions={pickers} /><Loading /></>;
 
   const panel = (
     <PicksPanel picks={picks} onRemove={remove} onContinue={() => setConfirming(true)} />

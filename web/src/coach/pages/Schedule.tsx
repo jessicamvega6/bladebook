@@ -21,6 +21,7 @@ import {
 } from '../../shared/logic/schedule';
 import { scheduleApi, type PreviewDto, type Profile, type ScheduleApi, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
 import { ChangeReview } from './ScheduleReview';
+import { Loading } from '../../shared/components/Loading';
 
 /** "11:30 AM" kept on one line, for the narrow break note in the week view. */
 const unbroken = (t: string) => formatTime(t).replace(' ', '\u00a0');
@@ -74,10 +75,6 @@ function useSchedule(api: ScheduleApi, onError: (e: unknown) => void) {
     return () => { live = false; };
   }, [api, onError]);
   return data;
-}
-
-function Loading() {
-  return <p className="muted" aria-busy="true">Loading…</p>;
 }
 
 // ------------------------------------------------------------------ hub

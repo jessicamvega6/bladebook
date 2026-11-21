@@ -14,6 +14,7 @@ import { firstName, joinNames } from '../../shared/logic/names';
 import { DAYS, formatMoney, formatTime, shortDate, todayIn } from '../../shared/logic/schedule';
 import type { Family, FamilyApi, Invitation, MyLesson } from '../api';
 import { InvitationsCard, WaitingCards } from './Sharing';
+import { Loading } from '../../shared/components/Loading';
 
 type Coach = Family['coaches'][number];
 type Skater = Family['skaters'][number];
@@ -130,7 +131,7 @@ function LessonRow({ l, multi, showDate }: { l: MyLesson; multi: boolean; showDa
 const dateOf = (date: string) => `${DAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]}, ${shortDate(date)}`;
 
 function Lessons({ lessons, multi }: { lessons: MyLesson[] | null; multi: boolean }) {
-  if (!lessons) return <Card title="Today"><p className="muted" aria-busy="true">Loading…</p></Card>;
+  if (!lessons) return <Card title="Today"><Loading /></Card>;
   const now = Date.now();
   const today = lessons.filter((l) => l.date === todayIn(l.coachTz));
   // Coming up starts tomorrow: today's lessons are in the Today card (owner, 2026-11-11).
