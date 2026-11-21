@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { COACH_HOME } from '../shared/sites';
-import { coachSession, emailFromToken } from '../shared/auth/localAuth';
+import { coachAuth, emailFromToken } from '../shared/auth';
 import { Avatar, Banner, Button, Icon } from '../shared/components/harbor';
 import { plural } from '../shared/logic/booking';
 import { DAYS, MONTHS, dayOfWeek, formatTime, shortDate, toMinutes, todayIn } from '../shared/logic/schedule';
@@ -68,33 +68,51 @@ function useHash(): string {
   return hash;
 }
 
+const auth = coachAuth();
+
 export function App() {
-  const [token, setToken] = useState<string | null>(() => coachSession.getToken());
+  // undefined while this tab's sign-in is looked up. Requests get a current token from the sign-in (auth.idToken),
+  // refreshed as needed for the page's 4 hours (ADR-023 d6).
+  const [token, setToken] = useState<string | null | undefined>(undefined);
   const [notice, setNotice] = useState('');
-  const api = useMemo(() => (token ? rinkApi(token) : null), [token]);
-  const signOut = useCallback((message = '') => { coachSession.signOut(); setToken(null); setNotice(message); }, []);
+  useEffect(() => {
+    let live = true;
+    auth.idToken().then((t) => { if (live) setToken(t); }).catch(() => { if (live) setToken(null); });
+    return () => { live = false; };
+  }, []);
+  const api = useMemo(() => (token ? rinkApi(auth.idToken) : null), [token]);
+  const signOut = useCallback((message = '') => {
+    // The log-in shows once the tab's sign-in is gone (see shared/auth's signOut).
+    void auth.signOut().then(() => { setToken(null); setNotice(message); });
+  }, []);
+  if (token === undefined) return <div className="bb rk-app" aria-busy="true" />;
   return (
     <div className="bb rk-app">
       {!token || !api
-        ? <SignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); }} />
+        ? <SignIn notice={notice} onSignedIn={async () => { setNotice(''); setToken(await auth.idToken()); }} />
         : <Signed api={api} email={emailFromToken(token)} onSignOut={signOut} />}
     </div>
   );
 }
 
-/** Log in: the coach website's sign-in. LOCAL STAND-IN (SC-1): the email alone signs in; no password is checked. */
-function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: (token: string) => void }) {
+/** Log in: the coach website's sign-in (ADR-023 d2), BladeBook's own form talking to Cognito (d11). */
+function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: () => Promise<void> }) {
   const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
   const waiting = queue().length;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!email.includes('@')) { setError('Enter your login email.'); return; }
+    if (!email.includes('@') || !pw) { setError('Enter your login email and password.'); return; }
     setBusy(true);
+    setError('');
     try {
-      onSignedIn(await coachSession.signIn(email.trim()));
+      const next = await auth.signIn(email, pw);
+      if (next === 'confirm-email') setError('Finish signing up on the BladeBook website first: verify your email there.');
+      else await onSignedIn();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That didn’t work. Try again.');
+      setPw('');
     } finally {
       setBusy(false);
     }
@@ -109,13 +127,15 @@ function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: (token: st
           {notice && <Banner tone="warning">{notice}</Banner>}
           {waiting > 0 && <div className="pbanner pbanner--warn"><Icon name="clock" size={18} /><div><b>{plural(waiting, 'check-in')} waiting on this phone</b>
             <span>Saved before you logged out. They send after you log in.</span></div></div>}
-          <div className="field"><label className="label" htmlFor="rk-email">Login email</label>
-            <input id="rk-email" type="email" className="ctl" value={email} autoComplete="username" onChange={(e) => { setEmail(e.target.value); setError(''); }} />
-            {error && <div className="hint hint--error"><Icon name="alert" size={14} />{error}</div>}</div>
-          <div className="field"><label className="label" htmlFor="rk-pw">Password</label>
-            <input id="rk-pw" type="password" className="ctl" placeholder="••••••••" autoComplete="current-password" />
-            <div className="hint">Local stand-in: any password works.</div></div>
-          <Button block lg onClick={() => void submit()} disabled={busy}>Log in</Button>
+          <form onSubmit={(e) => { e.preventDefault(); void submit(); }} noValidate>
+            <div className="field"><label className="label" htmlFor="rk-email">Login email</label>
+              <input id="rk-email" type="email" className="ctl" value={email} autoComplete="username" onChange={(e) => { setEmail(e.target.value); setError(''); }} /></div>
+            <div className="field"><label className="label" htmlFor="rk-pw">Password</label>
+              <input id="rk-pw" type="password" className="ctl" placeholder="••••••••" autoComplete="current-password" value={pw}
+                onChange={(e) => { setPw(e.target.value); setError(''); }} />
+              {error && <div className="hint hint--error"><Icon name="alert" size={14} />{error}</div>}</div>
+            <Button type="submit" block lg disabled={busy}>Log in</Button>
+          </form>
           <p className="fine">This app shows today’s lessons, records attendance and cancels lessons. Your schedule, students and payments stay on the website.</p>
         </div>
       </div>

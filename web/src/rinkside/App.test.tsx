@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { fakes } from '../test/fakeAuth';
 import type { RinkDay, RinkLesson, RinkSkater } from './api';
 import { App } from './App';
 
@@ -27,7 +28,6 @@ function server(over: Record<string, (init?: RequestInit) => Response> = {}) {
     const key = Object.keys(over).find((k) => url.startsWith(k));
     if (key) return Promise.resolve(over[key]!(init));
     if (url === '/api/coach/rinkside/today') return Promise.resolve(new Response(JSON.stringify(DAY), { status: 200 }));
-    if (url === '/api/coach/local/token') return Promise.resolve(new Response(JSON.stringify({ idToken: 'h.eyJlbWFpbCI6ImRhbmFAZ21haWwuY29tIn0.s' }), { status: 200 }));
     return Promise.resolve(new Response('{}', { status: 404 }));
   });
   vi.stubGlobal('fetch', f);
@@ -37,15 +37,21 @@ function server(over: Record<string, (init?: RequestInit) => Response> = {}) {
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); window.location.hash = ''; });
 afterEach(() => vi.unstubAllGlobals());
 
-const signedIn = () => sessionStorage.setItem('bb.coach.idToken', 'h.eyJlbWFpbCI6ImRhbmFAZ21haWwuY29tIn0.s');
+const signedIn = () => fakes.coach.signedInAs('dana@gmail.com');
 
 test('signed out, the log-in says what the page does, and logging in shows today', async () => {
   server();
   render(<App />);
-  expect(screen.getByRole('heading', { name: 'BladeBook at the rink' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'BladeBook at the rink' })).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText('Login email'), 'dana@gmail.com');
+  await userEvent.type(screen.getByLabelText('Password'), 'wrong');
+  await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+  // Cognito's refusal, in BladeBook's words; nothing says whether the email has an account.
+  expect(await screen.findByText(/That email and password don’t match/)).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('Password'), 'Right-pw1');
   await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
   expect(await screen.findByText('Mia C.')).toBeInTheDocument();
+  expect(fakes.coach.calls).toContain('signIn dana@gmail.com');
 });
 
 test('today shows each lesson: recorded, under way with buttons, later with its start time, and held', async () => {
@@ -116,7 +122,7 @@ test('an old sign-in goes back to the log-in with a note, and Account logs out',
   server({ '/api/coach/rinkside/today': () => new Response(JSON.stringify({ error: 'SIGN_IN_AGAIN', message: 'Please sign in again.' }), { status: 401 }) });
   render(<App />);
   expect(await screen.findByText('You’ve been logged in for a while. Please log in again.')).toBeInTheDocument();
-  expect(sessionStorage.getItem('bb.coach.idToken')).toBeNull();
+  expect(fakes.coach.token).toBeNull();
 });
 
 // ---------------------------------------------------------------- no signal (Batch 10; C_Rinkside Offline.md)

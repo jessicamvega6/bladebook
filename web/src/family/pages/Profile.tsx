@@ -4,7 +4,7 @@
  * Built: the family's name and mobile (saved to the family's own profile; each coach's copy follows through
  * consumer-family-sync, called in-process locally), the skaters with their numbers and coaches, and the
  * coaches; Add a skater, with "None of my coaches yet", and Add a coach (A9; ADR-025 d2 and item k; Batch 15).
- * Not built here: changing the login email (Cognito, gap G-15) and share codes (gap G-17).
+ * The login email is shown read-only: families don’t change it (owner, 2026-11-20, I32). Not built here: share codes (gap G-17).
  *
  * "Which coaches?" lists only coaches who've approved one of the family's skaters: a waiting family is never given a
  * coach's ID (ADR-MASTER section 16). A coach still waiting is reached through Add a coach, with their code.
@@ -102,7 +102,7 @@ export function Profile({ family, api, onChange, onSignOut, onError }: {
           <div className="field">
             <label className="label" htmlFor="pr-email">Email</label>
             <input id="pr-email" className="ctl" value={c.email} disabled readOnly />
-            <div className="hint">You log in with this. Changing it comes later.</div>
+            <div className="hint">You log in with this.</div>
           </div>
         </div>
         <div className="fieldset"><div className="label">Text reminders <Badge>Phase 2</Badge></div><div className="hint">Texts come in Phase 2. Until then every reminder and cancellation comes by email.</div></div>

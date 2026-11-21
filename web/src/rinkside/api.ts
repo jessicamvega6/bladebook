@@ -1,5 +1,5 @@
 /** The rinkside page's calls to api-coach (Batch 7). Its routes keep a 4-hour session (ADR-023 d6). */
-import { apiFetch } from '../shared/api/client';
+import { apiFetch, type TokenSource } from '../shared/api/client';
 
 export type Shown = 'BOOKED' | 'CHECKED_IN' | 'NO_SHOW' | 'NOT_RECORDED';
 
@@ -22,7 +22,7 @@ export interface RinkWeek { coachTimezone: string; today: string; now: string; w
 
 export interface CancelResult { cancelled: number; held: number; openHeld: number; families: number; skipped: number }
 
-export function rinkApi(token: string) {
+export function rinkApi(token: TokenSource) {
   return {
     today: () => apiFetch<RinkDay>('/api/coach/rinkside/today', { token }),
     /** {@code outcomeAt}: the tap time on this phone. A repeat answers with what was recorded first. */

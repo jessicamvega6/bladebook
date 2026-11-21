@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { fakes } from '../../test/fakeAuth';
 import { scheduleApi, type PreviewDto, type Profile, type ScheduleDto, type TempDto, type TemplateDto } from '../api';
 import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, WeeklyEditor } from './Schedule';
 
@@ -34,7 +35,6 @@ function serve(schedule: ScheduleDto, onPut?: (body: { scheduleVersion: number; 
     if (url === '/api/coach/schedule' && init?.method === 'PUT' && onPut) {
       return onPut(JSON.parse(init.body as string), new Headers(init.headers).get('Authorization') ?? '');
     }
-    if (url === '/api/coach/local/token') return json(200, { idToken: 'fresh' });
     return json(500, {});
   });
   vi.stubGlobal('fetch', f);
@@ -140,7 +140,7 @@ test('a shared lesson whose price splits unevenly shows the odd-cents warning (S
   expect(screen.getByText('USD')).toBeInTheDocument();
 });
 
-test('a save past 15 minutes asks to sign in again, keeps the edits and retries with the new sign-in', async () => {
+test('a save past 15 minutes asks for the password again, keeps the edits and retries with the new sign-in', async () => {
   const auths: string[] = [];
   serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, (body, auth) => {
     auths.push(auth);
@@ -153,13 +153,23 @@ test('a save past 15 minutes asks to sign in again, keeps the edits and retries 
   await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
   await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
 
-  expect(await screen.findByRole('dialog', { name: 'Confirm it’s you' })).toBeInTheDocument();
+  const dialog = await screen.findByRole('dialog', { name: 'Confirm it’s you' });
   expect(props.onError).not.toHaveBeenCalled();
+  // A wrong password: said in the dialog, nothing signed out, nothing saved, the edits still there.
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
   await userEvent.click(screen.getByRole('button', { name: 'Sign in again and save' }));
+  expect(await within(dialog).findByText('That email and password don’t match. Check them and try again.')).toBeInTheDocument();
+  expect(auths).toEqual(['Bearer old']);
+  expect(props.onToken).not.toHaveBeenCalled();
 
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'Right-pw1');
+  await userEvent.click(screen.getByRole('button', { name: 'Sign in again and save' }));
   await waitFor(() => expect(props.onSaved).toHaveBeenCalled());
-  expect(props.onToken).toHaveBeenCalledWith('fresh');
-  expect(auths).toEqual(['Bearer old', 'Bearer fresh']);
+  const fresh = fakes.coach.token!;
+  expect(props.onToken).toHaveBeenCalledWith(fresh);
+  expect(auths).toEqual(['Bearer old', `Bearer ${fresh}`]);
+  // The password went to Cognito (here the fake) for the profile's login email, never to api-coach.
+  expect(fakes.coach.calls).toEqual([`confirmPassword ${PROFILE.loginEmail}`, `confirmPassword ${PROFILE.loginEmail}`]);
 });
 
 test('a save from a stale window shows why and stays on the review', async () => {

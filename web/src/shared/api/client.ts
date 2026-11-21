@@ -18,10 +18,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The ID token, or where to get it: the websites pass the sign-in's `idToken`, so every request carries a current one,
+ * refreshed by Cognito when it has expired (ADR-023 d6). Tests pass a string.
+ */
+export type TokenSource = string | (() => Promise<string | null>);
+
 export interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
-  token?: string | null;
+  token?: TokenSource | null;
   /** The body carries an idempotency key, so a retry after a server error is safe. */
   idempotent?: boolean;
 }
@@ -31,7 +37,8 @@ const FALLBACK = 'Something went wrong. Try again.';
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const method = options.method ?? 'GET';
   const headers = new Headers({ Accept: 'application/json' });
-  if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+  const token = typeof options.token === 'function' ? await options.token() : options.token;
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const init: RequestInit = {
     method,

@@ -116,7 +116,9 @@ on S3 and CloudFront, deployed with CDK. Its drawbacks are mitigated as follows:
 - **Tokens in tab storage** (`sessionStorage`), set explicitly, never Amplify's default `localStorage`.
   A test fails if a token lands in `localStorage`. They survive a reload and clear when the tab closes.
 - **Page size measured** in the first build that uses it and recorded here, with the rinkside page
-  checked on a slow connection.
+  checked on a slow connection. *Measured 2026-11-20 (Batch 18, `aws-amplify` 6.22.2): Amplify adds about 38 KB
+  gzipped of script to each page. Each page's script, gzipped: coach website 149 KB (was 112), rinkside page 122 KB
+  (was 84), family website 144 KB (was 106). The slow-connection check is with the click-through in dev.*
 - **Decision 11's tests stay the assurance** that matters: no request to `api-coach` or `api-client`
   carries a password or a code, and both app clients allow only SRP and refresh.
 Alternatives weighed: `amazon-cognito-identity-js` (little active development), AWS's plain Cognito
@@ -467,8 +469,8 @@ older users. It also matches the Harbor designs as drawn.
   [ADR-027](ADR-027-on-demand-dev-environment.md) are no longer needed for Cognito's sign-in
   redirects; the cross-origin (CORS) rule and the custom domain still need them.
 - The websites need a browser library that does SRP ~~(Open)~~ *: AWS Amplify's Auth module (2026-11-12, amendment above).*
-- Until the user pool exists, the local build's token stub stands in for these calls (the root
-  `README.md`, shortcuts SC-1 and SC-10).
+- ~~Until the user pool exists, the local build's token stub stands in for these calls (the root
+  `README.md`, shortcuts SC-1 and SC-10).~~ *Built 2026-11-20 (Batch 18); SC-1 and SC-10 closed.*
 
 **Tests** ([ADR-013](ADR-013-testing-requirement.md)): no request to `api-coach` or `api-client`
 carries a password or a code; both app clients allow only SRP and refresh, with no secret and no

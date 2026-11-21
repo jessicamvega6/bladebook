@@ -71,8 +71,7 @@ the US-only check), SES (every template, and `api-coach`'s confirmation email), 
 - `backend/` is a Maven multi-module build (`core`, `api-coach`, `api-client`, `consumers`). Everything above runs
   locally against DynamoDB Local. Events and scheduled jobs run in-process or on a local timer (Question 4).
 - `web/` has three Vite entry points (coach, rinkside and family) and the rinkside page's service worker.
-  `web/src/shared/auth` holds the local sign-in stand-in (Question 3, SC-1).
-- **Still disabled on screen:** the coach Profile's *Account* tab (Batch 18).
+  `web/src/shared/auth` is the sign-in (Batch 18): BladeBook's own forms call Cognito through Amplify's Auth module.
 - `infra/` holds the CDK (TypeScript) app from Batches 17a and 17b. In dev, `bladebook-dev-identity` (the user pool,
   its groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox) and
   `bladebook-dev-app` (both websites behind CloudFront, uploaded by the stack since 17c, the table built from the seed file and the tenant

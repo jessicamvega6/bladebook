@@ -1,11 +1,10 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { fakes } from '../test/fakeAuth';
 import { App } from './App';
 import type { Profile } from './api';
 
-// A token whose payload carries the login email, as the stub's does.
-const TOKEN = `h.${btoa(JSON.stringify({ email: 'dana@gmail.com' }))}.s`;
 
 const PENDING: Profile = {
   firstName: 'Dana', lastName: 'Whitfield', initials: 'DW', loginEmail: 'dana@gmail.com',
@@ -32,14 +31,97 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-test('with no sign-in, the local sign-in stand-in shows and says so', () => {
+test('with no sign-in, Log in shows, with no stand-in', async () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: /Sign in on this computer/ })).toBeInTheDocument();
-  expect(screen.getAllByText('Local stand-in').length).toBeGreaterThan(0);
+  expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Forgot your password?' })).toHaveAttribute('href', '#/forgot');
+  expect(screen.getByRole('link', { name: 'Create a coach account' })).toHaveAttribute('href', '#/signup');
+  expect(screen.queryByText(/stand-in/i)).not.toBeInTheDocument();
+});
+
+test('logging in goes to Today; a wrong password says so and clears the password', async () => {
+  window.location.hash = '#/login';
+  vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
+    ? json(200, { active: [], pending: [] })
+    : url === '/api/coach/today' ? json(200, TODAY) : json(200, PENDING)));
+  render(<App />);
+  await userEvent.type(await screen.findByLabelText('Login email'), 'dana@gmail.com');
+  await userEvent.type(screen.getByLabelText('Password'), 'wrong');
+  await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+  expect(await screen.findByText('That email and password don’t match. Check them and try again.')).toBeInTheDocument();
+  expect(screen.getByLabelText('Password')).toHaveValue('');
+
+  await userEvent.type(screen.getByLabelText('Password'), 'Right-pw1');
+  await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+  expect(await screen.findByRole('heading', { name: /, Dana$/ })).toBeInTheDocument();
+  expect(window.location.hash).toBe('#/today');
+});
+
+test('sign-up steps 1–2: the account at Cognito, the email code, then step 3 with the names from step 1', async () => {
+  window.location.hash = '#/signup';
+  vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/profile'
+    ? json(404, { error: 'NO_PROFILE', message: 'Finish setting up your account first.' }) : json(200, { active: [], pending: [] })));
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Start coaching on BladeBook' })).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('First name'), 'Dana');
+  await userEvent.type(screen.getByLabelText('Last name'), 'Whitfield');
+  await userEvent.type(screen.getByLabelText('Login email'), 'dana@gmail.com');
+  await userEvent.type(screen.getByLabelText('Password'), 'short');
+  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  expect(screen.getByText('Use a password that meets every rule below.')).toBeInTheDocument();
+  expect(fakes.coach.calls).toEqual([]);
+
+  await userEvent.clear(screen.getByLabelText('Password'));
+  await userEvent.type(screen.getByLabelText('Password'), 'Skate!2026');
+  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+  expect(screen.getByText('dana@gmail.com')).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('Code'), '123456');
+  await userEvent.click(screen.getByRole('button', { name: 'Verify email' }));
+
+  expect(await screen.findByRole('heading', { name: 'How families reach you' })).toBeInTheDocument();
+  expect(fakes.coach.calls).toEqual(['signUp dana@gmail.com', 'confirmSignUp dana@gmail.com 123456']);
+});
+
+test('forgot password: a code to the login email, then a new password, back to log in with a note', async () => {
+  window.location.hash = '#/forgot';
+  render(<App />);
+  await userEvent.type(await screen.findByLabelText('Login email'), 'dana@gmail.com');
+  await userEvent.click(screen.getByRole('button', { name: 'Email me a code' }));
+  await userEvent.type(await screen.findByLabelText('Code'), '123456');
+  await userEvent.type(screen.getByLabelText('New password'), 'New-pass1');
+  await userEvent.click(screen.getByRole('button', { name: 'Set new password' }));
+  expect(await screen.findByText('Password changed. Log in with your new password.')).toBeInTheDocument();
+  expect(window.location.hash).toBe('#/login');
+});
+
+test('Profile → Account: the login email, Change password at Cognito, and Log out', async () => {
+  fakes.coach.signedInAs('dana@gmail.com');
+  window.location.hash = '#/profile/account';
+  vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students' ? json(200, { active: [], pending: [] }) : json(200, PENDING)));
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Signing in' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByText('dana@gmail.com')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
+  const dialog = within(screen.getByRole('dialog'));
+  await userEvent.type(dialog.getByLabelText('Current password'), 'wrong');
+  await userEvent.type(dialog.getByLabelText('New password'), 'New-pass1');
+  await userEvent.click(dialog.getByRole('button', { name: 'Change password' }));
+  expect(await dialog.findByText('Your current password isn’t right.')).toBeInTheDocument();
+  await userEvent.clear(dialog.getByLabelText('Current password'));
+  await userEvent.type(dialog.getByLabelText('Current password'), 'Old-pass1');
+  await userEvent.click(dialog.getByRole('button', { name: 'Change password' }));
+  expect(await screen.findByText('Password changed.')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
+  expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+  expect(fakes.coach.token).toBeNull();
 });
 
 test('a signed-in coach with no profile gets step 3, and a different email leads to step 4', async () => {
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';
   sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
@@ -64,7 +146,7 @@ test('a signed-in coach with no profile gets step 3, and a different email leads
 });
 
 test('a field error from the API is shown on that field', async () => {
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';
   sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/profile'
@@ -80,18 +162,18 @@ test('a field error from the API is shown on that field', async () => {
 });
 
 test('an expired sign-in returns to sign-in with a note', async () => {
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn(() => json(401, { error: 'SIGN_IN_AGAIN', message: 'Please sign in again.' })));
 
   render(<App />);
 
   expect(await screen.findByText('You’ve been signed in for a while. Please sign in again.')).toBeInTheDocument();
-  await waitFor(() => expect(sessionStorage.getItem('bb.coach.idToken')).toBeNull());
+  await waitFor(() => expect(fakes.coach.token).toBeNull());
 });
 
 test('a coach with a profile lands on Today with the pending-code banner', async () => {
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
     ? json(200, { active: [], pending: [] })
@@ -110,7 +192,7 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
     clientName: 'Sarah Park', clientEmail: 'sarah@example.com', clientPhone: '(205) 555-0196', skatingOrg: 'USFS',
     registrationNumber: '1234567', signedUpAt: '2026-11-09T15:00:00Z',
   });
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/coach/students'
     ? json(200, { active: [], pending: [kid('a', 'Ava Park'), kid('j', 'Jack Park')] })
@@ -158,10 +240,10 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   expect(screen.getByRole('link', { name: 'Edit weekly schedule' })).toHaveAttribute('href', '#/schedule/weekly');
 });
 
-test('opening the plain address starts at sign-in, signed out, even after a coach signed in', () => {
-  sessionStorage.setItem('bb.coach.idToken', TOKEN);
+test('opening the plain address starts at sign-in, signed out, even after a coach signed in', async () => {
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '';
   render(<App />);
-  expect(screen.getByRole('heading', { name: /Sign in on this computer/ })).toBeInTheDocument();
-  expect(sessionStorage.getItem('bb.coach.idToken')).toBeNull();
+  expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+  expect(fakes.coach.token).toBeNull();
 });
