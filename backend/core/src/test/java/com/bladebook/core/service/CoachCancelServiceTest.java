@@ -247,6 +247,39 @@ class CoachCancelServiceTest {
         assertThat(scheduleRepo.lessonTimes(dana, tuesday, tuesday)).hasSize(4); // the rest of the camp stays
     }
 
+    /** What the stream record of a date item shows the consumer: who applies it. */
+    private String appliedBy(LocalDate d) {
+        java.util.Map<String, AttributeValue> m = t.f.clients.forSetup().getItem(g -> g.tableName(t.f.table).key(java.util.Map.of(
+                "PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS("SCHEDULE#DATE#" + d)))).item();
+        return m.containsKey("appliedBy") ? m.get("appliedBy").s() : null;
+    }
+
+    @Test
+    void theDatesACancelWritesAreMarkedSoOnlyItsOwnApplyCancelsTheirLessons() {
+        service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));
+        // consumer-schedule-change skips these: the coach's own apply cancels the lessons, as the coach's (I24).
+        assertThat(appliedBy(MONDAY)).isEqualTo("COACH");
+    }
+
+    @Test
+    void cancellingADayInsideASpecialScheduleNeverLeavesItsDatesMissingPartWay() {
+        LocalDate tuesday = MONDAY.plusDays(1);
+        TempSchedule camp = new TempSchedule(UUID.randomUUID().toString(), TempSchedule.Kind.SPECIAL, "Camp", MONDAY,
+                tuesday, List.of(mondayMornings(5000)), java.util.Map.of());
+        scheduleRepo.saveTemp(dana, camp, null);
+        new ScheduleChangeService(scheduleRepo, t.coaches, Clock.fixed(now.get(), ZoneOffset.UTC)).apply(dana);
+        assertThat(appliedBy(tuesday)).isNull();
+        // As consumer-schedule-change would see the dates while the camp is rewritten: never the weekly schedule instead.
+        List<java.util.Set<LocalDate>> seenDates = new java.util.ArrayList<>();
+        WriteRaces.beforeNextWrites(() -> seenDates.add(scheduleRepo.overrides(dana, MONDAY, tuesday).keySet()));
+
+        service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));
+
+        assertThat(seenDates).containsExactly(java.util.Set.of(MONDAY, tuesday));
+        assertThat(appliedBy(MONDAY)).isEqualTo("COACH");
+        assertThat(appliedBy(tuesday)).isEqualTo("COACH");
+    }
+
     @Test
     void aDayAlreadyOffOrAlreadyOverHasNothingToCancel() {
         service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));

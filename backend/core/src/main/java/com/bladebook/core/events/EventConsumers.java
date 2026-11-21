@@ -201,6 +201,10 @@ public final class EventConsumers {
         if (r.sk().equals("SCHEDULE#DEFAULT")) {
             source = ChangeBatch.Source.DEFAULT;
         } else if (r.sk().startsWith("SCHEDULE#DATE#")) {
+            if (r.newString("appliedBy").filter(ScheduleRepository.APPLIED_BY_COACH::equals).isPresent()) {
+                // The coach's Cancel this day / rest of week applies it itself, as the coach's cancel (I24).
+                return skipped(Event.ScheduleChanged);
+            }
             source = ChangeBatch.Source.DATE_OVERRIDE;
         } else {
             return skipped(Event.ScheduleChanged);

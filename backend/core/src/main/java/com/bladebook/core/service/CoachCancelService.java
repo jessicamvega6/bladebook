@@ -95,12 +95,14 @@ public final class CoachCancelService {
         if (plan.isEmpty()) {
             throw DomainException.conflict(NOTHING);
         }
+        // Marked, so consumer-schedule-change leaves these dates to the apply below: their lessons are cancelled by the
+        // coach, never by a schedule change, whichever would have run first (I24).
         for (TempSchedule t : plan.newTimeOff()) {
             schedules.saveTemp(ctx, new TempSchedule(UUID.randomUUID().toString(), t.kind(), t.name(), t.startDate(), t.endDate(),
-                    t.templates(), t.off()), null);
+                    t.templates(), t.off()), null, ScheduleRepository.APPLIED_BY_COACH);
         }
         for (CoachCancelDays.Change c : plan.specials()) {
-            schedules.saveTemp(ctx, c.after(), c.before());
+            schedules.saveTemp(ctx, c.after(), c.before(), ScheduleRepository.APPLIED_BY_COACH);
         }
         ScheduleChangeService.Result r = change.apply(ctx, request.scope(), ChangeBatch.By.COACH);
         return new Result(r.cancelled(), 0, 0, r.families(), 0);
