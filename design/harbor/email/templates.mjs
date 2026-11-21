@@ -165,6 +165,15 @@ export const TEMPLATES = [
       priceDown: [], priceDownSummary: '',
       priceUp: [{ date: 'Wed, Nov 4', time: '6:30 AM', skater: 'Mia', oldPrice: '$50', newPrice: '$55' }, { date: 'Wed, Nov 11', time: '6:30 AM', skater: 'Mia', oldPrice: '$50', newPrice: '$55' }],
     },
+    variants: [{
+      slug: 'only-cancelled', label: 'only cancellations',
+      when: 'A day or the rest of the week cancelled, time off, or a dropped block, with no price change: the same template, worded as a cancel (owner, 2026-11-21, I35).',
+      sample: {
+        ...FAMILY, onlyCancelled: true, oneLesson: false, skaterNames: 'Mia', firstDate: 'Mon, Nov 2', lessonCount: '2',
+        cancelled: [{ date: 'Mon, Nov 2', time: '6:00 AM', skater: 'Mia' }, { date: 'Mon, Nov 2', time: '6:30 AM', skater: 'Mia' }],
+        priceDown: [], priceDownSummary: '', priceUp: [],
+      },
+    }],
   },
   {
     name: 'skater-approved', group: 'families', title: 'Skater approved',
