@@ -145,6 +145,53 @@ test('a signed-in coach with no profile gets step 3, and a different email leads
     coachTimezone: 'America/Chicago' }); // Central by default
 });
 
+test('step 3 saved but its email wasn’t sent: on into Today, which says so and offers Resend', async () => {
+  fakes.coach.signedInAs('dana@gmail.com');
+  window.location.hash = '#/today';
+  sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
+  let saved = false;
+  vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+    if (url === '/api/coach/profile') return saved ? json(200, PENDING) : json(404, { error: 'NO_PROFILE', message: 'Finish setting up your account first.' });
+    if (url === '/api/coach/signup' && init?.method === 'POST') {
+      saved = true;
+      return json(409, { error: 'CONFLICT', message: 'We saved the address but couldn’t send its email. Try Resend link in a minute.' });
+    }
+    if (url === '/api/coach/students') return json(200, { active: [], pending: [] });
+    if (url === '/api/coach/today') return json(200, TODAY);
+    return json(500, {});
+  }));
+
+  render(<App />);
+  await screen.findByRole('heading', { name: 'How families reach you' });
+  await userEvent.type(screen.getByLabelText('Business email address'), 'lessons@dana.com');
+  await userEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+
+  expect(await screen.findByRole('heading', { name: /, Dana$/ })).toBeInTheDocument();
+  expect(screen.getByText('We saved the address but couldn’t send its email. Try Resend link in a minute.')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'How families reach you' })).not.toBeInTheDocument();
+});
+
+test('step 3 sent again after its answer was lost (“already set up”) carries on as if it had answered', async () => {
+  fakes.coach.signedInAs('dana@gmail.com');
+  window.location.hash = '#/today';
+  sessionStorage.setItem('bb.coach.signupNames', JSON.stringify({ firstName: 'Dana', lastName: 'Whitfield' }));
+  vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+    if (url === '/api/coach/profile' && init?.method !== 'POST') {
+      return (vi.mocked(fetch).mock.calls.filter(([u]) => u === '/api/coach/signup').length
+        ? json(200, PENDING) : json(404, { error: 'NO_PROFILE', message: 'Finish setting up your account first.' }));
+    }
+    if (url === '/api/coach/signup') return json(409, { error: 'CONFLICT', message: 'Your account is already set up.' });
+    return json(500, {});
+  }));
+
+  render(<App />);
+  await screen.findByRole('heading', { name: 'How families reach you' });
+  await userEvent.type(screen.getByLabelText('Business email address'), 'lessons@dana.com');
+  await userEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+  expect(await screen.findByRole('heading', { name: 'Confirm your business email' })).toBeInTheDocument();
+  expect(screen.queryByText('Your account is already set up.')).not.toBeInTheDocument();
+});
+
 test('a field error from the API is shown on that field', async () => {
   fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/today';

@@ -225,6 +225,55 @@ test('sending later: a family’s cancel shows the lesson cancelled; a wrong clo
   expect(await screen.findByRole('heading', { name: 'Everything was sent' })).toBeInTheDocument();
 });
 
+test('a server error on a tap keeps it on the phone and says so, without claiming there’s no signal', async () => {
+  mondayMorning();
+  signedIn();
+  let working = false;
+  const shared = { ...DAY, lessons: [lesson('06:30', [skater('mia', 'Mia C.', 'Mia Chen'), skater('owen', 'Owen B.', 'Owen Baker')])] };
+  server({ '/api/coach/rinkside/today': () => new Response(JSON.stringify(shared), { status: 200 }), '/api/coach/rinkside/attendance': (init) => {
+    if (!working) return new Response(JSON.stringify({ error: 'UNAVAILABLE', message: 'BladeBook is having trouble. Try again.' }), { status: 503 });
+    const b = JSON.parse(init!.body as string) as { studentId: string; outcome: 'CHECKED_IN' | 'NO_SHOW'; outcomeAt: string };
+    return new Response(JSON.stringify(skater(b.studentId, '', '', { status: b.outcome, outcomeAt: b.outcomeAt })), { status: 200 });
+  } });
+  render(<App />);
+  const mia = (await screen.findByText('Mia C.')).closest('.rk-seat') as HTMLElement;
+  await userEvent.click(screen.getByRole('button', { name: 'Mia C.: No-show' }));
+  expect(await screen.findByText('BladeBook is having trouble. Try again.')).toBeInTheDocument();
+  expect(within(mia).getByText('Saved on phone')).toBeInTheDocument();
+  expect(screen.queryByText(/^No signal since/)).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toMatchObject([{ studentId: 'mia', outcome: 'NO_SHOW' }]);
+
+  // The next tap that goes through sends what was waiting too.
+  working = true;
+  await userEvent.click(screen.getByRole('button', { name: 'Owen B.: Present' }));
+  await waitFor(() => expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toEqual([]));
+  expect(within(mia).queryByText('Saved on phone')).not.toBeInTheDocument();
+});
+
+test('sending later: one entry the server can’t take doesn’t hold up the rest or claim there’s no signal', async () => {
+  mondayMorning();
+  signedIn();
+  localStorage.setItem('bb.rink.queue', JSON.stringify([
+    { coach: DANA, date: '2026-11-16', startTime: '06:00', studentId: 'sam', shortName: 'Sam R.', outcome: 'CHECKED_IN', outcomeAt: '2026-11-16T12:02:00Z' },
+    { coach: DANA, date: '2026-11-16', startTime: '06:30', studentId: 'mia', shortName: 'Mia C.', outcome: 'NO_SHOW', outcomeAt: '2026-11-16T12:45:00Z' },
+    { coach: DANA, date: '2026-11-16', startTime: '08:30', studentId: 'owen', shortName: 'Owen B.', outcome: 'CHECKED_IN', outcomeAt: '2026-11-16T12:50:00Z' },
+  ]));
+  server({ '/api/coach/rinkside/attendance': (init) => {
+    const b = JSON.parse(init!.body as string) as { studentId: string; outcome: 'CHECKED_IN' | 'NO_SHOW'; outcomeAt: string };
+    if (b.studentId === 'sam') return new Response(JSON.stringify({ error: 'UNAVAILABLE', message: 'BladeBook is having trouble. Try again.' }), { status: 500 });
+    if (b.studentId === 'mia') return new Response(JSON.stringify({ error: 'NOT_FOUND', message: 'That lesson couldn’t be found.' }), { status: 404 });
+    return new Response(JSON.stringify(skater(b.studentId, '', '', { status: b.outcome, outcomeAt: b.outcomeAt })), { status: 200 });
+  } });
+  render(<App />);
+  expect(await screen.findByText('BladeBook is having trouble. Try again.')).toBeInTheDocument();
+  // Owen's was sent; Mia's was turned down, so it's in Not sent; Sam's waits on the phone for the next try.
+  await waitFor(() => expect(JSON.parse(localStorage.getItem('bb.rink.queue')!)).toMatchObject([{ studentId: 'sam' }]));
+  expect(screen.queryByText(/^No signal since/)).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /1 check-in couldn’t be sent/ })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('link', { name: /1 check-in couldn’t be sent/ }));
+  expect((await screen.findByText('Mia C.')).closest('.rl')).toHaveTextContent('That lesson couldn’t be found.');
+});
+
 test('logging out with check-ins waiting warns, keeps them, and the log-in page says they’re waiting (R2)', async () => {
   mondayMorning();
   signedIn();

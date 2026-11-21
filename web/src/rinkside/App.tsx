@@ -191,8 +191,12 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       ? { ...x, skaters: x.skaters.map((k) => (k.studentId === studentId ? { ...k, ...change } : k)) } : x)) });
   const keep = (q: Queued) => { enqueue(q); setSaved(new Set(queuedFor(email).map(seatKey))); };
 
-  /** Sends one check-in and says how it went; 'offline' leaves it queued. */
-  const send = useCallback(async (q: Queued): Promise<RinkSkater | 'cancelled' | 'refused' | 'offline'> => {
+  /**
+   * Sends one check-in and says how it went. 'offline' (no signal) and 'failed' (BladeBook couldn't take it just now,
+   * already reported) leave it queued; only 'offline' means there's no signal. A check-in the server turns down (a
+   * wrong clock, a lesson it can't find) is 'refused' and goes to Not sent. A lapsed sign-in is thrown.
+   */
+  const send = useCallback(async (q: Queued): Promise<RinkSkater | 'cancelled' | 'refused' | 'offline' | 'failed'> => {
     const l = { date: q.date, startTime: q.startTime } as RinkLesson;
     try {
       return await api.record(l, q.studentId, q.outcome, q.outcomeAt);
@@ -203,13 +207,15 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         setFamilyCancelled((m) => ({ ...m, [lessonKey(q.date, q.startTime)]: e.message }));
         return 'cancelled';
       }
-      if (e instanceof ApiError && e.status === 400) {
+      if (e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 408, 429].includes(e.status)) {
         addUnsent({ ...q, reason: e.message, refusedAt: Date.now() });
         return 'refused';
       }
-      throw e;
+      if (e instanceof ApiError && e.status === 401) throw e;
+      fail(e);
+      return 'failed';
     }
-  }, [api]);
+  }, [api, fail]);
 
   /** Signal again: send this coach's queue, then say so. Another coach's entries wait for that coach (R2). */
   const syncing = useRef(false);
@@ -219,8 +225,10 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
     syncing.current = true;
     let sent = 0, cancelled = 0;
     for (const q of mine) {
-      const r = await send(q).catch((e: unknown) => { fail(e); return 'offline' as const; });
+      const r = await send(q).catch((e: unknown) => { fail(e); return 'stop' as const; });
       if (r === 'offline') { setOnline(false); break; }
+      if (r === 'stop') break;
+      if (r === 'failed') continue;    // stays queued for the next try; the rest still go
       dequeue(q);
       if (r === 'cancelled') cancelled++;
       else if (typeof r === 'object') { sent++; mark({ date: q.date, startTime: q.startTime } as RinkLesson, q.studentId, r); }
@@ -241,8 +249,10 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
       outcomeAt: new Date().toISOString() };
     mark(l, s.studentId, { status: outcome, outcomeAt: q.outcomeAt });
     if (!online) { keep(q); return; }
-    const r = await send(q).catch((e: unknown) => { fail(e); return 'offline' as const; });
+    const r = await send(q).catch((e: unknown) => { fail(e); return 'failed' as const; });
     if (r === 'offline') { setOnline(false); keep(q); return; }
+    if (r === 'failed') { keep(q); return; }
+    void sync();    // it went through, so anything a server error left waiting goes too
     if (r === 'refused') { mark(l, s.studentId, { status: s.status, outcomeAt: s.outcomeAt }); setNotSent(unsent()); setToast('That couldn’t be recorded. See Not sent.'); }
     if (r === 'cancelled') setToast('The family had cancelled that lesson.');
     if (typeof r === 'object') mark(l, s.studentId, r);

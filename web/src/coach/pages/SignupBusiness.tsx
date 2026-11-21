@@ -16,7 +16,11 @@ export function payErrors(errors: Record<string, string>): Partial<Record<Paymen
   return { VENMO: errors.venmoHandle, CASHAPP: errors.cashappHandle, PAYPAL: errors.paypalHandle };
 }
 
-export function SignupBusiness({ api, loginEmail, onDone }: { api: CoachApi; loginEmail: string; onDone: (p: Profile) => void }) {
+/**
+ * {@code onDone(profile, note)}: the profile is saved. {@code note}: saved, but something after it didn't happen (its
+ * confirmation email wasn't sent), for Today to say; Today offers Resend.
+ */
+export function SignupBusiness({ api, loginEmail, onDone }: { api: CoachApi; loginEmail: string; onDone: (p: Profile, note?: string) => void }) {
   const names = savedNames();
   const [firstName, setFirst] = useState(names.firstName);
   const [lastName, setLast] = useState(names.lastName);
@@ -42,6 +46,15 @@ export function SignupBusiness({ api, loginEmail, onDone }: { api: CoachApi; log
         phone, coachTimezone: timezone, currency, paymentInstructions: instructions, paymentTypes: types,
       }));
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        // The profile is saved: its email couldn't be sent, or this is a second send after a lost answer ("already set
+        // up"). Either way carry on with the profile as it is.
+        try {
+          const p = await api.profile();
+          onDone(p, /already set up/i.test(err.message) ? undefined : err.message);
+          return;
+        } catch { /* say the 409's own words below */ }
+      }
       const f = fieldErrors(err);
       setErrors(f);
       if (!Object.keys(f).length) setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');

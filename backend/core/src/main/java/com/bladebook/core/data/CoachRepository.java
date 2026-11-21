@@ -97,7 +97,10 @@ public final class CoachRepository {
                 DomainException.conflict("Your account is already set up."), 1);
     }
 
-    /** Names, phone and time zone. A rename keeps the {@code CODE#} item's name in step. */
+    /**
+     * Names, phone and time zone. A rename keeps the {@code CODE#} item's name in step. Clearing the phone also stops
+     * showing it to families: it's shown only while there is one.
+     */
     public void updateDetails(AccessContext ctx, CoachProfile p) {
         mustBeCaller(ctx, p);
         Map<String, AttributeValue> values = new HashMap<>();
@@ -109,7 +112,8 @@ public final class CoachRepository {
             values.put(":ph", s(p.phone()));
             expr += ", phone = :ph";
         } else {
-            expr += " REMOVE phone";
+            values.put(":off", AttributeValue.fromBool(false));
+            expr += ", displayPhoneToClients = :off REMOVE phone";
         }
         List<TransactWriteItem> writes = new ArrayList<>();
         writes.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(profileKey(ctx))
@@ -127,13 +131,17 @@ public final class CoachRepository {
     }
 
     /** Replaces the payment instructions and every payment type. */
-    /** The two contact switches families see the effect of (ADR-MASTER section 4). */
+    /**
+     * The two contact switches families see the effect of (ADR-MASTER section 4). The phone is shown only while there is
+     * one, so a switch from a page that still had a phone cleared since is refused.
+     */
     public void updateVisibility(AccessContext ctx, boolean showPhone, boolean showEmail) {
         transact(ctx, List.of(TransactWriteItem.builder().update(Update.builder().tableName(table).key(profileKey(ctx))
-                .conditionExpression("attribute_exists(PK)")
+                .conditionExpression(showPhone ? "attribute_exists(PK) AND attribute_exists(phone)" : "attribute_exists(PK)")
                 .updateExpression("SET displayPhoneToClients = :p, displayEmailToClients = :e")
                 .expressionAttributeValues(Map.of(":p", AttributeValue.fromBool(showPhone), ":e", AttributeValue.fromBool(showEmail)))
-                .build()).build()), DomainException.notFound(NOT_FOUND), -1);
+                .build()).build()), showPhone ? DomainException.invalid("showPhone", "Add your phone number under Details first.")
+                : DomainException.notFound(NOT_FOUND), -1);
     }
 
     public void updatePayments(AccessContext ctx, String instructions, PaymentTypes payments) {

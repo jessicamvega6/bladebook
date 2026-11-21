@@ -4,7 +4,7 @@
  * nothing (d4); Cognito's answers come back in BladeBook's words.
  */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { KEY_PREFIX, TabStorage } from './storage';
+import { KEY_PREFIX, TabStorage, addWrongPassword, clearWrongPasswords, wrongPasswords } from './storage';
 
 vi.unmock('./cognito');
 
@@ -136,6 +136,24 @@ test('the tab storage: staged writes stay in memory until committed; clear remov
   expect(sessionStorage.getItem(KEY)).toBeNull();
   expect(sessionStorage.getItem('bb.other')).toBe('kept');
   expect(localStorage.length).toBe(0);
+});
+
+test('wrong passwords in a row are counted in this tab, next to the sign-in, and go with it (I33)', async () => {
+  const s = new TabStorage();
+  expect(wrongPasswords()).toBe(0);
+  expect(addWrongPassword()).toBe(1);
+  expect(addWrongPassword()).toBe(2);
+  expect(new TabStorage() && wrongPasswords()).toBe(2);           // a reload reads the same count
+  expect(localStorage.length).toBe(0);
+  clearWrongPasswords();                                           // a right password
+  expect(wrongPasswords()).toBe(0);
+  addWrongPassword();
+  s.stage();
+  await s.clear();                                                 // staged: the tab is left alone
+  s.discard();
+  expect(wrongPasswords()).toBe(1);
+  await s.clear();                                                 // signing out
+  expect(wrongPasswords()).toBe(0);
 });
 
 test('logging out clears this tab\'s sign-in even when Cognito never answers the revoke', async () => {
