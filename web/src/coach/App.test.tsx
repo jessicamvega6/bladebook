@@ -240,6 +240,15 @@ test('overview: a signed-in coach with a working code and a family waiting sees 
   expect(screen.getByRole('link', { name: 'Edit weekly schedule' })).toHaveAttribute('href', '#/schedule/weekly');
 });
 
+test('signed out after too many wrong passwords, Log in says so', async () => {
+  fakes.coach.signedInAs('dana@gmail.com');
+  window.location.hash = '#/today';
+  vi.stubGlobal('fetch', vi.fn(() => json(401, { error: 'WRONG_PASSWORDS', message: 'You were signed out after too many wrong passwords. Your changes weren’t saved.' })));
+  render(<App />);
+  expect(await screen.findByText('You were signed out after too many wrong passwords. Your changes weren’t saved.')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+});
+
 test('opening the plain address starts at sign-in, signed out, even after a coach signed in', async () => {
   fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '';

@@ -172,6 +172,41 @@ test('a save past 15 minutes asks for the password again, keeps the edits and re
   expect(fakes.coach.calls).toEqual([`confirmPassword ${PROFILE.loginEmail}`, `confirmPassword ${PROFILE.loginEmail}`]);
 });
 
+test('the third wrong password signs the coach out, unsaved; the box always warns, never singling out the last try (I33)', async () => {
+  const auths: string[] = [];
+  serve({ scheduleVersion: 1, exists: true, templates: [MORNING] }, (_body, auth) => {
+    auths.push(auth);
+    return json(401, { error: 'SIGN_IN_TO_SAVE', message: 'Enter your password again to save your schedule.' });
+  });
+  fakes.coach.signedInAs(PROFILE.loginEmail);
+  const props = editor();
+  await screen.findByRole('heading', { name: 'Edit Morning ice' });
+  await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Confirm it’s you' });
+  const warning = 'Warning: several wrong passwords will sign you out, and your changes won’t be saved.';
+
+  for (let i = 1; i <= 2; i++) {
+    expect(within(dialog).getByText(warning)).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in again and save' }));
+    expect(await within(dialog).findByText('That email and password don’t match. Check them and try again.')).toBeInTheDocument();
+    // The same words each time: nothing marks the next try as the last.
+    expect(within(dialog).getByText(warning)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/one more|last (try|attempt|chance)|final/i)).not.toBeInTheDocument();
+    expect(fakes.coach.token).not.toBeNull();
+  }
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
+  await userEvent.click(screen.getByRole('button', { name: 'Sign in again and save' }));
+
+  await waitFor(() => expect(props.onError).toHaveBeenCalled());
+  expect(props.onError.mock.calls[0]![0]).toMatchObject({ status: 401, code: 'WRONG_PASSWORDS' });
+  expect(fakes.coach.token).toBeNull();
+  expect(fakes.coach.calls.at(-1)).toBe('signOut');
+  expect(auths).toEqual(['Bearer old']); // nothing more was sent to save
+  expect(props.onSaved).not.toHaveBeenCalled();
+});
+
 test('a save from a stale window shows why and stays on the review', async () => {
   serve({ scheduleVersion: 1, exists: true, templates: [MORNING] },
     () => json(409, { error: 'CONFLICT', message: 'Your schedule changed in another window. Reload the page and try again.' }));

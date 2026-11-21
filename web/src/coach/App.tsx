@@ -19,7 +19,7 @@ import { Calendar, type CalendarRoute } from './pages/Calendar';
 import { Forgot, Login, SignupAccount, SignupVerify, signupEmail } from './pages/SignIn';
 import { ProfileAccount, ProfileBusinessEmail, ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
 import { ConfirmEmail } from './pages/ConfirmEmail';
-import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, SIGNED_OUT_WRONG_PASSWORDS, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { Lessons } from './pages/Lessons';
 import { Payments } from './pages/Payments';
@@ -114,7 +114,8 @@ export function App() {
     if (e instanceof ApiError && e.status === 401) {
       void signOut();
       setNoticeOk(false);
-      setNotice(e.code === 'SIGN_IN_AGAIN' ? 'You’ve been signed in for a while. Please sign in again.' : 'Please sign in.');
+      setNotice(e.code === 'SIGN_IN_AGAIN' ? 'You’ve been signed in for a while. Please sign in again.'
+        : e.code === SIGNED_OUT_WRONG_PASSWORDS ? e.message : 'Please sign in.');
       return;
     }
     setLoad({ state: 'error', message: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
