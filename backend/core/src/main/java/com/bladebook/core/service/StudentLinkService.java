@@ -24,8 +24,12 @@ public final class StudentLinkService {
         sync.setLinkStatus(after.clientId(), after.coachId(), after.studentId(), StudentStatus.ACTIVE);
     }
 
-    /** The record was removed: the link goes too. The family's account and skater stay. */
-    public void declined(StudentRecord before) {
-        sync.deleteLink(before.clientId(), before.coachId(), before.studentId());
+    /**
+     * The record was removed: its link goes too. The family's account and skater stay. {@code true} only for the run
+     * that removed it, so a repeated or retried event does nothing more, and a link the family has made again since
+     * stays.
+     */
+    public boolean declined(StudentRecord before) {
+        return sync.deleteLink(before.clientId(), before.coachId(), before.studentId(), before.signedUpAt());
     }
 }

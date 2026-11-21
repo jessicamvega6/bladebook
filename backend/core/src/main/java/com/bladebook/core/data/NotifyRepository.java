@@ -221,6 +221,33 @@ public final class NotifyRepository {
         });
     }
 
+    /**
+     * Claims one recipient's email of a batch: its lead line becomes {@code PENDING} (ADR-MASTER section 13, "Notification
+     * state"), only if it has no state yet. {@code false}: another delivery claimed, sent or gave it up first.
+     */
+    public boolean claimLine(String coachId, String sk) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
+                    .conditionExpression("attribute_exists(SK) AND attribute_not_exists(notificationStatus)")
+                    .updateExpression("SET notificationStatus = :p").expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING")))
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    /** Gives a claim back when its email wasn't accepted, so the event's retry sends it; a line already stamped stays. */
+    public void releaseLine(String coachId, String sk) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
+                    .conditionExpression("notificationStatus = :p").updateExpression("REMOVE notificationStatus")
+                    .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"))).build());
+        } catch (ConditionalCheckFailedException e) {
+            // not ours to give back
+        }
+    }
+
     /** Stamps the notification state on lines (ADR-MASTER section 13, "Notification state"). */
     public void markLines(String coachId, List<String> lineSks, String status, String failureReason, Instant at) {
         for (String sk : lineSks) {

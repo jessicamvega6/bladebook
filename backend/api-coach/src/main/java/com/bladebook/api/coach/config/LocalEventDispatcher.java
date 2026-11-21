@@ -54,8 +54,7 @@ public class LocalEventDispatcher {
      * stream's old image would too).
      */
     public void studentDeclined(StudentRecord before) {
-        studentLink.declined(before);
-        boolean sent = notifications.declined(before);
+        boolean sent = studentLink.declined(before) && notifications.declined(before);
         LOG.info("StudentChanged (local): declined; the family's link removed; decline email {}", sent ? "sent" : "not sent");
     }
 }
