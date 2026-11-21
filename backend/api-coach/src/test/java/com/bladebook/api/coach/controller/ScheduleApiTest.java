@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The weekly schedule and the coach's calendar over HTTP (Batch 2). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ScheduleApiTest {
 
     @DynamicPropertySource
@@ -45,7 +45,7 @@ class ScheduleApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     private String email;
     private String token;

@@ -114,14 +114,16 @@ before a seed file exists fails.
 ### The seed file
 
 `seed/seed.ts` writes the one file dev's table is created from (ADR-028). It doesn't write items
-itself: it starts both APIs from `backend/` in the local profile against a fresh `bladebook-seed`
-table on DynamoDB Local (ports 18080 and 18081, so it doesn't clash with a local run), and the
-people in `seed/scenario.ts` sign up, post schedules, link, get approved and book through the
-real routes. The local token stub is given the test accounts' real Cognito `sub`s, read by email
-from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you can sign
-in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
+itself: it starts both APIs from `backend/` against a fresh `bladebook-seed` table on DynamoDB
+Local (ports 18080 and 18081, so it doesn't clash with a local run), and the people in
+`seed/scenario.ts` sign up, post schedules, link, get approved and book through the real routes.
+They sign in through the APIs' test-only token stub (ruling I32): the APIs start from their test
+classpath (`spring-boot:test-run`, profiles `local,stub-tokens`), so the stub is never in a Lambda
+package, and CI checks that. The stub is given the test accounts' real Cognito `sub`s, read by
+email from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you
+can sign in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
 are counted into `seed/current.manifest.json`, and both are uploaded to the seed bucket, replacing
-the last seed. `--no-upload` stops before the upload; `--skip-build` reuses the built jars.
+the last seed. `--no-upload` stops before the upload; `--skip-build` skips the backend's `install`.
 
 What's in it: three coaches (one with two-skater lessons), ten families (guardians and adult
 skaters, one with two coaches), 18 lessons booked, two weekly series, one cancellation, and two

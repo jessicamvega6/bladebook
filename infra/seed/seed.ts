@@ -2,9 +2,10 @@
 //
 // It runs the real application, not a copy of its rules: both APIs start in the local profile against a fresh table on
 // DynamoDB Local, and the seed's coaches and families sign up, post schedules, link, get approved and book through the
-// same routes the websites use, with the same in-process stand-ins for the event consumers that local runs use. The
-// local token stub is given the test accounts' real Cognito `sub`s (read by email from dev's user pool), so every item
-// belongs to an account you can sign in as. Then the table is scanned into a gzip DynamoDB-JSON import file, its items
+// same routes the websites use, with the same in-process stand-ins for the event consumers that local runs use. Each
+// person signs in through the APIs' test-only token stub (ruling I32): the APIs start from their test classpath
+// (`spring-boot:test-run`, profiles `local,stub-tokens`), so the stub never ships. The stub is given the test accounts'
+// real Cognito `sub`s (read by email from dev's user pool), so every item belongs to an account you can sign in as. Then the table is scanned into a gzip DynamoDB-JSON import file, its items
 // are counted, and the file and its count are uploaded to the account stack's seed bucket.
 //
 //   node seed/seed.ts [--profile bladebook-dev] [--stack bladebook-dev-identity] [--no-upload] [--skip-build]
@@ -83,15 +84,22 @@ function testAccounts(userPoolId: string): Map<string, { email: string; sub: str
 
 const running: ChildProcess[] = [];
 
-function startApi(jar: string, port: number, subsFile: string): void {
-  const p = spawn('java', ['-jar', jar, '--spring.profiles.active=local', `--server.port=${port}`,
-    `--bladebook.table=${TABLE}`, `--bladebook.dynamodb.endpoint=${DYNAMO}`, `--bladebook.local.subs-file=${subsFile}`],
-  { stdio: ['ignore', 'ignore', 'inherit'] });
+/** Starts one API from its test classpath, where the token stub is (ruling I32). Its own process group, so stopping it
+ * stops Maven's forked JVM too. */
+function startApi(module: string, port: number, subsFile: string): void {
+  const runArgs = [`--server.port=${port}`, `--bladebook.table=${TABLE}`, `--bladebook.dynamodb.endpoint=${DYNAMO}`,
+    `--bladebook.local.subs-file=${subsFile}`].join(' ');
+  const p = spawn('./mvnw', ['-q', '-pl', module, 'spring-boot:test-run', '-Dspring-boot.run.profiles=local,stub-tokens',
+    `-Dspring-boot.run.arguments=${runArgs}`], { cwd: backend, detached: true, stdio: ['ignore', 'ignore', 'inherit'] });
   running.push(p);
 }
 
 function stopApis(): void {
-  for (const p of running) p.kill();
+  for (const p of running) {
+    try {
+      if (p.pid) process.kill(-p.pid, 'SIGTERM');
+    } catch { /* already gone */ }
+  }
 }
 
 async function waitFor(url: string): Promise<void> {
@@ -234,8 +242,8 @@ async function main(): Promise<void> {
   if (!flag('--skip-build')) execFileSync('./mvnw', ['-q', 'clean', 'install', '-DskipTests'], { cwd: backend, stdio: 'inherit' });
 
   try {
-    startApi(join(backend, 'api-coach/target/api-coach-0.1.0-SNAPSHOT.jar'), 18080, subsFile);
-    startApi(join(backend, 'api-client/target/api-client-0.1.0-SNAPSHOT.jar'), 18081, subsFile);
+    startApi('api-coach', 18080, subsFile);
+    startApi('api-client', 18081, subsFile);
     await Promise.all([waitFor(`${COACH_API}/api/coach/health`), waitFor(`${FAMILY_API}/api/client/health`)]);
 
     const coaches = new Map<string, { token: string; code: string }>();

@@ -37,15 +37,19 @@ You need Docker, Java 17 and Node 24.
 # 1. DynamoDB Local on localhost:8000 (data kept in a Docker volume)
 docker compose up -d
 
-# 2. api-coach on :8080, in the local profile (DynamoDB Local + the token stub)
+# 2. Once, and again whenever dev's identity stack is rebuilt: point local runs at dev's real user pool (I31).
+#    Signed in to dev (aws sso login --sso-session bladebook). Writes ~/.bladebook/dev-pool.properties and .json.
+npm --prefix infra install && npm --prefix infra run dev-pool
+
+# 3. api-coach on :8080, in the local profile (DynamoDB Local; it accepts dev's user pool's tokens)
 cd backend
 ./mvnw -q clean install -DskipTests   # clean: otherwise a change to core/ alone can leave the old core inside the api-coach jar
 java -jar api-coach/target/api-coach-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
-# 3. api-client (the family website's API) on :8081, in a second terminal
+# 4. api-client (the family website's API) on :8081, in a second terminal
 java -jar api-client/target/api-client-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
-# 4. The websites on :5173, which pass /api/coach to :8080 and /api/client to :8081
+# 5. The websites on :5173, which pass /api/coach to :8080 and /api/client to :8081
 cd web
 npm install
 npm run dev

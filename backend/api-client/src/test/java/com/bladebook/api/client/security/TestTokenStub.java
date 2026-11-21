@@ -1,4 +1,4 @@
-package com.bladebook.api.coach.security;
+package com.bladebook.api.client.security;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -37,24 +39,25 @@ import java.util.Properties;
 import java.util.UUID;
 
 /**
- * <b>Local stand-in for Cognito</b> (implementation plan, Question 3; listed as a shortcut). Exists
- * only in the {@code local} profile. It signs ID tokens shaped like Cognito's — {@code sub},
- * {@code email}, {@code cognito:groups}, {@code aud}, {@code token_use}, {@code auth_time} — with a
- * key made fresh at every start, and the real checks in {@link CoachTokenRules} run against them.
+ * <b>Test code only</b> (ruling I31; never in a Lambda package). Signs ID tokens shaped like Cognito's ({@code sub},
+ * {@code email}, {@code cognito:groups}, {@code aud}, {@code token_use}, {@code auth_time}) with a key made fresh
+ * at every start, so the real checks in {@link FamilyTokenRules} run against them. Active with the {@code stub-tokens}
+ * profile: the API tests, and the seed generator, which starts the API from the test classpath ({@code TestApiClientApplication}).
+ * Its {@code POST /api/client/local/token} route ({@link StubTokenController}) hands the seed generator a token by email.
  */
 @Configuration
-@Profile("local")
-public class LocalTokenStub {
+@Profile("stub-tokens")
+public class TestTokenStub {
 
-    static final String ISSUER = "http://localhost/local-token-stub";
+    static final String ISSUER = "http://localhost/local-family-token-stub";
 
     private final RSAKey key;
     private final NimbusJwtEncoder encoder;
     private final Clock clock;
     private final Map<String, String> subs;
-    private final String coachAppClientId;
+    private final String familyAppClientId;
 
-    public LocalTokenStub(Clock clock, @Value("${bladebook.auth.coach-app-client-id}") String coachAppClientId,
+    public TestTokenStub(Clock clock, @Value("${bladebook.auth.client-app-client-id}") String familyAppClientId,
                           @Value("${bladebook.local.subs-file:}") String subsFile) {
         this.subs = subs(subsFile);
         KeyPair pair = rsa();
@@ -62,7 +65,7 @@ public class LocalTokenStub {
                 .keyID(UUID.randomUUID().toString()).build();
         this.encoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(key)));
         this.clock = clock;
-        this.coachAppClientId = coachAppClientId;
+        this.familyAppClientId = familyAppClientId;
     }
 
     @Bean
@@ -72,9 +75,15 @@ public class LocalTokenStub {
         return decoder;
     }
 
-    /** A coach's ID token. The same email always gets the same {@code sub}, as one Cognito user would. */
-    public String coachToken(String email) {
-        return token(email, List.of("Coach"), coachAppClientId, clock.instant());
+    /** The token route needs no token: it's how the seed generator gets one. */
+    @Bean
+    WebSecurityCustomizer stubTokenRouteOpen() {
+        return web -> web.ignoring().requestMatchers(HttpMethod.POST, StubTokenController.PATH);
+    }
+
+    /** A family's ID token. The same email always gets the same {@code sub}, as one Cognito user would. */
+    public String familyToken(String email) {
+        return token(email, List.of("Client"), familyAppClientId, clock.instant());
     }
 
     /** Any shape of token, for tests of the checks. */

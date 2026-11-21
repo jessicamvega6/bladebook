@@ -41,6 +41,15 @@ jobs:
       - name: Build and test
         run: ./mvnw -B verify
 
+      # Ruling I31: test-made tokens never ship. The Lambda packages must hold nothing of the test-only token stub.
+      - name: No test token code in the Lambda packages
+        run: |
+          for z in api-coach/target/api-coach-lambda.zip api-client/target/api-client-lambda.zip consumers/target/consumers-lambda.zip; do
+            if unzip -l "$z" | grep -E 'TestTokenStub|StubTokenController|Test[A-Za-z]*Application|application-stub-tokens'; then
+              echo "::error::$z holds test-only token code"; exit 1
+            fi
+          done
+
       - name: Keep the Lambda archives (merges only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

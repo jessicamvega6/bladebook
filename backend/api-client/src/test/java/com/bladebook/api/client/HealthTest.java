@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Locally api-client must really listen (the serverless auto-configuration is excluded). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class HealthTest {
 
     @DynamicPropertySource

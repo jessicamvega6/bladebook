@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import com.bladebook.core.service.LocalOutbox;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** api-coach end to end over HTTP: token checks, sign-up step 3, the profile and the coach code. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ProfileApiTest {
 
     @DynamicPropertySource
@@ -42,7 +42,7 @@ class ProfileApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     LocalOutbox outbox;

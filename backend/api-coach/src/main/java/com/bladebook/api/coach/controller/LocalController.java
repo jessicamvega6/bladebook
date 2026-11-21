@@ -1,16 +1,13 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.config.LocalJobs;
-import com.bladebook.api.coach.security.LocalTokenStub;
 import com.bladebook.core.domain.DomainException;
-import com.bladebook.core.domain.ProfileRules;
 import com.bladebook.core.service.ClosedYearJob;
 import com.bladebook.core.service.LocalOutbox;
 import com.bladebook.core.service.ScheduledJobs;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,12 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
 
 /**
  * <b>Local profile only.</b> Listed shortcuts:
  * <ul>
- *   <li>{@code POST /api/coach/local/token} stands in for Cognito's sign-up and sign-in;</li>
  *   <li>{@code POST /api/coach/local/jobs/{day-reminder,unpaid-reminder,lesson-roller}?date=} runs a scheduled job for a
  *       date, as the Scheduler would (SC-22); {@code /jobs/year-close?date=} saves closed years' figures (SC-27);</li>
  *   <li>{@code GET /api/coach/local/outbox} lists the emails this API would have sent (SC-21).</li>
@@ -36,23 +31,12 @@ import java.util.Map;
 @RequestMapping("/api/coach/local")
 public class LocalController {
 
-    public record TokenRequest(String loginEmail) {
-    }
-
-    private final LocalTokenStub stub;
     private final LocalJobs jobs;
     private final LocalOutbox outbox;
 
-    public LocalController(LocalTokenStub stub, LocalJobs jobs, LocalOutbox outbox) {
-        this.stub = stub;
+    public LocalController(LocalJobs jobs, LocalOutbox outbox) {
         this.jobs = jobs;
         this.outbox = outbox;
-    }
-
-    @PostMapping("/token")
-    public Map<String, String> token(@RequestBody TokenRequest body) {
-        String email = ProfileRules.email("loginEmail", body.loginEmail());
-        return Map.of("idToken", stub.coachToken(email));
     }
 
     @PostMapping("/jobs/day-reminder")

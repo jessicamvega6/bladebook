@@ -1,7 +1,7 @@
 package com.bladebook.api.client.controller;
 
 import com.bladebook.api.client.LocalDynamo;
-import com.bladebook.api.client.security.LocalTokenStub;
+import com.bladebook.api.client.security.TestTokenStub;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.StudentRepository;
@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Family sign-up and the waiting family's account over HTTP (Batch 3). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class FamilyApiTest {
 
     @DynamicPropertySource
@@ -53,7 +53,7 @@ class FamilyApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     TenantClients clients;
