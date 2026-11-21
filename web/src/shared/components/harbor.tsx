@@ -2,7 +2,7 @@
  * Harbor components in React, matching the markup of design/harbor/library.js and shared.js so the
  * copied stylesheet applies unchanged.
  */
-import { Fragment, useEffect, useId, useRef, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { initials } from '../logic/names';
 
 const ICONS: Record<string, ReactNode> = {
@@ -138,20 +138,31 @@ interface FieldProps {
   mono?: boolean;
   /** Turns pasting off (the confirm-password box). */
   noPaste?: boolean;
+  /** A Show / Hide button inside the box, for password fields. */
+  reveal?: boolean;
 }
 
-export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste, reveal }: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
+  const [shown, setShown] = useState(false);
   return (
     <div className={`field${error ? ' field--error' : ''}`}>
       <label className="label" htmlFor={id}>{label}{optional && <> <span className="label__opt">Optional</span></>}</label>
       {(() => {
         const input = (
-          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={type} value={value} placeholder={placeholder}
+          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={reveal && shown ? 'text' : type} value={value} placeholder={placeholder}
             autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)} onPaste={noPaste ? (e) => e.preventDefault() : undefined}
             aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
         );
+        if (reveal) {
+          return (
+            <div className="ctl-reveal">{input}
+              <button type="button" className="ctl-reveal__btn" aria-controls={id} aria-pressed={shown}
+                aria-label={shown ? 'Hide password' : 'Show password'} onClick={() => setShown((v) => !v)}>{shown ? 'Hide' : 'Show'}</button>
+            </div>
+          );
+        }
         return prefix
           ? <div className="ctl-prefix"><span className="ctl-prefix__text" aria-hidden="true">{prefix}</span>{input}</div>
           : input;
