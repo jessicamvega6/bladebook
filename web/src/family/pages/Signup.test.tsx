@@ -130,6 +130,39 @@ test('a guardian signs up two children and lands on the waiting page', async () 
   expect(props.onDone).toHaveBeenCalledWith(WAITING);
 });
 
+/** Up to step 4 with one skater added, signed in; then the registration answers with `answer`. */
+async function toSend(answer: () => Promise<Response>) {
+  const { props, rerender } = start();
+  await enterCode('7K2QM9XT');
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue with Dana' }));
+  await details();
+  await userEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  await verify(props, rerender);
+  await screen.findByRole('heading', { name: 'Who’s skating?' });
+  await userEvent.type(screen.getByLabelText('Skater’s full name'), 'Ava Park');
+  await userEvent.type(screen.getByLabelText('Member number'), '1234567');
+  await userEvent.click(screen.getByRole('button', { name: 'Add skater' }));
+  vi.stubGlobal('fetch', vi.fn((url: string) => (url === '/api/client/registration' ? answer()
+    : url === '/api/client/me' ? json(200, WAITING) : json(500, {}))));
+  await userEvent.click(screen.getByRole('button', { name: /Send to Coach Dana/ }));
+  return props;
+}
+
+test('signed up with some coaches but not all: the account is made, so it says so on the last step, not as a dead end', async () => {
+  const partial = 'You’re signed up, but we couldn’t send your request to Coach Ben. Add them from your profile.';
+  const props = await toSend(() => json(409, { error: 'CONFLICT', message: partial }));
+  expect(await screen.findByRole('heading', { name: 'You’re in' })).toBeInTheDocument();
+  expect(screen.getByText(partial)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Go to my account' }));
+  expect(props.onDone).toHaveBeenCalledWith(WAITING);
+});
+
+test('a send whose answer was lost, sent again, is “already signed up”: that’s done, so it moves on', async () => {
+  await toSend(() => json(409, { error: 'CONFLICT', message: 'You’re already signed up. Log in to see your account.' }));
+  expect(await screen.findByRole('heading', { name: 'You’re in' })).toBeInTheDocument();
+  expect(screen.queryByText(/already signed up/)).not.toBeInTheDocument();
+});
+
 test('an adult skating themselves sends one skater under their own name', async () => {
   const { props, rerender } = start();
   await enterCode('7K2QM9XT');
