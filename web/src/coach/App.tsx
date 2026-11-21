@@ -265,15 +265,15 @@ export function App() {
     } else if (route === '#/lessons') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Lessons" wide><Lessons api={lessons} onError={handleError} /></CoachShell>;
     } else if (route === '#/profile') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/email') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/visibility') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/account') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileAccount profile={profile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/payments') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} api={todays} onUseLogin={useLogin} onResend={resend} onError={handleError} note={note} busy={busy} pending={students?.pending} /></CoachShell>;
     }
