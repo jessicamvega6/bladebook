@@ -16,6 +16,8 @@ import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.PriceChange;
 import com.bladebook.core.domain.RepriceLine;
 import com.bladebook.core.domain.TempSchedule;
+import com.bladebook.core.domain.Seat;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +64,7 @@ class ScheduleChangeBookedTest {
     private AccessContext dana;
     private ClientContext park;
     private ClientContext rossi;
+    private CancellationService familyCancel;
     private String ava;
     private String mia;
 
@@ -80,6 +83,7 @@ class ScheduleChangeBookedTest {
         batches = repo.changeBatches();
         cancels = new CancellationRepository(t.f.clients, t.f.table);
         booking = new BookingService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), t.families, clock);
+        familyCancel = new CancellationService(new ClientLinks(t.f.clients, t.f.table), new BookingRepository(t.f.clients, t.f.table), cancels, clock);
 
         dana = t.coach("Dana", DANA_CODE);
         schedules.save(dana, 0, List.of(mondayMornings(5000)));
@@ -95,6 +99,11 @@ class ScheduleChangeBookedTest {
         book(park, ava, MONDAY, "06:00");
         book(rossi, mia, MONDAY, "07:00");
         book(park, ava, NEXT_MONDAY, "06:00");
+    }
+
+    @AfterEach
+    void noRacesLeft() {
+        WriteRaces.clear();
     }
 
     private void book(ClientContext family, String studentId, LocalDate d, String time) {
@@ -353,5 +362,112 @@ class ScheduleChangeBookedTest {
         assertThat(cancels.batches(dana).get(0).executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
         assertThat(cancels.lines(dana).get(0).executionStatus()).isEqualTo(ChangeBatch.Execution.SKIPPED);
         assertThat(change.drift(dana).stuckBatches()).isZero();
+    }
+
+    // ------------------------------------------------------------- races between reading and writing
+
+    private void setSeat(LocalDate d, String time, String studentId, Seat.Status status) {
+        t.f.clients.forSetup().updateItem(u -> u.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS(dana.partitionKey()),
+                "SK", AttributeValue.fromS(Seat.key(d, LocalTime.parse(time), studentId)))).updateExpression("SET seatStatus = :s")
+                .expressionAttributeValues(Map.of(":s", AttributeValue.fromS(status.name()))));
+    }
+
+    /** Runs {@code race} once, before the first write after the change batch's header exists: the first lesson carried out. */
+    private void beforeTheFirstBatchWrite(Runnable race) {
+        java.util.concurrent.atomic.AtomicBoolean ran = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable step = () -> {
+            if (!ran.get() && !cancels.batches(dana).isEmpty()) {
+                ran.set(true);
+                race.run();
+            }
+        };
+        WriteRaces.beforeNextWrites(java.util.Collections.nCopies(20, step).toArray(Runnable[]::new));
+    }
+
+    @Test
+    void aScheduleChangeNeverCancelsALessonSomeoneIsCheckedInTo() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z")); // Monday 6:15 AM: Mia's 7:00 is 45 minutes away, and she's checked in
+        setSeat(MONDAY, "07:00", mia, Seat.Status.CHECKED_IN);
+        schedules.save(dana, 1, List.of(shorter(5000)));
+
+        ScheduleChangeService.Result r = change.apply(dana);
+
+        assertThat(r.cancelled()).isZero();
+        assertThat(at(MONDAY, "07:00").lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(repo.seats(dana, MONDAY, MONDAY)).extracting(Seat::studentId, Seat::seatStatus)
+                .contains(org.assertj.core.groups.Tuple.tuple(mia, Seat.Status.CHECKED_IN));
+        assertThat(cancels.lines(dana)).extracting(CancellationLine::studentId, CancellationLine::executionStatus)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(mia, ChangeBatch.Execution.SKIPPED));
+        assertThat(change.status(dana).orElseThrow().passed()).extracting(CancellationLine::studentId).containsExactly(mia);
+    }
+
+    @Test
+    void aBatchCancelRefusesASeatThatIsntBookedWhenWritten() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z"));
+        setSeat(MONDAY, "07:00", mia, Seat.Status.NO_SHOW);
+        List<Seat> seen = repo.seats(dana, MONDAY, MONDAY).stream().filter(s -> s.studentId().equals(mia)).toList();
+
+        assertThat(batches.cancel(dana, at(MONDAY, "07:00"), seen, null, List.of(), now.get())).isFalse();
+        assertThat(at(MONDAY, "07:00")).isNotNull();
+        assertThat(repo.seats(dana, MONDAY, MONDAY)).extracting(Seat::studentId).contains(mia);
+    }
+
+    @Test
+    void aCancelThatFailsBecauseTheFamilyCancelledFirstStillRemovesTheOpenTime() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        // The open-time pass goes through; just before Mia's 7:00 is cancelled, her family cancels it themselves.
+        beforeTheFirstBatchWrite(() -> familyCancel.cancel(rossi, dana.coachId(), mia, MONDAY, LocalTime.of(7, 0)));
+
+        change.apply(dana);
+
+        assertThat(at(MONDAY, "07:00")).isNull();
+        assertThat(change.drift(dana).clean()).isTrue();
+    }
+
+    @Test
+    void aTimeTheFamilyCancelledBeforeTheOpenTimePassIsRemovedToo() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        // Read as booked, so not in the open-time pass; the family's cancel lands before that pass, so the second read
+        // finds it open, with nothing booked to cancel.
+        WriteRaces.beforeNextWrites(() -> familyCancel.cancel(rossi, dana.coachId(), mia, MONDAY, LocalTime.of(7, 0)));
+
+        change.apply(dana);
+
+        assertThat(at(MONDAY, "07:00")).isNull();
+    }
+
+    @Test
+    void aRepriceDoesntLandOnAnotherFamilyWhoBookedTheTimeSinceItWasPlanned() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        schedules.save(dana, 1, List.of(mondayMornings(6000)));
+        // The open-time pass goes through; then, before Ava's Monday 6:00 is re-priced, the Parks cancel it and Mia books it.
+        beforeTheFirstBatchWrite(() -> {
+            familyCancel.cancel(park, dana.coachId(), ava, MONDAY, LocalTime.of(6, 0));
+            book(rossi, mia, MONDAY, "06:00");
+        });
+
+        change.apply(dana);
+
+        assertThat(at(MONDAY, "06:00").priceMinor()).isEqualTo(5000);
+        assertThat(batches.reprices(dana)).filteredOn(l -> l.lessonDate().equals(MONDAY) && l.startTime().equals(LocalTime.of(6, 0)))
+                .extracting(RepriceLine::studentId, RepriceLine::executionStatus)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(ava, ChangeBatch.Execution.SKIPPED));
+    }
+
+    @Test
+    void skippingNeverOverwritesACarriedOutLineOrMakesOneThatIsntThere() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        change.apply(dana);
+        CancellationLine done = cancels.lines(dana).get(0);
+        String missing = "CANCELLED#2026-11-11T15:00:00Z#nope#SEAT#2026-11-16#07:00#x";
+
+        batches.skip(dana, List.of(done.key(), missing), "BOOKING_GONE");
+
+        assertThat(cancels.lines(dana)).extracting(CancellationLine::executionStatus).containsExactly(ChangeBatch.Execution.EXECUTED);
+        assertThat(t.f.clients.forSetup().getItem(g -> g.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS(dana.partitionKey()),
+                "SK", AttributeValue.fromS(missing)))).hasItem()).isFalse();
     }
 }

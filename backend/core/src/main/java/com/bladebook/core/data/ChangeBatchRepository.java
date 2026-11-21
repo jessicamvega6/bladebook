@@ -7,6 +7,8 @@ import com.bladebook.core.domain.RepriceLine;
 import com.bladebook.core.domain.Seat;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -66,14 +68,17 @@ public final class ChangeBatchRepository {
     /**
      * Cancels one booked lesson time: its seats deleted as read, the lesson time deleted (or, when the new schedule
      * makes a different lesson at the same start, replaced by that open time), and its lines marked {@code EXECUTED}.
+     * A seat checked in or marked a no-show by the time of the write refuses it: a bulk action never cancels those
+     * (ADR-MASTER section 10, "General").
      */
     public boolean cancel(AccessContext ctx, LessonTime time, List<Seat> seats, LessonTime replacement, List<String> lineKeys, Instant now) {
         List<TransactWriteItem> items = new ArrayList<>();
         for (Seat s : seats) {
             items.add(TransactWriteItem.builder().delete(Delete.builder().tableName(table)
                     .key(FamilyItems.key("COACH#" + ctx.coachId(), s.key()))
-                    .conditionExpression("seatStatus = :st AND joinedAt = :j AND startsAtUtc > :now")
+                    .conditionExpression("seatStatus = :st AND seatStatus IN (:booked, :invited) AND joinedAt = :j AND startsAtUtc > :now")
                     .expressionAttributeValues(Map.of(":st", FamilyItems.s(s.seatStatus().name()), ":j", FamilyItems.s(s.joinedAt().toString()),
+                            ":booked", FamilyItems.s(Seat.Status.BOOKED.name()), ":invited", FamilyItems.s(Seat.Status.INVITED.name()),
                             ":now", FamilyItems.s(seconds(now)))).build()).build());
         }
         Map<String, AttributeValue> v = Map.of(":booked", FamilyItems.s(LessonTime.Status.BOOKED.name()),
@@ -90,9 +95,20 @@ public final class ChangeBatchRepository {
         return write(db(ctx), items);
     }
 
-    /** Re-prices one booked lesson time, if it's still booked at the price read, and marks its lines {@code EXECUTED}. */
-    public boolean reprice(AccessContext ctx, LessonTime time, int newPriceMinor, List<String> lineKeys, Instant now) {
+    /**
+     * Re-prices one booked lesson time, if it's still booked at the price read by the seats it was planned for (each still
+     * {@code BOOKED} with the {@code joinedAt} read), and marks their lines {@code EXECUTED}: a family who booked the time
+     * since is never re-priced on another family's lines (ADR-MASTER section 9: every write conditional on what was read).
+     */
+    public boolean reprice(AccessContext ctx, LessonTime time, List<Seat> booked, int newPriceMinor, List<String> lineKeys, Instant now) {
         List<TransactWriteItem> items = new ArrayList<>();
+        for (Seat s : booked) {
+            items.add(TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table)
+                    .key(FamilyItems.key("COACH#" + ctx.coachId(), s.key()))
+                    .conditionExpression("seatStatus = :booked AND joinedAt = :j")
+                    .expressionAttributeValues(Map.of(":booked", FamilyItems.s(Seat.Status.BOOKED.name()),
+                            ":j", FamilyItems.s(s.joinedAt().toString()))).build()).build());
+        }
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(FamilyItems.key("COACH#" + ctx.coachId(), time.key()))
                 .conditionExpression("lessonStatus = :booked AND priceMinor = :old AND startsAtUtc > :now")
@@ -107,10 +123,17 @@ public final class ChangeBatchRepository {
     /** Lines that won't be carried out, with why: {@code BOOKING_GONE}, {@code NO_LONGER_NEEDED} or {@code LESSON_PASSED}. */
     public void skip(AccessContext ctx, List<String> lineKeys, String reason) {
         for (String k : lineKeys) {
-            db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + ctx.coachId(), k))
-                    .updateExpression("SET executionStatus = :sk, skippedReason = :r")
-                    .expressionAttributeValues(Map.of(":sk", FamilyItems.s(ChangeBatch.Execution.SKIPPED.name()), ":r", FamilyItems.s(reason)))
-                    .build());
+            try {
+                // Only a line still PLANNED: one carried out stays EXECUTED, and a missing one isn't made.
+                db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + ctx.coachId(), k))
+                        .conditionExpression("executionStatus = :planned")
+                        .updateExpression("SET executionStatus = :sk, skippedReason = :r")
+                        .expressionAttributeValues(Map.of(":planned", FamilyItems.s(ChangeBatch.Execution.PLANNED.name()),
+                                ":sk", FamilyItems.s(ChangeBatch.Execution.SKIPPED.name()), ":r", FamilyItems.s(reason)))
+                        .build());
+            } catch (ConditionalCheckFailedException settled) {
+                // already carried out or skipped, or not there
+            }
         }
     }
 
