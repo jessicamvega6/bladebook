@@ -37,6 +37,9 @@ export const THRESHOLDS = {
 /** The completion and finding metrics the jobs report (core.events.ScheduledRuns), by function. */
 const NAMESPACE = 'BladeBook';
 
+/** What core's Sending logs when SES refuses an email (backend/core/.../service/Sending.java). Keep the two the same. */
+export const EMAIL_REFUSED_LINE = 'email refused by SES, not retried';
+
 export interface AlarmsProps {
   readonly prefix: string;
   /** Deploy-time settings (I26): the owner's phone for texts, and an address while texts can't be sent. */
@@ -164,6 +167,23 @@ export class Alarms extends Construct {
     const ses = (metricName: string) => new cloudwatch.Metric({ namespace: 'AWS/SES', metricName, statistic: 'Maximum', period: Duration.hours(1) });
     alarm('ses-bounces', ses('Reputation.BounceRate'), { threshold: THRESHOLDS.sesBounceRate, op: AT_LEAST, description: 'SES bounce rate approaching 5%.' });
     alarm('ses-complaints', ses('Reputation.ComplaintRate'), { threshold: THRESHOLDS.sesComplaintRate, op: AT_LEAST, description: 'SES complaint rate approaching 0.1%.' });
+    // A refused email (SES's MessageRejected, or no sending address) is final and never retried (owner, 2026-11-17), and
+    // isn't a bounce, so neither rate above sees it. Its causes (an unverified sending domain, a sandbox recipient, no
+    // email domain at all) refuse every email, not one, so the first refusal pages (2026-11-21). The line is written by
+    // core's Sending, in each consumer's and job's own log group.
+    const refusals = [...props.consumers.values(), ...props.jobs.values()].map((fn, i) => {
+      const filter = new logs.MetricFilter(this, `EmailRefused${i}`, {
+        logGroup: logs.LogGroup.fromLogGroupName(this, `EmailRefusedLogs${i}`, `/aws/lambda/${fn.functionName}`),
+        filterPattern: logs.FilterPattern.literal(`"${EMAIL_REFUSED_LINE}"`),
+        metricNamespace: NAMESPACE,
+        metricName: 'EmailsRefused',
+        metricValue: '1',
+      });
+      filter.node.addDependency(fn); // the function's log group is made with it
+      return filter;
+    });
+    alarm('email-refused', refusals[0]!.metric({ statistic: 'Sum', period: Duration.minutes(5) }),
+      { threshold: 1, op: AT_LEAST, description: 'SES refused an email, or there is no sending address. Usually every email is refused: check the sending domain\'s verification, the sandbox, and the functions\' BLADEBOOK_MAIL_FROM.' });
 
     // ------------------------------------------------------------------- never-linked families (§16; I12)
     const neverLinked = new logs.MetricFilter(this, 'NeverLinked', {

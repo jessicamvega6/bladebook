@@ -28,6 +28,7 @@ final class Sending {
             mailer.send(email);
             return true;
         } catch (MessageRejectedException e) {
+            // infra's email-refused alarm watches for this line (EMAIL_REFUSED_LINE in infra/lib/alarms.ts): keep them the same.
             LOG.log(Level.WARNING, "email refused by SES, not retried: " + email.template(), e);
             rejected.run();
             return false;
