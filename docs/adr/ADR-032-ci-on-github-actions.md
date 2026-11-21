@@ -136,7 +136,9 @@ on request** (ADR-028 decision 2).
 3. **The AWS trust rule is locked to this repository and branch.** The role's trust policy
    checks the token's `aud` (`sts.amazonaws.com`) and its `sub` exactly. For production,
    `sub` must match this repository's production environment
-   (`repo:<owner>/<repo>:environment:production`). Wildcards that would admit another
+   (`repo:<owner>/<repo>:environment:production`; *2026-11-20: the repository uses GitHub's immutable subjects,
+   so the trust names `repo:<owner>@<owner ID>/<repo>@<repo ID>:environment:production`, which a renamed or
+   recreated repository can't match*). Wildcards that would admit another
    repository, a fork or any branch are not allowed.
 4. **A production deploy waits for the owner's approval.** Production deploys run in a GitHub
    environment named `production` that requires a reviewer's approval and allows deploys only

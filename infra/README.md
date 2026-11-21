@@ -277,7 +277,8 @@ Change any of these in `lib/` and its test together.
   ADR-012 doesn't give a day.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**
   (`SignUp`, `InitiateAuth`, `RespondToAuthChallenge`). Prove it in the block-mode rehearsal.
-- **The dev deploy role trusts the GitHub environment `dev`** (`repo:jessicamvega6/bladebook:environment:dev`).
+- **The dev deploy role trusts the GitHub environment `dev`** (`repo:jessicamvega6@167584982/bladebook@1315357281:environment:dev`:
+  the repository uses GitHub's immutable subjects, which carry the owner's and repository's ID numbers).
   Production's trusts `production` (ADR-032). The role can only assume CDK's deploy and file-publishing roles,
   and carries the data denies too (I13).
 

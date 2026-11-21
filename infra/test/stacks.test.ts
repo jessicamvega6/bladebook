@@ -285,12 +285,12 @@ describe('deploy access (ADR-032 d2)', () => {
     assert.deepEqual(trust(dev.deployAccess).Condition, {
       StringEquals: {
         'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-        'token.actions.githubusercontent.com:sub': 'repo:jessicamvega6/bladebook:environment:dev',
+        'token.actions.githubusercontent.com:sub': 'repo:jessicamvega6@167584982/bladebook@1315357281:environment:dev',
       },
     });
     assert.equal(
       trust(prod.deployAccess).Condition.StringEquals['token.actions.githubusercontent.com:sub'],
-      'repo:jessicamvega6/bladebook:environment:production',
+      'repo:jessicamvega6@167584982/bladebook@1315357281:environment:production',
     );
     assert.doesNotMatch(JSON.stringify(trust(dev.deployAccess)), /\*/);
   });
