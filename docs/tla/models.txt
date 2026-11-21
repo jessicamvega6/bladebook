@@ -6,6 +6,7 @@ ChangeNotifier    current             OneEmailPerFamily
 ChangeNotifier    fixed               ok
 LessonTime        current-attendance  AttendanceKept
 LessonTime        current-orphan      NoOrphanOpen
+LessonTime        current-rebooked    NoOrphanBooked
 LessonTime        fixed               ok
 StudentLink       current-email       OneEmailPerDecline
 StudentLink       current-link        LinkFollowsRecord

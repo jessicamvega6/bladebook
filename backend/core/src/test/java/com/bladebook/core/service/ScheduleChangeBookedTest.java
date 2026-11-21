@@ -405,6 +405,17 @@ class ScheduleChangeBookedTest {
     }
 
     @Test
+    void theDriftCheckDoesntCountALessonKeptBecauseSomeoneIsCheckedIn() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z"));
+        setSeat(MONDAY, "07:00", mia, Seat.Status.CHECKED_IN);
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        change.apply(dana);
+
+        // Kept on purpose, so not a missed cancellation: the drift check would page the owner for one.
+        assertThat(change.drift(dana).missedCancellations()).isZero();
+    }
+
+    @Test
     void aCheckInBetweenTheReadAndTheCancelIsKeptAsCheckedInNotAsABookingGone() {
         now.set(Instant.parse("2026-11-16T12:15:00Z"));
         schedules.save(dana, 1, List.of(shorter(5000)));
@@ -468,7 +479,7 @@ class ScheduleChangeBookedTest {
     }
 
     @Test
-    void aRepriceDoesntLandOnAnotherFamilyWhoBookedTheTimeSinceItWasPlanned() {
+    void aRepriceDoesntLandOnAnotherFamilyOnTheFirstFamilysLineButReachesThemOnTheirOwn() {
         now.set(Instant.parse("2026-11-11T15:00:00Z"));
         schedules.save(dana, 1, List.of(mondayMornings(6000)));
         // The open-time pass goes through; then, before Ava's Monday 6:00 is re-priced, the Parks cancel it and Mia books it.
@@ -479,10 +490,48 @@ class ScheduleChangeBookedTest {
 
         change.apply(dana);
 
-        assertThat(at(MONDAY, "06:00").priceMinor()).isEqualTo(5000);
+        // The Parks' line is skipped (they left); the Rossis, outside the notice period, are re-priced on a line of their
+        // own, so they're emailed like any family whose lesson changed price (owner, 2026-11-21).
+        assertThat(at(MONDAY, "06:00").priceMinor()).isEqualTo(6000);
         assertThat(batches.reprices(dana)).filteredOn(l -> l.lessonDate().equals(MONDAY) && l.startTime().equals(LocalTime.of(6, 0)))
                 .extracting(RepriceLine::studentId, RepriceLine::executionStatus)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple(ava, ChangeBatch.Execution.SKIPPED));
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple(ava, ChangeBatch.Execution.SKIPPED),
+                        org.assertj.core.groups.Tuple.tuple(mia, ChangeBatch.Execution.EXECUTED));
+    }
+
+    @Test
+    void aFamilyWhoBookedATimeBeforeItsCancelRanIsCancelledOnALineOfTheirOwn() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        // Mia's Monday 7:00 is planned for cancelling; before the cancel runs, the Rossis cancel it and the Parks book it.
+        beforeTheFirstBatchWrite(() -> {
+            familyCancel.cancel(rossi, dana.coachId(), mia, MONDAY, LocalTime.of(7, 0));
+            book(park, ava, MONDAY, "07:00");
+        });
+
+        change.apply(dana);
+
+        assertThat(at(MONDAY, "07:00")).isNull();
+        assertThat(cancels.lines(dana)).filteredOn(l -> l.lessonDate().equals(MONDAY) && l.startTime().equals(LocalTime.of(7, 0))
+                        && l.studentId().equals(ava))
+                .extracting(CancellationLine::executionStatus).containsExactly(ChangeBatch.Execution.EXECUTED);
+        assertThat(change.drift(dana).clean()).isTrue();
+    }
+
+    @Test
+    void aRepriceIsRefusedOnceSomeoneHasJoinedTheLessonSinceItWasRead() {
+        now.set(Instant.parse("2026-11-11T15:00:00Z"));
+        LessonTime read = at(MONDAY, "06:00");
+        List<Seat> booked = repo.seats(dana, MONDAY, MONDAY).stream()
+                .filter(st -> st.startTime().equals(LocalTime.of(6, 0)) && st.seatStatus() == Seat.Status.BOOKED).toList();
+        // An invited family accepts: one more paying seat on the lesson, the first family's seat unchanged.
+        t.f.clients.forSetup().updateItem(u -> u.tableName(t.f.table)
+                .key(Map.of("PK", AttributeValue.fromS(dana.partitionKey()), "SK", AttributeValue.fromS(read.key())))
+                .updateExpression("SET shareCount = shareCount + :one, seatsTaken = seatsTaken + :one")
+                .expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1"))));
+
+        assertThat(batches.reprice(dana, read, booked, 6000, List.of(), now.get())).isFalse();
+        assertThat(at(MONDAY, "06:00").priceMinor()).isEqualTo(read.priceMinor());
     }
 
     @Test

@@ -118,11 +118,16 @@ public final class ChangeBatchRepository {
         }
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(FamilyItems.key("COACH#" + ctx.coachId(), time.key()))
-                .conditionExpression("lessonStatus = :booked AND priceMinor = :old AND startsAtUtc > :now")
+                // seatsTaken and shareCount as read: a family who joined or left since (an invitation accepted, a place
+                // filled) changes who shares the price, so the lesson is planned again for whoever is in it (2026-11-21).
+                .conditionExpression("lessonStatus = :booked AND priceMinor = :old AND startsAtUtc > :now"
+                        + " AND seatsTaken = :seats AND shareCount = :shares")
                 .updateExpression("SET priceMinor = :new")
                 .expressionAttributeValues(Map.of(":booked", FamilyItems.s(LessonTime.Status.BOOKED.name()),
                         ":old", AttributeValue.fromN(Integer.toString(time.priceMinor())),
-                        ":new", AttributeValue.fromN(Integer.toString(newPriceMinor)), ":now", FamilyItems.s(seconds(now)))).build()).build());
+                        ":new", AttributeValue.fromN(Integer.toString(newPriceMinor)), ":now", FamilyItems.s(seconds(now)),
+                        ":seats", AttributeValue.fromN(Integer.toString(time.seatsTaken())),
+                        ":shares", AttributeValue.fromN(Integer.toString(time.shareCount())))).build()).build());
         lineKeys.forEach(k -> items.add(executed(ctx, k)));
         return write(db(ctx), items);
     }
