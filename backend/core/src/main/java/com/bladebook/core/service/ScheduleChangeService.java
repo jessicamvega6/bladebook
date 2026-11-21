@@ -187,6 +187,10 @@ public final class ScheduleChangeService {
      * Takes the date it's for, as the Scheduler gives it (ADR-MASTER section 14), and works from the start of that day in
      * the coach's zone.
      *
+     * <p>Each date's adds are written only while its schedule is still the one read ({@link ScheduleRepository#roll}), so
+     * a time a schedule change has just removed is never put back. If a date changed meanwhile, it's planned again once
+     * from a fresh read; anything still left is the next night's run.
+     *
      * @return lesson times added
      */
     public int roll(AccessContext ctx, LocalDate date) {
@@ -194,14 +198,23 @@ public final class ScheduleChangeService {
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         Instant from = date.atStartOfDay(zone).toInstant();
         LocalDate until = Weeks.storeUntil(date);
-        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
-        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, date, until), date, until, zone,
-                coach.currency().name(), coach.requiredNoticeHours(), from);
-        ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
-        if (plan.add().isEmpty()) {
-            return 0;
+        int added = 0;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+            Map<LocalDate, List<ScheduleBlock>> overrides = schedules.overrides(ctx, date, until);
+            List<LessonTime> desired = LessonTimes.make(weekly, overrides, date, until, zone,
+                    coach.currency().name(), coach.requiredNoticeHours(), from);
+            ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
+            if (plan.add().isEmpty()) {
+                break;
+            }
+            ScheduleRepository.Rolled r = schedules.roll(ctx, plan.add(), weekly == null ? null : weekly.scheduleVersion(), overrides);
+            added += r.added();
+            if (!r.stale()) {
+                break;
+            }
         }
-        return schedules.apply(ctx, new ScheduleChange(plan.add(), List.of(), List.of())).added();
+        return added;
     }
 
     /** Header, planned lines, then each lesson in its own transaction, then the header {@code EXECUTED}. */

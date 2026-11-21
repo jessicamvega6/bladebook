@@ -11,6 +11,7 @@ import com.bladebook.core.domain.TempSchedule;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
@@ -340,6 +341,65 @@ public final class ScheduleRepository {
     }
 
     private record Write(int kind, TransactWriteItem item) {
+    }
+
+    /** What {@link #roll} did: times added, and whether some date's schedule changed since it was read (none put on it). */
+    public record Rolled(int added, boolean stale) {
+    }
+
+    /**
+     * The lesson roller's adds (ADR-MASTER section 14), one date at a time, each in a transaction with a check that the
+     * schedule it was planned from is still as read: the date's {@code SCHEDULE#DATE#} item with the same blocks, or no
+     * such item and {@code SCHEDULE#DEFAULT} at {@code defaultVersion} ({@code null}: none). So a time a schedule change
+     * has just removed is never put back from an older read. A date whose check or put fails gets nothing; it's reported
+     * {@code stale}.
+     */
+    public Rolled roll(AccessContext ctx, List<LessonTime> add, Long defaultVersion, Map<LocalDate, List<ScheduleBlock>> overrides) {
+        Map<LocalDate, List<LessonTime>> byDate = new java.util.TreeMap<>();
+        add.forEach(t -> byDate.computeIfAbsent(t.lessonDate(), d -> new ArrayList<>()).add(t));
+        int added = 0;
+        boolean stale = false;
+        for (Map.Entry<LocalDate, List<LessonTime>> e : byDate.entrySet()) {
+            List<TransactWriteItem> checks = plannedFrom(ctx, e.getKey(), defaultVersion, overrides.get(e.getKey()));
+            List<LessonTime> times = e.getValue();
+            int chunk = CHUNK - checks.size();
+            for (int i = 0; i < times.size(); i += chunk) {
+                List<TransactWriteItem> items = new ArrayList<>(checks);
+                times.subList(i, Math.min(times.size(), i + chunk)).forEach(t -> items.add(TransactWriteItem.builder()
+                        .put(Put.builder().tableName(table).item(lessonItem(ctx, t)).conditionExpression("attribute_not_exists(SK)").build()).build()));
+                try {
+                    db(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(items).build());
+                    added += items.size() - checks.size();
+                } catch (TransactionCanceledException ex) {
+                    if (!ex.hasCancellationReasons() || ex.cancellationReasons().stream().noneMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
+                        throw ex;
+                    }
+                    stale = true;
+                    break;
+                }
+            }
+        }
+        return new Rolled(added, stale);
+    }
+
+    /** The checks that a date's schedule is still the one read. */
+    private List<TransactWriteItem> plannedFrom(AccessContext ctx, LocalDate date, Long defaultVersion, List<ScheduleBlock> override) {
+        List<TransactWriteItem> out = new ArrayList<>();
+        if (override != null) {
+            out.add(TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table).key(key(ctx, DATE + date))
+                    .conditionExpression("blocks = :b").expressionAttributeValues(Map.of(":b", blocksAttr(override))).build()).build());
+            return out;
+        }
+        out.add(TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table).key(key(ctx, DATE + date))
+                .conditionExpression("attribute_not_exists(SK)").build()).build());
+        ConditionCheck.Builder weekly = ConditionCheck.builder().tableName(table).key(key(ctx, DEFAULT));
+        if (defaultVersion == null) {
+            weekly.conditionExpression("attribute_not_exists(SK)");
+        } else {
+            weekly.conditionExpression("scheduleVersion = :v").expressionAttributeValues(Map.of(":v", n(defaultVersion)));
+        }
+        out.add(TransactWriteItem.builder().conditionCheck(weekly.build()).build());
+        return out;
     }
 
     /** One conditional write. False if its condition failed. */
