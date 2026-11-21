@@ -43,7 +43,9 @@ import java.util.function.Function;
  *
  * <p>Each event that reads personal data writes one access-log line (ADR-MASTER section 18; owner, 2026-11-17, I21): the
  * function, the event, the IDs it was about and the names of the fields it read for it. Written when the event's work is
- * done; if that write fails the event fails, and the retry finds the guards already set.
+ * done, or has failed; if that write fails the event fails, and the retry finds the guards already set. An email not
+ * accepted ({@link com.bladebook.core.service.EmailNotAccepted}) fails the event too, with its guard given back, so the
+ * retry sends it (ADR-MASTER section 19).
  */
 public final class EventConsumers {
 
@@ -91,7 +93,7 @@ public final class EventConsumers {
 
     /**
      * On Lambda, from the function's environment (set by {@code infra/lib/consumers.ts}). A function with no sending
-     * addresses sends nothing: its mailer refuses, which fails the event.
+     * addresses sends nothing ({@link Mailer#none}), and its events still succeed.
      */
     public static EventConsumers fromEnvironment() {
         return fromEnvironment(System::getenv);
@@ -101,10 +103,7 @@ public final class EventConsumers {
         String function = required(env, "AWS_LAMBDA_FUNCTION_NAME");
         AccessLog.install(CloudWatchAccessLog.aws(required(env, "BLADEBOOK_ACCESSLOGGROUP"), function), Clock.systemUTC());
         String from = env.apply("BLADEBOOK_MAIL_FROM");
-        Mailer mailer = from == null || from.isBlank()
-                ? email -> {
-                    throw new IllegalStateException(function + " has no sending address; it sends no email");
-                }
+        Mailer mailer = from == null || from.isBlank() ? Mailer.none(function)
                 : SesMailer.aws(new SesMailer.Senders(from, required(env, "BLADEBOOK_MAIL_NOREPLY")));
         return new EventConsumers(function, TenantClients.consumer(), required(env, "BLADEBOOK_TABLE"), mailer,
                 new NotificationService.Links(required(env, "BLADEBOOK_COACHSITEURL"), required(env, "BLADEBOOK_FAMILYSITEURL")),
@@ -134,7 +133,15 @@ public final class EventConsumers {
         TableRecord r = TableRecord.parse(json);
         AccessLog.begin(requestId, null);
         try {
-            Outcome o = handle(event, r);
+            Outcome o;
+            try {
+                o = handle(event, r);
+            } catch (RuntimeException e) {
+                // The event's record was one it acts on, and it read what it needed before failing (an email not
+                // accepted, say): the line is still written, then the event fails and is retried.
+                AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event));
+                throw e;
+            }
             if (o.count() >= 0) {
                 AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event));
             }
@@ -222,8 +229,9 @@ public final class EventConsumers {
             return new Outcome(Event.StudentChanged, "links approved", 1);
         }
         if (after.isEmpty() && before.isPresent() && before.get().status() == StudentStatus.PENDING) {
-            studentLink.declined(before.get());
-            return new Outcome(Event.StudentChanged, "decline emails sent", notifications.declined(before.get()) ? 1 : 0);
+            // The link's removal is the decline email's guard: only the run that removed it sends.
+            boolean removed = studentLink.declined(before.get());
+            return new Outcome(Event.StudentChanged, "decline emails sent", removed && notifications.declined(before.get()) ? 1 : 0);
         }
         return skipped(Event.StudentChanged);
     }

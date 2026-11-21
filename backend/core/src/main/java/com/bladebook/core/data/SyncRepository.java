@@ -52,9 +52,23 @@ public final class SyncRepository {
         }
     }
 
-    public void deleteLink(String clientId, String coachId, String studentId) {
-        clients.forConsumer().deleteItem(DeleteItemRequest.builder().tableName(table)
-                .key(FamilyItems.linkKey(clientId, coachId, studentId)).build());
+    /**
+     * Removes the link that went with a declined record: only if it's still there and has that record's {@code
+     * signedUpAt} (a link written before links carried it is taken as the same). A family that added the coach again
+     * meanwhile has a new record and a new link with a later time, which a retried or repeated decline leaves alone.
+     *
+     * @return whether this call removed it; {@code false} if it was already gone or isn't the declined record's
+     */
+    public boolean deleteLink(String clientId, String coachId, String studentId, java.time.Instant signedUpAt) {
+        try {
+            clients.forConsumer().deleteItem(DeleteItemRequest.builder().tableName(table)
+                    .key(FamilyItems.linkKey(clientId, coachId, studentId))
+                    .conditionExpression("attribute_exists(PK) AND (attribute_not_exists(signedUpAt) OR signedUpAt = :t)")
+                    .expressionAttributeValues(Map.of(":t", FamilyItems.s(signedUpAt.toString()))).build());
+            return true;
+        } catch (ConditionalCheckFailedException goneOrNew) {
+            return false;
+        }
     }
 
     /** The family's partition, read by the consumer from the event's {@code clientId}. */

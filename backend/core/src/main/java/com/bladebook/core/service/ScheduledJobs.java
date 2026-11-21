@@ -70,7 +70,9 @@ public final class ScheduledJobs {
      * {@code NO_SHOW} seats, which are the ones on GSI2.
      *
      * <p>The guard stays {@code remindedOn} on each seat: every seat in the email is claimed before it's sent and all are
-     * given back if it isn't accepted, so a re-run sends nothing twice and a failed email is sent whole next time.
+     * given back if it isn't accepted, so a re-run sends nothing twice and a failed email is sent whole next time. A
+     * failure other than SES's refusal fails the run once every other email is sent, so the Scheduler's retry sends it
+     * (ADR-MASTER section 19).
      */
     public DayOf dayOf(LocalDate date) {
         List<SeatRow> seats = repo.seatsOn(date).stream()
@@ -81,6 +83,7 @@ public final class ScheduledJobs {
                 .collect(Collectors.groupingBy(r -> r.seat().coachId(), LinkedHashMap::new, Collectors.toList()));
         int reminders = 0;
         int mornings = 0;
+        Sending.Unsent unsent = new Sending.Unsent();
         for (Map.Entry<String, List<SeatRow>> e : byCoach.entrySet()) {
             CoachProfile coach = repo.coach(e.getKey()).orElse(null);
             if (coach == null) {
@@ -89,10 +92,11 @@ public final class ScheduledJobs {
             Map<String, List<SeatRow>> byFamily = e.getValue().stream()
                     .collect(Collectors.groupingBy(r -> r.seat().clientId(), LinkedHashMap::new, Collectors.toList()));
             for (List<SeatRow> family : byFamily.values()) {
-                reminders += reminder(coach, family, e.getValue(), date) ? 1 : 0;
+                reminders += unsent.of(() -> reminder(coach, family, e.getValue(), date) ? 1 : 0);
             }
-            mornings += morning(coach, e.getValue(), date) ? 1 : 0;
+            mornings += unsent.of(() -> morning(coach, e.getValue(), date) ? 1 : 0);
         }
+        unsent.throwIfAny();
         return new DayOf(reminders, mornings);
     }
 
@@ -170,7 +174,7 @@ public final class ScheduledJobs {
      * ADR-018, amended 2026-11-12), each at its share, a no-show labelled, and "attendance not recorded" where nothing was
      * recorded. A lesson is listed every Monday until it is paid or waived; each listed seat is stamped
      * {@code settleReminderSentOn} with this Monday, so a re-run for the same Monday doesn't list it twice. No threshold set
-     * means nothing is sent.
+     * means nothing is sent. A coach's email not accepted fails the run after the others, as {@link #dayOf}.
      */
     public Unpaid unpaid(LocalDate monday) {
         if (unpaidThresholdDays == null) {
@@ -184,6 +188,7 @@ public final class ScheduledJobs {
                 .collect(Collectors.groupingBy(r -> r.seat().coachId(), LinkedHashMap::new, Collectors.toList()));
         int emails = 0;
         int lessons = 0;
+        Sending.Unsent unsent = new Sending.Unsent();
         for (Map.Entry<String, List<SeatRow>> e : byCoach.entrySet()) {
             CoachProfile coach = repo.coach(e.getKey()).orElse(null);
             if (coach == null) {
@@ -227,12 +232,13 @@ public final class ScheduledJobs {
             d.put("total", EmailFormat.money(total, currency));
             d.put("threshold", unpaidThresholdDays + (unpaidThresholdDays == 1 ? " day" : " days"));
             d.put("lessons", rows);
-            if (send(Email.toCoach("coach-unpaid-weekly", coach, d),
-                    () -> mine.forEach(r -> repo.release(pk, r.seat().key(), NotifyRepository.SETTLE_REMINDER_SENT_ON, monday.toString())))) {
+            if (unsent.of(() -> send(Email.toCoach("coach-unpaid-weekly", coach, d),
+                    () -> mine.forEach(r -> repo.release(pk, r.seat().key(), NotifyRepository.SETTLE_REMINDER_SENT_ON, monday.toString()))) ? 1 : 0) == 1) {
                 emails++;
                 lessons += rows.size();
             }
         }
+        unsent.throwIfAny();
         return new Unpaid(emails, lessons);
     }
 
@@ -256,14 +262,8 @@ public final class ScheduledJobs {
         return new Rolled(coaches, added);
     }
 
+    /** {@link Sending#send}: SES's refusal gives the guard back and carries on; any other failure throws. */
     private boolean send(Email email, Runnable undo) {
-        try {
-            mailer.send(email);
-            return true;
-        } catch (RuntimeException e) {
-            LOG.log(Level.WARNING, "email not accepted: " + email.template(), e);
-            undo.run();
-            return false;
-        }
+        return Sending.send(mailer, email, undo);
     }
 }

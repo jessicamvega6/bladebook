@@ -170,10 +170,7 @@ public final class ScheduledRuns {
         String function = required(env, "AWS_LAMBDA_FUNCTION_NAME");
         AccessLog.install(CloudWatchAccessLog.aws(required(env, "BLADEBOOK_ACCESSLOGGROUP"), function), Clock.systemUTC());
         String from = env.apply("BLADEBOOK_MAIL_FROM");
-        Mailer mailer = from == null || from.isBlank()
-                ? email -> {
-                    throw new IllegalStateException(function + " has no sending address; it sends no email");
-                }
+        Mailer mailer = from == null || from.isBlank() ? Mailer.none(function)
                 : SesMailer.aws(new SesMailer.Senders(from, required(env, "BLADEBOOK_MAIL_NOREPLY")));
         String parameter = env.apply("BLADEBOOK_UNPAIDTHRESHOLDPARAMETER");
         Supplier<Integer> threshold = parameter == null || parameter.isBlank() ? () -> null : parameterStore(parameter);
@@ -228,7 +225,7 @@ public final class ScheduledRuns {
 
     /**
      * One run, from the Scheduler's input: {@code {"job": "<rule name>", "scheduledTime": "<ISO instant>"}}. Throws if the
-     * job fails, so Lambda retries it (or, for a job with a queue, puts it there).
+     * job fails, an email it didn't get accepted included, so Lambda retries it (or, for a job with a queue, puts it there).
      */
     public Outcome run(String json) {
         JsonNode in = JSON.readTree(Objects.requireNonNull(json, "json"));
@@ -241,6 +238,17 @@ public final class ScheduledRuns {
     Outcome run(Job job, Instant scheduledTime) {
         LocalDate date = LocalDate.ofInstant(scheduledTime, LAUNCH);
         Map<String, Integer> counts = new LinkedHashMap<>();
+        try {
+            return run(job, scheduledTime, date, counts);
+        } catch (RuntimeException e) {
+            // It read what it needed before failing (an email not accepted, say): the line is still written, with no
+            // counts, then the run fails and the Scheduler retries it (ADR-MASTER section 19).
+            AccessLog.jobRun(function, job.rule, date, Map.of(), FIELDS.get(job));
+            throw e;
+        }
+    }
+
+    private Outcome run(Job job, Instant scheduledTime, LocalDate date, Map<String, Integer> counts) {
         switch (job) {
             case DAY_REMINDER -> {
                 ScheduledJobs.DayOf r = jobs.dayOf(date);

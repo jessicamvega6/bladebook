@@ -45,17 +45,26 @@ class SyncRepositoryTest {
 
     @Test
     void aMissingLinkIsLeftMissing() {
-        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId());
+        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), students.list(dana).get(0).signedUpAt());
         sync.setLinkStatus(family.clientId(), dana.coachId(), ava.studentId(), StudentStatus.ACTIVE);
         assertThat(families.account(family).orElseThrow().links()).isEmpty();
     }
 
     @Test
-    void theLinkFollowsADecline() {
-        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId());
+    void theLinkFollowsADeclineOnce() {
+        java.time.Instant signedUpAt = students.list(dana).get(0).signedUpAt();
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), signedUpAt)).isTrue();
         FamilyAccount a = families.account(family).orElseThrow();
         assertThat(a.links()).isEmpty();
         assertThat(a.skaters()).containsExactly(ava); // the account and the skater stay
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), signedUpAt)).isFalse(); // a repeat
+    }
+
+    @Test
+    void aDeclineLeavesTheLinkOfALaterSignUp() {
+        java.time.Instant earlier = students.list(dana).get(0).signedUpAt().minusSeconds(60);
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), earlier)).isFalse();
+        assertThat(families.account(family).orElseThrow().links()).hasSize(1);
     }
 
     @Test

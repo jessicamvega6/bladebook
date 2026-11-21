@@ -221,6 +221,33 @@ public final class NotifyRepository {
         });
     }
 
+    /**
+     * Claims one recipient's email of a batch: its lead line becomes {@code PENDING} (ADR-MASTER section 13, "Notification
+     * state"), only if it has no state yet. {@code false}: another delivery claimed, sent or gave it up first.
+     */
+    public boolean claimLine(String coachId, String sk) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
+                    .conditionExpression("attribute_exists(SK) AND attribute_not_exists(notificationStatus)")
+                    .updateExpression("SET notificationStatus = :p").expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING")))
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    /** Gives a claim back when its email wasn't accepted, so the event's retry sends it; a line already stamped stays. */
+    public void releaseLine(String coachId, String sk) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
+                    .conditionExpression("notificationStatus = :p").updateExpression("REMOVE notificationStatus")
+                    .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"))).build());
+        } catch (ConditionalCheckFailedException e) {
+            // not ours to give back
+        }
+    }
+
     /** Stamps the notification state on lines (ADR-MASTER section 13, "Notification state"). */
     public void markLines(String coachId, List<String> lineSks, String status, String failureReason, Instant at) {
         for (String sk : lineSks) {
@@ -242,13 +269,28 @@ public final class NotifyRepository {
     // ---------------------------------------------------------------------- guards
 
     /**
-     * Sets {@code attr = value} on an item that exists, unless it already has that value. {@code true} means this caller
-     * claimed it and should send; {@code false}, someone already did (or the item is gone).
+     * A dated guard ({@code remindedOn}, {@code settleReminderSentOn}, {@code morningEmailSentOn}): sets {@code attr =
+     * value} on an item that exists, unless it already has that value, so the next date's run claims it again. {@code
+     * true} means this caller claimed it and should send; {@code false}, someone already did (or the item is gone).
      */
     public boolean claim(String pk, String sk, String attr, String value) {
+        return claimIf(pk, sk, attr, value, "attribute_exists(SK) AND (attribute_not_exists(#g) OR #g <> :v)");
+    }
+
+    /**
+     * A once-only guard ({@code confirmationSent}, {@code paymentReminderSent}, {@code inviteEmailSent}, {@code
+     * joinedEmailSent}): set only if it isn't there at all, whatever {@code stamp} the claim before it carried, so two runs
+     * at once can't both claim it (ADR-MASTER section 19). The stamp is this run's, so {@link #release} gives back only
+     * its own claim.
+     */
+    public boolean claimOnce(String pk, String sk, String attr, String stamp) {
+        return claimIf(pk, sk, attr, stamp, "attribute_exists(SK) AND attribute_not_exists(#g)");
+    }
+
+    private boolean claimIf(String pk, String sk, String attr, String value, String condition) {
         try {
             db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(pk, sk))
-                    .conditionExpression("attribute_exists(SK) AND (attribute_not_exists(#g) OR #g <> :v)")
+                    .conditionExpression(condition)
                     .updateExpression("SET #g = :v").expressionAttributeNames(Map.of("#g", attr))
                     .expressionAttributeValues(Map.of(":v", FamilyItems.s(value))).build());
             return true;
