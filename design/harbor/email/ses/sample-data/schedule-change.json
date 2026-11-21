@@ -3,9 +3,9 @@
   "coachFirst": "Dana",
   "coachInitials": "DW",
   "coachBusinessEmail": "dana@whitfieldskating.com",
-  "myBookingsUrl": "https://bladebook.app/bookings",
-  "bookUrl": "https://bladebook.app/book",
-  "homeUrl": "https://bladebook.app/",
+  "myBookingsUrl": "https://family.bladebook.org/#/bookings",
+  "bookUrl": "https://family.bladebook.org/#/book",
+  "homeUrl": "https://family.bladebook.org/#/home",
   "familyFirst": "Grace",
   "noticeHours": "24",
   "cancelled": [

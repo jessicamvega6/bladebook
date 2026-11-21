@@ -78,6 +78,63 @@ needs a sign-in**; the two routes that take no token are named. **Decision 10:**
 post-confirmation trigger gives a new account its group, chosen by the app client it signed up
 through, so the first signed-in request already carries it.
 
+**Amended — 2026-11-09.** *Decided by the owner.* **Decision 11:** every sign-in, sign-up,
+verification, password and code form is **BladeBook's own page**, and the browser talks to
+Cognito directly. Cognito's hosted sign-in pages ("managed login") aren't used. Decision 9's
+first reason (separate sign-in return addresses) falls away, since nothing redirects; the
+separation rests on the API checks. **Amends** [ADR-016](ADR-016-coach-signup.md),
+[ADR-002](ADR-002-client-registration.md), and the domain reasons in
+[ADR-011](ADR-011-staging-environment.md) decision 7a and
+[ADR-027](ADR-027-on-demand-dev-environment.md).
+
+**Amended — 2026-11-20.** *Decided by the owner (I31 in `AI/plan-history.md`).* **No sign-in stand-in in shipped
+code.** From Batch 18 the websites sign in only through Cognito, locally too: local development signs in against dev's
+real user pool with real passwords, and the local APIs accept that pool's tokens. The APIs' token stub and its
+`/api/*/local/token` routes leave their shipped code; tests mint tokens from test-only code.
+
+**Amended — 2026-11-20.** *Decided by the owner (I32 in `AI/plan-history.md`).* Decision 11's forms, narrowed for
+Batch 18:
+- **A coach's MFA code is its own batch, designed first** (Batch 28): turning MFA on with an authenticator app, its
+  code at log-in and before a schedule save. Until then the forms don't ask for a code; if Cognito asks anyway, the
+  form says so plainly and stops.
+- **A family's login email can't be changed.** The family Profile shows it read-only, so `UpdateUserAttributes` and
+  the changed-email code aren't used on the family website.
+- **A family changes its password through forgot password,** linked from the log-in page as "Forgot/change
+  password". Only the coach's Profile → Account has Change password (`ChangePassword`).
+- **The seed generator signs its people in through a test-only token stub,** started from the APIs' test classpath,
+  so I31's "nothing of it in a Lambda package" holds.
+
+**Amended — 2026-11-12.** *Decided by the owner.* **Decision 11's sign-in library is AWS Amplify's
+Auth module** (`aws-amplify` version 6, the sign-in part only), keeping SRP. It handles every Cognito
+call the forms make, the MFA and new-password challenges, and token refresh. It is the free,
+open-source library only: Amplify Hosting and the Amplify build tooling are not used; the sites stay
+on S3 and CloudFront, deployed with CDK. Its drawbacks are mitigated as follows:
+- **Behind BladeBook's own sign-in interface** in `web/src/shared/auth`, the one the local stand-in
+  already implements. Only one file imports Amplify, so an upgrade, or a switch to another library or
+  to plain password sign-in, touches that file alone, and tests mock the interface, not Amplify.
+- **Pinned to an exact version** and upgraded on purpose, like the CI actions (ADR-032).
+- **Tokens in tab storage** (`sessionStorage`), set explicitly, never Amplify's default `localStorage`.
+  A test fails if a token lands in `localStorage`. They survive a reload and clear when the tab closes.
+- **Page size measured** in the first build that uses it and recorded here, with the rinkside page
+  checked on a slow connection. *Measured 2026-11-20 (Batch 18, `aws-amplify` 6.22.2): Amplify adds about 38 KB
+  gzipped of script to each page. Each page's script, gzipped: coach website 149 KB (was 112), rinkside page 122 KB
+  (was 84), family website 144 KB (was 106). The slow-connection check is with the click-through in dev.*
+- **Decision 11's tests stay the assurance** that matters: no request to `api-coach` or `api-client`
+  carries a password or a code, and both app clients allow only SRP and refresh.
+Alternatives weighed: `amazon-cognito-identity-js` (little active development), AWS's plain Cognito
+client with hand-written SRP (custom cryptography on the most sensitive path), and plain password
+sign-in, `USER_PASSWORD_AUTH` (the password would leave the browser, reversing decision 11's SRP).
+
+**Amended — 2026-11-16.** *Decided by the owner.* **The two websites are on separate hosts:** the
+coach website at `app.bladebook.org`, with the rinkside page at `app.bladebook.org/rinkside`, and
+the family website at `family.bladebook.org` (in dev, `app.dev.bladebook.org` and
+`family.dev.bladebook.org`; [ADR-027](ADR-027-on-demand-dev-environment.md) amendment of the same
+day). This replaces `<domain>/coach` and `<domain>/coach/rinkside` above, and settles where the
+family website lives (Open). Separate hosts let the browser keep a coach's tokens out of reach of
+the family site's pages. The coaches are the older users, so they get the plain `app.` address,
+and the bare domain redirects there. The Vite builds move each site to the root of its own host,
+and the rinkside service worker's scope becomes `/rinkside/`, with the deploy (Batch 17b).
+
 ---
 
 ## Context
@@ -122,8 +179,8 @@ one that happens to be at the rink.
 
 ### 1. Rinkside check-in is a section of the coach website
 
-It lives at **`<domain>/coach/rinkside`**, under the coach website. Production and staging
-follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`; *`dev.<domain>/coach/rinkside` since ADR-027*). The coach signs in
+It lives at ~~**`<domain>/coach/rinkside`**~~ **`app.bladebook.org/rinkside/`** *(since the 2026-11-16 amendment; in the code 2026-11-17, I14)*, under the coach website. ~~Production and staging
+follow ADR-011 decision 7a's domains (`staging.<domain>/coach/rinkside`; *`dev.<domain>/coach/rinkside` since ADR-027*).~~ Dev's is `app.dev.bladebook.org/rinkside/`. The coach signs in
 once with the coach website's sign-in. There is no subdomain and no separate origin path.
 
 It is still built as **its own entry point** within `web/`'s coach site: a lightweight page
@@ -133,11 +190,11 @@ offline use without caching the whole coach website. It ships with the coach web
 on its own.
 
 **Offline loading is unchanged in substance** (ADR-014 d5). The service worker is
-registered with scope `/coach/rinkside/`, so it caches and serves only the rinkside page.
+registered ~~with scope `/coach/rinkside/`~~ at `/rinkside/sw.js` with scope `/rinkside/` *(I14, 2026-11-17)*, so it caches and serves only the rinkside page.
 The rest of the coach website and the family website still get none.
 
 ~~**Add to Home Screen still works.** The rinkside page carries its own web app manifest
-(`start_url` and `scope` set to `/coach/rinkside/`), so the coach can put a BladeBook icon on
+(`start_url` and `scope` set to the rinkside page's path), so the coach can put a BladeBook icon on
 the phone that opens straight to it, full-screen. *Platform note, to verify on a device:* on
 iPhones a home-screen web app keeps its own storage, separate from Safari, so the coach signs
 in once inside it even if Safari is already signed in.~~ *Withdrawn 2026-10-12:* coaches are
@@ -182,6 +239,11 @@ save.
 - **The window is configuration.** 15 minutes is the starting value.
 - **The preview is not guarded,** only the save. The coach can review the impact without
   re-entering a password and is asked once, at the moment it matters.
+- **Three wrong passwords sign the coach out** (*owner, 2026-11-20, I33*). A wrong password otherwise leaves the
+  sign-in as it was, edits kept; the third in a row ends the session, and the unsaved changes are lost. Several wrong
+  passwords suggest it isn't the coach at the keyboard, and the open session reaches every family's details. The box
+  always warns that several wrong passwords sign you out and the changes aren't saved; no warning marks the last try.
+  Cognito's own lockout (five wrong passwords) still applies on top.
 
 ### 5. The API Gateway authorizer stays Cognito's built-in one
 
@@ -203,7 +265,7 @@ code rather than in API Gateway, so there is still no Lambda authorizer.*
 |---|---|---|
 | Coach website | **60 minutes** | the last time the person entered their password |
 | Family website | **60 minutes** | the same |
-| Rinkside page (`/coach/rinkside`) | **4 hours** | the same |
+| Rinkside page (`/rinkside/`; its API routes `/api/coach/rinkside/…`) | **4 hours** | the same |
 
 Both are measured from the `auth_time` claim, which Cognito sets when the password is entered
 and doesn't reset when a token is refreshed. So these are limits from sign-in, not from the
@@ -232,6 +294,14 @@ last 15 minutes.
   signal, and stays signed in for 4 hours. Check-ins recorded offline still queue on the phone;
   if the 4 hours run out first, the queue is sent after the coach signs in again (ADR-014 d1,
   d2a: a queued entry doesn't expire).
+- **Logging out keeps the queue.** *Decided by the owner 2026-11-09 (R2).* Logging out ends
+  the sign-in, so nothing sends until the next one, but the queued check-ins stay on the
+  phone. Each entry is labelled with the ID of the coach who recorded it and is sent only
+  after that coach signs in again; another coach signing in on the same phone leaves them
+  waiting (the server would refuse them anyway, because the account comes from the token,
+  ADR-021). If entries are waiting, logging out warns first: they're saved on this phone and
+  send the next time you log in here. The skater's name and lesson time stay on the phone
+  until then, the same as the "Not sent" list (ADR-014 d4a).
 - **Opening the coach website from a rinkside sign-in asks for the password again** once that
   sign-in is more than 60 minutes old. The longer window applies only to the rinkside routes.
 - **The website must not lose unsaved work to the 60-minute limit** (product rule — see
@@ -300,10 +370,12 @@ issued it (`client_id` on an access token, `aud` on an ID token).
 
 **Why: what Cognito enforces, not our code.** These hold even if the API code has a mistake:
 
-- **Separate sign-in return addresses.** Each app client lists only its own website's addresses,
+- ~~**Separate sign-in return addresses.** Each app client lists only its own website's addresses,
   so a family's sign-in can only land on the family website, and a coach's only on the coach
   website. A sign-in link that tries to send a family to the coach website is refused before
-  sign-in.
+  sign-in.~~ *Withdrawn 2026-11-09 (decision 11): the websites use their own sign-in forms, so
+  there are no sign-in redirects or return addresses. The separation rests on the two reasons
+  below and on each API's app-client and group checks.*
 - **The family session ends at 60 minutes in Cognito.** Each app client has its own
   refresh-token lifetime. The family app client's is set to 60 minutes (decision 6), so Cognito
   stops refreshing a family's tokens then. The coach app client stays at 4 hours for the
@@ -345,8 +417,13 @@ Decision 7 refuses a token without a group, so the group must be on the account 
   through the family app client (decision 9). The group comes only from the app client ID in the
   event, never from anything the person typed.
 - **The website then refreshes its tokens**, so the first signed-in request carries the group.
+- *Amended 2026-11-18 (owner, I27):* **Cognito confirms the account before the trigger runs**, so a failed trigger
+  leaves the account confirmed with no group, and the person can't retry (found building it, Batch 17b). The trigger
+  keeps its call inside Cognito's 5 seconds, its errors page the owner, and the owner adds the group by hand
+  (`docs/runbooks/stuck-account.md`). A self-repair route was weighed and set aside: it would give an internet-facing
+  API role a Cognito admin permission, for a failure expected to be rare at launch.
 - **One small function with one permission:** `cognito-idp:AdminAddUserToGroup` on this user
-  pool. It brings BladeBook to seventeen functions.
+  pool. It brings BladeBook to seventeen functions. *Sixteen in MVP since 2026-11-11 (ADR-001).*
 - **A coach who is also a parent:** adding `Client` to an existing coach account is a separate
   step, after the person proves they own it (`FeatureDecriptions/Coach Who Is Also a Parent.md`).
 
@@ -354,6 +431,55 @@ Decision 7 refuses a token without a group, so the group must be on the account 
 client gets `Coach` only, and one confirmed through the family app client gets `Client` only; the
 first registration or profile request after confirmation succeeds; nothing in the request can
 change which group is added.
+
+### 11. BladeBook's own sign-in forms, talking to Cognito directly
+
+*Decided by the owner, 2026-11-09 (amendment).*
+
+Every page that asks for an email, a password or a code is **BladeBook's own page**, in the coach
+or family website's design: creating the account, verifying the email, logging in, forgot
+password, the password asked again (decision 4's schedule save, and signing in again after
+decision 6's limits), changing the password, and a coach's multi-factor authentication (MFA)
+code. Cognito's hosted sign-in pages ("managed login") are **not** used.
+
+- **The browser calls Cognito itself,** with the user pool's public calls: `SignUp`,
+  `ConfirmSignUp`, `ResendConfirmationCode`, `InitiateAuth` and `RespondToAuthChallenge`,
+  `ForgotPassword`, `ConfirmForgotPassword` and `ChangePassword`. **Passwords and codes go from
+  the browser to Cognito only.** They never reach `api-coach`, `api-client`, a log or the table;
+  the APIs only ever see the ID token Cognito returns.
+- **Sign-in uses Secure Remote Password (SRP)** (`ALLOW_USER_SRP_AUTH`), so the password itself
+  isn't sent even to Cognito, with `ALLOW_REFRESH_TOKEN_AUTH` for refreshing. Each app client is
+  public (no client secret) and has no OAuth flows, no hosted domain and no callback or sign-out
+  addresses.
+- **Cognito still owns the credentials** (ADR-016): storing and checking passwords, the password
+  policy, the lockout after repeated wrong passwords, the email verification and reset codes, and
+  MFA. The forms only collect what Cognito asks for and show what it answers.
+- **"Prevent user existence errors" is on** for both app clients, so logging in and forgot
+  password don't reveal whether an email has an account. The forms word Cognito's answers in
+  BladeBook's own language (the wording is product: the log-in, sign-up and forgot-password
+  feature files).
+- **Each website uses only its own app client ID.** The IDs are public, as any browser
+  app's are. Someone could call `SignUp` with the other website's ID; decision 10 would then give
+  that account the other group. That was equally true with Cognito's hosted pages, because the
+  sign-up call is public either way, and coach sign-up is self-serve anyway (ADR-016 d1), so this
+  opens nothing new.
+
+**Why** (owner): sign-up stays one continuous flow in BladeBook's look. A family doesn't leave
+mid-sign-up for a differently styled Cognito page and come back, which is one barrier fewer for
+older users. It also matches the Harbor designs as drawn.
+
+**What it changes:**
+- Decision 9's first reason is withdrawn (above); its other reasons stand.
+- The domains in [ADR-011](ADR-011-staging-environment.md) decision 7a and
+  [ADR-027](ADR-027-on-demand-dev-environment.md) are no longer needed for Cognito's sign-in
+  redirects; the cross-origin (CORS) rule and the custom domain still need them.
+- The websites need a browser library that does SRP ~~(Open)~~ *: AWS Amplify's Auth module (2026-11-12, amendment above).*
+- ~~Until the user pool exists, the local build's token stub stands in for these calls (the root
+  `README.md`, shortcuts SC-1 and SC-10).~~ *Built 2026-11-20 (Batch 18); SC-1 and SC-10 closed.*
+
+**Tests** ([ADR-013](ADR-013-testing-requirement.md)): no request to `api-coach` or `api-client`
+carries a password or a code; both app clients allow only SRP and refresh, with no secret and no
+OAuth; a wrong password and an unknown email get the same answer.
 
 ---
 
@@ -409,16 +535,23 @@ change which group is added.
   signal, the page shows today's cached lessons without asking the server. Two questions
   follow. Should the page stop showing them once the 4 hours are up? Doing so would also stop
   offline check-ins, which decision 6 lets queue past the limit. And should logging out remove
-  the cached lessons from the phone, along with the queue?
+  the cached lessons from the phone~~, along with the queue~~? *The queue half was settled
+  2026-11-09 by the owner (R2): logging out keeps the queue (decision 6). Whether the cached
+  lessons are wiped at logout is still open.*
 - ~~**The same group check on `api-client`.** *Added 2026-10-21.* Decision 7 makes `api-coach`
   refuse a token without the `Coach` group. Whether `api-client` should refuse one without
   the `Client` group isn't yet written down.~~ **Settled 2026-10-21 by the owner:** yes.
   `api-client` refuses a token without the `Client` group with 403 (decision 7).
-- **Where the family website lives.** *Added 2026-10-22.* The coach website is at
+- ~~**Where the family website lives.** *Added 2026-10-22.* The coach website is at
   `<domain>/coach` and the rinkside page at `<domain>/coach/rinkside`, but no ADR says where
   the family website is served: `<domain>/`, `<domain>/family`, or a domain of its own. The
   answer sets its CloudFront path, its sign-in redirect addresses, and the links in family
-  emails.
+  emails. *(No sign-in redirects since decision 11, 2026-11-09.)*~~ *Settled 2026-11-16 by the owner: `family.bladebook.org`, a host of its own (amendment above).*
+- ~~**Which browser library does the Secure Remote Password (SRP) sign-in** for decision 11's
+  forms, for example AWS Amplify's Auth module or `amazon-cognito-identity-js`. *Added
+  2026-11-09.* It runs on both websites and the rinkside page, so its size and how it stores the
+  tokens matter (the local build keeps them for one browser tab).~~ *Settled 2026-11-12 by the
+  owner: Amplify's Auth module, wrapped, pinned, tokens in tab storage (amendment above).*
 - ~~**Whether the family website has its own Cognito app client.** *Added 2026-10-22.* The
   Consequences above and [ADR-011](ADR-011-staging-environment.md)'s amendment of 2026-10-05
   both say "the family website's, if it has its own." With one shared app client, the sign-in
@@ -452,6 +585,8 @@ change which group is added.
 
 ## Revisit if
 
+- Sign-in with another account (Google, Apple) is wanted: that needs Cognito's hosted pages, so
+  decision 11 would be revisited. *Added 2026-11-09.*
 - A native app is reconsidered. A native app with its own sign-in is the case the original
   separation fit, and ADR-014 decisions 10 and 11 are the starting point.
 - A coach reports a lost or stolen phone being used against their account. That is the

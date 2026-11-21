@@ -1,4 +1,5 @@
 *Updated 2026-10-12 to match the Harbor design (bookings-cancel.html, recurrence.html, calendar-week.html, cancel-preview.html). The design is the source of truth.*
+
 *2026-11-08: the product rules from ADR-009 (Cancellation) and ADR-015 (Late cancellation and no-show charges) were moved
 here; the ADRs keep only the architecture.*
 
@@ -29,6 +30,9 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
     They see a card on Home and My bookings; no answer by ~~the start of the notice period~~ *the answer-by time* cancels it, no charge.
     *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time is whichever comes first, the start of the notice
     period or 7 days after the other skater left. An unanswered lesson is cancelled with no charge by the hourly check.
+    *Owner, 2026-11-11 (B8):* the pages don't wait for that check. Once the answer-by time passes, My bookings shows
+      the lesson as "Cancelled, no answer" with no charge, and the card is gone. An invitation still unanswered when its
+      lesson starts shows "This lesson is no longer available" at once.
     Both emails ("keep at full price or cancel", "cancelled, no answer") are always sent.*
   Late: the one cancelling may be charged their share of the late-cancellation fee (half, for two skaters); the other skater keeps their share of the price.
   *Added 2026-10-13 (ADR-031):*
@@ -143,7 +147,7 @@ In week view there will be multiple ways to cancel.
 2) cancel ~~entire week~~ *the rest of the week* (ex emergency came up). *Design: "Cancel rest of week" button.*
 3) cancel per lesson (ex forgotten appts). *Design: click a booked lesson.*
 *Design: day cancel is the "Cancel day" button under each day.*
-each cancelation will ask the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) ~~is assigned to the coach~~ *becomes a held lesson time: closed to families, with no skater in it (changed 2026-10-13, ADR-031 decision 1)*. The default/temp schedule is not changed. 
+~~each cancelation will ask~~ *a single-lesson cancel asks (owner, 2026-11-18, I24: a day or the week is time off, below)* the coach if they want to release the time slot back for rebooking or keep it unbook able. If coach says to keep the slot unbookable, then the slot(S) ~~is assigned to the coach~~ *becomes a held lesson time: closed to families, with no skater in it (changed 2026-10-13, ADR-031 decision 1)*. The default/temp schedule is not changed. 
 *Design:* the choice is made per lesson on the confirmation view: "Release for rebooking" or "Hold — keep closed"~~, with a
 "Release all" link~~. A held time stays closed to families.
 *Changed 2026-11-08 (owner; ADR-009):*
@@ -152,9 +156,23 @@ each cancelation will ask the coach if they want to release the time slot back f
     future week): every booked lesson and every open time is held closed. The weekly schedule doesn't change, so the
     next week is untouched. The button says the dates it covers and how many booked lessons and open times it closes.
   - The rinkside page's whole-week cancel works the same way.
+  *(The two bullets above no longer describe a day or the week: see the 2026-11-18 change below.)*
+*Changed 2026-11-16 (owner):* the rinkside page cancels the same three ways — one lesson, a whole day, or the rest of
+  the week — and nothing in between. To cancel a Monday lesson and a Friday lesson, the coach cancels each one on its own.
   - A shared-lesson invitation that hasn't been answered when the coach cancels the lesson is quietly removed: no
     record, no email. If the family answers later, nothing is written and they see "no longer available".
     *Phase 2:* record it and tell the invited family.
+*Changed 2026-11-18 (owner; ruling I24, ADR-009 amended that day):* **a whole day or the rest of the week is time
+  off.**
+  - Cancelling a day, or the rest of the week (from now on), makes those dates a time off named "Cancelled" (see
+    C_Coach Time Off.md). There is no release-or-hold question and nothing is held: the times leave the booking page.
+    The coach can rename or delete it later like any time off; deleting it reopens the times, but the lessons stay
+    cancelled.
+  - Inside a special schedule, that schedule's times are switched off on those dates and the rest of it stays. A cancel
+    never shows an overlap error.
+  - Families get the "cancelled by the coach" email, as before.
+  - The weekly schedule doesn't change, so the next week is untouched. Lessons that have started are kept.
+  - Only a single lesson asks release or hold.
 
 For cancelation types 1 & 2, only cancel the lessons that have not happened yet. 
 *From ADR-009 decision 7:* a coach cancelling "everything today" at 2pm does not cancel the 9am lesson that already took
@@ -170,7 +188,7 @@ For cancelation types 1 & 2, only cancel the lessons that have not happened yet.
 
 
 A confirmation view will show to the coach on all cancelation actions. This will present any bookings that will get canceled. A message will display to the coach that on accept cancelation emails will be sent to clients with canceled bookings. The coach must accept before any bookings are canceled. 
-*Design:* the confirmation view shows the count cancelled, held closed, and families emailed; that each family gets one
+*Design:* the confirmation view shows the count cancelled, held closed (*a single lesson only, since I24*), and families emailed; that each family gets one
 email listing their cancelled lessons with a link to book another time; that repeating lessons in other weeks aren't
 affected; and that a cancellation can't be undone. Buttons: Back and "Cancel N lessons". Afterwards the week view shows
 a message with the counts, the released times back to Open and held times as Held.
@@ -289,7 +307,7 @@ No-shows on the coach's payment page *(from ADR-015 decision 4, decided by the o
     owed, but nothing settles it automatically either: it stays on the payment dashboard and is picked up by the weekly
     unpaid-lessons reminder to the coach (ADR-018). An automatic settle for a zero fee was considered and deferred;
     revisit with the Phase 2 charge.
-  For now, the dashboard shows a no-show at its full lesson price, labelled as a no-show. It is the amount the booking
+  For now, the dashboard shows a no-show at what that skater owes (their share; the full price unless the lesson is shared) *(owner, 2026-11-12)*, labelled as a no-show. It is the amount the booking
     already carries, and the no-show label tells the coach what they are looking at before they decide to mark it paid
     or waive it. The weekly reminder lists it the same way. *Note 2026-10-13 (ADR-031):* the amount is the skater's
     share, which for a private lesson is the full price. Showing the missed-lesson fee instead is part of the open
@@ -303,7 +321,7 @@ Open and revisit *(from ADR-015 Open and Revisit if)*:
   What the fee is charged against when it differs from the lesson price. If the fee is lower than the price, the
     outstanding view shows an amount that is not the lesson price, and the payment reminder must state which it is.
     Cosmetic, but it is client-facing money and should be written down before it is built. *Narrowed 2026-09-30:* for
-    MVP a no-show shows its full lesson price; this question now applies to the Phase 2 charge only.
+    MVP a no-show shows what that skater owes (their share; the full price unless the lesson is shared) *(owner, 2026-11-12)*; this question now applies to the Phase 2 charge only.
   ~~Whether a coach can waive a charge.~~ Settled 2026-08-30: yes. The coach payment dashboard gets a "mark as waived"
     action (Coach Payment Section on Dashboard.md). It is available from MVP rather than Phase 2, because it applies to
     any unpaid lesson and not only to a late-cancellation fee.

@@ -12,9 +12,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The evaluator that compares the lesson times stored with the ones the schedule now makes (ADR-MASTER
- * section 9). Batch 2 carries out only what touches no family: adding, removing and updating times
- * nobody has booked.
+ * The one evaluator that compares the lesson times stored with the ones the schedule now makes (ADR-MASTER
+ * section 9): add, remove and replace open times; cancel or re-price booked ones. Past times are never touched.
  */
 class ScheduleChangeTest {
 
@@ -70,13 +69,78 @@ class ScheduleChangeTest {
         assertThat(plan.isEmpty()).isTrue();
     }
 
+    private static LessonTime booked(Duration fromNow, int price) {
+        return at(fromNow, price, Status.BOOKED);
+    }
+
     @Test
-    void aBookedTimeIsLeftForTheCancelAndRepriceStepsInLaterBatches() {
-        LessonTime gone = at(IN_TWO_DAYS, 5000, Status.BOOKED);
-        LessonTime repriced = at(IN_TWO_DAYS.plusMinutes(30), 5000, Status.BOOKED);
-        ScheduleChange plan = ScheduleChange.plan(List.of(gone, repriced), List.of(desired(open(IN_TWO_DAYS.plusMinutes(30), 6000))), NOW);
+    void aBookedTimeTheScheduleNoLongerMakesIsCancelled() {
+        LessonTime gone = booked(IN_TWO_DAYS, 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(gone), List.of(), NOW);
+        assertThat(plan.cancel()).containsExactly(new ScheduleChange.Cancel(gone, null));
+        assertThat(plan.remove()).isEmpty();
+        assertThat(plan.touchesBookings()).isTrue();
+    }
+
+    @Test
+    void aBookedTimeWithANewLengthIsCancelledAndTheNewTimeTakesItsPlace() {
+        LessonTime have = booked(IN_TWO_DAYS, 5000);
+        LessonTime want = new LessonTime(have.lessonDate(), have.startTime(), have.startsAtUtc(), have.coachTz(), 60, 5000,
+                "USD", 0, 24, 1, 0, 2, IceType.PUBLIC, 4, Status.OPEN);
+        ScheduleChange plan = ScheduleChange.plan(List.of(have), List.of(want), NOW);
+        assertThat(plan.cancel()).containsExactly(new ScheduleChange.Cancel(have, want));
+        assertThat(plan.add()).isEmpty();
+        assertThat(plan.replace()).isEmpty();
+    }
+
+    @Test
+    void aBookedTimeAtANewPriceIsRepricedAndNeverAlsoCancelled() {
+        LessonTime have = booked(IN_TWO_DAYS, 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(have), List.of(desired(open(IN_TWO_DAYS, 6000))), NOW);
+        assertThat(plan.reprice()).containsExactly(new ScheduleChange.Reprice(have, 6000));
+        assertThat(plan.cancel()).isEmpty();
+        assertThat(plan.kept()).isEmpty();
+    }
+
+    @Test
+    void aBookedIncreaseInsideTheNoticePeriodIsKeptAndListed() {
+        LessonTime soon = booked(IN_TWO_HOURS, 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(soon), List.of(desired(open(IN_TWO_HOURS, 6000))), NOW);
+        assertThat(plan.reprice()).isEmpty();
+        assertThat(plan.kept()).containsExactly(new ScheduleChange.Reprice(soon, 6000));
+    }
+
+    @Test
+    void aBookedIncreaseExactlyAtTheEndOfTheNoticePeriodIsStillKept() {
+        LessonTime edge = booked(Duration.ofHours(24), 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(edge), List.of(desired(open(Duration.ofHours(24), 6000))), NOW);
+        assertThat(plan.kept()).hasSize(1);
+        LessonTime after = booked(Duration.ofHours(24).plusMinutes(1), 5000);
+        assertThat(ScheduleChange.plan(List.of(after), List.of(desired(open(Duration.ofHours(24).plusMinutes(1), 6000))), NOW).reprice()).hasSize(1);
+    }
+
+    @Test
+    void aBookedDecreaseReachesEvenTomorrowsLesson() {
+        LessonTime soon = booked(IN_TWO_HOURS, 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(soon), List.of(desired(open(IN_TWO_HOURS, 4000))), NOW);
+        assertThat(plan.reprice()).containsExactly(new ScheduleChange.Reprice(soon, 4000));
+    }
+
+    @Test
+    void aBookedTimeWhoseIceTypeOrSkatersChangedIsLeftAlone() {
+        LessonTime have = booked(IN_TWO_DAYS, 5000);
+        LessonTime want = new LessonTime(have.lessonDate(), have.startTime(), have.startsAtUtc(), have.coachTz(), 30, 5000,
+                "USD", 0, 24, 2, 0, 1, IceType.BFSC_FREESTYLE, 4, Status.OPEN);
+        ScheduleChange plan = ScheduleChange.plan(List.of(have), List.of(want), NOW);
         assertThat(plan.isEmpty()).isTrue();
-        assertThat(plan.bookedNotChanged()).isEqualTo(2);
+        assertThat(plan.touchesBookings()).isFalse();
+    }
+
+    @Test
+    void aPastBookedTimeIsNeverCancelledOrRepriced() {
+        LessonTime past = booked(Duration.ofHours(-1), 5000);
+        ScheduleChange plan = ScheduleChange.plan(List.of(past), List.of(), NOW);
+        assertThat(plan.touchesBookings()).isFalse();
     }
 
     @Test

@@ -13,7 +13,7 @@
 .bb .photo-pick .hint { flex: 1 1 200px; margin: 0; }
 .bb .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .bb .split--today { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); }
-.bb .tlist__t { width: 44px; flex: none; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
+.bb .tlist__t { width: 66px; flex: none; white-space: nowrap; font-weight: var(--w-bold); font-size: 13px; color: var(--text-2); }
 .bb .card__foot { padding: 14px 20px 18px; }
 .bb .card--attn { border-color: var(--warning-border); }
 .bb .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -34,10 +34,16 @@
 @media (max-width: 760px) {
   .bb .grid3, .bb .stats, .bb .stats:has(> .stat:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
   .bb .phead__actions { width: 100%; }
+  /* Phone: a page head's buttons wrap their text instead of pushing the page sideways (owner, 2026-11-16). */
+  .bb .phead__actions .btn { white-space: normal; height: auto; min-height: 40px; padding-top: 8px; padding-bottom: 8px; text-align: left; max-width: 100%; }
   .bb .wmain { padding: 20px 16px 40px; }
   .bb .wbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .bb .wbar__right { width: 100%; }
-  .bb .stepper { overflow-x: auto; }
+  .bb .stepper { gap: 6px; }
+  /* Phone: dots only, with the current step named; the other names stay for screen readers (owner, 2026-11-16). */
+  .bb .step:not(.step--current) .step__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bb .step--current .step__label { white-space: nowrap; }
+  .bb .step__line { flex: 1 1 12px; width: auto; min-width: 8px; }
   .bb .wcol > .card > .card__body { padding: 20px; }
   .bb .quick { grid-template-columns: minmax(0, 1fr); }
 }

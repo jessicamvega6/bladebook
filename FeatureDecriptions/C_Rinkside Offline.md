@@ -45,9 +45,9 @@ Couldn't be sent:
   *Ruled by the owner 2026-11-09.* ADR-014's version below is the rule; the design was updated to match.
   The banner reads "2 check-ins couldn't be sent. Tap to see them." Each entry shows:
     Student: e.g. Mia R.
-    Lesson: e.g. Tue 14 Oct, 4:00pm
+    Lesson: e.g. Tue 14 Oct, 4:00 PM
     What was recorded: Checked in, or No-show
-    When it was tapped, by the phone's clock: e.g. 4:12pm
+    When it was tapped, by the phone's clock: e.g. 4:12 PM
     Why it wasn't sent: e.g. "The phone's time didn't match the lesson"
   Two actions: "Record on the website", which opens the coach website's lesson list at that date (see Coach lesson
   list), and "Done", which removes the entry once recorded.
@@ -58,13 +58,22 @@ Couldn't be sent:
 The family had cancelled:
   After the replay, a lesson the family cancelled stays on Today in its place, struck through and marked
   Cancelled, with when the family cancelled. Nothing more to do.
-  Why: the likely case is a parent who cancels at 3:50pm for a 4:00pm lesson while the coach is inside the rink with
-  no signal; nobody appears, so at 4:15 the coach marks absent. The coach did the right thing with what they knew, so
+  Why: the likely case is a parent who cancels at 3:50 PM for a 4:00 PM lesson while the coach is inside the rink with
+  no signal; nobody appears, so at 4:15 PM the coach marks absent. The coach did the right thing with what they knew, so
   this isn't shown as a failure, which would blame them for a notification they couldn't have received. It is
-  reported as what it is: "This lesson was cancelled by the family at 3:50pm, after you recorded it." The entry is
+  reported as what it is: "This lesson was cancelled by the family at 3:50 PM, before your check-in reached BladeBook." The entry is
   then cleared rather than left for the coach to sort out.
   *(from ADR-014 §4; moved 2026-11-08)*
 
 Logging out with check-ins still waiting:
-  A warning says they're only on this phone and will be deleted. Choices: "Stay logged in" or
-  "Log out and delete them".
+  ~~A warning says they're only on this phone and will be deleted. Choices: "Stay logged in" or
+  "Log out and delete them".~~
+  *Owner, 2026-11-09 (R2):* logging out keeps them. A warning says "N check-ins haven't been sent.
+  They're saved on this phone. If you log out, they'll send the next time you log in here. Only your
+  login can send them." Choices: "Stay logged in" or "Log out".
+  Each check-in is labelled with the coach who recorded it and sends only after that coach logs in
+  again. Another coach logging in on the same phone leaves them waiting.
+  The log-in page shows "N check-ins waiting on this phone. Saved before you logged out. They send
+  after you log in." After the log-in, with signal, they send and a note says so.
+  Why: a coach may log out before signal returns, and losing attendance is the worse failure. The
+  names left on the phone are the same kind kept on the "Not sent" list.

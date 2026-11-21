@@ -68,7 +68,7 @@ function authShell(main, aside = '', o = {}) {
     <main class="wmain">${o.steps != null ? stepper(COACH_STEPS, o.steps) : ''}<div class="wgrid${aside ? '' : ' wgrid--solo'}"><div class="wcol">${main}</div>${aside}</div></main></div>`;
 }
 
-/* ================= Sign in, password reset (Cognito) ================= */
+/* ================= Sign in, password reset: BladeBook's own forms, calling Cognito from the browser (ADR-023 d11) ================= */
 SCREENS.login = () => authShell(card(`
   <h1 class="h1">Log in</h1><p class="lede">Welcome back. Log in with your login email.</p>
   ${state.auth.notice ? banner('success', state.auth.notice) : ''}
@@ -115,7 +115,7 @@ SCREENS.signup = () => {
     <h1 class="h1">Start coaching on BladeBook</h1><p class="lede">Scheduling, lessons and payment reminders in one place.</p>
     <div class="grid2">${INP('su-first', 'First name', 'profile.first')}${INP('su-last', 'Last name', 'profile.last')}</div>
     <div class="hint">Shown on your booking page and in every email families get.</div>
-    ${INP('su-email', 'Login email', 'profile.loginEmail', { type: 'email', hint: 'You’ll log in with this. Your daily report comes here.' })}
+    ${INP('su-email', 'Login email', 'profile.loginEmail', { type: 'email', hint: 'You’ll log in with this. Your morning email comes here.' })}
     ${INP('su-pw', 'Password', 'auth.pw', { type: 'password', placeholder: 'At least 8 characters' })}
     ${pwRules()}
     ${B('Create account', 'primary', 'signupNext', { block: true, lg: true })}`),
@@ -127,7 +127,7 @@ SCREENS.signup = () => {
     ${codeBoxes(['3', '0', '7', '5', '', ''])}
     ${B('Verify email', 'primary', 'signupNext', { block: true, lg: true })}
     <p class="fine center"><a class="link" data-act="noop">Resend code</a> · <a class="link" data-act="signupBack">Change email</a></p>`, { cls: 'card--center' }),
-    help('Two emails, maybe one', '<p><b>Login email</b>: private. You sign in with it; your daily report goes there. Verified now, with a code.</p><p><b>Business email</b>: the reply address families see. Same as login? Already verified. Different? It gets its own link.</p>'),
+    help('Two emails, maybe one', '<p><b>Login email</b>: private. You sign in with it; your morning email goes there. Verified now, with a code.</p><p><b>Business email</b>: the reply address families see. Same as login? Already verified. Different? It gets its own link.</p>'),
     { steps: 1, ctx: 'Coach sign up', right: '' });
   if (step === 2) return authShell(card(`
     <h1 class="h1">How families reach you</h1><p class="lede">You can change any of this later from your profile.</p>
@@ -180,22 +180,24 @@ Object.assign(ACTIONS, {
 SCREENS.today = () => {
   const today = lessonsOn(TODAY);
   const ws = weekStart(TODAY), we = addDays(ws, 6);
-  const week = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we).flatMap(skatersIn);
+  // This week counts lesson times with a skater booked: a shared lesson once (owner, 2026-11-16); the amount is every share.
+  const weekTimes = state.lessons.filter(l => l.sid && l.iso >= ws && l.iso <= we), week = weekTimes.flatMap(skatersIn);
   const unpaid = state.lessons.filter(l => l.sid && isPast(l)).flatMap(skatersIn).filter(p => p.pay === 'UNPAID');
   const pend = pending();
   const next = today.find(l => l.sid && !isStarted(l));
-  const lessonRow = l => row(`<span class="tlist__t num">${fmtShortT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
+  const lessonRow = l => row(`<span class="tlist__t num">${fmtT(l.t)}</span>${l.sid ? avatar(initials(nameOf(l)), 'sm') : `<span class="roundicon">${ic('lock', 14)}</span>`}${rowTitle(l.sid ? esc(whoIn(l, false)) : 'Held slot', `${l.len} min${l.sid ? ' · ' + skatersIn(l).map(p => money(p.price)).join(' + ') : ' · not bookable'}${isShared(l) ? ' · shared lesson' : ''}`)}`,
     `${l === next ? badge('Next', 'primary') : ''}${l.sid ? skaterBadges(l) : ''}`, { cls: isStarted(l) && !(l === next) ? 'row--muted' : '' });
   const famSub = kids => kids.map(k => esc(k.name)).join(' & ') + ' · signed up ' + dShort(kids[0].since);
   return shell(`
     ${pageHead(`Good morning, ${esc(state.profile.first)}`, dLong(TODAY), B('Open week view', 'secondary', '', { href: href('calendar-week'), icon: 'calendar' }))}
     ${codePendingBanner()}
-    ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/coach/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
+    ${card(`<div class="rink-cta"><div class="rink-cta__text"><b>Heading to the rink?</b><span class="muted">Check skaters in from your phone at <span class="num">/rinkside</span>, with the same email and password. The link is in your morning email too.</span></div>${B('Open the rinkside app', 'primary', '', { lg: true, icon: 'phone', href: '../../rinkside/demo/index.html' })}</div>`)}
     <div class="stats">
-      ${stat('This week', plural(week.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
+      ${stat('This week', plural(weekTimes.length, 'lesson'), `${money(week.reduce((s, l) => s + l.price, 0))} booked`, 'calendar')}
       ${stat('Unpaid', money(unpaid.reduce((s, l) => s + l.price, 0)), plural(unpaid.length, 'past lesson'), 'card')}
       ${stat('Waiting for approval', plural(pend.length, 'skater'), pend.length ? families(pend).join(', ') : 'Nobody waiting', 'users')}
     </div>
+    ${codeCardA()}
     <div class="split split--today">
       ${card(today.length ? today.map(lessonRow).join('') + `<div class="card__note">${ic('info', 14)} Attendance comes from the rinkside app. Fix a mistake on ${A_('lessons', 'Lessons')}.</div>`
         : `<div class="pempty"><span class="pempty__icon">${ic('calendar', 22)}</span><b>No lessons today</b><span class="muted">Your next lesson is on Friday.</span></div>`,
@@ -213,16 +215,16 @@ SCREENS.today = () => {
 };
 
 PRESETS.push(
-  { id: 'CoachLogin', file: 'login', group: 'Sign in', title: 'Log in', note: 'New. Cognito sign-in with the forgot-password link and a pointer to the rinkside app.', setup: st => { st.authed = false; st.screen = 'login'; } },
-  { id: 'CoachForgot', file: 'forgot-password', group: 'Sign in', title: 'Forgot password — email a code', note: 'New. Cognito ForgotPassword sends a code to the login email (ADR-016 d3).', setup: st => { st.screen = 'forgot'; st.auth.step = 0; } },
-  { id: 'CoachForgotCode', file: 'forgot-password-code', group: 'Sign in', title: 'Forgot password — code and new password', note: 'New. ConfirmForgotPassword: code plus the new password rules.', setup: st => { st.screen = 'forgot'; st.auth.step = 1; } },
-  { id: 'CoachAccount', file: 'signup-1-account', group: 'Sign up', title: '1 · Account', note: 'From CoachAccount; first and last name split, as ADR-016 stores them.', setup: st => { st.screen = 'signup'; st.auth.signup = 0; } },
-  { id: 'CoachVerify', file: 'signup-2-verify', group: 'Sign up', title: '2 · Verify login email', note: 'From CoachVerify.', setup: st => { st.screen = 'signup'; st.auth.signup = 1; } },
+  { id: 'CoachLogin', file: 'login', group: 'Sign in', title: 'Log in', note: 'New. Cognito sign-in with the forgot-password link and a pointer to the rinkside app. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.authed = false; st.screen = 'login'; } },
+  { id: 'CoachForgot', file: 'forgot-password', group: 'Sign in', title: 'Forgot password — email a code', note: 'New. Cognito ForgotPassword sends a code to the login email (ADR-016 d3). BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.screen = 'forgot'; st.auth.step = 0; } },
+  { id: 'CoachForgotCode', file: 'forgot-password-code', group: 'Sign in', title: 'Forgot password — code and new password', note: 'New. ConfirmForgotPassword: code plus the new password rules. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.screen = 'forgot'; st.auth.step = 1; } },
+  { id: 'CoachAccount', file: 'signup-1-account', group: 'Sign up', title: '1 · Account', note: 'From CoachAccount; first and last name split, as ADR-016 stores them. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.screen = 'signup'; st.auth.signup = 0; } },
+  { id: 'CoachVerify', file: 'signup-2-verify', group: 'Sign up', title: '2 · Verify login email', note: 'From CoachVerify. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.screen = 'signup'; st.auth.signup = 1; } },
   { id: 'CoachBusiness', file: 'signup-3-business', group: 'Sign up', title: '3 · Business details — different email', note: 'From CoachBusiness; adds phone, one switch per payment type (Cash, Venmo, Cash App, PayPal; ADR-016 d7, amended 2026-10-12) No photo: photos are Phase 2 and families see the coach’s initials (ADR-016 d5, amended 2026-10-05).', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = false; } },
   { id: 'CoachBusinessSame', file: 'signup-3-business-same', group: 'Sign up', title: '3 · Business details — same email', note: 'From CoachBusinessSame.', setup: st => { st.screen = 'signup'; st.auth.signup = 2; st.auth.bizSame = true; } },
   { id: 'CoachConfirm', file: 'signup-4-confirm-email', group: 'Sign up', title: '4 · Confirm business email', note: 'From CoachConfirm. The coach code is shown as Not working yet: it starts working once the link is clicked (ADR-016, amended 2026-11-06).', setup: st => { st.screen = 'signup'; st.auth.signup = 3; st.profile.codePending = true; } },
   { id: 'CoachAllSet', file: 'signup-5-all-set', group: 'Sign up', title: '5 · All set', note: 'From CoachAllSet.', setup: st => { st.screen = 'signup'; st.auth.signup = 4; st.auth.bizSame = true; } },
-  { id: 'CoachTodayCodePending', file: 'today-code-pending', group: 'Dashboard', title: 'Today — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). Dana chose a different business email at sign-up and went to her dashboard without clicking the link. Her coach code doesn’t work until she does: the CODE# item is written only once the address is confirmed. The banner says so, with Resend link, Change address and Use my login email instead (which makes the code work at once).', setup: st => { st.screen = 'today'; st.profile.codePending = true; } },
-  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks, new families to approve, and a button to every page, including the financial summary.', setup: st => { st.screen = 'today'; } },
+  { id: 'CoachTodayCodePending', file: 'today-code-pending', group: 'Dashboard', title: 'Today — coach code not working yet', note: 'New (ADR-016, amended 2026-11-06). Dana chose a different business email at sign-up and went to her dashboard without clicking the link. Her coach code doesn’t work until she does: the CODE# item is written only once the address is confirmed. The banner says so, with Resend link, Change address and Use my login email instead (which makes the code work at once). The coach code card under the figures says Not working yet (owner, 2026-11-16).', setup: st => { st.screen = 'today'; st.profile.codePending = true; } },
+  { id: 'CoachToday', file: 'today', group: 'Dashboard', title: 'Today', note: 'New. The spec’s dashboard: a large link to the rinkside app (owner, 2026-10-13), today’s lessons (Sam and Leo share the 6:00), the numbers a coach checks (This week counts lesson times, a shared lesson once; owner, 2026-11-16), the coach code card under them (owner, 2026-11-16), new families to approve, and a button to every page, including the financial summary. Times read 1:00 PM (owner, 2026-11-16).', setup: st => { st.screen = 'today'; } },
 );
 

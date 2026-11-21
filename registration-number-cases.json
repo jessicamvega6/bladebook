@@ -1,0 +1,41 @@
+{
+  "_about": [
+    "Shared cases for the skater registration-number check, which exists in both Java (backend/core RegistrationNumbers) and TypeScript (web/src/shared/logic/registrationNumber.ts). ADR-013 decision 3b; ADR-029 decision 4; FeatureDecriptions/Client Sign Up, Registration number.",
+    "Every `expect` is written by hand. Never generate one from either implementation.",
+    "`expect.number` is the cleaned form that is stored; `expect.problem` is the message shown instead. The check is shape only: a message never hints that a number was looked up.",
+    "The USA Hockey season check digit is a setting (ADR-029) and is off in these cases; Java's own tests cover it."
+  ],
+
+  "cases": [
+    { "name": "a U.S. Figure Skating number is stored as typed when it's already clean",
+      "org": "USFS", "typed": "1234567", "expect": { "number": "1234567" } },
+    { "name": "spaces are dropped and letters uppercased",
+      "org": "USFS", "typed": " ab 12 cd ", "expect": { "number": "AB12CD" } },
+    { "name": "20 characters is the longest member number",
+      "org": "USFS", "typed": "12345678901234567890", "expect": { "number": "12345678901234567890" } },
+    { "name": "21 characters is too long",
+      "org": "USFS", "typed": "123456789012345678901", "expect": { "problem": "That’s too long for a member number." } },
+    { "name": "a dash is refused, not dropped",
+      "org": "USFS", "typed": "1234-567", "expect": { "problem": "Use letters and numbers only." } },
+    { "name": "an accented letter is refused",
+      "org": "LEARN_TO_SKATE_USA", "typed": "LTSÉ12", "expect": { "problem": "Use letters and numbers only." } },
+    { "name": "Learn to Skate USA takes letters and digits",
+      "org": "LEARN_TO_SKATE_USA", "typed": "lts4815", "expect": { "number": "LTS4815" } },
+    { "name": "a blank member number",
+      "org": "LEARN_TO_SKATE_USA", "typed": "   ", "expect": { "problem": "Enter the skater’s member number." } },
+    { "name": "a USA Hockey number: 14 characters, 9 digits and 5 letters",
+      "org": "USA_HOCKEY", "typed": "2027KQ4815MX3T", "expect": { "number": "2027KQ4815MX3T" } },
+    { "name": "a USA Hockey number typed in lower case with spaces",
+      "org": "USA_HOCKEY", "typed": "2027 kq48 15mx 3t", "expect": { "number": "2027KQ4815MX3T" } },
+    { "name": "a USA Hockey number one character short",
+      "org": "USA_HOCKEY", "typed": "2027KQ4815MX3", "expect": { "problem": "USA Hockey numbers are 14 characters: 9 digits and 5 letters." } },
+    { "name": "a USA Hockey number one character long",
+      "org": "USA_HOCKEY", "typed": "2027KQ4815MX3TT", "expect": { "problem": "USA Hockey numbers are 14 characters: 9 digits and 5 letters." } },
+    { "name": "14 characters with the wrong mix of digits and letters",
+      "org": "USA_HOCKEY", "typed": "20270481500X3T", "expect": { "problem": "USA Hockey numbers are 14 characters: 9 digits and 5 letters." } },
+    { "name": "a USA Hockey number with a symbol",
+      "org": "USA_HOCKEY", "typed": "2027KQ4815MX3!", "expect": { "problem": "Use letters and numbers only." } },
+    { "name": "a blank registration number",
+      "org": "USA_HOCKEY", "typed": "", "expect": { "problem": "Enter the skater’s registration number." } }
+  ]
+}

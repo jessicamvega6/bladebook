@@ -4,8 +4,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -36,31 +34,38 @@ public class SecurityConfig {
         return new CoachTokenRules(coachAppClientId, Duration.ofMinutes(signInMinutes));
     }
 
+    /** The rinkside page's routes: 4 hours from sign-in (ADR-023 d6; ADR-MASTER section 15). */
+    static final String RINKSIDE = "/api/coach/rinkside/";
+
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, CoachTokenRules rules, Clock clock, Environment env)
+    SecurityFilterChain securityFilterChain(HttpSecurity http, CoachTokenRules rules, Clock clock,
+                                            @Value("${bladebook.auth.coach-app-client-id}") String coachAppClientId,
+                                            @Value("${bladebook.auth.rinkside-sign-in-minutes:240}") long rinksideMinutes)
             throws Exception {
-        boolean local = env.acceptsProfiles(Profiles.of("local"));
+        CoachTokenRules rinkside = new CoachTokenRules(coachAppClientId, Duration.ofMinutes(rinksideMinutes));
         http.csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> {
                     a.requestMatchers(HttpMethod.GET, "/api/coach/health").permitAll();
-                    if (local) {
-                        a.requestMatchers(HttpMethod.POST, "/api/coach/local/token").permitAll();
-                    }
                     a.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(o -> o.jwt(j -> { }))
-                .addFilterAfter(new CoachTokenFilter(rules, clock), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new CoachTokenFilter(rules, rinkside, RINKSIDE, clock), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
     /**
-     * On AWS: Cognito's signing keys and issuer. Not exercised yet; nothing is deployed and the
-     * user pool doesn't exist (implementation plan, section 3).
+     * Cognito's signing keys and issuer: on AWS the environment's user pool; locally, dev's (ruling I31), whose settings
+     * {@code npm --prefix infra run dev-pool} writes to {@code ~/.bladebook/dev-pool.properties}. Only the tests and the
+     * seed generator use test-made tokens instead ({@code stub-tokens}, test code).
      */
     @Bean
-    @Profile("!local")
-    JwtDecoder cognitoJwtDecoder(@Value("${bladebook.auth.issuer}") String issuer) {
+    @Profile("!stub-tokens")
+    JwtDecoder cognitoJwtDecoder(@Value("${bladebook.auth.issuer:}") String issuer) {
+        if (issuer.isBlank()) {
+            throw new IllegalStateException("bladebook.auth.issuer isn't set. Locally, run `npm --prefix infra run dev-pool` "
+                    + "(signed in to dev's AWS account) so this API accepts dev's user pool's tokens.");
+        }
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(issuer + "/.well-known/jwks.json").build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer));
         return decoder;

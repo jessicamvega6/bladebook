@@ -6,6 +6,50 @@
 fees are calculated is not:** every question about it is in `docs/Q_Rink-Fees.md` (Part A for
 Kim, Part B for the owner), and this ADR is amended when they're answered.
 
+**Amended — 2026-11-12.** *Decided by the owner.* **Rink fees are Phase 2.** The calculation needs
+answers from outside BladeBook (`docs/Q_Rink-Fees.md`) that aren't available yet. In MVP the page
+shows year-to-date gross only (decisions 1, 2, 4 and 5 for gross), the summary download holds
+monthly gross and paid-lesson counts with no rink fees or net (decision 7), and the page says rink
+fee calculation is coming. Decisions 3, 6 and 8 apply from Phase 2. The page's note above the
+figures keeps the screen's line, *"Gross is money you've received,"* with the banner saying the
+figures come from lessons marked paid (implementation plan R10d).
+
+**Amended — 2026-11-13.** *Decided by the owner.* **A lesson from a closed year that is marked
+paid later counts in the year, and month, it was marked paid, flagged as for an earlier year.**
+Until then it counted in no year. The closed year itself is unchanged by a late payment (decision
+4). Every other paid lesson still counts by its lesson date (decision 2). The page labels the
+amount (*"Includes $30 for 2025 lessons"*), and the summary download gives it a column of its own
+(*"Of which for lessons in earlier years"*), so a tax preparer can see it. The page reads this
+year's lessons and last year's; a lesson from further back marked paid now isn't counted
+(implementation plan, Batch 12).
+
+**Amended — 2026-11-16.** *Ruled by the owner 2026-11-13 (G-36, option c); built in Batch 26.*
+**A closed year's figures are saved once, and read from then on.** When a year closes, its
+month-by-month figures (paid lessons, gross, the part for earlier years' lessons, and the part
+taken off for undone payments, each per currency) are saved on the coach's partition
+(`CLOSEDYEAR#<year>`), written only if not already there. The January job saves them for every
+coach; the first read of the closed year, or the first undo of one of its payments, saves them if
+the job hasn't. The page and the summary download read the saved figures, so neither undoing a
+payment nor old records being deleted (ADR-017; about 16 months after payment) changes a closed
+year. **A payment undone after the year it counted in has closed counts in the year and month it's
+undone**, as a late payment does: its amount comes off that month's gross, flagged as for an
+earlier year (*"Less $50 for 2025 lessons marked unpaid"*), ~~and the download's earlier-years
+column is net of it~~ *(ruled 2026-11-16: the download gives it a fifth column of its own,
+decision 7)*. The undo writes a correction (`PAYCORRECTION#`) in the same transaction as
+the seat. ~~An undo doesn't lower the count of paid lessons~~ *Ruled by the owner 2026-11-16: an
+undo lowers that month's count of paid lessons too, but a month's count never goes below zero*
+(decision 4; implementation plan, Batch 26).
+
+**Amended — 2026-11-16.** *Ruled by the owner 2026-11-15 (G-39), with waive allowed 2026-11-16;
+built in Batch 27.* **A lesson dated before January 1 of last year, in the coach's time zone, is
+view only on Payments:** it can't be marked paid, have how they paid changed or be undone, so a
+payment can only ever be recorded for a lesson in a year this page reads, and no payment counts in
+no year. The server refuses each change (*"Lessons from before January 1, 2025 can be viewed but
+not changed."*) and marks each row view only; the page shows *View only* in place of *Undo* and
+hides *Change* on how they paid. **An unpaid one can still be waived** (it asks first, as always):
+a waive never touches these figures, and it settles the lesson so the weekly unpaid reminder
+(ADR-018) stops listing it and its record can expire (ADR-017).
+
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
 **Relies on** [ADR-003](ADR-003-lesson-pricing-and-payment.md) (price stamped on the booking,
@@ -41,7 +85,7 @@ calculates rink fees or the coach types in what they paid. The owner settled bot
 
 ## Decision
 
-### 1. The page shows year-to-date gross and rink fees
+### 1. The page shows year-to-date gross and rink fees *(rink fees: Phase 2, 2026-11-12)*
 
 *Moved to `FeatureDecriptions/Coach Financial Page.md` ("The page shows") on 2026-11-08 — product content, not an architecture decision.*
 The input that drives the design: figures are computed per **calendar year**, in the coach's
@@ -61,7 +105,9 @@ missed-lesson fees, bucketed by lesson date (product rule — see
   fees are `PAID` `CANCELLED#` lines;
 - `WAIVED` and `UNPAID` items are excluded, so undoing a paid mark removes the item from gross
   with no extra bookkeeping;
-- the figure is computed from current state, keyed by the **lesson date**, not `paidAt`.
+- the figure is computed from current state, keyed by the **lesson date**, not `paidAt`;
+  *except (2026-11-13) a lesson from a closed year marked paid later, which is keyed by `paidAt`
+  in the coach's time zone and flagged as for an earlier year (decision 4).*
 
 ### 3. BladeBook calculates rink fees
 
@@ -71,8 +117,35 @@ out from the rink's terms and the coach's lessons. **How is open** (decision 8).
 ### 4. A finished year is closed
 
 *Decided by the owner, 2026-10-12, for now.* Once a calendar year ends, its figures are fixed.
-A lesson from that year marked paid afterwards doesn't change them, and under decision 2 it
-doesn't count in the new year either.
+A lesson from that year marked paid afterwards doesn't change them~~, and under decision 2 it
+doesn't count in the new year either~~. *Amended 2026-11-13 by the owner: it counts in the year
+and month it was marked paid, flagged as for an earlier year.* A year closes at midnight starting
+January 1 in the coach's time zone~~; nothing is stored when it closes, since the figures are
+worked out from the seats each time~~. *Ruled 2026-11-13 by the owner: each year's figures will be
+saved when it closes, so neither undoing a payment nor old records being deleted changes them
+(implementation plan Batch 26; this decision is amended when it's built).*
+
+*Amended 2026-11-16 (Batch 26):* **a closed year's figures are saved once and read from then
+on.** The item is `CLOSEDYEAR#<year>` on the coach's partition: the year's twelve months, each with
+`hasLessons`, `paidLessons`, `gross`, `earlierLessons`, `earlierGross`, `undoneLessons` and
+`undoneGross` (amounts per currency, in minor units), with `savedAt` and `savedBy` (`JOB`, `READ`
+or `UNDO`). It is written with a condition that it doesn't exist, so it is saved once and never
+changed. `sched-year-close` saves it for every coach on January 1–7, once each coach's year has
+closed; whichever comes first of that job, a read of the closed year (the download of last
+year) and an undo of one of its payments saves it. "Still unpaid" is this year's figure only, so
+it isn't saved. **A correction to a closed year counts in the year it's made:** a payment undone
+after the year it counted in has closed writes a `PAYCORRECTION#<undoneAt>#<seatKey>` item
+(`lessonDate`, `amountMinor`, `currency`, `forYear`, …) in the same transaction as the seat; it
+takes its amount off that month's gross, flagged as for an earlier year, and ~~doesn't lower the
+count of paid lessons~~ *(ruled by the owner 2026-11-16)* lowers that month's count of paid lessons
+by one, never below zero; the year's count is the sum of its months', on a saved year as on a live
+one. Marking the lesson paid again later counts as a late payment, so the two
+cancel out. A payment counts in its lesson's year, or the next year when paid during it; one paid
+later still counted in no year (G-39), and undoing it changes nothing. *Closed by Batch 27
+(2026-11-16): such a lesson is view only, so it can't be marked paid or undone.* *Ruled by the owner
+2026-11-16:* the Payments page asks before *Undo* on a payment that counted in a closed year
+(*"Undo a payment from 2025?"*); the server marks those rows, working the year out in the coach's
+time zone, so the page never does.
 
 ### 5. The page says what the figures are based on
 
@@ -95,7 +168,13 @@ What the export holds, and what is MVP or Phase 2, is product content — see
 - **MVP: a summary export** (comma-separated values, CSV) of monthly aggregates. It has **no
   skater names and no personal data**, so it isn't a personally identifiable information (PII)
   read under [ADR-012](ADR-012-pii-access-logging.md). It reads live data only, filtered on
-  `expiresAt` ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 1).
+  `expiresAt` ([ADR-017](ADR-017-data-retention-ttl-and-archive.md) decision 1). *Since
+  2026-11-16 (Batch 26), a closed year's download comes from its saved figures (decision 4).*
+  *Amended 2026-11-16 by the owner:* **five columns**, one row per month and a totals row:
+  *Month*, *Paid lessons* (net of undos, never below zero in a month), *Gross received* (net of
+  undos), *Of which for lessons in earlier years* (late payments only, never net of undos, so
+  never negative) and *Taken off for earlier years' lessons marked unpaid* (the undone amounts,
+  as a positive figure). Amounts are in the coach's currency.
 - **Phase 2: a detailed export** with skater names. It is mostly children's data leaving
   BladeBook in a file, so it is decided with the privacy rules; every such export would be a
   logged PII read (ADR-012).
@@ -112,7 +191,7 @@ Not decided. The answers in `Q_Rink-Fees.md` decide:
 - how rate changes apply to past months, and what each booking must store (questions 20–22).
 
 Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach Financial Page.md`,
-"Rink fees until the calculation is decided").
+"Rink fees until the calculation is decided"). *2026-11-12: rink fees are Phase 2; MVP shows no reading and no estimate.*
 
 ---
 
@@ -128,10 +207,15 @@ Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach F
   coach's ~~`BOOKING#<date>`~~ range for that year, keeping those marked paid. No new index is needed.
   *Replaced by ADR-031 decision 2 (2026-10-13): the range is the coach's `SEAT#<date>` items,
   one per skater. Phase 2's collected late-cancellation fees are on `CANCELLED#` lines.*
-- **A lesson paid after its year has closed is in no year's gross** (decision 4). A December
-  lesson marked paid in January is the usual case. Decision 5's statement is what tells the coach
-  to mark lessons paid before the year ends. Last year's summary export (decision 7) shows the
-  closed figures; revisit this when past years come on screen (Phase 2).
+- ~~**A lesson paid after its year has closed is in no year's gross** (decision 4).~~ *Amended
+  2026-11-13: it is in the gross of the year it was marked paid, flagged as for an earlier year.*
+  A December lesson marked paid in January is the usual case. Last year's summary export
+  (decision 7) shows the closed figures, and this year's shows the flagged amount in its own
+  column; revisit this when past years come on screen (Phase 2).
+- **A closed year is read from its saved figures** (*amended 2026-11-16, Batch 26*), not the
+  seats, so the seats' retention no longer limits last year's download. The saved item and the
+  corrections hold no names or personal data. Phase 2's past years on screen can read the saved
+  years, as far back as they go.
 - **Retention keeps a year's paid lessons.** *Settled 2026-10-12:* every ADR-017 window holding
   lesson or payment records is at least **16 months**, so a calendar year's records stay live
   until the US and most Canadian filing deadlines (`Open-Pending.md` §8). Phase 2's past years
@@ -143,7 +227,8 @@ Until then, the Harbor design shows one reading (see `FeatureDecriptions/Coach F
   doesn't rewrite past months.
 - **The figure is used for a tax deduction,** so a wrong calculation costs the coach. Until the
   model is confirmed with Kim, the page labels it an estimate (see
-  `FeatureDecriptions/Coach Financial Page.md`, "Rink fees until the calculation is decided").
+  `FeatureDecriptions/Coach Financial Page.md`, "Rink fees until the calculation is decided"). *2026-11-12: rink fees
+  are Phase 2; MVP shows no reading and no estimate.*
 
 ---
 

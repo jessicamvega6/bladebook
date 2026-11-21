@@ -1,0 +1,177 @@
+# Deploys one tagged version to one environment (ADR-032, amended 2026-11-19, I29). Started by hand from main, with
+# a tag that CI made on a merge into main. It ships the Lambda archives attached to that tag's release, after checking
+# their SHA-256 sums: exactly what CI tested, never a rebuild.
+#
+# - dev: the GitHub environment `dev`, main only. Deploys the account stack and the app stack.
+# - production: the GitHub environment `production`, main only, waits for the owner's approval. Refuses to run until
+#   production's account ID is in infra/lib/config.ts. ADR-032's post-deploy check is added with production.
+# The app stack uploads the tag's websites itself (17c). Not here: the deploy-access stack, which holds this workflow's
+# own role and is deployed by hand.
+#
+# ADR-032 d2: actions pinned to full commit hashes; AWS reached only through OpenID Connect, with no stored keys; the
+# role trusts only this repository's environment. Deploy-time settings are environment secrets, so the public run
+# log masks them.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The version to deploy: a tag CI made on main, such as v2026.11.19.42'
+        required: true
+        type: string
+      environment:
+        description: 'Where to deploy it'
+        required: true
+        type: choice
+        options: [dev, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.tag }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write   # this job only: OpenID Connect to AWS
+    env:
+      TAG: ${{ inputs.tag }}
+      GITHUB_ENVIRONMENT: ${{ inputs.environment }}
+    steps:
+      - name: Refuse anything but main and a CI tag
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Start the deploy from main, not $GITHUB_REF"; exit 1; }
+          [[ "$TAG" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]] || { echo "::error::$TAG isn't a version tag"; exit 1; }
+
+      - name: Check out the tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Refuse a tag not built from main
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          git merge-base --is-ancestor HEAD origin/main || { echo "::error::$TAG isn't on main"; exit 1; }
+
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: infra/package.json   # reads "engines.node"
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install the infrastructure's dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: Find the environment's account and stacks
+        id: target
+        working-directory: infra
+        run: |
+          node --input-type=module -e "
+            const { environments, resourcePrefix } = await import('./lib/config.ts');
+            const cfg = environments.find((e) => e.github.environment === process.env.GITHUB_ENVIRONMENT);
+            if (!cfg) { console.error('::error::No environment ' + process.env.GITHUB_ENVIRONMENT + ' in lib/config.ts'); process.exit(1); }
+            if (!cfg.account) { console.error('::error::' + cfg.envName + ' has no account yet (lib/config.ts): nothing to deploy to'); process.exit(1); }
+            const prefix = resourcePrefix(cfg);
+            const out = [
+              'account=' + cfg.account,
+              'region=' + cfg.region,
+              'role=arn:aws:iam::' + cfg.account + ':role/' + prefix + '-github-deploy',
+              'stacks=' + prefix + '-identity ' + prefix + '-app',
+            ];
+            (await import('node:fs')).appendFileSync(process.env.GITHUB_OUTPUT, out.join('\n') + '\n');
+          "
+
+      - name: Fetch the tag's Lambda archives and websites, and check their sums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/archives"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/archives"
+          (cd "$RUNNER_TEMP/archives" && sha256sum --check --strict SHA256SUMS)
+          for m in api-coach api-client consumers; do
+            mkdir -p "backend/$m/target"
+            cp "$RUNNER_TEMP/archives/$m-lambda.zip" "backend/$m/target/"
+          done
+          # The stack uploads them to each website's bucket (infra/lib/website.ts, 17c).
+          mkdir -p web/dist-sites
+          tar -xzf "$RUNNER_TEMP/archives/websites.tar.gz" -C web/dist-sites
+          test -f web/dist-sites/coach/index.html && test -f web/dist-sites/family/index.html
+
+      - name: Refuse a dev deploy without the test mailbox
+        if: inputs.environment == 'dev'
+        env:
+          TEST_MAILBOX: ${{ secrets.TEST_MAILBOX }}
+        run: |
+          # Without it, the account stack treats dev as having no test mailbox and deletes the test accounts and the
+          # mailbox's SES identity (ADR-027, I15). Stops before anything in AWS changes. Prints neither the value nor
+          # what's wrong with it, only that it isn't usable.
+          if [[ ! "$TEST_MAILBOX" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+            echo "::error::The dev environment's TEST_MAILBOX secret is missing or isn't an email address. Set it (Settings → Environments → dev) and run again."
+            exit 1
+          fi
+          echo "TEST_MAILBOX: set"
+
+      - name: Mask the deploy-time settings
+        env:
+          TEST_MAILBOX: ${{ secrets.TEST_MAILBOX }}
+        run: |
+          # The mailbox itself is masked as a secret. Its domain shows on its own in the SES identity and the DKIM
+          # outputs, so it is masked too (the repo is public, and so are its run logs: ADR-027, I15).
+          if [ -n "$TEST_MAILBOX" ]; then echo "::add-mask::${TEST_MAILBOX#*@}"; fi
+
+      - name: Sign in to AWS through OpenID Connect
+        env:
+          ROLE: ${{ steps.target.outputs.role }}
+        run: |
+          set -euo pipefail
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          creds=$(aws sts assume-role-with-web-identity --role-arn "$ROLE" \
+            --role-session-name "deploy-${GITHUB_RUN_ID}" --web-identity-token "$token" \
+            --duration-seconds 3600 --query Credentials --output json)
+          for k in AccessKeyId SecretAccessKey SessionToken; do echo "::add-mask::$(jq -r ".$k" <<<"$creds")"; done
+          {
+            echo "AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<<"$creds")"
+            echo "AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds")"
+            echo "AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds")"
+            echo "AWS_REGION=${{ steps.target.outputs.region }}"
+          } >> "$GITHUB_ENV"
+          # $GITHUB_ENV reaches later steps only, so this check is given the credentials itself.
+          AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<<"$creds") AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds") \
+            AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds") AWS_REGION="${{ steps.target.outputs.region }}" \
+            aws sts get-caller-identity --query Arn --output text
+
+      - name: Deploy
+        working-directory: infra
+        env:
+          STACKS: ${{ steps.target.outputs.stacks }}
+          TEST_MAILBOX: ${{ secrets.TEST_MAILBOX }}
+          PAGE_PHONE: ${{ secrets.PAGE_PHONE }}
+          PAGE_EMAIL: ${{ secrets.PAGE_EMAIL }}
+        run: |
+          set -euo pipefail
+          context=()
+          if [ -n "$TEST_MAILBOX" ]; then context+=(-c "testMailbox=$TEST_MAILBOX"); fi
+          if [ -n "$PAGE_PHONE" ]; then context+=(-c "pagePhone=$PAGE_PHONE"); fi
+          if [ -n "$PAGE_EMAIL" ]; then context+=(-c "pageEmail=$PAGE_EMAIL"); fi
+          # --app skips cdk.json's Maven and website builds: the archives and websites are the tag's, fetched above.
+          # shellcheck disable=SC2086
+          npx cdk deploy $STACKS --app 'node bin/bladebook.ts' "${context[@]}" \
+            --require-approval never --progress events
+          echo "Deployed **$TAG** to **$GITHUB_ENVIRONMENT**." >> "$GITHUB_STEP_SUMMARY"

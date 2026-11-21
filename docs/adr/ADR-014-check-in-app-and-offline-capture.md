@@ -22,10 +22,10 @@ item-type separation) stands.
 **Superseded in part — 2026-10-05** by [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md).
 Decisions **10** (a separate Cognito app client) and **11** (a separate function,
 `api-checkin`) are withdrawn, with the parts of **11a** about `api-checkin`'s role. Check-in
-is a section of the coach website at `/coach/rinkside`, signs in through the website's app
+is a section of the coach website at ~~`/coach/rinkside`~~ `/rinkside/` *(ADR-023, 2026-11-16)*, signs in through the website's app
 client, and its routes run in `api-coach`. A recent sign-in guards schedule saves instead.
 Every decision about working at the rink stands: 1, 1a, 2a, 3, 4, 4a, 5 (service worker now
-scoped to `/coach/rinkside/`), 5a, 6, 7, 8 and 9b.
+scoped to ~~`/coach/rinkside/`~~ `/rinkside/`, I14), 5a, 6, 7, 8 and 9b.
 
 **Amended — 2026-10-13.** *Decided by the owner.* Since ADR-023's amendment of 2026-10-12 the
 rinkside page runs in an ordinary browser tab, where Safari may remove the site's stored data
@@ -50,6 +50,12 @@ seat is moved to a `CANCELLED#` line in the same transaction that deletes it (de
 replay onto it finds no seat and fails, exactly as before. ADR-009's coach-held booking is now a
 **held lesson time** with no seats (decision 1). Every behaviour rule here still holds.
 
+**Amended — 2026-11-11.** *Decided by the owner:* the end-of-day report is **Phase 2**. Decision 7
+stands for when it ships. Its core rule applies in MVP without the report: a seat with no
+recorded outcome is *Not recorded* on Payments and the lesson list, and "attendance not recorded"
+in the weekly unpaid reminder (ADR-018), never a no-show. Until the report ships, nothing prompts
+the coach each evening about an unrecorded lesson or a phone that hasn't sent its queue.
+
 ---
 
 ## Context
@@ -70,7 +76,7 @@ different in two ways that matter:
 
 `CheckInRecorded` also drives the payment reminder (§6.3) and partitions the end-of-day
 report into attended versus no-show (§6.4), so a check-in that never arrives is not
-merely a missing record.
+merely a missing record. *The end-of-day report is Phase 2 (2026-11-11).*
 
 ---
 
@@ -547,7 +553,7 @@ whole story.
 - ~~How long a queued check-in may sit before it is escalated.~~ **Settled 2026-09-30:** it
   no longer expires (decision 2a). It is sent in the background on Android and Chrome, or
   when the app next opens on an iPhone (decision 1a), and the lesson shows as *pending* in
-  the end-of-day report until it arrives.
+  the end-of-day report *(Phase 2 since 2026-11-11; in MVP it shows as Not recorded on Payments and the lesson list)* until it arrives.
 - ~~How long rejected entries stay on the phone.~~ **Settled 2026-09-30:** until Done, or 7
   days — decision 4a.
 - ~~An evening push to coaches with unrecorded lessons.~~ **Declined by the owner,

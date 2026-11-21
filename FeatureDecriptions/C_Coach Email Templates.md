@@ -9,7 +9,8 @@ The coach sees what each automatic email says and chooses which ones go out.
 
 Emails families get:
   Booking confirmation: when a family books.
-  Day-of reminder: the morning of each lesson.
+  Day-of reminder: the morning of each lesson day, one email per family listing that day's lessons (owner,
+    2026-11-13).
   Payment reminder: after a lesson is checked in. Includes the coach's payment instructions, and their
     payment types they have switched on in their profile (one switch per type, ADR-016 d7).
   Lesson cancelled by you: when the coach cancels a lesson, day or week. Always sent.
@@ -18,7 +19,7 @@ Emails families get:
 
 Emails the coach gets:
   Morning email: around 7 AM on days with lessons. The rinkside link first, then the day's lessons. Sent to your login email. (ADR-023, 2026-10-13; address 2026-10-15)
-  Daily report: every evening at 9 PM.
+  ~~Daily report: every evening at 9 PM.~~ *Phase 2 (owner, 2026-11-11)*: the daily report isn't in MVP; on this page it carries a Phase 2 tag.
   A family cancelled late: when a family cancels inside your notice period. (ADR-009, settled 2026-10-08)
   Unpaid lessons: weekly, on Monday morning.
 

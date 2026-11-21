@@ -5,7 +5,8 @@
 import { describe, expect, test } from 'vitest';
 import cases from '../../../../schedule-cases.json';
 import {
-  addDays, formatMoney, oddCentsWarning, parseMoney, problems, range, slots, templateBlocks, weekStart, type Template,
+  addDays, dateRange, datesBetween, forDate, formatMoney, lessonsOn, oddCentsWarning, parseMoney, problems, range, slots, specialProblems,
+  templateBlocks, tempProblems, weekStart, type Template,
 } from './schedule';
 
 type RawTemplate = Record<string, unknown>;
@@ -87,5 +88,40 @@ describe('the rest', () => {
     expect(oddCentsWarning(4500, 2)).toBeNull();
     expect(oddCentsWarning(4501, 1)).toBeNull();
     expect(oddCentsWarning(null, 2)).toBeNull();
+  });
+});
+
+describe('time off and special schedules', () => {
+  const TG = { tempId: 'tg', kind: 'TIME_OFF' as const, displayName: 'Thanksgiving break', startDate: '2026-11-22', endDate: '2026-11-28' };
+
+  test('date ranges read as the design writes them', () => {
+    expect(dateRange('2026-12-21', '2026-12-21')).toBe('Dec 21');
+    expect(dateRange('2026-12-21', '2026-12-27')).toBe('Dec 21 – 27');
+    expect(dateRange('2026-11-30', '2026-12-04')).toBe('Nov 30 – Dec 4');
+    expect(datesBetween('2026-12-30', '2027-01-02')).toEqual(['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02']);
+    expect(datesBetween('2026-12-30', '2026-12-29')).toEqual([]);
+  });
+
+  test('an overlap names the other one, the shared dates and the way out, as the server does', () => {
+    expect(tempProblems('TIME_OFF', '', '2026-11-23', '2026-11-24', [TG], '2026-10-14', null, null)).toEqual([
+      'These dates overlap Thanksgiving break (Nov 22 – 28) on Nov 23 – 24. Edit Thanksgiving break to change those days, or choose dates outside it.']);
+    expect(tempProblems('TIME_OFF', '', '2026-11-29', '2026-11-30', [TG], '2026-10-14', null, null)).toEqual([]);
+    expect(tempProblems('TIME_OFF', 'x', '2026-11-22', '2026-11-30', [TG], '2026-10-14', 'tg', null)).toEqual([]);
+  });
+
+  test('missing, backwards, past and too-long ranges are refused in each kind’s words', () => {
+    expect(tempProblems('TIME_OFF', '', '', '', [], '2026-10-14', null, null)).toEqual(['Time off needs a first and last day.']);
+    expect(tempProblems('SPECIAL', '', '2026-10-20', '2026-10-19', [], '2026-10-14', null, null)).toEqual(['The end date is before the start date.']);
+    expect(tempProblems('TIME_OFF', '', '2026-10-13', '2026-10-15', [], '2026-10-14', null, null)).toEqual(['The first day off can’t be in the past.']);
+    expect(tempProblems('SPECIAL', '', '2026-10-12', '2026-10-15', [], '2026-10-14', 'c', '2026-10-12')).toEqual([]);
+    expect(tempProblems('SPECIAL', '', '2026-11-01', '2026-12-02', [], '2026-10-14', null, null)).toEqual(['A special schedule can be at most 31 days.']);
+  });
+
+  test('a special schedule’s blocks are checked once for every date, and a time off on one date stays on that date', () => {
+    const a: Template = { seq: 1, name: 'Morning ice', startTime: '06:00', endTime: '11:00', lessonMinutes: 60, priceMinor: 5000, maxSkaters: 1, iceType: 'PUBLIC', days: [], off: { '2026-12-22': ['07:00'] } };
+    const b: Template = { ...a, seq: 2, name: '', startTime: '10:00', endTime: '17:00' };
+    expect(specialProblems([a, b])).toEqual(['On these dates, Morning ice (6–11 AM) and Block 2 (10 AM–5 PM) overlap in time.']);
+    expect(lessonsOn(forDate(a, '2026-12-21'), 1)).toBe(5);
+    expect(lessonsOn(forDate(a, '2026-12-22'), 2)).toBe(4);
   });
 });

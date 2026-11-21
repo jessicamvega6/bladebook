@@ -62,7 +62,55 @@ release-or-hold still applies to *this lesson* and *this day*, never once for a 
 Decision 6 still holds: the weekly schedule isn't touched, so the following week is unaffected.
 Decision 7's button still states the range and count, now of booked lessons and open times.
 **The rinkside page's whole week (decision 5a) works the same way.** A whole day, part of a day
-or week, specific lessons and the check-in list still ask release-or-hold per lesson.
+or week, specific lessons and the check-in list still ask release-or-hold per lesson. *(2026-11-16:
+"part of a day or week" was dropped; see that day's amendment.)*
+
+**Amended — 2026-11-16.** *Decided by the owner while reviewing Batch 23 (the rinkside Week tab).*
+**The rinkside page cancels one lesson, a whole day, or the rest of the week, and nothing in
+between.** Decision 5a's "part of a day" and "part of a week" (a multi-select of lessons) are
+dropped: to cancel lessons on different days, the coach cancels each one on its own. So
+`batchSource` keeps its values (`LESSON`, `DAY`, `WEEK`); a lesson cancelled on its own is a
+`LESSON` batch and a whole day a `DAY` batch, and a family with two lessons cancelled separately
+gets two emails (decision 9, once per batch). A whole day still asks release-or-hold for each
+lesson (S9); the rest of the week still holds everything with no question (S8). The Week tab lists,
+for each day from today to Saturday, the lessons that can still be cancelled and the open times,
+worked out by the same plan *Cancel rest of week* carries out, so the whole-week confirmation shows
+exactly what it holds. (Built first with a fourth value, `SELECTION`, for picks across days; the
+owner ruled it out the same day, and it was never merged.)
+
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I8 in `AI/plan-history.md`).*
+**A coach's cancel of more than one lesson writes its whole plan before carrying any of it out**,
+the way a schedule save does (ADR-MASTER §9): the change-batch header, then a `PLANNED`
+`CANCELLED#` line for every seat it cancels and a planned hold for every open time it closes, each
+carrying the coach's release-or-hold choice; then each lesson in turn, marking its lines
+`EXECUTED`; then the header. A failure part-way leaves every remaining lesson written down, so it
+can be finished: `sched-drift-check` hands a batch unfinished for over an hour to
+`consumer-schedule-change`, which carries out the remaining lines (ADR-010 d5k, amended the same
+day). Before this, the lines were written `EXECUTED` one lesson at a time, so a failure left the
+rest of the coach's choice recorded nowhere (root `README.md` SC-14).
+
+**Amended — 2026-11-18.** *Decided by the owner (ruling I24 in `AI/plan-history.md`), while building
+the 2026-11-17 amendment above.* That amendment had no place to plan a lesson nobody booked: a
+`CANCELLED#` line is one per booked seat. The owner changed the feature instead:
+**a whole day or the rest of the week is time off, not a cancellation lesson by lesson.**
+- *Cancel this day* and *Cancel rest of week* (on the website and the rinkside page) write a **time
+  off named "Cancelled"** for those dates (ADR-008: a temporary schedule with no blocks), from today
+  on for the week. **There is no release-or-hold question**, and nothing is held: the times leave the
+  booking page, as for any time off. The coach can rename or delete it like any time off.
+- **Inside a special schedule**, that schedule's times are switched off on those dates and the rest of
+  it stays; dates already in a time off are already empty. A cancel never shows an overlap error.
+- **The schedule change** (ADR-006, ADR-MASTER §9) cancels the booked lessons in one planned batch,
+  run in the same request and **recorded as the coach's** (`cancelledBy = COACH`, `batchSource`
+  `DAY` or `WEEK`), so families get the *cancelled by the coach* email (decision 9) and a batch that
+  stops part-way is finished like any schedule change. This replaces the 2026-11-17 amendment's
+  multi-lesson plan.
+- **Lessons that have started stay**, with their attendance and payment.
+- **Only *this lesson* asks release or hold** (decision 5), and it is one transaction, so it can't stop
+  part-way.
+
+So the 2026-11-08 and 2026-11-16 amendments' "the rest of the week holds everything" and "a whole day
+still asks release-or-hold for each lesson", and decisions 5 and 5a where they apply to a day or a
+week, no longer describe what happens.
 
 ---
 
@@ -262,7 +310,8 @@ booked slots with the student's name. Cancellation happens from there, in three 
 3. **This week** — an emergency.
 
 Each asks one question: **release the time for rebooking, or keep it unbookable?** *This week
-always holds, and holds open times too (Status, 2026-11-08).*
+always holds, and holds open times too (Status, 2026-11-08).* *Since 2026-11-18 (I24) only a single
+lesson asks; a day or a week is time off (Status).*
 
 - **Release** — ~~the booking item is deleted.~~ *each seat moves to a `CANCELLED#` line and
   the lesson time goes back to `OPEN` (ADR-031 decision 2, 2026-10-13).* The slot returns to
@@ -290,7 +339,7 @@ seats, and only seats carry index keys.)*
 | Index | Effect of omission |
 |---|---|
 | GSI1 (by student) | Invisible — it has no student |
-| GSI2 (by date) | The 7am reminder and 9pm report never see it, so nothing tries to email a client who does not exist |
+| GSI2 (by date) | The 7am reminder and 9pm report never see it, so nothing tries to email a client who does not exist. *The end-of-day report is Phase 2 (2026-11-11).* |
 | GSI3 (unpaid, sparse) | Never appears as a debt |
 
 This is the same sparse-index behaviour ADR-003 decision 5 relies on, applied to a
@@ -312,6 +361,7 @@ anything else in range, and not a feature.
 *Added 2026-09-22.* The rinkside app offers cancellation from a cancel section and from the
 check-in list (screens and rules: `FeatureDecriptions/Coach App`, moved 2026-11-08).
 
+*Since 2026-11-18 (I24, Status), a whole day and the whole week are time off, with no question.*
 *Amended 2026-11-08 (Status):* the cancel section's **whole week** holds every booked lesson and
 open time left in the week, with no release-or-hold question, like the week view's *Cancel rest
 of week*. Everything else below still applies to the other choices.
@@ -324,10 +374,12 @@ preview-then-accept step (decision 8), and it notifies clients once per batch (d
 A cancel from the check-in list is a batch of one, like a single-lesson cancel from the
 week view.
 
-**"Part of a day" and "part of a week" are a multi-select of *this lesson*** (product rule,
+~~**"Part of a day" and "part of a week" are a multi-select of *this lesson*** (product rule,
 owner 2026-09-22 — see `FeatureDecriptions/cancelation.md`, "Coach cancelation"), so they need no
 new machinery: the same batch header, the same lines, the same release-or-hold answer per lesson,
-the same preview. Kept slots become ~~`COACH_HELD`~~ *held lesson times (`HELD`, ADR-031 decision
+the same preview.~~ *Amended 2026-11-16 (owner): there is no "part of" a day or week. The rinkside
+page cancels one lesson, a whole day or the rest of the week; lessons on different days are
+cancelled one by one.* Kept slots become ~~`COACH_HELD`~~ *held lesson times (`HELD`, ADR-031 decision
 1, 2026-10-13)*.
 
 **Cancellation is never queued offline** (product rule, owner 2026-09-30 — the rinkside app
@@ -494,7 +546,8 @@ scoping rules. They must share the impact computation, or they will diverge.
   accumulating faster.
 - ~~What do "part of a day" and "part of a week" mean in the rinkside app?~~ **Settled
   2026-09-22: a multi-select of lessons**, release-or-hold per lesson — see decision 5a and
-  `FeatureDecriptions/cancelation.md`.
+  `FeatureDecriptions/cancelation.md`. *Re-settled 2026-11-16 (owner): neither exists; one lesson,
+  a whole day or the rest of the week only.*
 - **Cancellation in the rinkside app widens ADR-014's open question.** A check-in-only Lambda
   could have a role limited to a `Query` on GSI2 plus a conditional `UpdateItem`.
   Cancellation needs the batch writes and the notification path too. It also means a

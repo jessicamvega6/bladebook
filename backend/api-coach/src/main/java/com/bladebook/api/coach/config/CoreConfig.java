@@ -1,13 +1,30 @@
 package com.bladebook.api.coach.config;
 
+import com.bladebook.core.data.AttendanceRepository;
+import com.bladebook.core.data.CancellationRepository;
+import com.bladebook.core.data.PaymentRepository;
 import com.bladebook.core.data.CoachRepository;
+import com.bladebook.core.data.FinancialRepository;
 import com.bladebook.core.data.LocalTable;
 import com.bladebook.core.data.ScheduleRepository;
+import com.bladebook.core.data.StudentRepository;
+import com.bladebook.core.data.SyncRepository;
 import com.bladebook.core.data.TenantClients;
+import com.bladebook.core.service.AttendanceService;
 import com.bladebook.core.service.CalendarService;
+import com.bladebook.core.service.ClosedYearJob;
+import com.bladebook.core.service.FinancialService;
+import com.bladebook.core.service.RinksideWeekService;
+import com.bladebook.core.service.Mailer;
+import com.bladebook.core.service.PaymentService;
+import com.bladebook.core.service.CoachCancelService;
 import com.bladebook.core.service.CoachProfileService;
 import com.bladebook.core.service.ScheduleChangeService;
 import com.bladebook.core.service.ScheduleService;
+import com.bladebook.core.service.StudentLinkService;
+import com.bladebook.core.service.StudentService;
+import com.bladebook.core.service.TempScheduleService;
+import com.bladebook.core.service.TodayService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,12 +41,24 @@ public class CoreConfig {
      * DynamoDB Local. {@link TenantClients#local} refuses any endpoint that isn't localhost. The
      * table is made on start if it's missing.
      */
+    /**
+     * On AWS: the tenant roles, assumed per request with the caller's tags (ADR-MASTER section 16). Their ARNs come from
+     * the function's environment.
+     */
+    @Bean
+    @Profile("!local")
+    TenantClients awsTenantClients(@Value("${bladebook.roles.coach-tenant}") String coachTenant) {
+        return TenantClients.aws(new TenantClients.Roles(coachTenant, null, null));
+    }
+
     @Bean
     @Profile("local")
     TenantClients localTenantClients(@Value("${bladebook.dynamodb.endpoint}") URI endpoint,
                                      @Value("${bladebook.table}") String table) {
         TenantClients clients = TenantClients.local(endpoint);
         LocalTable.ensure(clients.forSetup(), table);
+        LocalTable.backfillSeatIndexes(clients.forSetup(), table); // seats from before Batch 13
+        clients.localStream().switchOn(); // SC-20: each request's writes go to the consumers afterwards
         return clients;
     }
 
@@ -39,8 +68,11 @@ public class CoreConfig {
     }
 
     @Bean
-    CoachProfileService coachProfileService(CoachRepository repo) {
-        return new CoachProfileService(repo, CoachProfileService.randomCodes());
+    CoachProfileService coachProfileService(CoachRepository repo, Mailer mailer, Clock clock,
+                                            @Value("${bladebook.coach-site-url:http://localhost:5173/coach}") String site) {
+        // The business-email confirmation link is sent straight from api-coach (ADR-016, amended 2026-11-12).
+        return new CoachProfileService(repo, CoachProfileService.randomCodes(),
+                new CoachProfileService.ConfirmationMail(mailer, site, clock, CoachProfileService.randomTokens()));
     }
 
     @Bean
@@ -60,7 +92,81 @@ public class CoreConfig {
     }
 
     @Bean
-    CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, Clock clock) {
-        return new CalendarService(schedules, coaches, clock);
+    CalendarService calendarService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
+        return new CalendarService(schedules, coaches, students, clock);
+    }
+
+    /** The Payments page (Batch 8). */
+    @Bean
+    PaymentService paymentService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
+                                  StudentRepository students, CoachRepository coaches, Clock clock) {
+        return new PaymentService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
+    }
+
+    /** The Today page's lessons and figures (Batch 22, G-6). */
+    @Bean
+    TodayService todayService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
+                              StudentRepository students, CoachRepository coaches, Clock clock) {
+        return new TodayService(new PaymentRepository(clients, table), schedules, students, coaches, clock);
+    }
+
+    /**
+     * The financial page and its download (Batch 12), built on the Payments page's rows; a closed year is read from its
+     * saved figures (Batch 26).
+     */
+    @Bean
+    FinancialService financialService(PaymentService payments, CoachRepository coaches, TenantClients clients,
+                                      @Value("${bladebook.table}") String table, Clock clock) {
+        return new FinancialService(payments, coaches, new FinancialRepository(clients, table), clock);
+    }
+
+    /** {@code sched-year-close} (Batch 26): saves last year's figures for every coach in the first days of January. */
+    @Bean
+    ClosedYearJob closedYearJob(com.bladebook.core.data.NotifyRepository repo, FinancialService finances) {
+        return new ClosedYearJob(repo, finances);
+    }
+
+    /** Attendance: the rinkside page and the Lessons page (Batch 7). */
+    @Bean
+    AttendanceService attendanceService(TenantClients clients, @Value("${bladebook.table}") String table, ScheduleRepository schedules,
+                                        StudentRepository students, CoachRepository coaches, Clock clock) {
+        return new AttendanceService(new AttendanceRepository(clients, table), schedules, students, coaches,
+                new CancellationRepository(clients, table), clock);
+    }
+
+    /** The rinkside Week tab (Batch 23). */
+    @Bean
+    RinksideWeekService rinksideWeekService(ScheduleRepository schedules, CoachRepository coaches, StudentRepository students, Clock clock) {
+        return new RinksideWeekService(schedules, coaches, students, clock);
+    }
+
+    /** Time off and special schedules (Batch 6). */
+    @Bean
+    TempScheduleService tempScheduleService(ScheduleRepository schedules, CoachRepository coaches, ScheduleChangeService change, Clock clock) {
+        return new TempScheduleService(schedules, coaches, change, clock);
+    }
+
+    /** Cancelling from the calendar (Batch 5). */
+    @Bean
+    CoachCancelService coachCancelService(ScheduleRepository schedules, TenantClients clients, @Value("${bladebook.table}") String table,
+                                          ScheduleChangeService change, CoachRepository coaches, Clock clock) {
+        // A day or the rest of the week is time off, cancelled by the schedule change in this request (I24).
+        return new CoachCancelService(schedules, new CancellationRepository(clients, table), change, coaches, clock);
+    }
+
+    @Bean
+    StudentRepository studentRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new StudentRepository(clients, table);
+    }
+
+    @Bean
+    StudentService studentService(StudentRepository students) {
+        return new StudentService(students);
+    }
+
+    /** What consumer-student-link will run on AWS; locally {@code LocalEventDispatcher} calls it. */
+    @Bean
+    StudentLinkService studentLinkService(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new StudentLinkService(new SyncRepository(clients, table));
     }
 }

@@ -6,8 +6,28 @@ Lesson scheduling for skating coaches and the families they teach. The design li
 
 **Where the build stands:** Batch 1 — the walking skeleton, the coach's business-details sign-up
 step, Profile → Details and Payments, and the coach code. Batch 2 — the weekly schedule editor, the
-lesson times it makes, and the coach's month, week and day calendars. Everything runs on this
-computer only; nothing is deployed.
+lesson times it makes, and the coach's month, week and day calendars. Batch 3 — family sign-up with
+coach codes, the waiting family's Home and Profile, and the coach's Students and Waiting for approval
+tabs (approve, approve all, decline). Batch 4 — booking one lesson: the family picks a day, picks times
+with one or more coaches, confirms and sees what was booked; the approved family's Home has Book a lesson,
+Today and Coming up; the coach's calendars name who is booked. Batch 5 — cancelling one lesson: the
+family's My bookings, with Cancel on each lesson; the coach cancels a lesson, a day or the rest of the week
+from the calendar, releasing or holding each time. Batch 6 — time off and special schedules, and the review
+before every schedule save: what it cancels and re-prices, a big price change to confirm, then the save status.
+Batch 7 — the rinkside page online (today's lessons, Present / No-show, contact details on a tap, cancelling one
+lesson) and the coach's Lessons page for correcting attendance. Batch 8 — the coach's Payments page: mark paid with how they paid, waive (final), undo paid. Batch 9 — repeating bookings: book a series, see it on My bookings and Home, and end it earlier, make it less frequent or
+stop it. Batch 10 — the rinkside page with no signal: today kept on the phone, check-ins saved and sent when signal
+returns, *Not sent*, the family-cancelled card, and logging out keeps what's waiting. Batch 15 — the family's Profile:
+*Add a skater* (with *None of my coaches yet*) and *Add a coach*. Batch 16 — the coach's Profile → Visibility & texts:
+show my phone and my business email to approved families. Batch 14 — the business email: BladeBook's confirmation
+email with a link that works once for 3 days, the confirm page it opens (the coach signs in, then chooses Confirm),
+Resend link and Change address, and Profile → Business email.
+Batch 23 — the rinkside Week tab: the lessons left this week, cancelling one lesson or a whole day (release or hold
+each lesson), *Cancel rest of week* (holds everything left), and *The week needs a connection* with no signal.
+Batch 27 — on Payments, lessons from before January 1 of last year are view only: no *Mark paid*, no change to how
+they paid and no *Undo*, though an unpaid one can still be waived.
+Batch 17a — the AWS infrastructure's first part in CDK, written and tested; in dev only `bladebook-dev-identity` is
+deployed so far (see `infra/README.md`). The app itself still runs on this computer only.
 
 ## Running it locally
 
@@ -17,19 +37,35 @@ You need Docker, Java 17 and Node 24.
 # 1. DynamoDB Local on localhost:8000 (data kept in a Docker volume)
 docker compose up -d
 
-# 2. api-coach on :8080, in the local profile (DynamoDB Local + the token stub)
+# 2. Once, and again whenever dev's identity stack is rebuilt: point local runs at dev's real user pool (I31).
+#    Signed in to dev (aws sso login --sso-session bladebook). Writes ~/.bladebook/dev-pool.properties and .json.
+npm --prefix infra install && npm --prefix infra run dev-pool
+
+# 3. api-coach on :8080, in the local profile (DynamoDB Local; it accepts dev's user pool's tokens)
 cd backend
 ./mvnw -q clean install -DskipTests   # clean: otherwise a change to core/ alone can leave the old core inside the api-coach jar
 java -jar api-coach/target/api-coach-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
-# 3. The websites on :5173, which pass /api/coach to :8080
+# 4. api-client (the family website's API) on :8081, in a second terminal
+java -jar api-client/target/api-client-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
+
+# 5. The websites on :5173, which pass /api/coach to :8080 and /api/client to :8081
 cd web
 npm install
 npm run dev
 ```
 
-Open **http://localhost:5173/coach/**. The first page is the local sign-in stand-in: type any
-names and email. The same email always signs in as the same coach.
+Open **http://localhost:5173/coach/**. Signing in is real, against dev's user pool (I31): log in as one of dev's
+test accounts (the shared password is in Secrets Manager, the identity stack's `TestAccountsPasswordSecret` output), or
+choose *Create a coach account*, and Cognito emails the 6-digit code to that address. The test accounts' lessons are in
+dev's table, not the local one, so locally a test coach starts at sign-up step 3 unless you load the seed file
+(`infra/README.md`, "The seed file").
+
+Open **http://localhost:5173/family/** for the family website, and choose *Sign up with a coach code*.
+A coach's code is on their Today page and their Profile → Details tab; it works once their business email is confirmed (*Use my login
+email* makes it work at once). Nothing is emailed locally: the confirmation email, with its link, is in
+`api-coach`'s outbox at http://localhost:8080/api/coach/local/outbox (SC-21; send the coach's token). Open the
+link in the browser to reach the confirm page.
 
 ## Tests
 
@@ -38,9 +74,9 @@ cd backend && ./mvnw verify   # JUnit, ArchUnit and DynamoDB Local in Docker (Te
 cd web && npm test            # Vitest and Testing Library
 ```
 
-The schedule logic that exists in both Java and TypeScript is tested from one set of hand-written
-cases, `schedule-cases.json` at the repo root (ADR-013 decision 3b). Add a case there and both
-suites run it.
+The logic that exists in both Java and TypeScript is tested from hand-written cases at the repo root
+(ADR-013 decision 3b): `schedule-cases.json` for the schedule, and `registration-number-cases.json`
+for the skater's registration number. Add a case there and both suites run it.
 
 ## Gaps & shortcuts
 
@@ -51,13 +87,23 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 
 | ID | What | Closed by |
 |---|---|---|
-| SC-1 | Signing in is a **local token stub**, not Amazon Cognito. It issues ID tokens with the `Coach` group and the coach app client, and the real checks (group, app client, 60-minute sign-in from `auth_time`) run against them. Sign-up steps 1–2 and Log in are one stand-in page. | The Cognito user pool existing |
-| SC-2 | **“I’ve clicked the link”** marks a different business email confirmed at once. No email or link is sent. | Batch 14 (business-email confirmation) |
-| SC-3 | Data is in **DynamoDB Local** through one unscoped client. The `coach-tenant` role, its session tags and the database gate aren't exercised; DynamoDB Local ignores IAM (Identity and Access Management). | Infrastructure code, then the gate tests on real AWS |
-| SC-5 | **A schedule save updates the lesson times in-process.** On AWS the save raises `ScheduleChanged` through DynamoDB Streams and EventBridge, and `consumer-schedule-change` does it; locally `LocalEventDispatcher` calls the same core service straight after the write. | Infrastructure code (Streams, the Pipe, the consumer Lambda) |
-| SC-6 | **Saving goes straight from Review to saved, with no impact preview.** With no bookings yet nothing can be cancelled or re-priced, so the review shows the week only. | Batch 6 (the save preview, with S10's price-change warning) |
-| SC-7 | **"Sign in again and save"** after the 15-minute limit asks the local token stub for a fresh sign-in; there is no password to enter. | The Cognito user pool existing |
-| SC-4 | **Nothing is deployed.** Outside the `local` profile `api-coach` has no table client, so it won't start. | Choosing the infrastructure tool, AWS account and domain (Blockers 2, 22) |
+| SC-1 | ~~Signing in is a **local token stub**, not Amazon Cognito. `api-coach` issues ID tokens with the `Coach` group and the coach app client; `api-client` issues them with the `Client` group and the family app client. The real checks (group, app client, 60-minute sign-in from `auth_time`) run against them. The coach's sign-up steps 1–2 and Log in are one stand-in page; the family's Log in is a stand-in page with no password.~~ *Closed 2026-11-20 (Batch 18, I31): both websites sign in through Cognito with BladeBook's own forms (Amplify's Auth module, SRP); the token stub is test code only, and CI checks no Lambda package holds it.* | Closed (Batch 18) |
+| SC-3 | ~~Data is in **DynamoDB Local** through one unscoped client. The `coach-tenant`, `client-tenant` and `code-lookup` roles, their session tags and the database gate aren't exercised; DynamoDB Local ignores IAM (Identity and Access Management). The code still goes through the same doors (`AccessContext`, `ClientContext`, `LinkedCoach`), and a waiting family's code path reads nothing of the coach.~~ *Closed 2026-11-20 (17c): the gate tests passed against dev's real table and tenant roles, 76 of 76 (`docs/runbooks/database-gate-tests.md`).* | Batch 17 (infrastructure, then the gate tests on real AWS) |
+| SC-5 | **A schedule save updates the lesson times in-process.** On AWS the save raises `ScheduleChanged` through DynamoDB Streams and EventBridge, and `consumer-schedule-change` does it; locally `LocalEventDispatcher` calls the same core service straight after the write. Since Batch 6 it also cancels and re-prices booked lessons through a change batch, with the lines planned first; nothing retries it, so a save that fails part-way isn't resumed (ADR-MASTER §9 resumes from the event's ID). Time off and special-schedule saves go the same way. | Batch 17 (Streams, the Pipe, the consumer Lambda) |
+| SC-7 | ~~**"Sign in again and save"** after the 15-minute limit asks the local token stub for a fresh sign-in; there is no password to enter.~~ *Closed 2026-11-20 (Batch 18): the dialog asks for the password and signs in again through Cognito; a wrong password leaves the coach signed in, edits kept.* | Closed (Batch 18) |
+| SC-8 | **The family's link and the coaches' copies are updated in-process.** On AWS, approving or declining raises `StudentChanged` and `consumer-student-link` updates the family's link; a family's contact change raises `FamilyChanged` and `consumer-family-sync` copies it to each coach. Locally each API's `LocalEventDispatcher` calls the same core service straight after the write. Since Batch 11 `consumer-family-sync` also issues share codes: locally after sign-up and *Add a skater*, and, for a skater made before Batch 11, when the family's profile loads. | Batch 17 (Streams, the Pipe, the consumer Lambdas) |
+| SC-10 | ~~**The family's “Create account” stores no password.** The password rules and the matching confirm box are checked in the browser, then the local stand-in signs the family in with the email alone. Because the stand-in signs any email in, it then checks for an existing family and refuses the email on step 2, as Cognito's sign-up will.~~ *Closed 2026-11-20 (Batch 18): Cognito creates the account with its password and emails the 6-digit code (step 3).* | Closed (Batch 18) |
+| SC-15 | **The access log goes to the application log** (`bladebook.pii-access`, one JSON line per read, the request ID `local-…` and the socket's address), not to its own group. On AWS each API writes its lines straight to that group before the response (ADR-MASTER §18; built in Batch 17b, 2026-11-17). | Stays: local runs have no access-log group |
+| SC-12 | **The paging alarms on the family's never-linked failures don't exist** (3 in 15 minutes, 10 in a day). The failures themselves are access-log lines (`security:never-linked-<operation>`), with the request ID and source address on AWS (Batch 17b, 2026-11-17). | Batch 17b (the alarms, piece 7) |
+| SC-14 | **A coach's cancel of more than one lesson is carried out as it goes.** *Ruled 2026-11-17 (I8): it will write every line `PLANNED` first, and `sched-drift-check` hands a batch stuck over an hour to `consumer-schedule-change` to finish (ADR-009, ADR-010). Built in 17b.* `api-coach` writes the change-batch header `PLANNED`, then each lesson in its own transaction with its `CANCELLED#` lines already `EXECUTED`, then marks the header `EXECUTED`. ADR-MASTER §9 writes every line `PLANNED` first so a retry can resume; here a failure part-way leaves the header `PLANNED` with the lessons done so far, and nothing resumes it. | Batch 17 (the retried event that resumes a batch) |
+| SC-16 | **`consumer-invite`'s copies are written in-process.** On AWS a shared lesson's change reaches `consumer-invite` through the stream, about a second later; locally `api-client` calls the same core service (`InviteSyncService`) straight after each write: the invited family's ID and GSI1 keys on an invited seat, and each seat's `partnerName`, `partnerStatus` and `choiceAnswerBy`. A coach's cancel needs none. | Batch 17 (Streams, the Pipe, the consumer Lambda) |
+| SC-17 | **`sched-deadline-sweep` runs on a local timer**, on the hour, in `api-client`'s local profile, with `POST /api/client/local/sweep` (any signed-in family) to run it now. On AWS the Scheduler runs it hourly with the hour it's for. The pages never wait for it: *expired* and *Cancelled, no answer* come from the clock (B8). | Batch 17 (the Scheduler and the sweep's role) |
+| SC-20 | **The table's stream is stood in for in-process.** On AWS every committed write reaches the event consumers through DynamoDB Streams, the Pipe and EventBridge. Locally the one DynamoDB client is wrapped (`LocalStream`): after each request (and after each local job or sweep), every item it wrote goes to `LocalStreamRouter`, which hands it to the consumers by its key: change-batch headers to the change notifier, seats to the booking confirmation, the payment reminder and `consumer-invite`'s emails, ended invitations and pending leaves to `consumer-invite`'s emails. Each consumer re-reads the item and checks its guard. The consumers are core services; their Lambda handlers in `consumers/` aren't written yet. | Batch 17 (Streams, the Pipe, EventBridge rules and the consumer Lambdas) |
+| SC-21 | **Emails go to a local outbox, not SES.** Each API keeps the last 500 in memory, logs each one's template name (never the address), and lists them at `GET /api/coach/local/outbox` and `GET /api/client/local/outbox` (any signed-in user sees all of them). Emails from a family's own actions are in `api-client`'s outbox; the coach's, and the jobs', in `api-coach`'s. Each is the SES template's name plus its data, ready for `design/harbor/email/ses`; nothing is rendered locally. | Batch 17 (SES, its verified domain and the templates loaded) |
+| SC-22 | **The 7am, Monday and nightly jobs run on a local timer** in `api-coach` (7:00 AM, Monday 8:00 AM and 2:30 AM, Central), with `POST /api/coach/local/jobs/day-reminder`, `/unpaid-reminder` and `/lesson-roller` (`?date=YYYY-MM-DD`, any signed-in coach) to run one now. The unpaid threshold is `bladebook.unpaid-reminder.threshold-days` (7) in the local settings, not Parameter Store. | Batch 17 (the Scheduler, the job Lambdas and Parameter Store) |
+| SC-27 | **`sched-year-close` runs on a local timer** in `api-coach` (8:00 AM Central, January 1–7), with `POST /api/coach/local/jobs/year-close?date=YYYY-MM-DD` (any signed-in coach) to run it now: it saves the year before that date's for every coach whose year has closed by the real clock. On AWS it's a second Scheduler rule on `sched-lesson-roller`'s function (ADR-MASTER §14). | Batch 17 (the Scheduler and the job Lambdas) |
+| SC-19 | **The share-check's access-log line goes to the application log** (`bladebook.access`), and its firewall rate limit doesn't exist locally (ADR-MASTER §§17–18). | Batch 17 (the access-log group and the Web Application Firewall) |
+| SC-4 | **Nothing is deployed.** Outside the `local` profile `api-coach` and `api-client` have no table client, so they won't start. The coach-code lookup's rate limit (the Web Application Firewall) doesn't exist locally. | Batch 17 (CDK; Blockers 2, 22: tool, accounts and domain settled) |
 
 ### Gaps (left out)
 
@@ -65,19 +111,22 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 |---|---|---|
 | A1 | No profile photo upload; families see the coach's initials. Ruled 2026-11-06. | Phase 2 |
 | A3 | No texts switch at sign-up. Ruled 2026-11-06: it's on the profile only, under Visibility & texts (G-3). | G-3 |
-| G-1 | “Resend link” and “Change address” for a business email waiting to be confirmed. | Batch 14 |
-| G-2 | Profile → Business email (the list of addresses). | Batch 14 |
-| G-3 | Profile → Visibility & texts: show phone or email to families; text me on late cancellations. | Batch 3 for the phone and email switches; the texts switch waits on ADR-007 d8 |
-| G-4 | Profile → Account: change password, log out through Cognito. | The Cognito user pool existing |
-| G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | The Cognito user pool existing |
-| G-6 | Today's lessons and stats, Students, Lessons and Payments. | Batches 3–8 |
-| G-8 | Time off and special schedules (the hub's second card is shown but not available). Nothing writes `SCHEDULE#DATE#` yet, though every read already honours it. | Batch 6 |
-| G-9 | `sched-lesson-roller` isn't built: lesson times run to the window's end as it was at the last save, and nothing tops them up nightly. | A later batch, with the scheduled jobs |
-| G-10 | A save leaves **booked** lesson times alone, even if the new week drops or re-prices them; the change-batch header, cancel and re-price lines and their emails come with the preview. | Batch 6 |
-| G-11 | The calendars show who is booked only as “Booked”, and have no cancel buttons (Cancel, Cancel day, Cancel rest of week). | Batches 4 and 5 |
-| G-12 | The schedule page doesn't show the latest change batch's progress (“Applying your changes…”). | Batch 6 |
-| G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Not yet placed; needs an owner ruling |
-| G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | A later batch, not yet placed in the plan |
+| G-3 | Profile → Visibility & texts: the *Text me when a family cancels late* switch is shown off and can't be turned on. The two contact switches are built (Batch 16). | ADR-007 d8 |
+| G-4 | ~~Profile → Account: change password, log out through Cognito.~~ *Built 2026-11-20 (Batch 18): Profile → Account, with Change password at Cognito and Log out.* | Closed (Batch 18) |
+| G-5 | ~~Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them.~~ *Built 2026-11-20 (Batch 18): steps 1–2 are BladeBook's own forms calling Cognito.* | Closed (Batch 18) |
+| G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Phase 3 (owner, 2026-11-12): changing the time zone; decided then |
+| G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | Batch 20 (owner, 2026-11-12) |
+| G-14 | ~~Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done.~~ *Built 2026-11-20 (Batch 18): the code step, with Resend code and Use a different email.* | Closed (Batch 18) |
+| G-15 | ~~A family can't change its login email; Profile shows it read-only.~~ *Ruled 2026-11-20 by the owner (I32): families don't change their login email. Read-only is the design; its "Changing it sends a code" text is removed.* | Closed (I32) |
+| G-19 | The coach's download of skater numbers for the rink. | Phase 2 (owner, 2026-11-09); the name is split when the file is made |
+| G-20 | **Two parts of repeating bookings aren't built.** A key seen again with a different request isn't refused, and nothing asks about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b). The coach's day view says how often a series repeats as it was booked; a family's later *Make it less frequent* isn't reflected there, as the coach can't read the family's header. | Batch 24 (owner, 2026-11-13) |
+| G-22 | **No clash warning across coaches** (ADR-025 d5). A time that overlaps the skater's lesson or pick with another coach isn't marked, and the confirm pop-up lists no clashes. | Batch 19 (owner, 2026-11-12) |
+| G-26 | ~~**ADR-022's read allowlist doesn't list the lesson-time and seat attributes yet** (its own note says it fails closed until written). *Written 2026-11-17 (owner, I2): ADR-022 decision 3 now lists them, and the family's own seat details move to GSI1 (`CancellationRepository`'s seat read), keeping only `idempotencyKey` readable on a seat in the coach's partition. Closes when 17c builds that and the gate tests pass.* *Built 2026-11-20 (17c, piece 1): the seat read is on GSI1, and local mode now enforces the same policy, so every backend test runs under it; still open until the gate tests pass on AWS (piece 5).* The family path reads only `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `lessonStatus`, `shareCount`, `joinOrder`, `blockSeq` and `requiredNoticeHours` on `LESSON#` items; on its own seat, `idempotencyKey` and (to cancel it) `lessonDate`, `startTime`, `studentId`, `clientId`, `studentName`, `seatStatus`, `startsAtUtc`, `coachTz`, `durationMinutes` and `joinedAt`; and `coachTimezone` and `requiredNoticeHours` on the profile. Its cancel writes a `CHANGEBATCH#` header and a `CANCELLED#` line in the coach's partition. **Shared lessons (Batch 11) add**, on `LESSON#`: `maxSkaters` (read only to say a time can be shared) and `seatsTaken`; on its own seat: `inviteId`, `invitedStudentId`, `invitedByClientId`, `invitedByName`, `partnerName`, `partnerStatus`, `choiceAnswerBy` and `freedPlace`; a `SKATERCODE#` item's `studentId` and `studentName`; and that coach's `STUDENT#<studentId>` projecting `studentStatus` (the share-check). Writes: another skater's `SEAT#` key (the invited seat, `INVITED`, no `clientId`), accepting or declining a seat whose `invitedClientId` is the family, withdrawing one whose `invitedByClientId` is the family, `SEATEND#` records, a lesson time's `pendingLeave` and GSI4 keys, and a `ConditionCheck` on `STUDENT#` (ADR-033). Owner, 2026-11-12: built locally, listed until the gate tests pass.~~ *Closed 2026-11-20 (17c): the gate tests passed against dev's real table and tenant roles, 76 of 76 (`docs/runbooks/database-gate-tests.md`).* | Batch 17, before the gate tests on real AWS |
+| G-30 | **Time off can't be edited.** As drawn, the hub has *Edit* on a special schedule only. Both can be deleted (owner, 2026-11-12). | Batch 21 (owner, 2026-11-12: add Edit to time off) |
+| G-31 | **The schedule review doesn't say when skaters per lesson changes** (*"Lessons already booked keep their current setting"*): the evaluator leaves booked lessons' skater count alone (owner, 2026-11-12) and nothing reports the change. | Not planned: left as it is (owner, 2026-11-12) |
+| G-29 | **Nothing shows a cancellation afterwards.** The `CANCELLED#` lines and change-batch headers are written, but no page lists them: the coach's Lessons page lists lessons that happened, as drawn, and a family's own cancellation history is Phase 2 (owner, 2026-10-12). | Phase 2, the coach's view and the family's (owner, 2026-11-12) |
+| G-32 | **Two parts of the rinkside page's offline behaviour aren't built.** The page doesn't say when Safari has cleared its offline copy (ADR-014 amendment of 2026-10-13; the design has no screen for it, and a cleared page can't tell a first visit from a cleared one). Nothing has been tried on a real iPhone at a rink: the copy of the page was checked in headless Chrome with the network cut, and the queue, *Not sent* and the family-cancelled card in tests. The page fills the phone's screen; the design's device frame and status bar are the demo's drawing of a phone. | Batch 25 (owner, 2026-11-13); the iPhone check after Batch 17 |
+| G-33 | **The 7am reminder runs on Central time for every coach.** A Pacific coach's families get it at 5 AM their time, a Mountain coach's at 6 AM, and an Eastern coach's at 8 AM. The data carries each coach's time zone; the fix is one more Scheduler rule per time zone (ADR-001 decision 4). Ruled 2026-11-17 (I7). | When a coach outside Central signs up |
 
 ## Repository
 

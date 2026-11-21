@@ -174,10 +174,11 @@ else.
 - **Retention:** the number lives on the `SKATER#` item, which ADR-017 keeps for the account's
   life. Confirm with the legal review.
 - *Moved to `FeatureDecriptions/Coach Dashboard on website.md` (handoff) on 2026-11-08: the rink
-  download's phase — a product question.*
-- **First and last name in the download** *(added 2026-10-16)*: the skater's name is one
+  download's phase — a product question.* *Decided by the owner 2026-11-09: Phase 2.*
+- ~~**First and last name in the download** *(added 2026-10-16)*: the skater's name is one
   `studentName` field. Split it into first and last name at sign-up, or split it when the file
-  is made.
+  is made.~~ *Decided by the owner 2026-11-09: split when the file is made. Sign-up keeps one
+  full-name box and one `studentName` field.*
 
 ---
 

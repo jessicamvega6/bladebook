@@ -9,7 +9,11 @@ public final class DomainException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /** Why the request was refused. */
-    public enum Reason { INVALID, NOT_FOUND, CONFLICT }
+    public enum Reason {
+        INVALID, NOT_FOUND, CONFLICT,
+        /** An item that was never the caller's: a plain "not found" that doesn't confirm it exists (ADR-MASTER section 16). */
+        NO_SUCH_ITEM
+    }
 
     private final Reason reason;
     private final String field;
@@ -31,6 +35,11 @@ public final class DomainException extends RuntimeException {
 
     public static DomainException conflict(String message) {
         return new DomainException(Reason.CONFLICT, null, message);
+    }
+
+    /** Not the caller's account missing ({@link #notFound}), but an item asked for that was never theirs. */
+    public static DomainException noSuchItem(String message) {
+        return new DomainException(Reason.NO_SUCH_ITEM, null, message);
     }
 
     public Reason reason() {

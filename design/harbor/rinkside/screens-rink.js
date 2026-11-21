@@ -7,16 +7,25 @@ SCREENS.signin = () => phoneShell(`
     <span class="brand__mark rk-mark">${ic('logo', 26)}</span>
     <h1 class="h1">BladeBook at the rink</h1>
     <p class="lede">Log in with the same email and password you use on the website.</p>
+    ${rk().queue.length ? `<div class="pbanner pbanner--warn">${ic('clock', 18)}<div><b>${plural(rk().queue.length, 'check-in')} waiting on this phone</b><span>Saved before you logged out. They send after you log in${rk().online ? '' : ' and there’s signal'}.</span></div></div>` : ''}
     ${INP('rk-email', 'Login email', 'auth.email', { type: 'email' })}
     ${INP('rk-pw', 'Password', 'auth.pw', { type: 'password', placeholder: '••••••••' })}
     ${B('Log in', 'primary', 'rkSignIn', { block: true, lg: true })}
     <p class="fine">This app shows today’s lessons, records attendance and cancels lessons. Your schedule, students and payments stay on the website.</p>
   </div>`, { bare: true });
 Object.assign(ACTIONS, {
-  rkSignIn() { fresh(); state.authed = true; state.sheet = null; go('today'); },
+  /** Check-ins queued before a log-out send now, but only for the coach who recorded them (owner, 2026-11-09, R2).
+      Each entry carries that coach's ID; another coach signing in on this phone leaves them waiting. */
+  rkSignIn() {
+    fresh(); state.authed = true; state.sheet = null; go('today');
+    const r = rk(), n = r.queue.filter(q => q.coach === state.auth.email).length;
+    if (n && r.online) { r.queue = r.queue.filter(q => q.coach !== state.auth.email); r.syncedAt = fmtT(NOW_MIN); r.toast = `${plural(n, 'check-in')} from before you logged out sent.`; }
+  },
+  /** Logging out keeps the queue on the phone (ADR-MASTER §15; owner, 2026-11-09, R2). It warns first, so the coach
+      knows they wait for the next log-in. */
   rkSignOut() {
     if (rk().queue.length && !(state.sheet && state.sheet.kind === 'signout')) { sheetOpen('signout'); return; }
-    state.sheet = null; state.authed = false; state.rk.queue = []; go('signin');
+    state.sheet = null; state.authed = false; go('signin');
   },
 });
 
@@ -34,7 +43,7 @@ function seatFoot(l, p, more = '') {
 }
 const nameBtn = (l, sid) => `<button type="button" class="rl__name rk-namebtn"${actAttr('rkContact', [l.id, sid])}>${esc(seatName(sid))}</button>`;
 function lessonCard(l) {
-  const name = esc(rkName(l)), len = `${l.len} min`, time = `<span class="rl__time num">${fmtShortT(l.t)}</span>`;
+  const name = esc(rkName(l)), len = `${l.len} min`, time = `<span class="rl__time num">${fmtT(l.t)}</span>`;
   if (!l.sid) return `<article class="rl rl--held"><div class="rl__head">${time}<span class="rl__name">Held slot</span><span class="rl__len">${len}</span></div><div class="rl__meta">${ic('lock', 13)} You kept this time closed. Nobody can book it.</div></article>`;
   if (l.status === 'FAMILY_CANCELLED') return `<article class="rl rl--cancelled"><div class="rl__head">${time}<span class="rl__name"><s>${name}</s></span>${badge('Cancelled', 'neutral')}</div><div class="rl__meta">${esc(student(l.sid).client)} cancelled at ${l.cancelledAt}, while your phone had no signal. Nothing more to do.</div></article>`;
   const later = l.t > NOW_MIN + 10, now = inProgress(l) && !allRecorded(l) ? ' rl--now' : '';
@@ -60,7 +69,7 @@ SCREENS.today = () => {
   ].join('');
   return phoneShell(`${banners}${todays().map(lessonCard).join('')}
     <p class="phone__hint">${r.online ? 'Tap a name for the family’s contact details.' : `${ic('lock', 13)} Contact details and cancelling need a connection.`}</p>`,
-    { progress: [done, each.length, nx ? `Next: ${esc(rkName(nx))} ${fmtShortT(nx.t)}` : 'All done for today'] });
+    { progress: [done, each.length, nx ? `Next: ${esc(rkName(nx))} ${fmtT(nx.t)}` : 'All done for today'] });
 };
 Object.assign(ACTIONS, {
   /** Records one skater. sid picks the skater in a shared lesson; it defaults to the booking's skater. */
@@ -68,7 +77,7 @@ Object.assign(ACTIONS, {
     const l = lessonById(id), r = rk(); fresh(); sid = sid || l.sid;
     const p = seatOf(l, sid);
     p.status = outcome; p.at = fmtT(NOW_MIN);
-    if (!r.online) { r.queue = r.queue.filter(q => !(q.lid === id && q.sid === sid)); r.queue.push({ lid: id, sid, outcome, at: p.at }); }
+    if (!r.online) { r.queue = r.queue.filter(q => !(q.lid === id && q.sid === sid)); r.queue.push({ lid: id, sid, outcome, at: p.at, coach: state.auth.email }); }
   },
   rkMore(id) { fresh(); sheetOpen('more', { lid: id }); },
   rkContact(id, sid) { fresh(); const l = lessonById(id); sheetOpen('contact', { lid: id, sid: sid || l.sid }); },
@@ -145,35 +154,43 @@ Object.assign(ACTIONS, {
   rkDone(i) { fresh(); rk().unsent.splice(i, 1); },
 });
 
-/* ================= Week: cancel several lessons ================= */
+/* ================= Week: cancel lessons ================= */
+/* Three cancels, and only three (owner, 2026-11-16): one lesson, a whole day, or the rest of the week. Lessons on
+   different days are cancelled one by one. A lesson's Cancel opens the same confirmation as Today's; a whole day asks
+   release or hold for each lesson (S9); the rest of the week holds everything with no question (S8). */
 const weekDays = () => { const out = []; for (let iso = TODAY, end = addDays(weekStart(TODAY), 6); iso <= end; iso = addDays(iso, 1)) out.push(iso); return out; };
 const cancellable = iso => lessonsOn(iso).filter(l => l.sid && l.status === 'BOOKED' && !isStarted(l)).sort((a, b) => a.t - b.t);
-const selected = () => state.lessons.filter(l => rk().sel[l.id]);
 /** Open times not yet started (no lesson in them). The whole-week cancel holds these too (ADR-009, owner 2026-11-08). */
 const openLeft = iso => slotsOn(iso).filter(s => !lessonsOn(iso).some(l => l.t === s.t) && !(iso === TODAY && s.t <= NOW_MIN)).map(s => ({ iso, t: s.t, len: s.len }));
 const restOfWeek = () => ({ lessons: weekDays().flatMap(cancellable), open: weekDays().flatMap(openLeft) });
+const wkLine = l => `<span class="num rk-pick__t">${fmtT(l.t)}</span><span class="rk-pick__n">${esc(rkName(l))}${isShared(l) ? '<small>Shared · cancels both skaters</small>' : ''}</span><span class="rl__len">${l.len} min</span>`;
 SCREENS.week = () => {
-  const r = rk(), sel = selected(), off = !r.online;
+  const r = rk(), off = !r.online;
+  // The phone saves today's lessons only (ADR-014 d9b, ADR-MASTER §11), so with no signal there is no week to show,
+  // and cancelling needs signal anyway (owner, 2026-11-09, R5).
+  if (off) return phoneShell(`<div class="pempty"><span class="pempty__icon">${ic('wifiOff', 28)}</span><h2 class="h2">The week needs a connection</h2><p>Cancelling needs signal too. Today’s lessons are on the Today tab.</p>${B('Go to Today', 'primary', '', { block: true, lg: true, href: href('today') })}</div>`, { title: 'This week', sub: 'No signal' });
   const days = weekDays().map(iso => {
     const ls = cancellable(iso), started = lessonsOn(iso).filter(l => l.sid && isStarted(l)).length;
     if (!ls.length) return `<section class="rk-day"><div class="rk-day__head"><b>${iso === TODAY ? 'Today' : dDow(iso)}</b><span class="muted-sm">${started ? 'Nothing left to cancel' : 'No lessons'}</span></div></section>`;
-    const all = ls.every(l => r.sel[l.id]);
-    return `<section class="rk-day"><div class="rk-day__head"><b>${iso === TODAY ? `Today, ${dShort(iso)}` : dDow(iso)}</b>${off ? '' : `<button type="button" class="link"${actAttr('rkSelDay', [iso, !all])}>${all ? 'Clear day' : 'Select whole day'}</button>`}</div>
-      ${ls.map(l => `<div class="rk-pick${r.sel[l.id] ? ' is-on' : ''}"><label class="rk-pick__row"><input type="checkbox" class="check__input"${r.sel[l.id] ? ' checked' : ''}${off ? ' disabled' : actAttr('rkSel', [l.id])}><span class="num rk-pick__t">${fmtShortT(l.t)}</span><span class="rk-pick__n">${esc(rkName(l))}${isShared(l) ? '<small>Shared · cancels both skaters</small>' : ''}</span><span class="rl__len">${l.len} min</span></label>
-        ${r.sel[l.id] ? SEG(['Release', 'Hold closed'], r.hold[l.id] ? 1 : 0, 'rkHold', [l.id], { block: true }) : ''}</div>`).join('')}
+    return `<section class="rk-day"><div class="rk-day__head"><b>${iso === TODAY ? `Today, ${dShort(iso)}` : dDow(iso)}</b>${ls.length > 1 ? `<button type="button" class="link rk-day__cancel"${actAttr('rkDayAsk', [iso])}>Cancel whole day</button>` : ''}</div>
+      ${ls.map(l => `<div class="rk-pick"><div class="rk-pick__row rk-pick__row--plain">${wkLine(l)}${B('Cancel', 'danger-outline', 'rkCancelAsk', { sm: true, args: [l.id] })}</div></div>`).join('')}
       ${started ? `<p class="fine">${plural(started, 'lesson')} already started and can’t be cancelled.</p>` : ''}</section>`;
   }).join('');
-  return phoneShell(`${off ? `<div class="pbanner pbanner--warn">${ic('wifiOff', 18)}<div><b>Cancelling needs a connection</b><span>You can look, but not cancel, until signal comes back.</span></div></div>` : ''}
-    ${(() => { const w = restOfWeek(); return w.lessons.length + w.open.length ? `<section class="rk-card"><b>Cancel the rest of the week</b><p class="fine">Holds everything left from now to Saturday: ${plural(w.lessons.length, 'lesson')} and ${plural(w.open.length, 'open time')}. Families can’t book them. Your schedule doesn’t change.</p>${B('Cancel rest of week', 'danger-outline', 'rkWeekAllAsk', { block: true, icon: 'calOff', disabled: off })}</section>` : ''; })()}
-    <p class="fine">Or pick lessons to cancel. For each one, choose whether the time can be booked again.</p>${days}
-    <div class="rk-sticky">${B(sel.length ? `Cancel ${plural(sel.length, 'lesson')}` : 'Pick lessons to cancel', 'danger', 'rkWeekAsk', { block: true, lg: true, disabled: !sel.length || off })}</div>`,
+  return phoneShell(`    ${(() => { const w = restOfWeek(); return w.lessons.length + w.open.length ? `<section class="rk-card"><b>Cancel the rest of the week</b><p class="fine">Holds everything left from now to Saturday: ${plural(w.lessons.length, 'lesson')} and ${plural(w.open.length, 'open time')}. Families can’t book them. Your schedule doesn’t change.</p>${B('Cancel rest of week', 'danger-outline', 'rkWeekAllAsk', { block: true, icon: 'calOff' })}</section>` : ''; })()}
+    <p class="fine">Or cancel one lesson, or a whole day. Lessons on different days are cancelled one at a time.</p>${days}`,
     { title: 'This week', sub: `Wed, Oct 14 – Sat, Oct 17 · cancel lessons` });
 };
 Object.assign(ACTIONS, {
-  rkSel(id) { fresh(); const r = rk(); if (r.sel[id]) { delete r.sel[id]; delete r.hold[id]; } else r.sel[id] = true; },
-  rkSelDay(iso, on) { fresh(); const r = rk(); for (const l of cancellable(iso)) { if (on) r.sel[l.id] = true; else { delete r.sel[l.id]; delete r.hold[l.id]; } } },
-  rkHold(id, i) { fresh(); if (i) rk().hold[id] = true; else delete rk().hold[id]; },
-  rkWeekAsk() { fresh(); sheetOpen('weekConfirm'); },
+  rkDayAsk(iso) { fresh(); sheetOpen('weekDay', { iso, hold: {} }); },
+  rkDayHold(id, i) { if (i) state.sheet.hold[id] = true; else delete state.sheet.hold[id]; },
+  /** A whole day: every lesson left that day, each released or held, as one DAY batch. */
+  rkDayCancel() {
+    const s = state.sheet, ls = cancellable(s.iso); fresh();
+    const held = ls.filter(l => s.hold[l.id]).length, fams = new Set(ls.flatMap(clients)).size;
+    for (const l of ls) cancelLesson(l, s.hold[l.id]);
+    state.sheet = null;
+    rk().toast = `${plural(ls.length, 'lesson')} cancelled${held ? `, ${held} held closed` : ''}. ${plural(fams, 'family', 'families')} will be emailed.`;
+  },
   rkWeekAllAsk() { fresh(); sheetOpen('weekAllConfirm'); },
   /** The whole week (ADR-009, owner 2026-11-08): every booked lesson and open time left is held, with no release-or-hold question. */
   rkWeekAllCancel() {
@@ -181,30 +198,24 @@ Object.assign(ACTIONS, {
     const fams = new Set(w.lessons.flatMap(clients)).size;
     for (const l of w.lessons) cancelLesson(l, true);
     for (const o of w.open) state.lessons.push({ id: `h-${o.iso}-${o.t}`, sid: null, iso: o.iso, t: o.t, len: o.len, price: 0, status: 'COACH_HELD', pay: null });
-    r.sel = {}; r.hold = {}; state.sheet = null;
+    state.sheet = null;
     r.toast = `${plural(w.lessons.length, 'lesson')} cancelled and ${plural(w.open.length, 'open time')} closed. ${plural(fams, 'family', 'families')} will be emailed.`;
   },
-  rkWeekCancel() {
-    const r = rk(), sel = selected(); fresh();
-    const held = sel.filter(l => r.hold[l.id]).length, fams = new Set(sel.flatMap(clients)).size;
-    for (const l of sel) cancelLesson(l, r.hold[l.id]);
-    r.sel = {}; r.hold = {}; state.sheet = null;
-    r.toast = `${plural(sel.length, 'lesson')} cancelled${held ? `, ${held} held closed` : ''}. ${plural(fams, 'family', 'families')} will be emailed.`;
-  },
 });
-RK_SHEETS.weekConfirm = () => {
-  const r = rk(), sel = selected(), held = sel.filter(l => r.hold[l.id]).length, fams = [...new Set(sel.flatMap(clients))];
-  return sheet(`<h2 class="h2">Cancel ${plural(sel.length, 'lesson')}?</h2>
-    <ul class="rk-confirm">${sel.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtShortT(l.t)}</span><b>${esc(rkName(l))}</b>${r.hold[l.id] ? badge('Hold', 'warning', 'lock') : badge('Release', 'neutral')}</li>`).join('')}</ul>
+RK_SHEETS.weekDay = s => {
+  const ls = cancellable(s.iso), held = ls.filter(l => s.hold[l.id]).length, fams = [...new Set(ls.flatMap(clients))];
+  return sheet(`<h2 class="h2">Cancel all of ${s.iso === TODAY ? `today, ${dShort(s.iso)}` : dDow(s.iso)}?</h2>
+    <p class="fine">${plural(ls.length, 'lesson')}. For each one, choose whether the time can be booked again.</p>
+    ${ls.map(l => `<div class="rk-pick"><div class="rk-pick__row rk-pick__row--plain">${wkLine(l)}</div>${SEG(['Release', 'Hold closed'], s.hold[l.id] ? 1 : 0, 'rkDayHold', [l.id], { block: true })}</div>`).join('')}
     <p class="fine">${esc(fams.join(', '))} will be emailed.${held ? ` ${plural(held, 'held time')} stay${held === 1 ? 's' : ''} closed for good.` : ''} This can’t be undone.</p>
-    ${B(`Cancel ${plural(sel.length, 'lesson')}`, 'danger', 'rkWeekCancel', { block: true, lg: true })}${B('Keep them', 'secondary', 'rkClose', { block: true, lg: true })}`, 'Confirm cancellation');
+    ${B(`Cancel ${plural(ls.length, 'lesson')}`, 'danger', 'rkDayCancel', { block: true, lg: true })}${B('Keep them', 'secondary', 'rkClose', { block: true, lg: true })}`, 'Cancel day');
 };
 
 RK_SHEETS.weekAllConfirm = () => {
   const w = restOfWeek(), fams = [...new Set(w.lessons.flatMap(clients))];
   return sheet(`<h2 class="h2">Cancel the rest of the week?</h2>
     <p class="fine">Everything left from now to Saturday is held closed. Nobody can book these times.</p>
-    <ul class="rk-confirm">${w.lessons.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtShortT(l.t)}</span><b>${esc(rkName(l))}</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}${w.open.map(o => `<li><span class="num">${o.iso === TODAY ? 'Today' : dDow(o.iso)} · ${fmtShortT(o.t)}</span><b>Open</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}</ul>
+    <ul class="rk-confirm">${w.lessons.map(l => `<li><span class="num">${l.iso === TODAY ? 'Today' : dDow(l.iso)} · ${fmtT(l.t)}</span><b>${esc(rkName(l))}</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}${w.open.map(o => `<li><span class="num">${o.iso === TODAY ? 'Today' : dDow(o.iso)} · ${fmtT(o.t)}</span><b>Open</b>${badge('Hold', 'warning', 'lock')}</li>`).join('')}</ul>
     <p class="fine">${fams.length ? `${esc(fams.join(', '))} will be emailed. ` : ''}Your weekly schedule doesn’t change, so next week is untouched. This can’t be undone.</p>
     ${B(`Cancel ${plural(w.lessons.length, 'lesson')} and ${plural(w.open.length, 'open time')}`, 'danger', 'rkWeekAllCancel', { block: true, lg: true })}${B('Keep them', 'secondary', 'rkClose', { block: true, lg: true })}`, 'Confirm cancellation');
 };
@@ -219,8 +230,8 @@ SCREENS.account = () => {
     ${B('Log out', 'secondary', 'rkSignOut', { block: true, lg: true, icon: 'arrowL' })}`, { title: 'Account', sub: 'Rinkside app' });
 };
 RK_SHEETS.signout = () => sheet(`<div class="rk-sheeticon rk-sheeticon--warn">${ic('alert', 24)}</div><h2 class="h2">${plural(rk().queue.length, 'check-in')} haven’t been sent</h2>
-  <p class="fine">They’re only on this phone. If you log out now, they’re deleted. Wait for signal, or record them again on the website.</p>
-  ${B('Stay logged in', 'primary', 'rkClose', { block: true, lg: true })}${B('Log out and delete them', 'danger', 'rkSignOut', { block: true, lg: true })}`, 'Log out');
+  <p class="fine">They’re saved on this phone. If you log out, they’ll send the next time you log in here. Only your login can send them.</p>
+  ${B('Stay logged in', 'primary', 'rkClose', { block: true, lg: true })}${B('Log out', 'secondary', 'rkSignOut', { block: true, lg: true })}`, 'Log out');
 
 /* ================= presets ================= */
 const lid = (sid, t) => state.lessons.find(l => l.iso === TODAY && l.sid === sid && l.t === t).id;
@@ -228,7 +239,8 @@ const SHARED = () => lid('s4', 360);   // Sam and Leo's shared 6:00
 /** Leo not recorded yet in the shared 6:00, so the card has one result and one pair of buttons. */
 const leoNotYet = () => { const p = seatOf(lessonById(SHARED()), 's5'); p.status = 'BOOKED'; delete p.at; };
 PRESETS.push(
-  { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do.', setup: st => { st.authed = false; st.screen = 'signin'; } },
+  { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.authed = false; st.screen = 'signin'; } },
+  { id: 'RinkSignInWaiting', file: 'signin-waiting', group: 'Sign in', title: 'Log in with check-ins waiting', note: 'New 2026-11-09 (owner, R2). Two check-ins saved before the coach logged out. They send after this coach logs in; another coach’s login leaves them waiting.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); st.rk.online = true; st.authed = false; st.screen = 'signin'; } },
   { id: 'RinkToday', file: 'today', group: 'Today', title: 'Today’s lessons', note: 'Redesigned from Forest RinkToday. 6:35 AM: the shared 6:00 recorded for both skaters, Mia under way, later lessons show their start time instead of buttons, the held slot in place.', setup: st => { st.screen = 'today'; } },
   { id: 'RinkShared', file: 'today-shared', group: 'Today', title: 'Shared lesson — two skaters', note: 'New. Sam and Leo share the 6:00 (ADR-026 d6): one card, a row per skater, each with their own Present and No-show. Sam is recorded, Leo isn’t yet. The count counts each skater.', setup: st => { st.screen = 'today'; leoNotYet(); } },
   { id: 'RinkSharedContact', file: 'today-shared-contact', group: 'Today', title: 'Contact details — shared lesson', note: 'New. Each name in a shared lesson opens that skater’s own family: here Leo’s mother, Kate Martin. Fetched for this tap only, never stored (ADR-014 d9b).', setup: st => { st.screen = 'today'; leoNotYet(); st.sheet = { kind: 'contact', on: 'today', lid: SHARED(), sid: 's5' }; } },
@@ -241,8 +253,11 @@ PRESETS.push(
   { id: 'RinkNotLoaded', file: 'not-loaded', group: 'No signal', title: 'Today’s lessons haven’t loaded', note: 'Redesigned from Forest RinkNotLoaded. Opened with no signal before today was ever loaded.', setup: st => { st.screen = 'today'; st.rk.online = false; st.rk.loaded = false; } },
   { id: 'RinkCouldntSend', file: 'unsent', group: 'No signal', title: 'Couldn’t be sent', note: 'Redesigned from Forest RinkCouldntSend; reworked 2026-11-09 to ADR-014 d4a. The phone’s clock was wrong, so a check-in tapped for Mia’s 6:30 lesson carries a time that doesn’t fit it, and the server refused it. Record on the website, then Done; removed after 7 days. A family’s cancellation is never listed here (see RinkFamilyCancelled).', setup: st => { const l = lessonById(lid('s1', 390)), k = student(l.sid); st.screen = 'unsent'; st.rk.toast = ''; st.rk.unsent = [{ lid: l.id, name: k.name, when: `${dDow(l.iso)} · ${fmtT(l.t)}`, outcome: 'CHECKED_IN', at: '9:12 PM', reason: 'The phone’s time didn’t match the lesson, so it couldn’t be recorded.', days: 0 }]; } },
   { id: 'RinkFamilyCancelled', file: 'family-cancelled', group: 'No signal', title: 'Back online — the family had cancelled', note: 'Redesigned from Forest RinkFamilyCancelled. After the replay the cancelled lesson stays in place, struck through. The no-show is cleared, not listed as not sent (ADR-014 d4; owner, 2026-11-09).', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkSignal(true); } },
-  { id: 'RinkWeek', file: 'week', group: 'Cancel', title: 'Cancel several lessons', note: 'New. Part of a day or week is a multi-select of single lessons, release or hold per lesson; started lessons can’t be picked (ADR-009 d5a). Cancel rest of week, at the top, holds everything left with no question (2026-11-08).', setup: st => { st.screen = 'week'; const a = lid('s5', 600); const b = state.lessons.find(l => l.iso === '2026-10-16' && l.sid === 's5').id; st.rk.sel = { [a]: true, [b]: true }; st.rk.hold = { [a]: true }; } },
-  { id: 'RinkWeekConfirm', file: 'week-confirm', group: 'Cancel', title: 'Cancel several — confirm', note: 'New. One confirmation listing every lesson, which are held, and which families are emailed.', setup: st => { st.screen = 'week'; const a = lid('s5', 600); const b = state.lessons.find(l => l.iso === '2026-10-16' && l.sid === 's5').id; st.rk.sel = { [a]: true, [b]: true }; st.rk.hold = { [a]: true }; st.sheet = { kind: 'weekConfirm', on: 'week' }; } },
+  { id: 'RinkWeek', file: 'week', group: 'Cancel', title: 'This week — cancel lessons', note: 'New; reworked 2026-11-16 (owner): only three cancels — one lesson, a whole day, or the rest of the week. Each lesson has its own Cancel; a day with two or more lessons has Cancel whole day. Lessons on different days are cancelled one by one. Started lessons aren’t listed (ADR-009 d5a). Cancel rest of week, at the top, holds everything left with no question (2026-11-08).', setup: st => { st.screen = 'week'; } },
+  { id: 'RinkWeekOffline', file: 'week-offline', group: 'Cancel', title: 'This week — no signal', note: 'New 2026-11-09 (owner, R5). The phone saves today’s lessons only (ADR-014 d9b), so with no signal the Week tab shows no lessons, just that the week and cancelling need a connection.', setup: st => { st.screen = 'week'; st.rk.online = false; } },
+  { id: 'RinkWeekLesson', file: 'week-lesson', group: 'Cancel', title: 'Cancel one lesson from the week', note: 'New 2026-11-16 (owner). The same confirmation as Today’s cancel, asking release or hold, for a lesson later in the week. Sent as one lesson (LESSON).', setup: st => { st.screen = 'week'; st.sheet = { kind: 'cancel', on: 'week', lid: state.lessons.find(l => l.iso === '2026-10-16' && l.sid === 's5').id, hold: 0 }; } },
+  { id: 'RinkWeekDay', file: 'week-day', group: 'Cancel', title: 'Cancel a whole day', note: 'New 2026-11-16 (owner). One confirmation for every lesson left that day, asking release or hold for each (S9). Sent as one day (DAY), so each family gets one email.', setup: st => { st.screen = 'week'; const iso = weekDays().find(d => cancellable(d).length > 1); st.sheet = { kind: 'weekDay', on: 'week', iso, hold: { [cancellable(iso)[0].id]: true } }; } },
   { id: 'RinkWeekAllConfirm', file: 'week-all-confirm', group: 'Cancel', title: 'Cancel the rest of the week — confirm', note: 'New (owner, 2026-11-08; ADR-009). The whole week holds every booked lesson and open time left from now to Saturday, with no release-or-hold question. The weekly schedule doesn’t change.', setup: st => { st.screen = 'week'; st.sheet = { kind: 'weekAllConfirm', on: 'week' }; } },
   { id: 'RinkAccount', file: 'account', group: 'Account', title: 'Account', note: 'New. Who is signed in, when the phone last synced, log out, and where everything else lives.', setup: st => { st.screen = 'account'; } },
+  { id: 'RinkSignOutWaiting', file: 'signout-waiting', group: 'Account', title: 'Log out with check-ins waiting', note: 'Reworked 2026-11-09 (owner, R2; ADR-MASTER §15). Logging out keeps the check-ins on the phone; they send after the same coach logs in again.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); st.screen = 'account'; ACTIONS.rkSignOut(); } },
 );

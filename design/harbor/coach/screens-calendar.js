@@ -49,7 +49,8 @@ Object.assign(ACTIONS, {
   calOpenDay(iso) { const c = calUi(); c.day = iso; c.week = weekStart(iso); go('calendar-day'); },
   calOpenWeek(iso) { const c = calUi(); c.week = weekStart(iso); c.day = iso; go('calendar-week'); },
   calCancelOne(id, back) { const l = state.lessons.find(x => x.id === id); calStartCancel([id], back, `${whoIn(l)}’s lesson`); },
-  calCancelDay(iso, back) { calStartCancel(calFuture(iso).map(l => l.id), back, dDow(iso)); },
+  // Cancel day: every booked lesson and open time still to come that day (owner, 2026-11-20).
+  calCancelDay(iso, back) { calStartCancel(calFuture(iso).map(l => l.id), back, dDow(iso)); calUi().open = calOpenFuture(iso); },
   calCancelRest() {
     const c = calUi(), r = calRestOfWeek(c.week);
     calStartCancel(r.lessons.map(l => l.id), 'calendar-week', 'the rest of the week');
@@ -69,7 +70,7 @@ Object.assign(ACTIONS, {
       if (c.hold[l.id]) { Object.assign(l, { sid: null, status: 'COACH_HELD', price: 0, pay: null, recurring: false }); delete l.with; delete l.invited; }
       else state.lessons = state.lessons.filter(x => x !== l);
     }
-    const open = c.weekAll ? c.open : [];
+    const open = c.open;
     for (const o of open) state.lessons.push({ id: `h-${o.iso}-${o.t}`, sid: null, iso: o.iso, t: o.t, len: o.len, price: 0, status: 'COACH_HELD', pay: null });
     const held = sel.filter(l => c.hold[l.id]).length;
     c.sel = []; c.hold = {}; c.open = []; c.weekAll = false;
@@ -118,13 +119,13 @@ SCREENS['calendar-week'] = () => {
       const kind = !l ? 'open' : l.sid ? '' : 'held';
       const cls = `wl${kind ? ' wl--' + kind : ''}${past ? ' wl--past' : ''}`;
       const name = !l ? 'Open' : l.sid ? esc(whoIn(l)) : 'Held';
-      const inner = `<span class="wl__t">${fmtShortT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
+      const inner = `<span class="wl__t">${fmtT(s.t)}${s.len !== 30 ? ` · ${s.len}m` : ''}</span><span class="wl__n">${name}</span>`;
       return calCancellable(l)
         ? `<button type="button" class="${cls} cal-wl" title="Cancel ${esc(whoIn(l, false))}’s lesson"${actAttr('calCancelOne', [l.id, 'calendar-week'])}>${inner}</button>`
         : `<div class="${cls}">${inner}</div>`;
     }).join('');
     const empty = sp && sp.kind === 'timeoff' ? `Time off<br><small>${esc(sp.name)}</small>` : 'No lessons';
-    return `<div class="week__col${colCls}"><button type="button" class="week__head cal-head"${actAttr('calOpenDay', [iso])}><span>${DOW[dowOf(iso)]}</span><b>${parseIso(iso).getDate()}</b>${iso === TODAY ? '<em>Today</em>' : ''}</button>${sp && sp.kind === 'special' ? `<div class="cal-colnote">${esc(sp.name)}</div>` : ''}<div class="week__body">${items || `<div class="week__empty">${empty}</div>`}</div>${fut.length ? `<button type="button" class="week__cancel"${actAttr('calCancelDay', [iso, 'calendar-week'])}>Cancel day</button>` : ''}</div>`;
+    return `<div class="week__col${colCls}"><button type="button" class="week__head cal-head"${actAttr('calOpenDay', [iso])}><span>${DOW[dowOf(iso)]}</span><b>${parseIso(iso).getDate()}</b>${iso === TODAY ? '<em>Today</em>' : ''}</button>${sp && sp.kind === 'special' ? `<div class="cal-colnote">${esc(sp.name)}</div>` : ''}<div class="week__body">${items || `<div class="week__empty">${empty}</div>`}</div>${fut.length || calOpenFuture(iso).length ? `<button type="button" class="week__cancel"${actAttr('calCancelDay', [iso, 'calendar-week'])}>Cancel day</button>` : ''}</div>`;
   }).join('');
   const thisWeek = ws === weekStart(TODAY), r = calRestOfWeek(ws);
   const restBtn = r.first ? B(`Cancel rest of week: ${calRange(r.first, r.last)} (${plural(r.lessons.length, 'lesson')}, ${plural(r.open.length, 'open time')})`, 'danger-outline', 'calCancelRest', { icon: 'calOff' }) : '';
@@ -143,7 +144,7 @@ SCREENS['calendar-day'] = () => {
     const l = s.lesson, past = calSlotPast(iso, s);
     const who = !l ? `<span class="roundicon">${ic('plus', 14)}</span>${rowTitle('Open', 'Families can book this time')}`
       : !l.sid ? `<span class="roundicon roundicon--warn">${ic('lock', 14)}</span>${rowTitle('Held', 'You kept this time closed')}`
-      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ' · repeats weekly' : ''}`)}`;
+      : `${avatar(initials(nameOf(l)), 'sm')}${rowTitle(esc(whoIn(l, false)) + (isShared(l) ? ' ' + badge('Shared', 'primary', 'users') : ''), `${familiesIn(l).map(esc).join(' · ')}${l.recurring ? ` · ${(l.interval || 1) === 1 ? 'repeats weekly' : `repeats every ${l.interval} weeks`}` : ''}`)}`;
     const side = `<span class="muted num">${s.len} min · ${l && l.sid ? skatersIn(l).map(p => money(p.price)).join(' + ') : money(s.price)}</span>${l && l.sid && isStarted(l) ? skaterBadges(l) : ''}${calCancellable(l) ? B('Cancel', 'ghost', 'calCancelOne', { sm: true, args: [l.id, 'calendar-day'] }) : ''}`;
     return row(`<span class="cal-slot__t num">${fmtT(s.t)}</span>${who}`, side, { cls: past ? 'row--muted' : '' });
   }).join('');
@@ -155,7 +156,7 @@ SCREENS['calendar-day'] = () => {
       `${calViewSeg(2)}<div class="btngroup"><button type="button" class="iconbtn" aria-label="Previous day"${actAttr('calDay', [-1])}>${ic('chevL', 18)}</button>${B('Today', 'secondary', 'calDayToday', { sm: true })}<button type="button" class="iconbtn" aria-label="Next day"${actAttr('calDay', [1])}>${ic('chevR', 18)}</button></div>`,
       `<a class="link" href="${href('calendar-week')}" data-act="calOpenWeek" data-arg='${esc(JSON.stringify([iso]))}'>${ic('arrowL', 14)} Week of ${dShort(weekStart(iso))}</a>`)}
     ${sp && sp.kind === 'special' ? banner('info', `Special schedule: ${esc(sp.name)}`, `${dShort(sp.sd)} – ${dShort(sp.ed)}. These times replace your weekly schedule.`) : ''}
-    ${card(slots.length ? rows : empty, { pad: false, title: slots.length ? 'Every time on this day' : '', action: fut.length ? B('Cancel this day', 'danger-outline', 'calCancelDay', { sm: true, icon: 'calOff', args: [iso, 'calendar-day'] }) : '' })}`, { width: 'wide' });
+    ${card(slots.length ? rows : empty, { pad: false, title: slots.length ? 'Every time on this day' : '', action: fut.length || calOpenFuture(iso).length ? B('Cancel this day', 'danger-outline', 'calCancelDay', { sm: true, icon: 'calOff', args: [iso, 'calendar-day'] }) : '' })}`, { width: 'wide' });
 };
 
 /* ---------- Cancel preview ---------- */
@@ -163,11 +164,11 @@ SCREENS['cancel-preview'] = () => {
   const c = calUi();
   const sel = state.lessons.filter(l => c.sel.includes(l.id) && calCancellable(l));
   const backLabel = { 'calendar-week': `Week of ${dShort(c.week)}`, 'calendar-day': dLong(c.day), 'calendar-month': 'Calendar' }[c.back] || 'Back';
-  if (!sel.length && !(c.weekAll && c.open.length)) return shell(`${pageHead('Nothing to cancel', 'These lessons have already started or were cancelled.', '', `<a class="link" data-act="calBack" href="#">${ic('arrowL', 14)} ${backLabel}</a>`)}`);
+  if (!sel.length && !c.open.length) return shell(`${pageHead('Nothing to cancel', 'These lessons have already started or were cancelled.', '', `<a class="link" data-act="calBack" href="#">${ic('arrowL', 14)} ${backLabel}</a>`)}`);
   const fams = families(sel.flatMap(l => skatersIn(l).map(p => student(p.sid))));
   const shared = sel.filter(isShared);
   const held = sel.filter(l => c.hold[l.id]).length;
-  const open = c.weekAll ? c.open : [];
+  const open = c.open;
   const dates = [...sel.map(l => l.iso), ...open.map(o => o.iso)].sort();
   const span = calRange(dates[0], dates[dates.length - 1]);
   const heldBadge = badge('Held closed', 'neutral', 'lock');

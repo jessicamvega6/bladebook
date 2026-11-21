@@ -49,7 +49,8 @@ public final class PaymentTypes {
             return handleField;
         }
 
-        String label() {
+        /** How families see it, as in the payment reminder: "Cash App", "Venmo", "PayPal", "Cash". */
+        public String label() {
             switch (this) {
                 case CASHAPP: return "Cash App";
                 case VENMO: return "Venmo";

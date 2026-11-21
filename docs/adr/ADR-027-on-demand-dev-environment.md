@@ -31,6 +31,56 @@ The **scheduled canary moves to Phase 2**, undecided. Between releases, a stall 
 cancellation path that the up-check can't see goes unnoticed until a coach reports it. That gap
 is accepted for MVP.
 
+**Amended — 2026-11-16.** *Decided by the owner.* Decision 8's DNS, as built: **`bladebook.org` is
+registered and its DNS kept in Cloudflare** (bought there 2026-11-12; Cloudflare's registrar allows
+no other nameservers, and a new domain can't be transferred for 60 days). `dev.bladebook.org` is
+delegated from Cloudflare to a Route 53 hosted zone in the dev account (`bladebook-dev`), as
+planned. **Production gets the same: a subdomain delegated from Cloudflare to a Route 53 hosted
+zone in the production account**, so CDK manages every production record under it (the websites,
+the APIs, SES's verification records and the certificates). The domain itself and its bare and
+`www` records stay in Cloudflare, managed by hand. The subdomain's name is chosen when production
+is built (for example `app.bladebook.org`). The domain is not transferred to Route 53. The
+Organization's **management account is `307202557124`**; production and dev are its member accounts.
+
+**Amended — 2026-11-16, later.** *Decided by the owner.* The names: **the coach website is
+`app.bladebook.org`** (the rinkside page at `app.bladebook.org/rinkside`) and **the family website
+is `family.bladebook.org`**. Each is its own subdomain delegated from Cloudflare to a Route 53
+hosted zone in the production account, so production has two delegated zones, not one. Two hosts,
+not two paths, so the browser keeps the coach's sign-in apart from the family site's. Each site's
+API is reached on its own host, under `/api/*`, so the websites need no cross-origin (CORS) rules;
+decision 6's `api.dev.<domain>` is withdrawn. **Dev mirrors them inside the existing dev zone:**
+`app.dev.bladebook.org` and `family.dev.bladebook.org`, with no change in Cloudflare. **The bare
+`bladebook.org` and `www` redirect to `app.bladebook.org`** (a Cloudflare redirect rule, by hand).
+The domain production's email is sent from is not chosen yet; dev's SES verifies
+`dev.bladebook.org` and stays in the sandbox.
+
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I15 in `AI/plan-history.md`).*
+**Dev's test accounts use the owner's own mailbox, not `example.com`.** In the SES sandbox an
+`example.com` address is refused, so every email in a dev test flow would fail; and
+`dev.bladebook.org` has no MX record, so addresses there would bounce.
+- **The address is kept out of the repository**, which is public. `infra/` reads the base address
+  (and its domain) from a setting at deploy time: a GitHub environment variable for the deploy
+  workflow, the owner's local CDK context for a hand-run deploy. Docs call it *the owner's test
+  mailbox*.
+- **Each account gets its own `+` tag** on that base address (`…+dev-coach-a@…`,
+  `…+dev-client-1@…`), because Cognito needs a distinct email per account. All of them land in the
+  one inbox. Confirm the provider accepts the tag's shape before the first build.
+- **Dev's SES verifies the mailbox's domain once**, so the sandbox accepts every tagged address
+  without a confirmation per account. Its DNS records are added by hand on that domain.
+- **The stack adds each account to its group** (`Coach` or `Client`) itself, since an account the
+  stack creates never runs `auth-post-confirmation`; **the passwords are kept in Secrets
+  Manager**.
+- **An email SES refuses** (`MessageRejected`) is marked failed and not retried, so a refused
+  address doesn't fill a dead-letter queue.
+This settles which mailbox **dev's** test accounts use. Production's canary accounts (decision 7)
+can use the same mailbox; that's confirmed when production is built.
+
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I18 in `AI/plan-history.md`).*
+**The dev scanner is built with the first masked build**, not before. Until production exists,
+every dev build is made from the seed file, which holds no real data, so there is nothing for the
+scanner to find; *"no teardown while a scanner finding is open"* applies from then on. The scanner
+is built with the production data-loading stack, after launch.
+
 **Supersedes** [ADR-011](ADR-011-staging-environment.md) decision **1** (a long-running
 second stack), decision **7a** (the refresh cadence and the staging domains), decision
 **8a**'s default coach list and decision **8c**'s accounts "created once and kept across
@@ -117,7 +167,7 @@ deliberate act anyway. Naming a client still brings in all their coaches (ADR-02
 
 ### 3. Test accounts are created with the stack
 
-ADR-011 decision 8c's pools (`coach-a@example.com`…, `client-1@example.com`…) are created each
+ADR-011 decision 8c's pools (~~`coach-a@example.com`…, `client-1@example.com`…~~ tagged addresses on the owner's test mailbox, *2026-11-17*: `…+dev-coach-a@…`, `…+dev-client-1@…`) are created each
 time dev is built. Their Cognito `sub`s change with every build, which costs nothing: the load
 reads the current pool's `sub`s by email, and assignment by order is unchanged. Nothing
 linking a real identity to a test login is stored, as before. *Amended 2026-10-09 by ADR-028
@@ -150,7 +200,9 @@ infrastructure test asserts that production's table and buckets are retained and
 That way a dev setting can't silently reach production.
 
 After a teardown, nothing tagged as dev should remain. A leftover bucket costs money and may
-hold masked data.
+hold masked data. *Revised 2026-11-17 (owner, I16): the account stack — test accounts and the
+seed file's bucket, no real data — is kept between builds (ADR-028); teardown destroys the
+application stack, and the leftover check ignores the account stack.*
 
 ### 6. What stays the same in dev
 
@@ -162,6 +214,9 @@ hold masked data.
 - **Domains:** `dev.<domain>` and `api.dev.<domain>`, replacing ADR-011 decision 7a's staging
   subdomains for the same reason: Cognito's allowed sign-in redirects, each API's cross-origin
   resource sharing (CORS) rule and the custom domain must be set up the way production's are.
+  *(Amended 2026-11-09: there are no Cognito sign-in redirects since the websites use their own
+  sign-in forms ([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11);
+  the CORS rule and the custom domain still need the subdomains.)*
   The records are created and removed with the stack. Search engines are told not to index it.
 
 ### 7. The canary runs against production, as a test coach and test family
@@ -214,7 +269,9 @@ unless production explicitly allows it.
 exported and imported. Cognito users can't move with their passwords, so every coach and family
 would have to reset theirs. Deciding before anything is built costs nothing extra.
 
-**DNS.** The domain's zone stays in the production account. `dev.<domain>` is delegated to its
+**DNS.** ~~The domain's zone stays in the production account.~~ *Amended 2026-11-16: the domain's
+DNS stays in Cloudflare, and production gets a subdomain delegated to its own hosted zone in the
+production account, as dev does (see Status).* `dev.<domain>` is delegated to its
 own hosted zone in the dev account (about $0.50 a month), so the dev stack creates and removes
 its own records without any permission in production.
 
@@ -327,7 +384,7 @@ leaves no dev table to scan.*
   or remind the owner, after some number of days?
 - ~~**The canary's cadence and where it runs** (a scheduled CI job or CloudWatch Synthetics), and
   which mailbox the test accounts use.~~ *Settled in part 2026-10-15 (Status):* MVP runs it after
-  each production deploy. **Still open:** which mailbox the test accounts use, and, for Phase 2,
+  each production deploy. **Still open:** which mailbox the test accounts use (*dev's settled 2026-11-17: the owner's test mailbox, kept out of the repo; production's canary to confirm*), and, for Phase 2,
   whether to run it on a schedule at all, and where: a GitHub Actions schedule with the test
   passwords kept as GitHub secrets (no AWS access for GitHub), or CloudWatch Synthetics inside
   the production account.

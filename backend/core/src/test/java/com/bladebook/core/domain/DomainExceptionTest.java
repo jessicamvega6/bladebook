@@ -20,4 +20,11 @@ class DomainExceptionTest {
         assertThat(DomainException.notFound("No profile.").field()).isNull();
         assertThat(DomainException.conflict("Already set up.").reason()).isEqualTo(DomainException.Reason.CONFLICT);
     }
+
+    @Test
+    void noSuchItemIsItsOwnReasonSoItIsntMistakenForAMissingAccount() {
+        DomainException e = DomainException.noSuchItem("That skater couldn’t be found.");
+        assertThat(e.reason()).isEqualTo(DomainException.Reason.NO_SUCH_ITEM);
+        assertThat(e.field()).isNull();
+    }
 }

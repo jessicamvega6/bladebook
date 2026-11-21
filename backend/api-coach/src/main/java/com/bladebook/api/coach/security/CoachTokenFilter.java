@@ -20,10 +20,15 @@ import java.time.Clock;
 public final class CoachTokenFilter extends OncePerRequestFilter {
 
     private final CoachTokenRules rules;
+    private final CoachTokenRules rinkside;
+    private final String rinksidePrefix;
     private final Clock clock;
 
-    public CoachTokenFilter(CoachTokenRules rules, Clock clock) {
+    /** {@code rinkside} applies to paths under {@code rinksidePrefix}: the same checks with the page's longer session. */
+    public CoachTokenFilter(CoachTokenRules rules, CoachTokenRules rinkside, String rinksidePrefix, Clock clock) {
         this.rules = rules;
+        this.rinkside = rinkside;
+        this.rinksidePrefix = rinksidePrefix;
         this.clock = clock;
     }
 
@@ -33,7 +38,8 @@ public final class CoachTokenFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth instanceof JwtAuthenticationToken) {
             CoachTokenRules.Outcome outcome =
-                    rules.check(((JwtAuthenticationToken) auth).getToken().getClaims(), clock.instant());
+                    (request.getRequestURI().startsWith(rinksidePrefix) ? rinkside : rules)
+                            .check(((JwtAuthenticationToken) auth).getToken().getClaims(), clock.instant());
             if (outcome == CoachTokenRules.Outcome.FORBIDDEN) {
                 write(response, 403, "FORBIDDEN", "This sign-in can't use the coach website.");
                 return;

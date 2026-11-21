@@ -1,0 +1,161 @@
+package com.bladebook.api.client.config;
+
+import com.bladebook.core.data.BookingRepository;
+import com.bladebook.core.data.CancellationRepository;
+import com.bladebook.core.data.ClientLinks;
+import com.bladebook.core.data.CodeRepository;
+import com.bladebook.core.data.FamilyRepository;
+import com.bladebook.core.data.LocalTable;
+import com.bladebook.core.data.ShareRepository;
+import com.bladebook.core.data.SyncRepository;
+import com.bladebook.core.data.TenantClients;
+import com.bladebook.core.domain.RegistrationNumbers;
+import com.bladebook.core.domain.RegistrationRules;
+import com.bladebook.core.service.BookingService;
+import com.bladebook.core.service.CancellationService;
+import com.bladebook.core.service.DeadlineSweepService;
+import com.bladebook.core.service.InviteSyncService;
+import com.bladebook.core.service.SeatEvents;
+import com.bladebook.core.service.ShareService;
+import com.bladebook.core.service.RecurrenceService;
+import com.bladebook.core.service.CodeLookupService;
+import com.bladebook.core.service.FamilySyncService;
+import com.bladebook.core.service.FamilyService;
+import com.bladebook.core.service.RegistrationService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+
+import java.net.URI;
+import java.time.Clock;
+import java.util.UUID;
+
+/** Wires core/ into Spring. core/ itself has no Spring in it (ADR-001). */
+@Configuration
+public class CoreConfig {
+
+    /** DynamoDB Local. {@link TenantClients#local} refuses any endpoint that isn't localhost. */
+    /**
+     * On AWS: the tenant roles, assumed per request with the caller's tags (ADR-MASTER section 16). Their ARNs come from
+     * the function's environment.
+     */
+    @Bean
+    @Profile("!local")
+    TenantClients awsTenantClients(@Value("${bladebook.roles.client-tenant}") String clientTenant,
+                                   @Value("${bladebook.roles.code-lookup}") String codeLookup) {
+        return TenantClients.aws(new TenantClients.Roles(null, clientTenant, codeLookup));
+    }
+
+    @Bean
+    @Profile("local")
+    TenantClients localTenantClients(@Value("${bladebook.dynamodb.endpoint}") URI endpoint,
+                                     @Value("${bladebook.table}") String table) {
+        TenantClients clients = TenantClients.local(endpoint);
+        LocalTable.ensure(clients.forSetup(), table);
+        LocalTable.backfillSeatIndexes(clients.forSetup(), table); // seats from before Batch 13
+        clients.localStream().switchOn(); // SC-20: each request's writes go to the consumers afterwards
+        return clients;
+    }
+
+    /** USA Hockey's season check digit is a setting (ADR-029); off until both values are set. */
+    @Bean
+    RegistrationNumbers registrationNumbers(@Value("${bladebook.usa-hockey.check-digit-position:}") String position,
+                                            @Value("${bladebook.usa-hockey.check-digit:}") String digit) {
+        if (position.isBlank() || digit.isBlank()) {
+            return RegistrationNumbers.withoutSeasonCheck();
+        }
+        return RegistrationNumbers.withSeasonCheck(Integer.parseInt(position.trim()), Integer.parseInt(digit.trim()));
+    }
+
+    @Bean
+    CodeRepository codeRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new CodeRepository(clients, table);
+    }
+
+    @Bean
+    FamilyRepository familyRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new FamilyRepository(clients, table);
+    }
+
+    @Bean
+    CodeLookupService codeLookupService(CodeRepository codes) {
+        return new CodeLookupService(codes);
+    }
+
+    @Bean
+    FamilyService familyService(FamilyRepository families) {
+        return new FamilyService(families);
+    }
+
+    @Bean
+    RegistrationService registrationService(CodeRepository codes, FamilyRepository families, RegistrationNumbers numbers,
+                                            FamilyService familyService, Clock clock) {
+        return new RegistrationService(codes, families, new RegistrationRules(numbers), familyService,
+                () -> UUID.randomUUID().toString(), clock);
+    }
+
+    @Bean
+    ShareRepository shareRepository(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new ShareRepository(clients, table);
+    }
+
+    /**
+     * <b>Local profile: a listed shortcut.</b> On AWS a shared lesson's change reaches {@code consumer-invite} through the
+     * table's stream; locally the services call it in-process straight after the write.
+     */
+    @Bean
+    @Profile("local")
+    SeatEvents localSeatEvents(ShareRepository shares) {
+        return new InviteSyncService(shares);
+    }
+
+    /** Outside the local profile the stream carries the change, so the services tell nobody themselves. */
+    @Bean
+    @Profile("!local")
+    SeatEvents seatEvents() {
+        return SeatEvents.NONE;
+    }
+
+    /** Booking (Batches 4 and 9), with a share code (Batch 11). */
+    @Bean
+    BookingService bookingService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
+                                  ShareRepository shares, Clock clock, SeatEvents events) {
+        return new BookingService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, shares, clock, events);
+    }
+
+    /** Changing a repeating booking (Batch 9); a shared series can only be cancelled whole (B4). */
+    @Bean
+    RecurrenceService recurrenceService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock, SeatEvents events) {
+        return new RecurrenceService(new ClientLinks(clients, table), new BookingRepository(clients, table),
+                new CancellationRepository(clients, table), clock, events);
+    }
+
+    /** Cancelling one lesson from My bookings (Batch 5), shared or not (Batch 11). */
+    @Bean
+    CancellationService cancellationService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock,
+                                            SeatEvents events) {
+        return new CancellationService(new ClientLinks(clients, table), new BookingRepository(clients, table),
+                new CancellationRepository(clients, table), clock, events);
+    }
+
+    /** Shared lessons on the family side (Batch 11). */
+    @Bean
+    ShareService shareService(TenantClients clients, @Value("${bladebook.table}") String table, FamilyRepository families,
+                              ShareRepository shares, Clock clock, SeatEvents events) {
+        return new ShareService(new ClientLinks(clients, table), new BookingRepository(clients, table), families, shares,
+                new CancellationRepository(clients, table), clock, events);
+    }
+
+    /** What sched-deadline-sweep will run on AWS; locally a timer and a local-only route trigger it (a listed shortcut). */
+    @Bean
+    DeadlineSweepService deadlineSweepService(ShareRepository shares, SeatEvents events) {
+        return new DeadlineSweepService(shares, events);
+    }
+
+    /** What consumer-family-sync will run on AWS; locally {@code LocalEventDispatcher} calls it. */
+    @Bean
+    FamilySyncService familySyncService(TenantClients clients, @Value("${bladebook.table}") String table) {
+        return new FamilySyncService(new SyncRepository(clients, table));
+    }
+}

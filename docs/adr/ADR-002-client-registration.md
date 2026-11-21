@@ -9,6 +9,11 @@ while no such link existed in the model. Adds entities and access patterns to §
 (any age); a **client** is whoever books, is billed and is notified — the student
 themselves when adult, a parent or guardian when the student is a minor.
 
+**Amended — 2026-11-13.** *Decided by the owner (implementation plan G-37):* decision 7 is
+reversed. The day-of reminder is **one email per family per coach per day**, listing each of that
+day's lessons with that coach. The payment reminder stays one per lesson. ADR-MASTER §13 and
+`FeatureDecriptions/Email templates Needed:` updated.
+
 **Amended — 2026-10-01.** Confirming or declining a student (decisions 2, 2b) no longer
 writes the client's link item directly. `api-coach` writes only the `STUDENT#` item, and
 `consumer-student-link` updates or deletes the link about a second later
@@ -82,6 +87,12 @@ approved is Phase 2; MVP sends none (product rule — see `FeatureDecriptions/Cl
 "Coach approval"). When it ships, `consumer-student-link` sends it, since that consumer already
 handles the approval and sends the decline email.
 
+**Amended — 2026-11-09.** *Decided by the owner.* The family creates its Cognito account and
+verifies its email on **BladeBook's own sign-up steps** (steps 2 and 3), and logs in on BladeBook's
+own page; the browser sends the email, password and code straight to Cognito, never to `api-client`
+([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11). Cognito's hosted
+sign-in pages aren't used, so sign-up stays one flow from the coach code to the skaters.
+
 ---
 
 ## Context
@@ -106,7 +117,8 @@ There is no invite email and no coach-created credential. The family registers
 themselves with the coach's **`coachCode`** (the sign-up flow is product — see
 `FeatureDecriptions/Client Sign Up`, "Registration flow"). What registration writes:
 
-1. A Cognito account (email + password), with the email verified.
+1. A Cognito account (email + password), with the email verified. *(Created on BladeBook's own
+   sign-up step, from the browser straight to Cognito; ADR-023 decision 11, 2026-11-09.)*
 2. The `coachCode` resolves to exactly one coach, or registration stops.
 3. One or more students, as declared:
    - an adult registering themselves → one student, `isMinor = false`,
@@ -235,8 +247,11 @@ If codes should eventually expire, that is a DynamoDB **TTL attribute** on the
 
 ### 7. Reminders are per lesson, not per client
 
-Every scheduled lesson produces its own reminder: no per-client digest, no grouping, and no
-deduplication (product rule — see `FeatureDecriptions/Email templates Needed:`, "Day-of
+*Reversed 2026-11-13 by the owner (G-37): the day-of reminder is one email per family per coach per
+day. The payment reminder below stays per lesson.*
+
+~~Every scheduled lesson produces its own reminder: no per-client digest, no grouping, and no
+deduplication~~ (product rule — see `FeatureDecriptions/Email templates Needed:`, "Day-of
 reminder").
 
 This confirms the loop in §6.2 as written — the job queries `GSI2PK = DATE#today`

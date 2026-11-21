@@ -1,6 +1,6 @@
 Coach App
 *Updated 2026-10-12 to match the Harbor design. The design is the source of truth.*
-*Since ADR-023 (2026-10-05) this is the rinkside page inside the coach website (/coach/rinkside), not a separate app.*
+*Since ADR-023 (2026-10-05) this is the rinkside page inside the coach website (/rinkside/ on app.bladebook.org since 2026-11-16), not a separate app.*
 Seperate App from bladebook website. The app needs to be able for the coach to mark the student as checked in, no show, or can Cancel lesson.
 
 Also needs to show the coach who has signed up for lessons that day and what time the lesson is at.
@@ -12,21 +12,26 @@ Also needs to show the coach who has signed up for lessons that day and what tim
 The checkin app will allow a coach to cancelan individual lesson, or any lessons ~~that day~~ *from today to the end of this week (the Week tab, see C_Rinkside Cancel Several Lessons.md)*. When canceling the coach will be asked if they want to release or hold the slots. 
     Hold: ~~means they are coach held~~ the time stays closed (a held lesson time) *(revised 2026-10-13, ADR-031)*
     Release: means they are rebookable by othr students
-    *2026-11-08 (owner; ADR-009):* cancelling the whole week doesn't ask. Every booked lesson and open time left in the
-    week is held closed.
+    *2026-11-08 (owner; ADR-009):* cancelling the whole week doesn't ask. ~~Every booked lesson and open time left in the
+    week is held closed.~~
+    *2026-11-18 (owner; I24):* only a single lesson asks release or hold. A whole day or the rest of the week becomes time
+    off called "Cancelled", with no question (see cancelation.md).
 *Design:* cancelling one lesson is under the "..." button on its card, kept away from Present and No-show. It always
 confirms, names the family who will be emailed, and asks Release for rebooking or Hold it closed (ADR-009 d5a).
 A lesson that has started can't be cancelled, and cancelling needs signal.
 *Rinkside cancelling rules:*
   Added 2026-09-22. The rinkside app is used at the rink on a phone. It offers cancellation in two places:
-    1. A cancel section — the whole day, part of a day, the whole week, part of a week, or specific lessons
-       (see C_Rinkside Cancel Several Lessons.md; "part of a day/week" is a multi-select of lessons, see cancelation.md).
+    1. A cancel section — ~~the whole day, part of a day, the whole week, part of a week, or specific lessons
+       (see C_Rinkside Cancel Several Lessons.md; "part of a day/week" is a multi-select of lessons, see cancelation.md).~~
+       *Owner, 2026-11-16:* one lesson, a whole day, or the rest of the week, nothing in between; lessons on different
+       days are cancelled one by one (the Week tab, see C_Rinkside Cancel Several Lessons.md).
     2. The check-in list — each lesson has a cancel action under its "…" button, kept away from Present and No-show,
        so a single lesson can be cancelled from either place. *Ruled by the owner 2026-11-09.*
   It is the same cancellation as on the website: the same release-or-hold question, it skips lessons that already
     happened, anything larger than one lesson gets the same preview-then-accept step, and families are told once.
   The rinkside app cannot cancel without a connection. *Decided by the owner, 2026-09-30.* With no signal, every cancel
     action — in the check-in list and the cancel section — is disabled, with the note "Cancelling needs a connection."
+    The Week tab shows no lessons offline, only that the week needs a connection (owner, 2026-11-09, R5).
     Check-ins are queued offline because they record something that already happened; a cancellation changes something
     that is about to happen, and a queued one would not reach the family until the phone reconnected — possibly after
     they had left for the rink. It also needs the server for the preview.
@@ -57,19 +62,19 @@ A lesson that has started can't be cancelled, and cancelling needs signal.
 
 Present and No-show:
   The app offers two outcomes per lesson, present or absent, rather than check-in alone (owner, 2026-08-30;
-  ADR-014 d6). A recorded no-show is what lets the end-of-day report tell "didn't come" apart from "not recorded yet".
+  ADR-014 d6). A recorded no-show is what lets ~~the end-of-day report~~ *Payments, the lesson list and the unpaid reminder (the end-of-day report is Phase 2, owner 2026-11-11)* tell "didn't come" apart from "not recorded yet".
   When this was decided, what a no-show costs was still open: the payment reminder followed a check-in only, so a
   student who reserved ice and didn't appear was billed nothing while one who attended was billed. That is very likely
   backwards from a coach's point of view, since the ice was held either way, but it is a business decision, and until it
   was made the app would show the coach a button whose consequence was nothing.
   *Settled the same day by ADR-015 decision 5: a no-show is charged under the same rule as a late cancellation.*
   A coach can record a no-show that costs nothing until Phase 2: ADR-015 decided the charge but scheduled it for
-  Phase 2. The button records a real outcome and feeds the end-of-day report from day one, and starts carrying money
+  Phase 2. The button records a real outcome and feeds ~~the end-of-day report~~ *Payments and the lesson list* from day one, and starts carrying money
   later.
   *(from ADR-014 §6 and Consequences, moved 2026-11-08)*
 
 The app needs to also have a sign in screen where the coach is validated that they are who they say they are. 
-*Design (signin.html):* the same login email and password as the website (ADR-023 d2, d7: only a coach's account gets in). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
+*Design (signin.html):* the same login email and password as the website (ADR-023 d2, d7: only a coach's account gets in). It's BladeBook's own sign-in form, sending straight to Cognito (ADR-023 d11, 2026-11-09). The page says the app shows today's lessons, records attendance and cancels lessons; the schedule, students and payments stay on the website.
 *"Your dashboard" link (owner, 2026-10-21; ADR-023 d8):* at the top of every screen after sign-in, back to the coach website's
 Today page in the same tab; it asks for the password if the rinkside sign-in is over 60 minutes old.
   Every rinkside screen after sign-in has a "Your dashboard" link at the top. It opens the coach website's Today page

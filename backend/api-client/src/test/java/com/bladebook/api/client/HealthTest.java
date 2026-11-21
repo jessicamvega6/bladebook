@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,8 +16,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Locally api-client must really listen (the serverless auto-configuration is excluded). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class HealthTest {
+
+    @DynamicPropertySource
+    static void dynamo(DynamicPropertyRegistry registry) {
+        LocalDynamo.register(registry);
+    }
 
     @LocalServerPort
     int port;

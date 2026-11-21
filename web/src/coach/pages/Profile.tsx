@@ -1,18 +1,22 @@
 /**
- * Profile → Details and Profile → Payments (design: profile-details, profile-details-code-pending,
- * profile-payments, profile-payments-verify). Business email, Visibility & texts and Account aren't
- * built yet (gaps G-2, G-3, G-4).
+ * Profile → Details, Business email, Visibility & texts, and Payments (design: profile-details,
+ * profile-details-code-pending, profile-email, profile-visibility, profile-payments, profile-payments-verify), and
+ * Account (design: profile-account; Batch 18, G-4): the login email, Change password through Cognito, and Log out. The
+ * texts switch waits on ADR-007 d8 (G-3).
  */
 import { useState, type FormEvent } from 'react';
-import { Badge, Banner, Button, Card, Dialog, Field, Icon, Select, TextArea } from '../../shared/components/harbor';
+import { AuthFailure, coachAuth } from '../../shared/auth';
+import { passwordOk, PasswordRules } from '../../shared/components/auth';
+import { Badge, Banner, Button, Card, Dialog, Field, Help, Icon, Select, TextArea, Toggle } from '../../shared/components/harbor';
 import { TIMEZONES } from '../../shared/logic/timezones';
-import type { CoachApi, PaymentType, PaymentTypeName, Profile } from '../api';
+import type { CoachApi, EmailRow, PaymentType, PaymentTypeName, Profile } from '../api';
 import { CodeCard, CodePendingBanner } from '../components/CodeCard';
+import { linkExpired, linkTime } from '../components/linkTime';
 import { allTypes, PaymentTypeRows, PAY_TYPES } from '../components/PaymentTypeRows';
 import { fieldErrors, payErrors } from './SignupBusiness';
 
 const TABS: Array<[label: string, route: string | null]> = [
-  ['Details', '#/profile'], ['Business email', null], ['Visibility & texts', null], ['Payments', '#/profile/payments'], ['Account', null],
+  ['Details', '#/profile'], ['Business email', '#/profile/email'], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', '#/profile/account'],
 ];
 
 function ProfileHead({ tab }: { tab: string }) {
@@ -51,6 +55,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
   const [saved, setSaved] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [rotated, setRotated] = useState('');
+  const [resent, setResent] = useState('');
 
   const act = async (call: () => Promise<Profile>, after?: (p: Profile) => void) => {
     setBusy(true);
@@ -82,6 +87,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
       <ProfileHead tab="Details" />
       {error && <Banner tone="danger">{error}</Banner>}
       {rotated && <Banner tone="success">Your new code is {rotated}. The old one stopped working.</Banner>}
+      {resent && <Banner tone="success">We sent a new link to {resent}. The one sent before no longer works.</Banner>}
       <form onSubmit={save} noValidate>
         <Card title="About you">
           <div className="grid2">
@@ -93,7 +99,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
             <Field label="Phone" type="tel" value={phone} onChange={setPhone} error={errors.phone}
               hint="Families see it only if you switch it on under Visibility." />
             <Select label="Time zone" value={timezone} onChange={setTimezone} options={TIMEZONES} error={errors.coachTimezone}
-              hint="Lesson times and your daily report use it." />
+              hint="Lesson times and your emails use it." />
           </div>
           <div className="fieldset">
             <div className="label">Profile photo <Badge>Phase 2</Badge></div>
@@ -109,7 +115,8 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
           </div>
         </Card>
         <Card title="Coach code">
-          <CodePendingBanner profile={profile} busy={busy} onUseLogin={() => act(api.useLoginEmail)} />
+          <CodePendingBanner profile={profile} busy={busy} onUseLogin={() => act(api.useLoginEmail)}
+            onResend={() => { const a = profile.pendingBusinessEmail ?? ''; act(() => api.resendLink(a), () => setResent(a)); }} />
           <CodeCard profile={profile} extra={<Button variant="ghost" icon="refresh" onClick={() => setRotating(true)}>Rotate code</Button>} />
           <p className="fine">Shared your code somewhere you didn’t mean to? Rotate it. The old code stops working for new sign-ups. Families already signed up aren’t affected.</p>
         </Card>
@@ -127,6 +134,117 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
           </div>
         </Dialog>
       )}
+    </>
+  );
+}
+
+/**
+ * Profile → Business email (design: profile-email; ADR-016, amended 2026-11-12). The list: the login email, the other
+ * confirmed addresses (pick one and Save), and the addresses waiting for their link, each with Resend link and Remove.
+ * "Use a new address" emails a confirmation link at once. In the design a waiting row has "I’ve clicked the link", the
+ * demo's stand-in for the email; here it's Resend link, and the link itself confirms (the confirm page, #/confirm-email/…).
+ */
+export function ProfileBusinessEmail({ api, profile, onChange }: PageProps) {
+  const [chosen, setChosen] = useState(profile.businessEmail);
+  const [adding, setAdding] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailErr, setEmailErr] = useState('');
+  const [flash, setFlash] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const act = async (call: () => Promise<Profile>, done: (p: Profile) => void, onField?: (message: string) => void) => {
+    setBusy(true);
+    setError('');
+    setFlash('');
+    setSaved(false);
+    try {
+      const p = await call();
+      onChange(p);
+      done(p);
+    } catch (e) {
+      const f = fieldErrors(e);
+      if (onField && f.address) onField(f.address);
+      else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const add = () => {
+    const a = newEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)) { setEmailErr('Enter an email address like you@example.com.'); return; }
+    setEmailErr('');
+    act(() => api.addBusinessEmail(a), () => { setAdding(false); setNewEmail(''); setFlash(`Confirmation link sent to ${a}.`); }, setEmailErr);
+  };
+  const resend = (a: string) => act(() => api.resendLink(a), () => setFlash(`Sent a new link to ${a}. The one sent before no longer works.`));
+  const remove = (a: string) => act(() => api.removeBusinessEmail(a), () => setFlash(`${a} is off your list.`));
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    if (!chosen || chosen === profile.businessEmail) { setSaved(true); return; }
+    act(() => api.chooseBusinessEmail(chosen), (p) => { setChosen(p.businessEmail); setSaved(true); });
+  };
+
+  const row = (r: EmailRow) => {
+    if (r.waiting) {
+      const expired = linkExpired(r.linkExpiresAt);
+      return (
+        <div key={r.address} className="rcard mp-rcard--pending">
+          <span className="rcard__icon"><Icon name="mail" size={20} /></span>
+          <div className="rcard__text"><div className="rcard__title">{r.address}</div>
+            <div className="rcard__sub">{expired
+              ? 'The link has expired. Resend it to get a new one.'
+              : <>Confirmation link sent. You can choose it once it’s confirmed. The link works until {linkTime(r.linkExpiresAt!, profile.coachTimezone)}.</>}</div></div>
+          <span className="cellbtns">
+            <Button variant="ghost" sm disabled={busy} onClick={() => resend(r.address)}>Resend link</Button>
+            <button type="button" className="link link--danger" disabled={busy} onClick={() => remove(r.address)}>Remove</button>
+          </span>
+        </div>
+      );
+    }
+    const on = r.address === chosen;
+    return (
+      <div key={r.address} className="mp-rrow">
+        <button type="button" className={`rcard${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => { setChosen(r.address); setSaved(false); }}>
+          <span className="rcard__icon"><Icon name="mail" size={20} /></span>
+          <span className="rcard__text"><span className="rcard__title">{r.address}</span>
+            <span className="rcard__sub">{on ? 'Current · confirmed' : r.login ? 'Your login email · verified' : 'Confirmed'}</span></span>
+          <span className={`radio${on ? ' is-on' : ''}`} />
+        </button>
+        {!on && !r.login && !r.current
+          && <button type="button" className="link link--danger mp-remove" disabled={busy} onClick={() => remove(r.address)}>Remove</button>}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <ProfileHead tab="Business email" />
+      {error && <Banner tone="danger">{error}</Banner>}
+      {flash && <Banner tone="success">{flash}</Banner>}
+      <form onSubmit={save} noValidate>
+        <Card title="Business email" sub="The reply address on lesson reminders and every other automatic email. Replies from families come here.">
+          <div className="mp-radios">{profile.emails.map(row)}</div>
+          {adding ? (
+            <div className="mp-add">
+              <Field label="New business email" type="email" value={newEmail} onChange={setNewEmail} placeholder="you@example.com" error={emailErr || undefined} />
+              <div className="cellbtns">
+                <Button variant="secondary" sm onClick={() => { setAdding(false); setEmailErr(''); }}>Cancel</Button>
+                <Button sm disabled={busy} onClick={add}>Send confirmation link</Button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="addrow" onClick={() => { setAdding(true); setNewEmail(''); setEmailErr(''); }}>
+              <Icon name="plus" size={16} />Use a new address
+            </button>
+          )}
+        </Card>
+        <Help title="Why a new address needs a link first">
+          A typo would send every family’s replies to a stranger. Families keep seeing your current address until the new one is confirmed.
+        </Help>
+        <SaveBar busy={busy} saved={saved} />
+      </form>
     </>
   );
 }
@@ -184,5 +302,146 @@ export function ProfilePayments({ api, profile, onChange }: PageProps) {
         <SaveBar busy={busy} saved={saved} />
       </form>
     </>
+  );
+}
+
+/**
+ * Profile → Visibility & texts (design: profile-visibility; ADR-MASTER section 4, "What families see"; A3). Families see
+ * the phone or email only once the coach has approved one of their skaters; the server enforces that, not this page.
+ */
+export function ProfileVisibility({ api, profile, onChange }: PageProps) {
+  const [showPhone, setShowPhone] = useState(profile.showPhone);
+  const [showEmail, setShowEmail] = useState(profile.showEmail);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const shown = PAY_TYPES.flatMap((t) => {
+    const p = profile.paymentTypes.find((x) => x.type === t.type);
+    return p?.on ? [p.handle ? `${t.label} ${t.prefix}${p.handle}` : t.label] : [];
+  });
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setErrors({});
+    setSaved(false);
+    try {
+      onChange(await api.saveVisibility({ showPhone, showEmail }));
+      setSaved(true);
+    } catch (err) {
+      const f = fieldErrors(err);
+      setErrors(f);
+      if (!Object.keys(f).length) setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <ProfileHead tab="Visibility & texts" />
+      {error && <Banner tone="danger">{error}</Banner>}
+      <form onSubmit={save} noValidate>
+        <Card title="What families can see" sub="Only families you’ve approved. Never someone who has only entered your coach code." flush>
+          <Toggle label="Phone number" on={showPhone} sub={profile.phone ?? 'No phone number yet. Add one under Details.'} onToggle={() => { setShowPhone(!showPhone); setSaved(false); }} />
+          {errors.showPhone && <div className="hint hint--error mp-toggle-err"><Icon name="alert" size={14} />{errors.showPhone}</div>}
+          <Toggle label="Email address" on={showEmail} sub={profile.businessEmail ?? `${profile.pendingBusinessEmail ?? 'Your business email'} isn’t confirmed yet.`}
+            onToggle={() => { setShowEmail(!showEmail); setSaved(false); }} />
+          {errors.showEmail && <div className="hint hint--error mp-toggle-err"><Icon name="alert" size={14} />{errors.showEmail}</div>}
+          <div className="toggle-row"><div className="toggle-row__text"><div className="toggle-row__label">Payment types</div>
+            <div className="toggle-row__sub">{shown.join(' · ') || 'None switched on.'} Each has its own switch under <a className="link" href="#/profile/payments">Payments</a>.</div></div></div>
+          <div className="card__note"><Icon name="info" size={14} /> Your payment instructions always appear in payment-reminder emails. Replies always reach your business email, whichever of these are on.</div>
+        </Card>
+        <Card title="Texts to you" flush
+          sub={`You get an email when a family cancels inside your ${profile.requiredNoticeHours}-hour notice period. Other cancellations just free the time. Texts are extra.`}>
+          {/* Not in the design: the switch is off until texts are set up (ADR-007 d8, gap G-3). */}
+          <div className="toggle-row">
+            <div className="toggle-row__text"><div className="toggle-row__label">Text me when a family cancels late <Badge>Not yet</Badge></div>
+              <div className="toggle-row__sub">Texts aren’t set up yet. Until they are, you get the email.</div></div>
+            <button type="button" className="switch" role="switch" aria-checked={false} aria-label="Text me when a family cancels late" disabled><span className="switch__knob" /></button>
+          </div>
+          <div className="smsprev"><div className="smsprev__label">Example</div><div className="smsprev__bubble">BladeBook: Mia C. cancelled Fri 16 Oct 8:30am, inside your notice period. See email.</div></div>
+        </Card>
+        <SaveBar busy={busy} saved={saved} />
+      </form>
+    </>
+  );
+}
+
+/**
+ * Profile → Account (design: profile-account, and its Change password dialog). The login email can't be changed here.
+ * The password changes at Cognito, from the browser (ADR-023 d11); the rinkside page stays signed in until its own
+ * session runs out.
+ */
+export function ProfileAccount({ profile, onLogOut }: { profile: Profile; onLogOut: () => void }) {
+  const [changing, setChanging] = useState(false);
+  const [flash, setFlash] = useState('');
+  return (
+    <>
+      <ProfileHead tab="Account" />
+      {flash && <Banner tone="success">{flash}</Banner>}
+      <Card title="Signing in">
+        <div className="fieldset"><div className="label">Login email</div>
+          <div className="input input--readonly"><span className="input__val">{profile.loginEmail}</span><Badge tone="success" icon="check">Verified</Badge></div>
+          <div className="hint">You sign in with this and your morning email comes here. It can’t be changed from this page; families never see it unless it’s also your business email.</div>
+        </div>
+        <div className="row row--boxed">
+          <div className="row__main"><span className="roundicon"><Icon name="lock" size={16} /></span>
+            <div><div className="row__title">Password</div><div className="row__sub">Sign-in is handled by Amazon Cognito.</div></div></div>
+          <div className="row__side"><Button variant="secondary" sm onClick={() => { setFlash(''); setChanging(true); }}>Change password</Button></div>
+        </div>
+      </Card>
+      <Card title="Rinkside app" flush>
+        <div className="row">
+          <div className="row__main"><span className="roundicon"><Icon name="phone" size={16} /></span>
+            <div><div className="row__title">BladeBook rinkside page</div>
+              <div className="row__sub">Check skaters in from your phone. It uses the same email and password, and shows today’s lessons, attendance and cancelling.</div></div></div>
+        </div>
+      </Card>
+      <div className="actions"><div></div><div className="actions__r"><Button variant="secondary" icon="arrowL" onClick={onLogOut}>Log out</Button></div></div>
+      {changing && <ChangePassword onClose={() => setChanging(false)} onChanged={() => { setChanging(false); setFlash('Password changed.'); }} />}
+    </>
+  );
+}
+
+function ChangePassword({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!current) { setError('Enter your current password.'); return; }
+    if (!passwordOk(next)) { setError('Use a new password that meets every rule below.'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      await coachAuth().changePassword(current, next);
+      onChanged();
+    } catch (err) {
+      // A wrong current password comes back as Cognito's "not authorized".
+      setError(err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' ? 'Your current password isn’t right.'
+        : err instanceof Error ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog onClose={onClose} labelledBy="pw-title">
+      <form onSubmit={save} noValidate>
+        <h2 className="h2" id="pw-title">Change password</h2>
+        {error && <Banner tone="danger">{error}</Banner>}
+        <Field label="Current password" type="password" value={current} onChange={setCurrent} autoComplete="current-password" />
+        <Field label="New password" type="password" value={next} onChange={setNext} autoComplete="new-password" placeholder="At least 8 characters" />
+        <PasswordRules password={next} />
+        <p className="fine">Your rinkside app stays signed in until its session runs out.</p>
+        <div className="dialog__actions">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={busy}>Change password</Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

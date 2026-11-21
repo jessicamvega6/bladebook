@@ -14,4 +14,5 @@ coach website. ~~This app only sees today's lessons, attendance and cancelling.~
 cancelling. (Owner, 2026-11-09, R9: the page signs in like the website and can reach everything it can, so the text
 says what the page is for, not what it can see.)*
 
-Log out button. If check-ins are still waiting to send, logging out warns first (see C_Rinkside Offline.md).
+Log out button. If check-ins are still waiting to send, logging out warns first; they stay on the phone and send
+after the coach logs in again (owner, 2026-11-09, R2; see C_Rinkside Offline.md).

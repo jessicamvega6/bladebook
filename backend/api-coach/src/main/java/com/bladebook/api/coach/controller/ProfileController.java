@@ -1,9 +1,13 @@
 package com.bladebook.api.coach.controller;
 
+import com.bladebook.api.coach.dto.ProfileDtos.AddressRequest;
 import com.bladebook.api.coach.dto.ProfileDtos.DetailsRequest;
+import com.bladebook.api.coach.dto.ProfileDtos.LinkResponse;
 import com.bladebook.api.coach.dto.ProfileDtos.PaymentsRequest;
 import com.bladebook.api.coach.dto.ProfileDtos.ProfileResponse;
 import com.bladebook.api.coach.dto.ProfileDtos.SignupRequest;
+import com.bladebook.api.coach.dto.ProfileDtos.TokenRequest;
+import com.bladebook.api.coach.dto.ProfileDtos.VisibilityRequest;
 import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.core.service.CoachProfileService;
 import org.springframework.http.HttpStatus;
@@ -54,9 +58,56 @@ public class ProfileController {
         return ProfileResponse.of(profiles.updatePayments(CurrentCoach.of(jwt), body.toPayments()));
     }
 
+    /** What approved families see: the phone and the business email, each switched on or off. */
+    @PutMapping("/profile/visibility")
+    public ProfileResponse visibility(@AuthenticationPrincipal Jwt jwt, @RequestBody VisibilityRequest body) {
+        return ProfileResponse.of(profiles.updateVisibility(CurrentCoach.of(jwt), body.showPhone(), body.showEmail()));
+    }
+
     @PostMapping("/profile/code/rotate")
     public ProfileResponse rotate(@AuthenticationPrincipal Jwt jwt) {
         return ProfileResponse.of(profiles.rotateCode(CurrentCoach.of(jwt)));
+    }
+
+    // ---- Profile → Business email and the confirmation link (ADR-016, amended 2026-11-12) ----
+
+    /** "Use a new address" (or, with {@code replaces}, sign-up step 4's "Change address"): saves it and emails its link. */
+    @PostMapping("/profile/business-email")
+    public ProfileResponse addBusinessEmail(@AuthenticationPrincipal Jwt jwt, @RequestBody AddressRequest body) {
+        return ProfileResponse.of(profiles.addBusinessEmail(CurrentCoach.of(jwt), body.address(), body.replaces()));
+    }
+
+    /** Profile → Business email's Save: a confirmed address, or the login email, becomes the business email. */
+    @PutMapping("/profile/business-email")
+    public ProfileResponse chooseBusinessEmail(@AuthenticationPrincipal Jwt jwt, @RequestBody AddressRequest body) {
+        return ProfileResponse.of(profiles.chooseBusinessEmail(CurrentCoach.of(jwt), body.address()));
+    }
+
+    /** "Resend link": a new link; the earlier one stops working. */
+    @PostMapping("/profile/business-email/resend")
+    public ProfileResponse resendLink(@AuthenticationPrincipal Jwt jwt, @RequestBody AddressRequest body) {
+        return ProfileResponse.of(profiles.resendBusinessEmailLink(CurrentCoach.of(jwt), body.address()));
+    }
+
+    @PostMapping("/profile/business-email/remove")
+    public ProfileResponse removeBusinessEmail(@AuthenticationPrincipal Jwt jwt, @RequestBody AddressRequest body) {
+        return ProfileResponse.of(profiles.removeBusinessEmail(CurrentCoach.of(jwt), body.address()));
+    }
+
+    /**
+     * The confirm page, before Confirm: which address the link is for. Changes nothing. The token travels in the body,
+     * never the address, so it isn't written to access logs.
+     */
+    @PostMapping("/profile/business-email/check")
+    public LinkResponse checkLink(@AuthenticationPrincipal Jwt jwt, @RequestBody TokenRequest body) {
+        return new LinkResponse(profiles.checkBusinessEmailLink(CurrentCoach.of(jwt), body.token()), null);
+    }
+
+    /** Confirm: the link's address becomes the business email and the link is used up. */
+    @PostMapping("/profile/business-email/confirm")
+    public LinkResponse confirm(@AuthenticationPrincipal Jwt jwt, @RequestBody TokenRequest body) {
+        CoachProfileService.Confirmed c = profiles.confirmBusinessEmail(CurrentCoach.of(jwt), body.token());
+        return new LinkResponse(c.address(), ProfileResponse.of(c.profile()));
     }
 
     /** "Use my login email instead" while a different business email waits for its link. */

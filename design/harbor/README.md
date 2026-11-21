@@ -15,9 +15,9 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 55 pages, as an interactive demo and as static designs. |
-| `client/` | The family website: 61 pages. |
-| `rinkside/` | The rinkside check-in app: 17 phone screens. |
+| `coach/` | The coach website: 57 pages, as an interactive demo and as static designs. |
+| `client/` | The family website: 69 pages. |
+| `rinkside/` | The rinkside check-in app: 20 phone screens. |
 
 ## Coach website — `coach/`
 
@@ -41,7 +41,7 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 
 ### Pages
 
-55 static pages. New means no design existed before; redesigned means a Forest screen existed.
+57 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
@@ -52,9 +52,9 @@ Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments �
 | Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
 | Students | Student list, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
-| Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, financial summary — new |
+| Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, waive, lessons from before last year (view only), financial summary — new |
 | Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new |
-| Phase 2 | Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
+| Phase 2 | The coach's daily report (2026-11-11; tagged Phase 2 on Email templates). Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
 
 ### What the demo does not do
 
@@ -107,8 +107,9 @@ turns signal off and on, moves the clock to 5:45 or 8:40 AM, and opens the app w
 Today's 6:00 lesson is shared by Sam and Leo: one card, each skater with their own check-in, and cancelling it
 cancels both (ADR-026 d6).
 Entries made with no signal are saved on the phone and sent when signal returns; one is
-rejected because the family cancelled meanwhile, and appears under "Couldn't be sent"
-(ADR-014). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a), except
+cleared because the family cancelled meanwhile, and the lesson shows as cancelled on Today
+(ADR-014 d4). Entries still waiting survive a log-out and send after the same coach logs in
+again (owner, 2026-11-09). Cancelling always confirms and asks release or hold per lesson (ADR-009 d5a), except
 *Cancel rest of week* on the Week tab, which holds every booked lesson and open time left (2026-11-08).
 
 ## Rebuilding

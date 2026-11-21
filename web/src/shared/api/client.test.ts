@@ -90,4 +90,23 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/x', { method: 'POST' })).rejects.toMatchObject({ status: 400, code: 'UNKNOWN' });
   });
+
+  test('retries a write once only when it carries an idempotency key (ADR-006 d4b)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(respond(500, { error: 'SERVER' }))
+      .mockResolvedValueOnce(respond(200, { picks: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiFetch('/api/client/bookings', { method: 'POST', body: { idempotencyKey: 'k' }, idempotent: true }))
+      .resolves.toEqual({ picks: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body);
+  });
+
+  test('a write without a key is never retried', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respond(500, { error: 'SERVER' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(apiFetch('/api/client/me/contact', { method: 'PUT', body: {} })).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

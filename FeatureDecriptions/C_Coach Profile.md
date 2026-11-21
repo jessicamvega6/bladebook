@@ -8,7 +8,7 @@ button (Account has Log out instead). Coach Dashboard on website.md has the orig
 Details:
   First name and last name: shown on the booking page and in every email families get.
   Phone: families see it only if it's switched on under Visibility.
-  Time zone: used for lesson times and the daily report.
+  Time zone: used for lesson times ~~and the daily report~~ *and the coach's emails (the daily report is Phase 2, owner 2026-11-11)*.
   Profile photo (optional): JPG or PNG, up to 2 MB, with Upload, Change and Remove. Families see it after
     they enter the coach code. *Profile photo is Phase 2 (ADR-016 d5); MVP shows initials.*
     *Decided by the owner 2026-10-05:* where a photo would appear, including the family's code-entry screen, MVP shows
@@ -24,7 +24,14 @@ Business email:
   "Use a new address": a new address gets a confirmation link and can't be picked until it's confirmed,
     so a typo can't send every family's replies to a stranger. Families keep seeing the current address
     until then.
+  *Decided by the owner 2026-11-12:* the link works once and lasts 3 days. Resend sends a new link and the old one stops
+    working. The coach signs in to confirm. (ADR-016, amendment 2026-11-12)
   Any address except the current one and the login email can be removed.
+  *Built 2026-11-16 (Batch 14; settled while building, owner may override):* an address waiting for its link shows when
+    the link stops working, with "Resend link" (where the design's demo has "I've clicked the link") and "Remove". Up to
+    10 addresses besides the login email. *Decided 2026-11-16 by the owner (G-41):* a confirmed address becomes the business
+    email the moment it's confirmed, as ADR-MASTER section 4 and architecture.md section 6.13 say; the design's "choose it
+    and Save" after confirming is superseded. The address it replaces stays on the list and can be chosen again.
   *Decided by the owner 2026-10-13 (Harbor design):* on the profile, the coach keeps a list of addresses and picks one.
     "Use a new address" sends a link, and the address can't be picked until it's confirmed. Any address except the
     current one and the login email can be removed. *(from ADR-016, amendment 2026-10-13, moved 2026-11-08)*
@@ -66,8 +73,9 @@ Payments:
     *(from ADR-016, amendment 2026-10-12, later, moved 2026-11-08)*
 
 Account:
-  Login email: read-only, marked verified. The coach signs in with it and gets the daily report and the morning email there.
-  Password: "Change password" opens a form for the current and new password (handled by Cognito). The
+  Login email: read-only, marked verified. The coach signs in with it and gets ~~the daily report and~~ the morning email *and the weekly unpaid reminder* there.
+  Password: "Change password" opens a form for the current and new password (handled by Cognito; the form is
+    BladeBook's own and sends both straight to Cognito, ADR-023 d11, 2026-11-09). The
     rinkside app stays signed in until its session runs out.
   Rinkside page: a note that it uses the same email and password ~~and can only see today's lessons~~ *and shows today's lessons,
     attendance and cancelling (owner, 2026-11-09, R9)*.

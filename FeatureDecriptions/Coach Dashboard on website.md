@@ -13,6 +13,25 @@ are fixed on Lessons. Links to the day and week views.
   *(from ADR-023's amendment of 2026-10-13, moved 2026-11-08)*
 Figures under the rink card: this week's lessons and amount booked, unpaid total for past lessons, skaters waiting for approval.
 When families are waiting, a "New families to approve" card lists them with a "Review sign-ups" button.
+*Built 2026-11-16 (Batch 22, G-6), as the design draws it, with the owner's rulings of 2026-11-16:*
+  - **This week** is Sunday to Saturday in the coach's time zone, and counts the **lesson times** in it with at least
+    one skater booked, whatever happened at them: a shared lesson counts once, and a held or empty time not at all
+    (*owner, 2026-11-16*; first built counting each skater's lesson). The amount is what every skater's share comes to,
+    so a shared lesson adds its whole price.
+  - **Unpaid** is every lesson that has started and is still unpaid, however long ago, no-shows included (ADR-015 d4),
+    each at the skater's share: the same rule and amounts as the Payments page (*kept by the owner, 2026-11-16*; the
+    design's demo used lessons that had ended). It reads back to the oldest unpaid
+    lesson through the unpaid index (global secondary index 3, GSI3; access pattern 11), so it isn't limited to this year.
+  - **Waiting for approval** counts skaters and names their families, or says *Nobody waiting*.
+  - **Today's lessons** lists the booked and held times; a booked one shows each skater's full name, the length and
+    each share (*"$25 + $25 · shared lesson"*), and each skater's attendance (*Booked*, *Attended*, *No-show*, or *Not
+    recorded* once it has ended). The first booked lesson that hasn't started is *Next*; earlier ones are greyed. A day
+    with none says *"Your next lesson is on Monday, Nov 23."*, or *"Nothing is booked after today yet."*
+  - **The coach code card is on Today, under the three figures** (*owner, 2026-11-16*, over the design, which leaves
+    it off): the same card as on Profile → Details, with Copy, and *Not working yet* until the business email is
+    confirmed.
+  - **Times read "1:00 PM"** (*owner, 2026-11-16*: "use '1:00 PM' everywhere"), here and on every coach and family
+    page; the design had *6:00* with no AM or PM.
 
 Has a button that routes to: ~~Create Default Schedule, Temparary Schedule~~ *Edit weekly schedule, Time off or special schedule*, Month view of lessons, week view of lessons, Student List, *Payments*, coach profile, ~~Pending Student List~~ *(pending students are reached from "Review sign-ups" and the Students page)*, Email template list (phase 2)
 *Design:* the main navigation is Today · Calendar · Schedule · Students · Lessons · Payments · Profile. Students shows a count when families are waiting.
@@ -51,6 +70,9 @@ in the coach's records.
   override applied when the skater's share is worked out. Whether it reaches lessons already booked is still the Phase 2
   question for Kim (§5).*
   The page has two tabs: Students, and Waiting for approval, each with a count.
+  *Decided by the owner 2026-11-09:* the Students tab lists skaters by their family contact's name (first name, then
+    last), then by the skater's name, so a family's skaters sit together. Waiting for approval stays in the order
+    families signed up.
   *Phase 2 (owner, 2026-10-07; decided 2026-10-06):* on a skater's record, a coach sees "Also coached by: Sam Ortiz." —
     only the other coaches' first and last names, and only once the skater is approved with both coaches. Nothing else
     crosses: not the other coach's schedule, prices, lessons, notes or contact details. *(from ADR-025 decision 4,
@@ -63,8 +85,10 @@ in the coach's records.
   Rink download (owner, 2026-10-16): coaches download the numbers for the rinks. The rinks require each skater's number;
     the coach passes it on and the rinks validate it. A file on the coach's Students tab with Student First Name,
     Student Last Name, Skater Number. The download is logged as a read of personal data (ADR-012).
-    Open: the rink download's phase (MVP or later) (added 2026-10-16). How the name is split stays an open item in
-    ADR-029. *(from ADR-029, amendment 2026-10-16 and Open, moved 2026-11-08)*
+    ~~Open: the rink download's phase (MVP or later) (added 2026-10-16). How the name is split stays an open item in
+    ADR-029.~~ *(from ADR-029, amendment 2026-10-16 and Open, moved 2026-11-08)*
+    *Decided by the owner 2026-11-09:* the rink download is **Phase 2**. The skater's one full name is split into
+    Student First Name and Student Last Name when the file is made; sign-up keeps one full-name box.
 
 
 On the coach profile page is a form that allows the coach to update their email, phone number, profile picture (Phase 2), ~~payment currency~~, where they want to display their contact info to the client. 

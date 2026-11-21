@@ -36,7 +36,7 @@ Questions for the owner:
   5. Can a family account later become a coach (a parent who starts coaching), as well as the other way round?
   6. MFA: if the coach turned MFA on, does it also apply when they use the family side? (With one account, it
      would.)
-  7. Emails: the coach gets the morning email and daily report at their login email; the family side sends
+  7. Emails: the coach gets the morning email ~~and daily report~~ *and weekly unpaid reminder (the daily report is Phase 2, 2026-11-11)* at their login email; the family side sends
      confirmations and reminders to the same address. Is one inbox for both fine, or should the family emails
      go elsewhere?
   8. Deleting: if the coach closes their coach account, does the family side stay, and the other way round?

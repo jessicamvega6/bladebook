@@ -1,7 +1,8 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
+import com.bladebook.core.service.LocalOutbox;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** api-coach end to end over HTTP: token checks, sign-up step 3, the profile and the coach code. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ProfileApiTest {
 
     @DynamicPropertySource
@@ -41,7 +42,10 @@ class ProfileApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
+
+    @Autowired
+    LocalOutbox outbox;
 
     record Res(int status, JsonNode body) {
         String s(String field) {
@@ -167,10 +171,89 @@ class ProfileApiTest {
         assertThat(r.s("pendingBusinessEmail")).isEqualTo("lessons@dana.example.com");
         assertThat(r.body().get("codeWorks").asBoolean()).isFalse();
 
-        Res confirmed = call("POST", "/api/coach/local/business-email/confirm", token, null);
+        // the stand-in is gone (SC-2 closed)
+        assertThat(call("POST", "/api/coach/local/business-email/confirm", token, null).status()).isIn(404, 405);
+
+        String link = linkTo("lessons@dana.example.com");
+        assertThat(link).startsWith("http://localhost:5173/coach/#/confirm-email/");
+        String linkToken = link.substring(link.lastIndexOf('/') + 1);
+
+        Res checked = call("POST", "/api/coach/profile/business-email/check", token, "{\"token\":\"" + linkToken + "\"}");
+        assertThat(checked.status()).isEqualTo(200);
+        assertThat(checked.s("address")).isEqualTo("lessons@dana.example.com");
+        assertThat(call("GET", "/api/coach/profile", token, null).body().get("codeWorks").asBoolean()).isFalse();
+
+        Res confirmed = call("POST", "/api/coach/profile/business-email/confirm", token, "{\"token\":\"" + linkToken + "\"}");
         assertThat(confirmed.status()).isEqualTo(200);
-        assertThat(confirmed.s("businessEmail")).isEqualTo("lessons@dana.example.com");
-        assertThat(confirmed.body().get("codeWorks").asBoolean()).isTrue();
+        assertThat(confirmed.s("address")).isEqualTo("lessons@dana.example.com");
+        JsonNode profile = confirmed.body().get("profile");
+        assertThat(profile.get("businessEmail").asString()).isEqualTo("lessons@dana.example.com");
+        assertThat(profile.get("codeWorks").asBoolean()).isTrue();
+
+        // used once
+        Res again = call("POST", "/api/coach/profile/business-email/confirm", token, "{\"token\":\"" + linkToken + "\"}");
+        assertThat(again.status()).isEqualTo(409);
+        assertThat(again.s("message")).startsWith("This link doesn’t work any more.");
+    }
+
+    @Test
+    void profileBusinessEmailListsAddsResendsChoosesAndRemoves() throws Exception {
+        String email = newEmail();
+        String token = stub.coachToken(email);
+        call("POST", "/api/coach/signup", token, signup(true, null));
+
+        Res added = call("POST", "/api/coach/profile/business-email", token, "{\"address\":\"club@dana.example.com\"}");
+        assertThat(added.status()).isEqualTo(200);
+        assertThat(added.s("businessEmail")).isEqualTo(email); // unchanged until confirmed
+        JsonNode rows = added.body().get("emails");
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).get("address").asString()).isEqualTo(email);
+        assertThat(rows.get(0).get("login").asBoolean()).isTrue();
+        assertThat(rows.get(0).get("current").asBoolean()).isTrue();
+        assertThat(rows.get(1).get("waiting").asBoolean()).isTrue();
+        assertThat(rows.get(1).get("linkExpiresAt").asString()).isNotBlank();
+        assertThat(added.body().toString()).doesNotContain("tokenHash");
+        String first = linkTo("club@dana.example.com");
+
+        // too soon to resend; choosing a waiting address is refused
+        assertThat(call("POST", "/api/coach/profile/business-email/resend", token, "{\"address\":\"club@dana.example.com\"}").status())
+                .isEqualTo(409);
+        Res choose = call("PUT", "/api/coach/profile/business-email", token, "{\"address\":\"club@dana.example.com\"}");
+        assertThat(choose.status()).isEqualTo(400);
+        assertThat(choose.s("field")).isEqualTo("address");
+
+        Res dup = call("POST", "/api/coach/profile/business-email", token, "{\"address\":\"CLUB@dana.example.com\"}");
+        assertThat(dup.status()).isEqualTo(400);
+        assertThat(dup.s("message")).isEqualTo("That address is already on your list.");
+
+        Res removed = call("POST", "/api/coach/profile/business-email/remove", token, "{\"address\":\"club@dana.example.com\"}");
+        assertThat(removed.body().get("emails")).hasSize(1);
+        String oldToken = first.substring(first.lastIndexOf('/') + 1);
+        assertThat(call("POST", "/api/coach/profile/business-email/confirm", token, "{\"token\":\"" + oldToken + "\"}").status())
+                .isEqualTo(409);
+        assertThat(call("POST", "/api/coach/profile/business-email/remove", token, "{\"address\":\"" + email + "\"}").status())
+                .isEqualTo(400);
+    }
+
+    @Test
+    void anotherCoachsLinkConfirmsNothing() throws Exception {
+        String dana = stub.coachToken(newEmail());
+        call("POST", "/api/coach/signup", dana, signup(false, "dana-only@dana.example.com"));
+        String link = linkTo("dana-only@dana.example.com");
+        String sam = stub.coachToken(newEmail());
+        call("POST", "/api/coach/signup", sam, signup(true, null));
+
+        Res r = call("POST", "/api/coach/profile/business-email/confirm", sam, "{\"token\":\"" + link.substring(link.lastIndexOf('/') + 1) + "\"}");
+        assertThat(r.status()).isEqualTo(409);
+        assertThat(call("GET", "/api/coach/profile", dana, null).body().get("codeWorks").asBoolean()).isFalse();
+        assertThat(call("POST", "/api/coach/profile/business-email/confirm", null, "{\"token\":\"x\"}").status()).isEqualTo(401);
+    }
+
+    /** The link in the newest confirmation email to {@code address}, from the local outbox (SC-21). */
+    private String linkTo(String address) {
+        return outbox.list().stream().map(LocalOutbox.Sent::email)
+                .filter(e -> e.template().equals("business-email-confirmation") && e.to().equals(address))
+                .map(e -> (String) e.data().get("confirmUrl")).findFirst().orElseThrow();
     }
 
     @Test
@@ -256,6 +339,20 @@ class ProfileApiTest {
         assertThat(venmo.get("type").asString()).isEqualTo("VENMO");
         assertThat(venmo.get("on").asBoolean()).isFalse();
         assertThat(venmo.get("handle").asString()).isEqualTo("@dana");
+    }
+
+    @Test
+    void visibilitySwitchesStartOffAndAreSaved() throws Exception {
+        String token = stub.coachToken(newEmail());
+        Res start = call("POST", "/api/coach/signup", token, signup(true, null));
+        assertThat(start.body().get("showPhone").asBoolean()).isFalse();
+        assertThat(start.body().get("showEmail").asBoolean()).isFalse();
+
+        Res r = call("PUT", "/api/coach/profile/visibility", token, "{\"showPhone\":true,\"showEmail\":true}");
+
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("showPhone").asBoolean()).isTrue();
+        assertThat(call("GET", "/api/coach/profile", token, null).body().get("showEmail").asBoolean()).isTrue();
     }
 
     @Test

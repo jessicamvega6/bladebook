@@ -3,6 +3,7 @@
  * copied stylesheet applies unchanged.
  */
 import { Fragment, useEffect, useId, useRef, type ReactNode } from 'react';
+import { initials } from '../logic/names';
 
 const ICONS: Record<string, ReactNode> = {
   logo: <><path d="M8.5 3v9.2c0 1.6 1 2.7 2.7 3.2l5.6 1.7" /><path d="M4 20h16" /><path d="M6.5 20v-2" /><path d="M17.5 20v-2.3" /></>,
@@ -12,10 +13,15 @@ const ICONS: Record<string, ReactNode> = {
   mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></>,
   copy: <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
   refresh: <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" />,
+  wifiOff: <path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M2 8.82a15 15 0 0 1 4.17-2.65M10.66 5c4.01-.36 8.14.9 11.34 3.76M16.85 11.25a10 10 0 0 1 2.22 1.68M5 13a10 10 0 0 1 5.24-2.76M2 2l20 20" />,
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
   lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
   card: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>,
   arrowR: <path d="M5 12h14M12 5l7 7-7 7" />,
+  trend: <><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></>,
+  spark: <path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z" />,
+  list: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+  more: <><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></>,
   arrowL: <path d="M19 12H5M12 19l-7-7 7-7" />,
   x: <path d="M18 6 6 18M6 6l12 12" />,
   chevL: <path d="m15 18-6-6 6-6" />,
@@ -27,6 +33,9 @@ const ICONS: Record<string, ReactNode> = {
   trash: <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />,
   undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></>,
   ban: <><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
+  users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  phone: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />,
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof ICONS | string; size?: number }) {
@@ -66,12 +75,15 @@ export function Badge({ tone = 'neutral', icon, children }: { tone?: string; ico
   return <span className={`badge badge--${tone}`}>{icon && <Icon name={icon} size={12} />}{children}</span>;
 }
 
-export function Card({ title, sub, children, flush, className }: { title?: ReactNode; sub?: ReactNode; children: ReactNode; flush?: boolean; className?: string }) {
+export function Card({ title, sub, children, flush, className, action }: {
+  title?: ReactNode; sub?: ReactNode; children: ReactNode; flush?: boolean; className?: string; action?: ReactNode;
+}) {
   return (
     <section className={`card${flush ? ' card--flush' : ''}${className ? ' ' + className : ''}`}>
       {title && (
         <header className="card__head">
           <div><h2 className="h2">{title}</h2>{sub && <p className="card__sub">{sub}</p>}</div>
+          {action}
         </header>
       )}
       <div className="card__body">{children}</div>
@@ -122,9 +134,13 @@ interface FieldProps {
   autoComplete?: string;
   /** Fixed text shown before the box, such as "$". Not part of {@code value}. */
   prefix?: string;
+  /** Monospaced, for codes and numbers. */
+  mono?: boolean;
+  /** Turns pasting off (the confirm-password box). */
+  noPaste?: boolean;
 }
 
-export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', hint, error, optional, placeholder, autoComplete, prefix, mono, noPaste }: FieldProps) {
   const id = useId();
   const hintId = `${id}-hint`;
   return (
@@ -132,8 +148,8 @@ export function Field({ label, value, onChange, type = 'text', hint, error, opti
       <label className="label" htmlFor={id}>{label}{optional && <> <span className="label__opt">Optional</span></>}</label>
       {(() => {
         const input = (
-          <input id={id} className={`ctl${error ? ' is-error' : ''}`} type={type} value={value} placeholder={placeholder}
-            autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)}
+          <input id={id} className={`ctl${error ? ' is-error' : ''}${mono ? ' mono' : ''}`} type={type} value={value} placeholder={placeholder}
+            autoComplete={autoComplete} onChange={(e) => onChange(e.target.value)} onPaste={noPaste ? (e) => e.preventDefault() : undefined}
             aria-invalid={error ? true : undefined} aria-describedby={hint || error ? hintId : undefined} />
         );
         return prefix
@@ -222,17 +238,45 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
 /** Modal dialog over a scrim. Escape or the scrim closes it; focus moves into it. */
 export function Dialog({ children, onClose, labelledBy }: { children: ReactNode; onClose: () => void; labelledBy: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The latest onClose, so a parent's new function each render doesn't move focus back while someone types (Batch 11).
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const first = ref.current?.querySelector<HTMLElement>('input, button');
     first?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close.current(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
   return (
     <>
       <div className="scrim" onClick={onClose} />
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby={labelledBy} ref={ref}>{children}</div>
     </>
+  );
+}
+
+/** Initials in a circle. Photos are Phase 2 (A1). */
+export function Avatar({ name, size }: { name: string; size?: 'sm' | 'lg' }) {
+  return <span className={`avatar${size ? ` avatar--${size}` : ''}`} aria-hidden="true">{initials(name)}</span>;
+}
+
+/** A list row (design's row and rowTitle). */
+export function Row({ title, sub, lead, side, muted }: { title: ReactNode; sub?: ReactNode; lead?: ReactNode; side?: ReactNode; muted?: boolean }) {
+  return (
+    <div className={`row${muted ? ' row--muted' : ''}`}>
+      <div className="row__main">{lead}<div><div className="row__title">{title}</div>{sub && <div className="row__sub">{sub}</div>}</div></div>
+      {side && <div className="row__side">{side}</div>}
+    </div>
+  );
+}
+
+/** Checkbox (design's CHK). */
+export function Check({ label, sub, checked, onChange, disabled }: { label: ReactNode; sub?: ReactNode; checked: boolean; onChange: (on: boolean) => void; disabled?: boolean }) {
+  return (
+    <label className="check">
+      <input type="checkbox" className="check__input" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="check__text"><span className="check__label">{label}</span>{sub && <span className="check__sub">{sub}</span>}</span>
+    </label>
   );
 }

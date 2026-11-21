@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The weekly schedule and the coach's calendar over HTTP (Batch 2). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class ScheduleApiTest {
 
     @DynamicPropertySource
@@ -45,7 +45,7 @@ class ScheduleApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     private String email;
     private String token;
@@ -86,6 +86,113 @@ class ScheduleApiTest {
 
     private static LocalDate nextSunday() {
         return LocalDate.now(ZoneId.of("America/Chicago")).with(TemporalAdjusters.next(java.time.DayOfWeek.SUNDAY));
+    }
+
+    private static String timeOff(LocalDate from, LocalDate to) {
+        return "{\"kind\":\"TIME_OFF\",\"name\":\"Fall break\",\"startDate\":\"" + from + "\",\"endDate\":\"" + to + "\"}";
+    }
+
+    @Test
+    void timeOffPreviewsSavesAndShowsOnTheHubAndCalendar() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        LocalDate sunday = nextSunday();
+
+        Res preview = call("POST", "/api/coach/schedule/temps/preview", token, timeOff(sunday, sunday.plusDays(1)));
+        assertThat(preview.status()).isEqualTo(200);
+        assertThat(preview.body().get("cancel")).isEmpty();
+        assertThat(preview.body().get("families").asInt()).isZero();
+
+        Res saved = call("POST", "/api/coach/schedule/temps", token, timeOff(sunday, sunday.plusDays(1)));
+        assertThat(saved.status()).isEqualTo(200);
+        assertThat(saved.s("tempId")).isNotBlank();
+        assertThat(saved.s("displayName")).isEqualTo("Fall break");
+
+        Res list = call("GET", "/api/coach/schedule/temps", token, null);
+        assertThat(list.body()).hasSize(1);
+        assertThat(list.body().get(0).get("kind").asString()).isEqualTo("TIME_OFF");
+
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(2), token, null);
+        JsonNode first = cal.body().get("days").get(0);
+        assertThat(first.get("lessons")).isEmpty();
+        assertThat(first.get("special").get("name").asString()).isEqualTo("Fall break");
+        assertThat(cal.body().get("days").get(2).get("special").isNull()).isTrue();
+        assertThat(cal.body().get("days").get(2).get("lessons")).hasSize(1);
+
+        Res overlap = call("POST", "/api/coach/schedule/temps/preview", token, timeOff(sunday.plusDays(1), sunday.plusDays(3)));
+        assertThat(overlap.status()).isEqualTo(400);
+        assertThat(overlap.s("message")).startsWith("These dates overlap Fall break");
+
+        Res before = call("GET", "/api/coach/schedule/temps/" + saved.s("tempId") + "/delete-preview", token, null);
+        assertThat(before.status()).isEqualTo(200);
+        assertThat(before.body().get("cancel")).isEmpty();
+        assertThat(call("DELETE", "/api/coach/schedule/temps/" + saved.s("tempId"), token, null).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/coach/schedule/temps", token, null).body()).isEmpty();
+        Res back = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday, token, null);
+        assertThat(back.body().get("days").get(0).get("lessons")).hasSize(1);
+    }
+
+    @Test
+    void aSpecialScheduleIsSavedWithItsBlocksAndCanBeOpenedToEdit() throws Exception {
+        LocalDate sunday = nextSunday();
+        String body = "{\"kind\":\"SPECIAL\",\"name\":\"Camp\",\"startDate\":\"" + sunday + "\",\"endDate\":\"" + sunday.plusDays(1)
+                + "\",\"templates\":[{\"seq\":1,\"name\":\"Camp ice\",\"startTime\":\"09:00\",\"endTime\":\"11:00\",\"lessonMinutes\":60,"
+                + "\"priceMinor\":8000,\"maxSkaters\":1,\"iceType\":\"PUBLIC\",\"days\":[],\"off\":{\"" + sunday.plusDays(1) + "\":[\"10:00\"]}}]}";
+        Res saved = call("POST", "/api/coach/schedule/temps", token, body);
+        assertThat(saved.status()).isEqualTo(200);
+        Res one = call("GET", "/api/coach/schedule/temps/" + saved.s("tempId"), token, null);
+        assertThat(one.body().get("templates").get(0).get("off").get(sunday.plusDays(1).toString()).get(0).asString()).isEqualTo("10:00");
+
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(1), token, null);
+        assertThat(cal.body().get("days").get(0).get("lessons")).hasSize(2);
+        assertThat(cal.body().get("days").get(1).get("lessons")).hasSize(1);
+    }
+
+    @Test
+    void theWeeklyPreviewWarnsOfABigPriceChangeAndTheStatusSaysNothingHasRunYet() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        Res r = call("POST", "/api/coach/schedule/preview", token, everyDay(1).replace("4550", "455"));
+        assertThat(r.status()).isEqualTo(200);
+        JsonNode big = r.body().get("big").get(0);
+        assertThat(big.get("fromMinor").asInt()).isEqualTo(4550);
+        assertThat(big.get("toMinor").asInt()).isEqualTo(455);
+        assertThat(big.get("percent").asInt()).isEqualTo(90);
+        assertThat(big.get("cut").asBoolean()).isTrue();
+        assertThat(call("GET", "/api/coach/schedule/status", token, null).body().get("exists").asBoolean()).isFalse();
+    }
+
+    @Test
+    void cancelRestOfAFutureWeekIsTimeOffAndTheWeeklyScheduleStays() throws Exception {
+        // A week is time off called "Cancelled" (owner, 2026-11-18, I24): its times are gone, the next week is untouched.
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        LocalDate sunday = nextSunday();
+
+        Res r = call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"WEEK\",\"weekStart\":\"" + sunday + "\"}");
+
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(r.body().get("openHeld").asInt()).isZero();
+        assertThat(r.body().get("cancelled").asInt()).isZero();
+        assertThat(r.body().get("families").asInt()).isZero();
+        Res cal = call("GET", "/api/coach/calendar?from=" + sunday + "&to=" + sunday.plusDays(13), token, null);
+        for (int i = 0; i < 14; i++) {
+            assertThat(cal.body().get("days").get(i).get("lessons").size()).as("day " + i).isEqualTo(i < 7 ? 0 : 1);
+        }
+        assertThat(call("GET", "/api/coach/schedule", token, null).body().get("scheduleVersion").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void cancellingAnOpenTimeAsALessonFindsNothingToCancel() throws Exception {
+        call("PUT", "/api/coach/schedule", token, everyDay(0));
+        Res r = call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"LESSON\",\"picks\":[{\"date\":\"" + nextSunday()
+                + "\",\"startTime\":\"09:00\",\"after\":\"HOLD\"}]}");
+        assertThat(r.status()).isEqualTo(409);
+        assertThat(r.s("message")).isEqualTo("These lessons have already started or were cancelled.");
+    }
+
+    @Test
+    void aCancelWithNoScopeOrChoiceIsInvalid() throws Exception {
+        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"MONTH\"}").status()).isEqualTo(400);
+        assertThat(call("POST", "/api/coach/calendar/cancel", token, "{\"scope\":\"LESSON\",\"picks\":[{\"date\":\"" + nextSunday()
+                + "\",\"startTime\":\"09:00\"}]}").s("message")).isEqualTo("Choose release or hold for each lesson.");
     }
 
     @Test

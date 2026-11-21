@@ -86,6 +86,14 @@ family's day view shows only days inside the booking window.
 
 ---
 
+**Amended — 2026-11-13.** *Decided by the owner (implementation plan G-38):* shared-lesson emails
+are **one per invitation or answer, listing every date**, not one per date. The invitation,
+joined, declined, withdrawn and no-longer-available emails each cover every date of the
+invitation (`inviteId`); "the other skater can't make it — keep or cancel" lists every date one
+leaving family's change freed, each with its own answer-by time, and moves from `consumer-invite`
+to the change notifier (decision 14), which sends it from that family's `CLIENT` batch. The coach's
+late-cancellation email lists every late lesson of a batch. Each date keeps its own guard.
+
 ## Context
 
 Under ADR-006 and ADR-026 a booking belonged to the family who made it. A shared lesson was that
@@ -151,7 +159,7 @@ not a seat status: it comes from the `choiceAnswerBy` copy on the family's own s
 **Indexes**, the same roles as before, now on seats:
 - **GSI1, by client** — `GSI1PK = CLIENT#<clientId>`, `GSI1SK = SEAT#<date>#<startTime>`: My
   bookings and Home.
-- **GSI2, by date** — the 7am reminder and the 9pm report, one entry per seat.
+- **GSI2, by date** — the 7am reminder and the 9pm report, one entry per seat. *The end-of-day report is Phase 2 (2026-11-11).*
 - **GSI3, unpaid (sparse)** — while a seat is `UNPAID`.
 - **GSI4, deadlines (sparse)** — new, decision 12.
 
@@ -446,7 +454,7 @@ content, not an architecture decision.*
 
 - **`LessonBooked` fires per seat**, when a seat becomes `BOOKED`, so each skater's family gets
   its own confirmation (as each booking did).
-- **Reminders and the report count only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.** A seat
+- **Reminders and the report count only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.** *The end-of-day report is Phase 2 (2026-11-11).* A seat
   gets its GSI2 keys only when it becomes `BOOKED`; `INVITED` and `AWAITING_COACH` seats have
   none. *Since ADR-033 (2026-10-20): `INVITED` seats only.* (A pending leave is always settled before the lesson day, because its answer-by is no
   later than the start of the notice period.)
@@ -465,14 +473,15 @@ content, not an architecture decision.*
 - *Phase 2 since ADR-033 (2026-10-20): no consent link and no "no longer available after the coach's Accept" email.* **Who sends what:** `consumer-invite` writes the partner fields and sends the invitation and every outcome email (joined,
   declined, withdrawn, expired, no longer available after the coach's Accept, and "the other skater can't
   make it — keep or cancel"). The change notifier sends cancellation emails, including cancel all
-  and no answer.
+  and no answer. *Amended 2026-11-13 (G-38): "keep or cancel" is sent by the change notifier, from
+  the leaving family's batch, and each of these emails lists every date it covers.*
 - **A skater's name change reaches their seats.** `consumer-family-sync` (ADR-025 d6) already
   copies a skater's changes to every coach's record; it now also updates `studentName` on their
   upcoming seats, which it finds, for each of the skater's coaches, by querying that coach's
   upcoming `SEAT#` items and keeping the skater's (*owner, 2026-10-13*: no index access across
   families; name changes are rare enough that the extra reads don't matter); `consumer-invite` then refreshes `partnerName` on the seats sharing a lesson
   with them.
-- *Open:* the IAM roles of the two new jobs. (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
+- ~~*Open:* the IAM roles of the two new jobs.~~ *Written 2026-11-17 (owner): ADR-MASTER §2, Execution roles.* (`consumer-invite`'s is settled in Consequences.) Like GSI2 and GSI3, GSI4 is read across coaches, so
   only `sched-deadline-sweep` should be able to read it.
 
 ### 15. Unchanged
@@ -594,7 +603,9 @@ stateDiagram-v2
 - **Gate tests** (ADR-021, ADR-022) need rows for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4.
 - **Retention** (ADR-017): a past lesson time is kept as long as any seat or line for it is kept,
   and expires with the last of them. A past lesson time that never had a seat expires on the
-  date-override window.
+  date-override window. *How, ruled 2026-11-17 (I4, ADR-017 amendment): like a change-batch header —
+  booking a seat removes the lesson time's `expiresAt`, and settling the last unsettled seat raises it to
+  at least that seat's.*
 
 ## Open
 
@@ -604,7 +615,7 @@ stateDiagram-v2
 - ~~ADR-026's P5 (when an unanswered `INVITED` seat lapses before the lesson) still waits on Kim;
   it becomes one more `dueKind`.~~ **Settled by the owner 2026-10-13:** no cutoff before the lesson;
   an unanswered invitation expires at the lesson start (`EXPIRE`, decision 12). No new `dueKind`.
-- The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`; only the sweep may read GSI4.
+- ~~The IAM roles of `sched-lesson-roller` and `sched-deadline-sweep`; only the sweep may read GSI4.~~ *Written 2026-11-17 (owner): ADR-MASTER §2, Execution roles. The roller has no index; the sweep alone reads GSI4.*
 
 ## Revisit if
 

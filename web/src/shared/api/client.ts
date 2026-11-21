@@ -1,8 +1,9 @@
 /**
  * Typed fetch for /api/coach and /api/client.
  *
- * Retries once on a server error or a dropped connection (ADR-MASTER section 1), but only for a GET:
- * a write is retried only when it carries an idempotency key, and none do yet (booking adds one).
+ * Retries once on a server error or a dropped connection (ADR-MASTER section 1), but only for a GET or a
+ * write marked {@code idempotent}: one that carries an idempotency key in its body, so the retry is recognised
+ * as the same request and nothing is done twice (ADR-006 d4b). Booking is the only one so far.
  */
 
 export class ApiError extends Error {
@@ -17,10 +18,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The ID token, or where to get it: the websites pass the sign-in's `idToken`, so every request carries a current one,
+ * refreshed by Cognito when it has expired (ADR-023 d6). Tests pass a string.
+ */
+export type TokenSource = string | (() => Promise<string | null>);
+
 export interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
-  token?: string | null;
+  token?: TokenSource | null;
+  /** The body carries an idempotency key, so a retry after a server error is safe. */
+  idempotent?: boolean;
 }
 
 const FALLBACK = 'Something went wrong. Try again.';
@@ -28,7 +37,8 @@ const FALLBACK = 'Something went wrong. Try again.';
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const method = options.method ?? 'GET';
   const headers = new Headers({ Accept: 'application/json' });
-  if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+  const token = typeof options.token === 'function' ? await options.token() : options.token;
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const init: RequestInit = {
     method,
@@ -36,7 +46,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   };
 
-  const attempts = method === 'GET' ? 2 : 1;
+  const attempts = method === 'GET' || options.idempotent ? 2 : 1;
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
     let res: Response;

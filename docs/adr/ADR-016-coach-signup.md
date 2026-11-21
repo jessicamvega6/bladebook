@@ -57,7 +57,9 @@ which decision 4 already verifies). The sign-up and profile screens for this are
 "Business email").
 - **BladeBook sends the link**, not Cognito, because Cognito verifies only the login email.
   It is a new email template (`FeatureDecriptions/Email templates Needed:`).
-- *Open:* how the link is built and how long it lasts. Like ADR-026's invitation link, opening
+- ~~*Open:* how the link is built and how long it lasts.~~ *Settled 2026-11-12 by the owner: a
+  random token that works **once** and lasts **3 days**; Resend sends a new link and the old one
+  stops working.* Like ADR-026's invitation link, opening
   it should lead to a page the coach confirms on, so a mail scanner that follows links can't
   confirm the address by itself.
 
@@ -70,7 +72,46 @@ sends its one built-in verification message for every code: sign-up, forgot pass
 and a family's changed email. Cognito fills in only the code, so that email names no coach or
 family and states no expiry (a family's sign-up code lasts 24 hours, a password code 1 hour). Its
 wording is product (see `FeatureDecriptions/Email templates Needed:`). BladeBook stays at seventeen functions. The user
-pool sends through SES, from the same domain as BladeBook's other email.
+pool sends through SES, from the same domain as BladeBook's other email. *(Production only, 2026-11-17: dev's
+pool uses Cognito's own sender, because dev's SES stays in the sandbox; `infra/README.md`.)*
+
+**Amended — 2026-11-12.** *Decided by the owner (implementation plan, Batch 14).* The
+business-email confirmation link carries a random token that works **once** and lasts **3 days**
+(the proposal was 24 hours; the longer window suits coaches who don't check that inbox daily).
+*Resend* issues a new token and the previous one stops working. Opening the link leads to a page
+where the coach chooses Confirm, as decided above.
+*Also decided 2026-11-12 by the owner:*
+- **Kept on the coach profile.** Each address waiting for confirmation is stored on the coach's
+  own profile item with its token and expiry (`pendingBusinessEmails`: address → `tokenHash`,
+  `expiresAt`). Resend overwrites that address's entry; confirming or removing the address
+  deletes it. No separate item type.
+- **Only a hash is stored.** The token in the link is random; the profile keeps its Secure Hash Algorithm (SHA-256) hash,
+  and the page hashes the token it receives and compares. Reading the table can't produce a
+  working link.
+- ~~**No sign-in needed to confirm.** Holding the inbox is the proof: the coach opens the link and
+  chooses Confirm. This keeps the step simple for coaches who open the email on another device.
+  The accepted cost: someone the email is forwarded to could confirm it within the 3 days.~~
+  *Changed the same day by the owner: **the coach signs in to confirm.** The confirm page asks
+  for sign-in if needed, then shows Confirm; the request goes to `api-coach` with the Coach group
+  like every other coach route (ADR-023 d7), and is checked against the signed-in coach's own
+  profile. No route runs without sign-in, and a forwarded email can't be confirmed by anyone
+  else. The cost is one sign-in step when the email is opened on another device.*
+
+**Amended — 2026-11-17.** *Decided by the owner (Batch 17b, conflict I9 in `AI/plan-history.md`).* `api-coach`
+sends the business-email confirmation itself, during the coach's request, so **its role gets `ses:SendEmail` for
+that one template** (`business-email-confirmation`) from the environment's sending address, and nothing else in
+SES. ADR-MASTER §2 had given it no SES at all. Every other email still comes from the event consumers.
+
+**Amended — 2026-11-16.** *Settled while building Batch 14 (implementation plan §7; the owner may override).* Next to
+`pendingBusinessEmails`, the profile keeps the coach's other confirmed addresses (`confirmedBusinessEmails`, the list on
+Profile → Business email, which is product) and `businessEmailsVersion`, a counter every change to the three is
+conditioned on, so a link can't be used twice and two changes can't both land. The link is
+`<site>/coach/#/confirm-email/<token>`: the token sits in the address's hash, so it never reaches a server log, and the page
+sends it in the request body. Opening the page only looks the address up; nothing changes until the coach chooses Confirm.
+Confirming makes the address `businessEmail` at once, as `architecture.md` §6.13 draws; the Harbor design instead had a
+confirmed address wait until the coach chooses it on the profile. *Decided by the owner 2026-11-16 (G-41): keep switching
+on confirmation; the design's step is superseded.*
+*Resend* waits a minute after the last link, and the list holds up to ten addresses besides the login email.
 
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design
 (`design/harbor/coach/app.js`, sign-up step 4).* **At sign-up, families can't reach the coach
@@ -92,6 +133,13 @@ profile is unchanged: the current confirmed address stays in use until the new o
 **Amended — 2026-11-06.** *Decided by the owner, settling a conflict with the Harbor design.*
 `smsCancellationAlerts` is set on the profile only, not at sign-up (product — see
 `FeatureDecriptions/Coach Sign Up`, "Not at sign-up"). Decision 2's table is corrected below.
+
+**Amended — 2026-11-09.** *Decided by the owner.* The sign-up, log-in, forgot-password and
+change-password pages are **BladeBook's own forms**, and the browser sends what is typed straight
+to Cognito ([ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md) decision 11).
+Cognito's hosted sign-in pages aren't used. Decision 3 still holds: Cognito owns the credentials
+and recovery, and BladeBook's servers never see a password. Its "no custom forgot-password form"
+is clarified below.
 
 ---
 
@@ -214,6 +262,13 @@ No password field. No EIN.
 The application never sees, stores or validates a password, and there is **no custom
 forgot-password form**.
 
+*Amended 2026-11-09 (owner; [ADR-023](ADR-023-rinkside-check-in-joins-the-coach-website.md)
+decision 11):* "the application" means BladeBook's servers: `api-coach`, `api-client`, their logs
+and the table. The forms where a password or code is typed are BladeBook's own pages, and the
+browser sends what is typed only to Cognito. "No custom forgot-password form" means no recovery of
+BladeBook's own making: the forgot-password page only calls Cognito's `ForgotPassword` and
+`ConfirmForgotPassword`.
+
 An earlier draft specified recovery by first name, last name, business identifier and
 username. Every one of those is discoverable — a name is public, a business identifier is
 often a public registry entry, and the username *is* the login email. That is
@@ -319,7 +374,8 @@ and the bounce handling ADR-010 depends on.
 
 Order matters, because two systems are being written and only one can be authoritative.
 
-1. Create the Cognito user and verify the email.
+1. Create the Cognito user and verify the email (on BladeBook's own form, from the browser
+   straight to Cognito; ADR-023 decision 11, 2026-11-09).
 2. Write `COACH#<sub> / PROFILE` and the `CODE#<coachCode>` item (ADR-002 decision 2a).
 
 **The Cognito user is the source of truth for identity**; `coachId` *is* the `sub`, so the

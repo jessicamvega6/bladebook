@@ -392,7 +392,7 @@ added as needed, so the multi-coach screens are designed for about 10.
 
 ## 11. Rink fees
 
-- [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). It's complex
+- [ ] **To-do: Go through `Q_Rink-Fees.md` with Kim** (Part A, questions 1–17). *Phase 2 (owner, 2026-11-12); not needed for MVP.* It's complex
   enough to need its own session, so it's kept in its own document. Record her answers there.
 
 ---
@@ -461,6 +461,30 @@ let one account be both a coach and a family, with one email and password (owner
 
 ---
 
+## 14. Special schedules set up by mistake
+
+*Added 2026-11-12.*
+
+**The scenario.** A coach can now delete time off or a special schedule. Deleting a special
+schedule puts the normal week back on those dates, which can cancel lessons families booked under
+it. Today every family affected is emailed straight away. If a coach sets up the wrong special
+schedule and deletes it, families could get an email for a mistake.
+
+**Questions:**
+
+1. How likely is it that a coach adds the wrong special schedule (wrong dates, wrong times, wrong
+   prices) and has to remove or redo it?
+2. If that happened, would you rather families were emailed at once, or would you rather check
+   and send the emails yourself?
+
+**What the answers decide:**
+
+- Whether Phase 2 stops emailing families automatically after a schedule change, and lets the
+  coach review and send instead (`FeatureDecriptions/C_Coach Schedule Hub.md`, "Deleting time off
+  or a special schedule").
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.
@@ -495,3 +519,4 @@ live system and move to the archive. (ADR-006, ADR-009, ADR-017)
 
 **Decides:** the threshold, cadence and repeat of the weekly unpaid-lesson email to the coach.
 The job is switched off until the threshold is set. (ADR-018)
+*Answered by the owner 2026-11-12: 7 days, listed every Monday until settled.*
