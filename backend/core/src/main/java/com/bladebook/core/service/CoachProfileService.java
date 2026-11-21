@@ -190,6 +190,9 @@ public final class CoachProfileService {
                 .phone(ProfileRules.phone(d.phone))
                 .coachTimezone(ProfileRules.timezone(d.coachTimezone))
                 .build();
+        if (next.phone() == null) {
+            next = next.toBuilder().displayPhoneToClients(false).build();   // nothing to show (CoachRepository.updateDetails)
+        }
         repo.updateDetails(ctx, next);
         return next;
     }
