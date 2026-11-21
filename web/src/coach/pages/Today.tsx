@@ -16,6 +16,7 @@ import { plural } from '../../shared/logic/booking';
 import { DAYS_LONG, dayOfWeek, formatMoney, formatTime, longDate, shortDate, toMinutes, todayIn } from '../../shared/logic/schedule';
 import type { Profile, StudentDto, TodayApi, TodayDto, TodayLessonDto, TodaySkaterDto } from '../api';
 import { CodeCard, CodePendingBanner } from '../components/CodeCard';
+import { Loading } from '../../shared/components/Loading';
 
 /** The design's attendance badges (shared.js STATUS_BADGE). */
 const ATTEND: Record<TodaySkaterDto['attendance'], [string, string, string?]> = {
@@ -126,9 +127,9 @@ export function Today({ profile, api, onUseLogin, onResend, onError, note, busy,
       </div>
       <CodeCard profile={profile} />
       <div className="split split--today">
-        <Card title="Today’s lessons" sub={data ? `${plural(booked, 'lesson')} · Pelham Civic Center` : 'Loading…'} flush
+        <Card title="Today’s lessons" sub={data ? `${plural(booked, 'lesson')} · Pelham Civic Center` : undefined} flush
           action={<a className="link" href={`#/calendar/day/${today}`}>Day view</a>}>
-          {!data ? <p className="muted" style={{ padding: '14px 22px' }} aria-busy={!failed}>{failed ? 'Not loaded.' : 'Loading…'}</p>
+          {!data ? (failed ? <p className="muted" style={{ padding: '14px 22px' }}>Not loaded.</p> : <Loading style={{ padding: '14px 22px' }} />)
             : data.lessons.length ? (
               <>
                 {data.lessons.map((l) => <LessonRow key={l.startTime} l={l} started={toMinutes(l.startTime) <= nowMin} />)}

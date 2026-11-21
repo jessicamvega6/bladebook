@@ -27,6 +27,7 @@ import { WeekOffline, WeekTab, weekRange, type WeekSheet } from './WeekTab';
 import {
   addUnsent, dequeue, enqueue, goesTomorrow, queue, queuedFor, removeUnsent, saveDay, savedDay, unsent, type Queued, type Unsent,
 } from './offline';
+import { Loading } from '../shared/components/Loading';
 
 const RINK = 'Pelham Civic Center';
 type Tab = 'today' | 'week' | 'account' | 'unsent';
@@ -337,7 +338,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
         {error && <Banner tone="danger">{error}</Banner>}
         {tab === 'week' ? (
           !online ? <WeekOffline />
-            : !week ? <p className="muted" aria-busy="true">Loading this week’s lessons…</p>
+            : !week ? <Loading text="Loading this week’s lessons…" />
               : <WeekTab week={week} sheet={weekSheet} onSheet={setWeekSheet}
                   onCancelLesson={(l, hold) => void weekCancel(() => api.cancelLesson(l, hold), cancelled)}
                   onCancelDay={(ls) => void weekCancel(() => api.cancelDay(ls), cancelled)}
@@ -357,7 +358,7 @@ function Signed({ api, email, onSignOut }: { api: RinkApi; email: string; onSign
           <div className="pempty"><span className="pempty__icon"><Icon name="wifiOff" size={28} /></span><h2 className="h2">Today’s lessons haven’t loaded</h2>
             <p>This phone hasn’t had signal since you opened the app. Open it once with signal before you leave for the rink, and today’s lessons are saved for when there’s none.</p>
             <Button block lg icon="refresh" onClick={() => { const on = navigator.onLine !== false; setOnline(on); if (on) void load(); else setToast('Still no signal. Try again near the entrance.'); }}>Try again</Button></div>
-        ) : !day ? <p className="muted" aria-busy="true">Loading today’s lessons…</p> : (
+        ) : !day ? <Loading text="Loading today’s lessons…" /> : (
           <>
             {!online && <div className="pbanner pbanner--warn"><Icon name="wifiOff" size={18} /><div><b>No signal since {since}</b>
               <span>{saved.size ? `${plural(saved.size, 'check-in')} saved on this phone. They’ll send when signal comes back.` : 'Keep recording. Check-ins are saved on this phone and send when signal comes back.'}</span></div></div>}
@@ -507,7 +508,7 @@ function ContactSheet({ sheet, online, onClose, onCopied }: { sheet: Extract<She
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label="Contact details"><span className="sheet__grab" />
       {sheet.error ? <><h2 className="h2">{sheet.s.fullName}</h2><Banner tone="danger">{sheet.error}</Banner></>
-        : !c ? <p className="muted" aria-busy="true">Loading…</p> : (
+        : !c ? <Loading /> : (
           <>
             <h2 className="h2">{c.studentName}</h2>
             <p className="fine">{c.relationship === 'SELF' ? 'Books for themselves' : `${c.clientName} · guardian`}{c.isMinor ? ' · minor' : ''}</p>

@@ -13,6 +13,7 @@ import { Badge, Banner, Button, Card, Dialog, Help, Icon, Seg } from '../../shar
 import { plural } from '../../shared/logic/booking';
 import { MONTHS, MONTHS_LONG, formatMoney } from '../../shared/logic/schedule';
 import type { FinanceYearDto, FinancesApi } from '../api';
+import { Loading } from '../../shared/components/Loading';
 
 function Stat({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: string }) {
   return <div className="stat"><span className="stat__icon"><Icon name={icon} size={18} /></span><div className="stat__label">{label}</div><div className="stat__value">{value}</div><div className="stat__sub">{sub}</div></div>;
@@ -62,7 +63,7 @@ export function Finances({ api, year, onError }: { api: FinancesApi; year: numbe
       </div>
     </>
   );
-  if (!data) return <>{head}<p className="muted" aria-busy="true">Loading…</p></>;
+  if (!data) return <>{head}<Loading /></>;
 
   const cur = data.currency;
   /** Gross can be below zero in a month where only a closed year's payment was undone (Batch 26). */

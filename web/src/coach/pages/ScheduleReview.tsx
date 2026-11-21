@@ -11,6 +11,7 @@ import { Avatar, Badge, Banner, Button, Card, Icon, Row } from '../../shared/com
 import { plural } from '../../shared/logic/booking';
 import { DAYS, dayOfWeek, formatMoney, formatTime, shortDate } from '../../shared/logic/schedule';
 import type { ChangeStatusDto, ImpactDto, PreviewDto, ScheduleApi } from '../api';
+import { Loading } from '../../shared/components/Loading';
 
 const whenOf = (i: ImpactDto) => `${DAYS[dayOfWeek(i.date)]}, ${shortDate(i.date)} · ${formatTime(i.startTime)}`;
 const who = (i: ImpactDto) => i.skaters.map((s) => s.name).join(' & ') || 'Booked';
@@ -123,7 +124,7 @@ export function SaveStatus({ api, lessons, families, since, onError }: {
     const t = window.setTimeout(() => setTick((n) => n + 1), 3000);
     return () => window.clearTimeout(t);
   }, [applying, mine?.stuck]);
-  if (!s) return <p className="muted" aria-busy="true">Loading…</p>;
+  if (!s) return <Loading />;
   const fams = mine ? mine.clientCount : families;
   const count = mine ? mine.lessonCount : lessons;
   if (mine?.stuck) {
