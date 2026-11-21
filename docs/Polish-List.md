@@ -19,6 +19,8 @@ prefer if you know.
 
 ## Family app
 
+- [ ] Log in page: add more space between the **Password** field, the **Forgot/change password**
+  link and the **Log in** button; they sit too close together (`web/src/family/pages/Login.tsx:62`).
 - [ ] Home page: add padding to the bottom of the **Today** and **Coming up** cards
   (`web/src/family/pages/Home.tsx`).
 - [ ] My bookings: remove the **Shared lesson** badge from a lesson once the original invitee
