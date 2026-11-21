@@ -47,8 +47,8 @@ test('the week shows each open time, greys the past ones, and asks for exactly t
   expect(past).toHaveClass('wl--open', 'wl--past');
   expect(screen.getByText('7:00 AM · 60m').closest('.wl')).not.toHaveClass('wl--past');
   expect(screen.getByText('It’s Monday 6:40 AM. Past lessons are greyed and can’t be cancelled.')).toBeInTheDocument();
-  // Only open times: nothing to cancel on its own, but the rest of the week can be held closed.
-  expect(screen.queryByRole('button', { name: 'Cancel day' })).not.toBeInTheDocument();
+  // Only open times, one still to come: Cancel day shows for that day alone (owner, 2026-11-20); days with none don't.
+  expect(screen.getAllByRole('button', { name: 'Cancel day' })).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Cancel rest of week: Mon, Nov 9 (0 lessons, 1 open time)' })).toBeInTheDocument();
 });
 
@@ -159,6 +159,21 @@ test('Cancel day makes the day time off: no release-or-hold, and families counte
 
   expect(sent).toEqual([{ scope: 'DAY', picks: [{ date: '2026-11-16', startTime: '07:00' }, { date: '2026-11-16', startTime: '07:30' }] }]);
   expect(await screen.findByText('2 lessons cancelled. 1 family will be emailed.')).toBeInTheDocument();
+});
+
+test('a day with only open times can be cancelled: it lists them and becomes time off (owner, 2026-11-20)', async () => {
+  const { sent } = serveWithCancel({ ...WEEK, days: days('2026-11-15', 7, (d) => (d === '2026-11-17' ? [open('16:00'), open('16:30')] : [])) },
+    { cancelled: 0, held: 0, openHeld: 0, families: 0, skipped: 0 });
+  render(<Calendar api={scheduleApi('t')} route={{ view: 'week', date: '2026-11-15' }} onError={vi.fn()} />);
+
+  await userEvent.click((await screen.findAllByRole('button', { name: 'Cancel day' }))[0]!);
+  expect(screen.getByRole('heading', { name: 'Cancel Tue, Nov 17' })).toBeInTheDocument();
+  expect(screen.getByText(/This day becomes time off called “Cancelled”/)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Open times' })).toBeInTheDocument();
+  expect(screen.getAllByText('Time off')).toHaveLength(2);
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel 2 open times' }));
+
+  expect(sent).toEqual([{ scope: 'DAY', picks: [{ date: '2026-11-17', startTime: '16:00' }, { date: '2026-11-17', startTime: '16:30' }] }]);
 });
 
 test('Cancel rest of week states the range and count, and makes it time off with no question (I24)', async () => {

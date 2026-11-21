@@ -18,7 +18,7 @@ export interface CancelPlan {
   /** The page to go back to, and its label ("Week of Nov 15", "Monday, November 16"). */
   backLabel: string;
   lessons: Array<{ date: string; l: LessonDto }>;
-  /** Cancel rest of week only: the open times it holds. */
+  /** Cancel day and Cancel rest of week: the open times their time off closes (a lesson alone has none). */
   open: Array<{ date: string; l: LessonDto }>;
   weekStart?: string;
 }
@@ -56,7 +56,7 @@ export function CancelPreview({ plan, api, onBack, onDone, onError }: {
   const timeOff = plan.scope !== 'LESSON';
   const back = <a className="link" href="#" onClick={(e) => { e.preventDefault(); onBack(); }}><Icon name="arrowL" size={14} /> {plan.backLabel}</a>;
 
-  if (!plan.lessons.length && !(weekAll && plan.open.length)) {
+  if (!plan.lessons.length && !(timeOff && plan.open.length)) {
     return (
       <div className="phead"><div className="phead__text"><div className="crumb">{back}</div><h1 className="h1">Nothing to cancel</h1>
         <p className="lede">These lessons have already started or were cancelled.</p></div></div>
@@ -65,7 +65,7 @@ export function CancelPreview({ plan, api, onBack, onDone, onError }: {
   const fams = familiesIn(plan);
   const isHeld = (date: string, l: LessonDto) => !timeOff && !!hold[keyOf(date, l)];
   const held = plan.lessons.filter(({ date, l }) => isHeld(date, l)).length;
-  const open = weekAll ? plan.open : [];
+  const open = timeOff ? plan.open : [];
   const dates = [...plan.lessons.map((x) => x.date), ...open.map((x) => x.date)].sort();
   const span = calRange(dates[0]!, dates[dates.length - 1]!);
   const what = weekAll ? `the rest of the week, ${span}` : span;
@@ -78,7 +78,8 @@ export function CancelPreview({ plan, api, onBack, onDone, onError }: {
     setFailed('');
     try {
       const r = await api.cancel(plan.scope === 'WEEK' ? { scope: 'WEEK', weekStart: plan.weekStart! }
-        : plan.scope === 'DAY' ? { scope: 'DAY', picks: plan.lessons.map(({ date, l }) => ({ date, startTime: l.startTime })) }
+        // A day's picks only name the date that becomes time off: its booked lessons, or its open times when none is booked.
+        : plan.scope === 'DAY' ? { scope: 'DAY', picks: [...plan.lessons, ...plan.open].map(({ date, l }) => ({ date, startTime: l.startTime })) }
           : { scope: 'LESSON', picks: plan.lessons.map(({ date, l }) => ({ date, startTime: l.startTime, after: hold[keyOf(date, l)] ? 'HOLD' : 'RELEASE' })) });
       onDone(r);
     } catch (e) {
@@ -140,7 +141,7 @@ export function CancelPreview({ plan, api, onBack, onDone, onError }: {
         <button type="button" className="btn btn--secondary" onClick={onBack}><span>Back</span></button>
         <span className="stickybar__note">{plural(fams.length, 'family', 'families')} will be emailed. Nothing changes until you confirm.</span>
         <button type="button" className="btn btn--danger btn--lg" onClick={() => void accept()} disabled={sending}>
-          <span>{sending ? 'Cancelling…' : weekAll ? `Cancel ${count}` : `Cancel ${plural(plan.lessons.length, 'lesson')}`}</span>
+          <span>{sending ? 'Cancelling…' : timeOff ? `Cancel ${count}` : `Cancel ${plural(plan.lessons.length, 'lesson')}`}</span>
         </button>
       </div>
     </>

@@ -5,7 +5,8 @@
  * Rulings applied: S7 clicking a month date opens that day; S12 the day view as drawn (ruled 2026-11-08).
  * Batch 4: a booked time names its skater, "Ava P." in the week and in full with the family in the day.
  * Batch 5 (closes G-11): a booked lesson that hasn't started can be cancelled from the week (tap it) and the day
- * (Cancel), a whole day with Cancel day, and the rest of the week with Cancel rest of week. Each goes through the
+ * (Cancel), a whole day with Cancel day, and the rest of the week with Cancel rest of week. Cancel day shows on every
+ * day with a booked or open time still to come, open times only included (owner, 2026-11-20). Each goes through the
  * cancel preview (CancelPreview.tsx) and needs the coach to accept.
  */
 import { useEffect, useState, type ReactNode } from 'react';
@@ -91,12 +92,16 @@ interface ViewProps { data: CalendarDto; views: ReactNode; prompt: ReactNode }
 /** Booked lessons on a date that haven't started: what Cancel day takes. */
 const futureOn = (data: CalendarDto, date: string, lessons: LessonDto[]) =>
   lessons.filter((l) => cancellable(data, date, l)).map((l) => ({ date, l }));
-const dayPlan = (scope: 'LESSON' | 'DAY', backLabel: string, lessons: CancelPlan['lessons']): CancelPlan => ({ scope, backLabel, lessons, open: [] });
+/** Open times on a date that haven't started: what Cancel day's time off closes. */
+const openOn = (data: CalendarDto, date: string, lessons: LessonDto[]) =>
+  lessons.filter((l) => l.lessonStatus === 'OPEN' && !isStarted(data, date, l)).map((l) => ({ date, l }));
+const dayPlan = (scope: 'LESSON' | 'DAY', backLabel: string, lessons: CancelPlan['lessons'], open: CancelPlan['open'] = []): CancelPlan =>
+  ({ scope, backLabel, lessons, open });
 
 /** Cancel rest of week: from now to Saturday (all of a future week), every booked lesson and open time (S8). */
 function restOfWeek(data: CalendarDto, start: string): CancelPlan {
   const lessons = data.days.flatMap(({ date, lessons: ls }) => futureOn(data, date, ls));
-  const open = data.days.flatMap(({ date, lessons: ls }) => ls.filter((l) => l.lessonStatus === 'OPEN' && !isStarted(data, date, l)).map((l) => ({ date, l })));
+  const open = data.days.flatMap(({ date, lessons: ls }) => openOn(data, date, ls));
   return { scope: 'WEEK', backLabel: `Week of ${shortDate(start)}`, lessons, open, weekStart: start };
 }
 
@@ -185,6 +190,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
   const cols = data.days.map(({ date, lessons, special }) => {
     const colCls = date < data.today ? ' week__col--past' : date === data.today ? ' week__col--today' : '';
     const fut = futureOn(data, date, lessons);
+    const openLeft = openOn(data, date, lessons);
     return (
       <div key={date} className={`week__col${colCls}`}>
         <a className="week__head cal-head" href={href('day', date)}>
@@ -205,7 +211,7 @@ function Week({ data, start, views, prompt, onCancel }: ViewProps & { start: str
               : <div key={l.startTime} className={cls}>{inner}</div>;
           }) : <div className="week__empty">{special?.kind === 'TIME_OFF' ? <>Time off<br /><small>{special.name}</small></> : 'No lessons'}</div>}
         </div>
-        {fut.length > 0 && <button type="button" className="week__cancel" onClick={() => onCancel(dayPlan('DAY', back, fut))}>Cancel day</button>}
+        {fut.length + openLeft.length > 0 && <button type="button" className="week__cancel" onClick={() => onCancel(dayPlan('DAY', back, fut, openLeft))}>Cancel day</button>}
       </div>
     );
   });
@@ -244,6 +250,7 @@ function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string
   const lessons = data.days[0]?.lessons ?? [];
   const special = data.days[0]?.special ?? null;
   const fut = futureOn(data, date, lessons);
+  const openLeft = openOn(data, date, lessons);
   const back = longDate(date);
   const booked = lessons.filter(isBooked).length, open = lessons.filter((l) => isOpen(data, date, l)).length;
   const lede = lessons.length
@@ -258,7 +265,7 @@ function Day({ data, date, views, prompt, onCancel }: ViewProps & { date: string
       {special?.kind === 'SPECIAL' && <Banner tone="info" title={`Special schedule: ${special.name}`}>{shortDate(special.startDate)} – {shortDate(special.endDate)}. These times replace your weekly schedule.</Banner>}
       <section className="card">
         {lessons.length > 0 && <header className="card__head"><div><h2 className="h2">Every time on this day</h2></div>
-          {fut.length > 0 && <button type="button" className="btn btn--danger-outline btn--sm" onClick={() => onCancel(dayPlan('DAY', back, fut))}>
+          {fut.length + openLeft.length > 0 && <button type="button" className="btn btn--danger-outline btn--sm" onClick={() => onCancel(dayPlan('DAY', back, fut, openLeft))}>
             <Icon name="calOff" size={14} /><span>Cancel this day</span></button>}</header>}
         <div className="card__body" style={{ padding: 0 }}>
           {lessons.length ? lessons.map((l) => (
