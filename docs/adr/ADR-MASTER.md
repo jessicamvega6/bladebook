@@ -1618,7 +1618,7 @@ times and seats in that window.
   morning's run catches up, since it's safe to run twice). ~~It pages if no run has completed by
   **January 7**, its last day.~~ *It doesn't page: the dashboard shows each January morning's run, and a
   missed year close is run by hand, since it's safe to repeat (owner, 2026-11-18, I28).*
-- **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
+- **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; *the first email SES refuses, or any email with no sending address (2026-11-21: either usually means every email is refused, and neither is a bounce)*; the
   notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
   sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the archiver, and
