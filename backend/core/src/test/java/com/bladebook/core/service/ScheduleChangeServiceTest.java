@@ -39,10 +39,11 @@ class ScheduleChangeServiceTest {
     private ScheduleChangeService change;
     private ScheduleRepository repo;
     private AccessContext ctx;
+    private DynamoDbLocal.Fixture f;
 
     @BeforeEach
     void setUp() {
-        DynamoDbLocal.Fixture f = DynamoDbLocal.freshTable();
+        f = DynamoDbLocal.freshTable();
         CoachRepository coaches = new CoachRepository(f.clients, f.table);
         repo = new ScheduleRepository(f.clients, f.table);
         schedules = new ScheduleService(repo, coaches);
@@ -53,6 +54,76 @@ class ScheduleChangeServiceTest {
 
     private List<LessonTime> on(LocalDate d) {
         return repo.lessonTimes(ctx, d, d);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void noRacesLeft() {
+        WriteRaces.clear();
+    }
+
+    private void deleteLesson(LocalDate d, int hour, int minute) {
+        f.clients.forSetup().deleteItem(b -> b.tableName(f.table).key(java.util.Map.of(
+                "PK", software.amazon.awssdk.services.dynamodb.model.AttributeValue.fromS(ctx.partitionKey()),
+                "SK", software.amazon.awssdk.services.dynamodb.model.AttributeValue.fromS(LessonTime.key(d, LocalTime.of(hour, minute))))));
+    }
+
+    // ---------------------------------------------------------------- the roller racing a schedule change
+
+    @Test
+    void theRollerNeverPutsBackATimeAWeeklyChangeJustRemoved() {
+        schedules.save(ctx, 0, List.of(mondayMornings(5000)));
+        change.apply(ctx);
+        LocalDate d = TODAY.plusDays(14);
+        deleteLesson(d, 7, 0);
+        deleteLesson(d, 7, 30); // missing, so the roller plans to add them
+        // Between the roller's read and its write, the coach cuts Mondays to one hour at 6:00 and the change runs.
+        WriteRaces.beforeNextWrites(() -> {
+            schedules.save(ctx, 1, List.of(days(1, EnumSet.of(DayOfWeek.MONDAY), 6, 7)));
+            change.apply(ctx);
+        });
+
+        change.roll(ctx, TODAY.plusDays(1));
+
+        assertThat(on(d)).extracting(LessonTime::startTime).containsExactly(LocalTime.of(6, 0));
+    }
+
+    @Test
+    void theRollerNeverPutsBackATimeADatedChangeJustRemoved() {
+        schedules.save(ctx, 0, List.of(mondayMornings(5000)));
+        LocalDate d = TODAY.plusDays(15); // a Tuesday: only the special schedule makes lessons on it
+        com.bladebook.core.domain.TempSchedule camp = new com.bladebook.core.domain.TempSchedule(UUID.randomUUID().toString(),
+                com.bladebook.core.domain.TempSchedule.Kind.SPECIAL, "Camp", d, d, List.of(days(1, java.util.Set.of(), 9, 11)), java.util.Map.of());
+        repo.saveTemp(ctx, camp, null);
+        change.apply(ctx);
+        deleteLesson(d, 10, 0);
+        com.bladebook.core.domain.TempSchedule shorter = new com.bladebook.core.domain.TempSchedule(camp.tempId(),
+                com.bladebook.core.domain.TempSchedule.Kind.SPECIAL, "Camp", d, d, List.of(days(1, java.util.Set.of(), 9, 10)), java.util.Map.of());
+        WriteRaces.beforeNextWrites(() -> {
+            repo.saveTemp(ctx, shorter, camp);
+            change.apply(ctx);
+        });
+
+        change.roll(ctx, TODAY.plusDays(1));
+
+        assertThat(on(d)).extracting(LessonTime::startTime).allMatch(t -> t.isBefore(LocalTime.of(10, 0)));
+    }
+
+    @Test
+    void theRollerStillAddsWhatIsMissingWhenNothingChanged() {
+        schedules.save(ctx, 0, List.of(mondayMornings(5000)));
+        change.apply(ctx);
+        LocalDate d = TODAY.plusDays(14);
+        LocalDate camp = TODAY.plusDays(15); // under a special schedule
+        repo.saveTemp(ctx, new com.bladebook.core.domain.TempSchedule(UUID.randomUUID().toString(),
+                com.bladebook.core.domain.TempSchedule.Kind.SPECIAL, "Camp", camp, camp, List.of(days(1, java.util.Set.of(), 9, 11)),
+                java.util.Map.of()), null);
+        change.apply(ctx);
+        deleteLesson(d, 7, 0);
+        deleteLesson(camp, 10, 0);
+
+        assertThat(change.roll(ctx, TODAY.plusDays(1))).isEqualTo(2);
+        assertThat(on(d)).hasSize(4);
+        assertThat(on(camp)).hasSize(2);
     }
 
     @Test
