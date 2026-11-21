@@ -668,9 +668,12 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   email, skaters' names, and each skater's organization and number (US Figure Skating, USA Hockey or Learn to Skate USA).
   (Harbor design, ADR-002) *2026-10-20: the design shows organization and number (ADR-029); check
   the rest when building.*
-- **To-do: Configure SES event destinations** for bounce, complaint and delivery. The pages
-  on bounce and complaint rate are already decided (ADR-010 decision 4); they need this data
-  to fire. (monitoring-questions §3)
+- **To-do (Phase 2): Configure SES event destinations** for bounce, complaint and delivery.
+  *Corrected 2026-11-20:* the pages on bounce and complaint rate (ADR-010 decision 4) don't need
+  them. They read SES's account-level `Reputation.BounceRate` and `Reputation.ComplaintRate`
+  metrics, which SES reports on its own (`infra/lib/alarms.ts`). Event destinations are needed
+  only for Phase 2's per-address bounce flag below, and for real delivery confirmation.
+  (monitoring-questions §3)
 - ~~**Open question: What happens to a hard-bounced address?**~~ Nothing marks it invalid, so the
   next message goes to it again and pushes the bounce rate up. **Settled 2026-10-12 by the
   owner.** Typos can't reach the system: sign-up and every email change are verified with a
@@ -683,7 +686,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
     an "email not working" marker on the roster. It clears when the email changes.
   (monitoring-questions §3)
 - **To-do: Confirm the SES account-level suppression list is on** (bounces and complaints) in
-  the production account. (monitoring-questions §3)
+  the production account. *Planned in Batch 29 (2026-11-20).* (monitoring-questions §3)
 - **To-do: Turn on Cognito's "keep original attribute value active until verified"** for
   email, so a family who changes email but never enters the code keeps their old, verified
   login. (`FeatureDecriptions/ClientProfileView`)
