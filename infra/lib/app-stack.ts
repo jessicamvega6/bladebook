@@ -157,6 +157,7 @@ export class AppStack extends Stack {
       removalPolicy,
       api: this.api,
       files: siteFiles(this, 'coach'),
+      signIn: { userPoolId: props.userPool.userPoolId, appClientId: props.coachAppClient.userPoolClientId },
     });
     this.familySite = new Website(this, 'FamilySite', {
       site: cfg.sites.family,
@@ -166,6 +167,7 @@ export class AppStack extends Stack {
       removalPolicy,
       api: this.api,
       files: siteFiles(this, 'family'),
+      signIn: { userPoolId: props.userPool.userPoolId, appClientId: props.familyAppClient.userPoolClientId },
     });
     acknowledgeSiteUpload(this, [this.coachSite.bucket, this.familySite.bucket]);
 

@@ -6,7 +6,7 @@ import { DATA_BUCKETS, dataBucketPattern, dataDenyStatements, LOG_READS, OBJECT_
 import { templateFiles } from '../lib/email.ts';
 import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
-import { apiRequestCode, ASSET_CACHE, contentSecurityPolicy, PAGE_CACHE, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
+import { apiRequestCode, ASSET_CACHE, contentSecurityPolicy, PAGE_CACHE, REFUSAL_MESSAGE, siteConfig, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
 
 const dev = build(testDev);
@@ -147,7 +147,16 @@ describe('websites', () => {
       assert.deepEqual(pages.Properties.DistributionPaths, ['/*']);
       assert.ok(assets.Properties.DistributionId === undefined, 'the assets alone don\'t clear CloudFront');
       assert.ok(JSON.stringify(pages.DependsOn ?? []).includes(assetsId.slice(0, 20)), `${site}: pages after assets`);
+      // config.json: the region, the user pool and this website's own app client, from the account stack (I32's batch).
+      const markers = JSON.stringify(pages.Properties.SourceMarkers);
+      assert.match(markers, /UserPool/, `${site}: config.json names the user pool`);
+      assert.match(markers, site === 'CoachSite' ? /CoachWebClient/ : /FamilyWebClient/, `${site}: names its own app client`);
+      assert.doesNotMatch(markers, site === 'CoachSite' ? /FamilyWebClient/ : /CoachWebClient/, `${site}: not the other's`);
     }
+  });
+  test('config.json holds what the sign-in forms need and nothing else', () => {
+    assert.deepEqual(siteConfig('us-east-1', { userPoolId: 'us-east-1_X', appClientId: 'abc' }),
+      { region: 'us-east-1', userPoolId: 'us-east-1_X', appClientId: 'abc' });
   });
 });
 

@@ -71,6 +71,10 @@ npx cdk destroy bladebook-dev-app --profile bladebook-dev
   pages and rinkside's service worker with `no-cache`, then CloudFront's copies are cleared. Nothing is pruned. GitHub's
   role gets no new permission: the upload runs as CloudFormation. A merge's release carries `websites.tar.gz`, which
   the deploy unpacks into `web/dist-sites/`.
+  With the pages goes each website's `config.json` (Batch 18): the region, the user pool and that website's own app
+  client, for its sign-in forms (`siteConfig`). One build serves every environment, so these come from the stack, not
+  the build. Locally, `npm run dev-pool` here writes dev's to `~/.bladebook/`, for the APIs' local profile and the Vite
+  dev server (I31).
 
 - **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
   version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those
