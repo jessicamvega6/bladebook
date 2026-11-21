@@ -110,12 +110,31 @@ public final class ScheduleChangeService {
         ScheduleRepository.Applied done = schedules.apply(ctx, ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now));
         // Read again: a time booked since the first read is cancelled or re-priced in this batch (ADR-MASTER section 9).
         ScheduleChange booked = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now);
+        // And a time a family cancelled since the first read, now open, is removed or replaced like any open time.
+        done = plus(done, openTimes(ctx, booked));
         if (!booked.touchesBookings()) {
             return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), 0, 0, 0);
         }
         Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
         int[] counts = runBatch(ctx, source, by, booked, seats, now);
+        if (counts[3] > 0) {
+            // A cancel failed: if the family cancelled first, the time is open now and the schedule no longer makes it.
+            done = plus(done, openTimes(ctx, ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, clock.instant())));
+        }
         return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
+    }
+
+    /** The plan's open-time writes only (adds, removes, replaces), each under its condition; nothing booked is touched. */
+    private ScheduleRepository.Applied openTimes(AccessContext ctx, ScheduleChange plan) {
+        if (plan.isEmpty()) {
+            return new ScheduleRepository.Applied(0, 0, 0, 0);
+        }
+        return schedules.apply(ctx, new ScheduleChange(plan.add(), plan.remove(), plan.replace()));
+    }
+
+    private static ScheduleRepository.Applied plus(ScheduleRepository.Applied a, ScheduleRepository.Applied b) {
+        return new ScheduleRepository.Applied(a.added() + b.added(), a.removed() + b.removed(), a.replaced() + b.replaced(),
+                a.skipped() + b.skipped());
     }
 
     /** What a reconcile did: stuck batches settled, and the new batch's result. */
@@ -201,7 +220,7 @@ public final class ScheduleChangeService {
         Map<String, List<CancellationLine>> cancelLines = new HashMap<>();
         Map<String, List<RepriceLine>> repriceLines = new HashMap<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
-            List<Seat> in = bookedIn(seats, c.time());
+            List<Seat> in = joinedIn(seats, c.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             cancelLines.put(c.time().key(), in.stream().map(s -> CancellationLine.of(batch, s,
                     c.time().shareFor(c.time().priceMinor(), s.studentId(), order), c.time().currency(), now)
@@ -217,21 +236,26 @@ public final class ScheduleChangeService {
         batches.plan(ctx, batch, cancelLines.values().stream().flatMap(List::stream).toList(),
                 repriceLines.values().stream().flatMap(List::stream).toList());
 
-        int cancelled = 0, repriced = 0;
+        int cancelled = 0, repriced = 0, failed = 0;
         Set<String> told = new LinkedHashSet<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
             List<String> keys = cancelLines.get(c.time().key()).stream().map(CancellationLine::key).toList();
             List<Seat> all = seats.getOrDefault(c.time().key(), List.of());
-            if (batches.cancel(ctx, c.time(), all, c.replacement(), keys, clock.instant())) {
+            if (all.stream().anyMatch(ScheduleChangeService::started)) {
+                // Someone is checked in or marked a no-show: the lesson has started for them, and a bulk action never
+                // cancels it (ADR-MASTER section 10, "General"). The coach is told, as for a lesson that passed.
+                batches.skip(ctx, keys, "LESSON_PASSED");
+            } else if (batches.cancel(ctx, c.time(), all, c.replacement(), keys, clock.instant())) {
                 cancelled++;
                 bookedIn(seats, c.time()).forEach(s -> told.add(s.clientId()));
             } else {
+                failed++;
                 batches.skip(ctx, keys, c.time().startsAtUtc().isAfter(clock.instant()) ? "BOOKING_GONE" : "LESSON_PASSED");
             }
         }
         for (ScheduleChange.Reprice r : plan.reprice()) {
             List<String> keys = repriceLines.get(r.time().key()).stream().map(RepriceLine::key).toList();
-            if (batches.reprice(ctx, r.time(), r.newPriceMinor(), keys, clock.instant())) {
+            if (batches.reprice(ctx, r.time(), bookedIn(seats, r.time()), r.newPriceMinor(), keys, clock.instant())) {
                 repriced++;
                 bookedIn(seats, r.time()).forEach(s -> told.add(s.clientId()));
             } else {
@@ -239,7 +263,7 @@ public final class ScheduleChangeService {
             }
         }
         batches.finish(ctx, batch.executed(cancelled + repriced, told.size()));
-        return new int[] {cancelled, repriced, told.size()};
+        return new int[] {cancelled, repriced, told.size(), failed};
     }
 
     // ---------------------------------------------------------------------- preview
@@ -363,6 +387,16 @@ public final class ScheduleChangeService {
 
     private static List<Seat> bookedIn(Map<String, List<Seat>> seats, LessonTime t) {
         return seats.getOrDefault(t.key(), List.of()).stream().filter(s -> s.seatStatus() == Seat.Status.BOOKED).toList();
+    }
+
+    /** Every skater in the lesson, booked, checked in or a no-show; not an invited one. */
+    private static List<Seat> joinedIn(Map<String, List<Seat>> seats, LessonTime t) {
+        return seats.getOrDefault(t.key(), List.of()).stream().filter(s -> s.seatStatus() != Seat.Status.INVITED).toList();
+    }
+
+    /** Checked in or marked a no-show: check-in opens an hour before the start ({@code Attendance.EARLY}). */
+    private static boolean started(Seat s) {
+        return s.seatStatus() == Seat.Status.CHECKED_IN || s.seatStatus() == Seat.Status.NO_SHOW;
     }
 
     private CoachProfile coach(AccessContext ctx) {

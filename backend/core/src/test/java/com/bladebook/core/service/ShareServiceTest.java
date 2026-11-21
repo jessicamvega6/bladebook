@@ -669,6 +669,75 @@ class ShareServiceTest {
         assertThat(sweep.sweep(by.plusSeconds(60))).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
     }
 
+    // ------------------------------------------------------- late sweeps, two windows, and declining after the start
+
+    private void setSeat(String studentId, Seat.Status status) {
+        t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()),
+                "SK", AttributeValue.fromS(Seat.key(MON, SIX, studentId)))).updateExpression("SET seatStatus = :s")
+                .expressionAttributeValues(Map.of(":s", AttributeValue.fromS(status.name()))));
+    }
+
+    private void miaLeftInTime() {
+        miaAccepted(MON);
+        now.set(Instant.parse("2026-11-12T15:00:00Z"));
+        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
+    }
+
+    private boolean leavePending() {
+        return new ShareRepository(t.f.clients, t.f.table).pendingLeave(dana.coachId(), MON, SIX).isPresent();
+    }
+
+    @Test
+    void aSweepThatRunsAfterTheLessonStartedLeavesItBookedAndEndsTheLeave() {
+        miaLeftInTime();
+
+        sweep.sweep(SIX_AT.plusSeconds(600)); // the sweep was late: the lesson started ten minutes ago
+
+        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(scheduleRepo.seats(dana, MON, MON)).extracting(Seat::studentId).containsExactly(ava);
+        assertThat(cancelRepo.lines(dana)).noneMatch(l -> l.cancelledBy() == ChangeBatch.By.NO_ANSWER);
+        assertThat(leavePending()).isFalse();
+    }
+
+    @Test
+    void aSweepNeverCancelsAStayingSkaterWhoIsCheckedIn() {
+        miaLeftInTime();
+        setSeat(ava, Seat.Status.CHECKED_IN);
+
+        sweep.sweep(SIX_AT.minusSeconds(1800)); // late, half an hour before the start, after Ava checked in
+
+        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(scheduleRepo.seats(dana, MON, MON)).extracting(Seat::studentId, Seat::seatStatus)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(ava, Seat.Status.CHECKED_IN));
+        assertThat(cancelRepo.lines(dana)).noneMatch(l -> l.cancelledBy() == ChangeBatch.By.NO_ANSWER);
+        assertThat(leavePending()).isFalse();
+    }
+
+    @Test
+    void aDeclineWrittenAfterTheLessonStartedIsRefused() {
+        bookAva(miaCode, MON);
+        Seat invited = new BookingRepository(t.f.clients, t.f.table).familySeats(chen, MON, MON).get(0);
+        com.bladebook.core.data.LinkedSkater skater = new ClientLinks(t.f.clients, t.f.table).requireActive(chen, dana.coachId(), mia, "decline");
+
+        assertThat(new ShareRepository(t.f.clients, t.f.table).decline(chen, skater, invited, SIX_AT)).isFalse();
+        assertThat(shares.invitations(chen)).hasSize(1);
+    }
+
+    @Test
+    void decliningInOneWindowAfterAcceptingInAnotherIsNoLongerAvailable() {
+        bookAva(miaCode, MON);
+        String id = shares.invitations(chen).get(0).inviteId();
+        // Read as invited; the other window's Go ahead lands first.
+        WriteRaces.beforeNextWrites(() -> shares.accept(chen, id));
+        try {
+            assertThatThrownBy(() -> shares.decline(chen, id)).isInstanceOf(DomainException.class)
+                    .hasMessage("This lesson is no longer available.");
+        } finally {
+            WriteRaces.clear();
+        }
+        assertThat(chenLesson(MON).share().joined()).isTrue();
+    }
+
     // ------------------------------------------------------- Payments, for a shared lesson
 
     @Test

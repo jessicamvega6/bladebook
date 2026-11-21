@@ -180,6 +180,21 @@ class EventConsumersTest {
     }
 
     @Test
+    void aDateTheCoachsCancelWroteIsLeftToTheApiWhichCancelsItsLessonsAsTheCoachs() {
+        String coachId = coach();
+        String pk = "COACH#" + coachId;
+        // I24: Cancel this day / rest of week writes time off and applies it itself, as the coach's cancel.
+        assertThat(consumers.run(EventConsumers.Event.ScheduleChanged, record("INSERT", pk, "SCHEDULE#DATE#2026-11-23",
+                "{\"appliedBy\":{\"S\":\"COACH\"}}", null), "a").count()).isEqualTo(-1);
+        // Any other date item is the consumer's to apply.
+        assertThat(consumers.run(EventConsumers.Event.ScheduleChanged, record("INSERT", pk, "SCHEDULE#DATE#2026-11-24", "{}", null), "b")
+                .count()).isZero();
+        // Removing the coach's time off later puts lessons back: the consumer applies that.
+        assertThat(consumers.run(EventConsumers.Event.ScheduleChanged, record("REMOVE", pk, "SCHEDULE#DATE#2026-11-23", null,
+                "{\"appliedBy\":{\"S\":\"COACH\"}}"), "c").count()).isZero();
+    }
+
+    @Test
     void anApprovalUpdatesTheFamilysLinkAndSendsNoEmail() {
         String coachId = coach();
         EventConsumers.Outcome o = consumers.run(EventConsumers.Event.StudentChanged, record("MODIFY", "COACH#" + coachId, "STUDENT#s1",

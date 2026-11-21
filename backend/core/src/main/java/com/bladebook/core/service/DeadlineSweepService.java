@@ -81,7 +81,11 @@ public final class DeadlineSweepService {
     private boolean cancelNoAnswer(String coachId, ShareRepository.PendingLeave pending, LocalDate date, LocalTime start, Instant at) {
         Optional<Seat> staying = shares.seatAt(coachId, Seat.key(date, start, pending.stayingStudentId()));
         Optional<LessonTime> time = shares.lessonAt(coachId, date, start);
-        if (staying.isEmpty() || time.isEmpty()) {
+        // Gone, checked in or a no-show, or the lesson already under way (a late run): nothing is cancelled. ADR-MASTER
+        // section 8 doesn't say what an unanswered leave does once the lesson starts, so the lesson stays booked as it is
+        // and only the pending leave is ended (section 10: a started or checked-in lesson is never cancelled in bulk).
+        if (staying.isEmpty() || time.isEmpty() || staying.get().seatStatus() != Seat.Status.BOOKED
+                || !time.get().startsAtUtc().isAfter(at)) {
             return shares.cancelNoAnswer(coachId, pending, null, null, null, date, start, at);
         }
         Seat s = staying.get();

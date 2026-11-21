@@ -9,15 +9,20 @@ import com.bladebook.core.data.ScheduleRepository;
 import com.bladebook.core.domain.BookingRequest;
 import com.bladebook.core.domain.ChangeBatch;
 import com.bladebook.core.domain.DomainException;
+import com.bladebook.core.domain.LessonTime;
 import com.bladebook.core.domain.Recurrence;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.bladebook.core.service.ScheduleTestSupport.mondayMornings;
@@ -111,6 +116,103 @@ class RecurrenceServiceTest {
         now.set(Instant.parse("2026-11-23T10:00:00Z")); // Monday 4 AM: today's 6:00 hasn't started, but it's today
         assertThat(service.change(park, dana.coachId(), rid, "STOP", null, null).cancelled()).isEqualTo(4);
         assertThat(left()).containsExactly("2026-11-23");
+    }
+
+    // ------------------------------------------------------------- two windows, and dates that won't cancel
+
+    @AfterEach
+    void noRacesLeft() {
+        WriteRaces.clear();
+    }
+
+    private Recurrence header() {
+        return new BookingRepository(t.f.clients, t.f.table).recurrences().list(park).get(0);
+    }
+
+    private Map<String, AttributeValue> lessonKey(LocalDate d) {
+        return Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS(LessonTime.key(d, LocalTime.of(6, 0))));
+    }
+
+    /** Someone else's booking or cancel on that lesson time since it was read: its seat count moves on. */
+    private Runnable moves(LocalDate d) {
+        return () -> t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table).key(lessonKey(d))
+                .updateExpression("SET seatsTaken = seatsTaken + :one").expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1"))));
+    }
+
+    @Test
+    void aStopInAnotherWindowWhileEndingEarlierLeavesTheSeriesEndedNotActiveWithNoLessons() {
+        // This window read the series; before it writes anything, another window stops it.
+        WriteRaces.beforeNextWrites(() -> service.change(park, dana.coachId(), rid, "STOP", null, null));
+
+        assertThatThrownBy(() -> service.change(park, dana.coachId(), rid, "END_EARLIER", "2026-12-07", null))
+                .isInstanceOf(DomainException.class).hasMessage(CancellationService.CHANGED);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ENDED);
+        assertThat(left()).isEmpty();
+    }
+
+    @Test
+    void endingEarlierInAnotherWindowWhileStoppingRefusesTheStopBeforeItCancelsAnything() {
+        WriteRaces.beforeNextWrites(() -> service.change(park, dana.coachId(), rid, "END_EARLIER", "2026-12-07", null));
+
+        assertThatThrownBy(() -> service.change(park, dana.coachId(), rid, "STOP", null, null))
+                .isInstanceOf(DomainException.class).hasMessage(CancellationService.CHANGED);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ACTIVE);
+        assertThat(header().endDate()).isEqualTo(LocalDate.of(2026, 12, 7));
+        assertThat(left()).containsExactly("2026-11-23", "2026-11-30", "2026-12-07");
+    }
+
+    @Test
+    void aChangeInProgressElsewhereRefusesThisOneUntilItsMarkerIsAbandoned() {
+        // Another window has claimed the series and not finished: as it would look mid-change.
+        t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table)
+                .key(Map.of("PK", AttributeValue.fromS(park.partitionKey()), "SK", AttributeValue.fromS(header().key())))
+                .updateExpression("SET changingId = :id, changingSince = :at")
+                .expressionAttributeValues(Map.of(":id", AttributeValue.fromS("other-window"), ":at", AttributeValue.fromS(now.get().toString()))));
+
+        assertThatThrownBy(() -> service.change(park, dana.coachId(), rid, "STOP", null, null)).hasMessage(CancellationService.CHANGED);
+        assertThat(left()).hasSize(5);
+
+        now.set(now.get().plus(RecurrenceService.ABANDONED).plusSeconds(1)); // that request died
+        assertThat(service.change(park, dana.coachId(), rid, "STOP", null, null).cancelled()).isEqualTo(5);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ENDED);
+    }
+
+    @Test
+    void aDateThatChangedSinceItWasReadIsReadAgainAndCancelled() {
+        LocalDate d = LocalDate.of(2026, 11, 30);
+        java.util.concurrent.atomic.AtomicBoolean once = new java.util.concurrent.atomic.AtomicBoolean();
+        // The seat is written again since it was read (its join time moves on), still booked.
+        Runnable onceMoves = () -> {
+            if (once.compareAndSet(false, true)) {
+                String seat = new BookingRepository(t.f.clients, t.f.table).familySeats(park, d, d).get(0).key();
+                t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table)
+                        .key(Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS(seat)))
+                        .updateExpression("SET joinedAt = :j").expressionAttributeValues(Map.of(":j", AttributeValue.fromS("2026-11-16T15:00:01Z"))));
+            }
+        };
+        WriteRaces.beforeNextWrites(onceMoves);
+
+        assertThat(service.change(park, dana.coachId(), rid, "STOP", null, null).cancelled()).isEqualTo(5);
+        assertThat(left()).isEmpty();
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ENDED);
+    }
+
+    @Test
+    void aDateThatStillWontCancelLeavesTheSeriesAsItWasAndSaysSo() {
+        LocalDate d = LocalDate.of(2026, 11, 30);
+        WriteRaces.beforeNextWrites(java.util.Collections.nCopies(30, moves(d)).toArray(Runnable[]::new));
+
+        assertThatThrownBy(() -> service.change(park, dana.coachId(), rid, "STOP", null, null))
+                .isInstanceOf(DomainException.class).hasMessage(CancellationService.CHANGED);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ACTIVE);
+        assertThat(left()).containsExactly("2026-11-30");
+
+        // Nothing is left claimed: trying again works.
+        WriteRaces.clear();
+        t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table).key(lessonKey(d))
+                .updateExpression("SET seatsTaken = :one").expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1"))));
+        assertThat(service.change(park, dana.coachId(), rid, "STOP", null, null).cancelled()).isEqualTo(1);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ENDED);
     }
 
     @Test
