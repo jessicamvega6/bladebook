@@ -14,10 +14,13 @@ prefer if you know.
 
 ## Coach app
 
-- [ ]
+- [ ] Schedule, **Your teaching week**: remove "no dates, just the shape of your week" from the
+  line under the heading, leaving "Repeats every week." (`web/src/coach/pages/Schedule.tsx:501`).
 
 ## Family app
 
+- [ ] Log in page: add more space between the **Password** field, the **Forgot/change password**
+  link and the **Log in** button; they sit too close together (`web/src/family/pages/Login.tsx:62`).
 - [ ] Home page: add padding to the bottom of the **Today** and **Coming up** cards
   (`web/src/family/pages/Home.tsx`).
 - [ ] My bookings: remove the **Shared lesson** badge from a lesson once the original invitee
