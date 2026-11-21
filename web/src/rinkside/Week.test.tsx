@@ -5,6 +5,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { fakes } from '../test/fakeAuth';
 import type { RinkDay, RinkWeek, WeekLesson } from './api';
 import { App } from './App';
 
@@ -47,7 +48,7 @@ const cancels = (calls: ReturnType<typeof server>) => calls.filter((c) => c.url 
 
 beforeEach(() => {
   sessionStorage.clear(); localStorage.clear();
-  sessionStorage.setItem('bb.coach.idToken', 'h.eyJlbWFpbCI6ImRhbmFAZ21haWwuY29tIn0.s');
+  fakes.coach.signedInAs('dana@gmail.com');
   window.location.hash = '#/week';
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });

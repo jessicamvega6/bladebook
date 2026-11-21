@@ -3,18 +3,19 @@
  * ADR-MASTER section 5). Five steps on the stepper:
  *
  *   1 Coach code: checked as it's typed, several coaches allowed (ADR-025 item h).
- *   2 Your details: who the lessons are for, names, mobile, and the account. Creating the account is Cognito's;
- *     here the local stand-in signs the family in with the email (shortcut SC-1). An email that already has a
- *     family account is refused here, as Cognito's sign-up would refuse it. Already signed in (an
- *     account with no family yet), the email is shown, not asked for.
- *   3 Verify email: Cognito's, not built (gap G-14). The stepper marks it done.
+ *   2 Your details: who the lessons are for, names, mobile, and the account. Cognito creates the account from the
+ *     browser (ADR-023 d11) and refuses an email that already has one. Already signed in (an account with no family
+ *     yet), the email is shown, not asked for.
+ *   3 Verify email: the 6-digit code Cognito emails (design: signup-3-verify). Confirming it gives the account the
+ *     Client group (ADR-023 d10), and the website signs in.
  *   4 Skaters: the adult themselves, or a guardian's children (minors only, A7), each with an organization and
  *     number and the coaches they join. An adult ticks "I’m 18 or older" before sending (owner, 2026-11-09).
  *   5 Waiting for approval. No page promises an approval email (A10).
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { emailFromToken, familySession } from '../../shared/auth/localAuth';
+import { AuthFailure, emailFromToken, familyAuth } from '../../shared/auth';
+import { CodeInput, passwordOk, PasswordRules } from '../../shared/components/auth';
 import { Avatar, Badge, Banner, Button, Card, Check, Field, Help, Icon, Row, Seg } from '../../shared/components/harbor';
 import {
   codeState, continueLabel, looksLikeShareCode, normalizeCode, NO_SUCH_COACH, SHARE_IN_COACH_BOX, type FoundCoach, type Lookup,
@@ -31,15 +32,6 @@ interface SkaterDraft { name: string; org: number; number: string; coaches: stri
 
 const coachName = (c: FoundCoach) => `${c.firstName} ${c.lastName}`;
 const LOGIN_RIGHT = <>Already have an account? <a className="link" href="#/login">Log in</a></>;
-
-/** At least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol (design's pwRules). */
-const PASSWORD_RULES: Array<[string, (p: string) => boolean]> = [
-  ['At least 8 characters', (p) => p.length >= 8],
-  ['An uppercase letter', (p) => /[A-Z]/.test(p)],
-  ['A lowercase letter', (p) => /[a-z]/.test(p)],
-  ['A number', (p) => /[0-9]/.test(p)],
-  ['A symbol (!@#$…)', (p) => /[^A-Za-z0-9]/.test(p)],
-];
 
 function phoneOk(p: string) {
   const digits = p.replace(/\D/g, '').length;
@@ -84,14 +76,18 @@ function CoachPick({ coaches, on, onToggle }: { coaches: Listed[]; on: string[];
   );
 }
 
-export function Signup({ token, onToken, onDone, onSignInAgain }: {
+export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
   /** Set when the family is signed in but hasn't finished signing up. */
   token: string | null;
+  /** A log-in whose email was never verified: start at the code, then go through sign-up from step 1, signed in. */
+  verifyEmail?: string;
   onToken: (token: string) => void;
   onDone: (family: Family) => void;
   onSignInAgain: () => void;
 }) {
-  const [step, setStep] = useState<0 | 1 | 3 | 4>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(verifyEmail ? 2 : 0);
+  const [code6, setCode6] = useState('');
+  const [flash, setFlash] = useState('');
   const [typed, setTyped] = useState('');
   const [lookup, setLookup] = useState<Lookup>();
   const [coaches, setCoaches] = useState<Listed[]>([]);
@@ -99,7 +95,7 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(verifyEmail ?? '');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [tried, setTried] = useState(false);
@@ -204,7 +200,7 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
       last: last.trim() ? '' : 'Enter your last name.',
       phone: phoneOk(phone) ? '' : 'Enter a mobile number with its area code, like (205) 555-0142.',
       email: token || /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(email.trim()) ? '' : 'Enter an email address like name@example.com.',
-      pw: token || PASSWORD_RULES.every(([, ok]) => ok(pw)) ? '' : 'Use a password that meets every rule below.',
+      pw: token || passwordOk(pw) ? '' : 'Use a password that meets every rule below.',
       pw2: token || pw2 === pw ? '' : 'The passwords don’t match.',
     };
     const ok = Object.values(problems).every((p) => !p);
@@ -215,22 +211,14 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
       setBusy(true);
       setError('');
       try {
-        const t = await familySession.signIn(email.trim());
-        // Cognito's sign-up refuses an email that already has an account. The stand-in signs any email in,
-        // so it checks for a family here instead, rather than after step 4 (owner, 2026-11-09).
-        const taken = await familyApi(t).me().then(() => true, (e: unknown) => {
-          if (e instanceof ApiError && e.code === 'NO_ACCOUNT') return false;
-          throw e;
-        });
-        if (taken) {
-          familySession.signOut();
-          setExisting(true);
-          return;
-        }
-        onToken(t);
-        setStep(3);
+        // Cognito creates the account and emails the code; it refuses an email that already has an account.
+        await familyAuth().signUp(email, pw);
+        setCode6('');
+        setFlash('');
+        setStep(2);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+        if (e instanceof AuthFailure && e.code === 'EMAIL_TAKEN') setExisting(true);
+        else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
       } finally {
         setBusy(false);
       }
@@ -268,9 +256,7 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
           {!token && (
             <>
               <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
-              <ul className="rules">{PASSWORD_RULES.map(([t, rule]) => (
-                <li key={t} className={rule(pw) ? 'is-ok' : ''}><Icon name={rule(pw) ? 'check' : 'x'} size={13} />{t}</li>
-              ))}</ul>
+              <PasswordRules password={pw} />
               <Field label="Confirm password" type="password" value={pw2} onChange={setPw2} autoComplete="new-password" placeholder="Type it again" noPaste
                 error={show(problems.pw2)} hint="Type it again rather than pasting. Pasting is turned off here." />
             </>
@@ -285,6 +271,60 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
     );
   }
 
+  // -------------------------------------------------------------- step 3
+  if (step === 2) {
+    const verify = async () => {
+      if (code6.length !== 6) { setError('Enter the 6-digit code from the email.'); return; }
+      setBusy(true);
+      setError('');
+      try {
+        await familyAuth().confirmSignUp(email, code6);
+        // Signed in with the Client group now on the account (ADR-023 d10). After a reload the password is gone, so
+        // the family logs in and comes back here, with an account and no family yet.
+        const t = await familyAuth().refresh();
+        if (!t) { onSignInAgain(); return; }
+        onToken(t);
+        setStep(verifyEmail ? 0 : 3);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      } finally {
+        setBusy(false);
+      }
+    };
+    const resend = async () => {
+      setBusy(true);
+      setError('');
+      try {
+        await familyAuth().resendSignUpCode(email);
+        setFlash('We sent a new code.');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      } finally {
+        setBusy(false);
+      }
+    };
+    return (
+      <AuthShell step={2} ctx="Family sign up" right={null} aside={
+        <Help title="Why a code?">It proves the email is yours before lesson reminders go there. Can’t find it? Check spam for “Your verification code” from BladeBook.</Help>}>
+        <Card className="card--center">
+          <form onSubmit={(e) => { e.preventDefault(); void verify(); }} noValidate>
+            <div className="mailicon"><Icon name="mail" size={26} /></div>
+            <h1 className="h1 center">Check your email</h1>
+            <p className="lede center">We sent a 6-digit code to <b>{email.trim()}</b>.<br />It expires in 24 hours.</p>
+            {flash && <Banner tone="success">{flash}</Banner>}
+            {error && <Banner tone="danger">{error}</Banner>}
+            <CodeInput value={code6} onChange={setCode6} />
+            <Button type="submit" block lg disabled={busy}>Verify email</Button>
+            <p className="fine center">
+              <button type="button" className="link" onClick={() => void resend()} disabled={busy}>Resend code</button>
+              {' · '}<button type="button" className="link" onClick={() => { setError(''); setStep(1); }}>Use a different email</button>
+            </p>
+          </form>
+        </Card>
+      </AuthShell>
+    );
+  }
+
   // -------------------------------------------------------------- step 4
   if (step === 3) {
     const send = async (body: Parameters<ReturnType<typeof familyApi>['register']>[0]) => {
@@ -292,7 +332,7 @@ export function Signup({ token, onToken, onDone, onSignInAgain }: {
       setBusy(true);
       setError('');
       try {
-        setDone(await familyApi(token).register(body));
+        setDone(await familyApi(() => familyAuth().idToken()).register(body));
         setStep(4);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) onSignInAgain();

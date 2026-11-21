@@ -6,7 +6,7 @@ import { TIMEZONES } from '../../shared/logic/timezones';
 import type { CoachApi, PaymentType, PaymentTypeName, Profile } from '../api';
 import { allTypes, PaymentTypeRows } from '../components/PaymentTypeRows';
 import { WizardShell } from '../components/Shells';
-import { savedNames } from './LocalSignIn';
+import { savedNames } from './SignIn';
 
 export function fieldErrors(err: unknown): Record<string, string> {
   return err instanceof ApiError && err.field ? { [err.field]: err.message } : {};

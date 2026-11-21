@@ -41,12 +41,14 @@ export function CoachShell({ profile, section, flash, children, wide, full, wait
   );
 }
 
-export function WizardShell({ step, children, aside, right }: { step?: number; children: ReactNode; aside?: ReactNode; right?: ReactNode }) {
+export function WizardShell({ step, children, aside, right, ctx = 'Coach sign up' }: {
+  step?: number; children: ReactNode; aside?: ReactNode; right?: ReactNode; ctx?: string;
+}) {
   return (
     <div className="app app--wizard">
       <header className="wbar">
         <Brand />
-        <span className="wbar__ctx">Coach sign up</span>
+        <span className="wbar__ctx">{ctx}</span>
         <span className="wbar__right">{right}</span>
       </header>
       <main className="wmain">

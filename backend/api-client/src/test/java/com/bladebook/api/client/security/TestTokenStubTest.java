@@ -1,4 +1,4 @@
-package com.bladebook.api.coach.security;
+package com.bladebook.api.client.security;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -10,7 +10,7 @@ import java.time.Clock;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The seed generator's file of real Cognito {@code sub}s (Batch 17b, ADR-028 decision 4). */
-class LocalTokenStubTest {
+class TestTokenStubTest {
 
     @TempDir
     Path dir;
@@ -19,12 +19,12 @@ class LocalTokenStubTest {
     void anEmailInTheSubsFileGetsItsSubAnyOtherGetsOneMadeFromTheEmail() throws Exception {
         Path subs = dir.resolve("subs.properties");
         Files.writeString(subs, "owner+dev-coach-a@mailbox.test=11111111-2222-3333-4444-555555555555\n");
-        LocalTokenStub stub = new LocalTokenStub(Clock.systemUTC(), "app-client", subs.toString());
+        TestTokenStub stub = new TestTokenStub(Clock.systemUTC(), "app-client", subs.toString());
 
         assertThat(stub.subFor(" OWNER+dev-coach-a@Mailbox.test ")).isEqualTo("11111111-2222-3333-4444-555555555555");
         assertThat(stub.subFor("someone@example.test"))
-                .isEqualTo(new LocalTokenStub(Clock.systemUTC(), "app-client", "").subFor("Someone@Example.test"))
+                .isEqualTo(new TestTokenStub(Clock.systemUTC(), "app-client", "").subFor("Someone@Example.test"))
                 .isNotEqualTo("11111111-2222-3333-4444-555555555555");
-        assertThat(stub.localJwtDecoder().decode(stub.coachToken("Coach@Example.test")).getSubject()).isNotBlank();
+        assertThat(stub.localJwtDecoder().decode(stub.familyToken("Coach@Example.test")).getSubject()).isNotBlank();
     }
 }

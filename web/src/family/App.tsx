@@ -1,19 +1,20 @@
 /**
- * The family website. Batch 3: sign-up with coach codes (steps 1, 2, 4 and 5), the local log-in stand-in, and
+ * The family website. Batch 3: sign-up with coach codes (steps 1, 2, 4 and 5), log-in, and
  * the waiting family's Home and Profile. Batch 4: once a coach approves, Book a lesson (#/book…) and Home's
  * Today and Coming up. Batch 5: My bookings (#/bookings), with Cancel on each lesson. Batch 11: the invitation page
- * (#/invite/<inviteId>), and Home's invitations and staying-family cards.
+ * (#/invite/<inviteId>), and Home's invitations and staying-family cards. Batch 18: real sign-in, BladeBook's own forms
+ * calling Cognito (ADR-023 d11): Log in, "Forgot/change password" (I32) and sign-up's account and email code.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
-import { familySession } from '../shared/auth/localAuth';
+import { familyAuth } from '../shared/auth';
 import { Banner } from '../shared/components/harbor';
 import { familyApi, type Family, type Invitation, type MyLesson } from './api';
 import { FamilyShell } from './components/Shells';
 import { Book } from './pages/Book';
 import { Bookings, SeriesChange } from './pages/Bookings';
 import { Home } from './pages/Home';
-import { Login } from './pages/Login';
+import { Forgot, Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import { InvitePage } from './pages/Sharing';
 import { Signup } from './pages/Signup';
@@ -38,33 +39,46 @@ function go(route: string) {
   window.location.hash = route;
 }
 
+const auth = familyAuth();
+
 export function App() {
-  // Opening the plain address (no page named) always starts at Log in, signed out, so the last family in
-  // this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
-  const [token, setToken] = useState<string | null>(() => {
+  // The sign-in's current ID token: undefined while this tab's sign-in is looked up, null when signed out. Requests
+  // get theirs from the sign-in (auth.idToken), refreshed when it expires; this one marks who is signed in.
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+  // A log-in whose email was never verified goes to sign-up's code step for this email.
+  const [verifyEmail, setVerifyEmail] = useState('');
+  useEffect(() => {
+    // Opening the plain address (no page named) always starts at Log in, signed out, so the last family in
+    // this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
     const hash = window.location.hash;
-    if (hash === '' || hash === '#' || hash === '#/') {
-      familySession.signOut();
-      return null;
-    }
-    return familySession.getToken();
-  });
+    const plain = hash === '' || hash === '#' || hash === '#/';
+    let live = true;
+    (plain ? auth.signOut().then(() => null) : auth.idToken())
+      .then((t) => { if (live) setToken(t); })
+      .catch(() => { if (live) setToken(null); });
+    return () => { live = false; };
+  }, []);
   const [notice, setNotice] = useState('');
+  const [noticeOk, setNoticeOk] = useState(false);
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   // Sign-up stays on screen while its new token arrives, so nothing typed is lost.
   const [signingUp, setSigningUp] = useState(false);
   const route = useHashRoute();
-  const api = useMemo(() => (token ? familyApi(token) : null), [token]);
+  const api = useMemo(() => (token ? familyApi(auth.idToken) : null), [token]);
   const [lessons, setLessons] = useState<MyLesson[] | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [homeReload, setHomeReload] = useState(0);
 
   const signOut = useCallback((message = '') => {
-    familySession.signOut();
-    setToken(null);
-    setSigningUp(false);
-    setNotice(message);
-    go('#/login');
+    // Log in shows once the tab's sign-in is gone (see shared/auth's signOut).
+    void auth.signOut().then(() => {
+      setToken(null);
+      setVerifyEmail('');
+      setSigningUp(false);
+      setNotice(message);
+      setNoticeOk(false);
+      go('#/login');
+    });
   }, []);
 
   const handleError = useCallback((e: unknown) => {
@@ -86,10 +100,13 @@ export function App() {
         if (e instanceof ApiError && e.code === 'NO_ACCOUNT') {
           setLoad({ state: 'no-account' });
           setSigningUp(true);
+        } else if (e instanceof ApiError && e.status === 403) {
+          // A coach's account (one user pool, ADR-023 d7, d9): signed out again, with the API's reason on Log in.
+          signOut(e.message);
         } else handleError(e);
       });
     return () => { live = false; };
-  }, [api, handleError]);
+  }, [api, handleError, signOut]);
 
   // Home's Today and Coming up, read again each time Home opens so a new booking shows. A waiting family has none.
   const approved = load.state === 'ready' && !load.family.waiting;
@@ -110,14 +127,21 @@ export function App() {
   }, [api, approved, onHome, handleError, homeReload]);
 
   let page;
-  if (signingUp || (!token && route === '#/signup')) {
+  if (token === undefined) {
+    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+  } else if (signingUp || (!token && (route === '#/signup' || verifyEmail))) {
     page = (
-      <Signup token={token} onToken={(t) => { setSigningUp(true); setToken(t); }}
+      <Signup key={verifyEmail} token={token} verifyEmail={verifyEmail || undefined} onToken={(t) => { setSigningUp(true); setToken(t); }}
         onSignInAgain={() => signOut('Please log in again to finish signing up.')}
-        onDone={(family) => { setSigningUp(false); setLoad({ state: 'ready', family }); go('#/home'); }} />
+        onDone={(family) => { setSigningUp(false); setVerifyEmail(''); setLoad({ state: 'ready', family }); go('#/home'); }} />
     );
+  } else if (!token && route === '#/forgot') {
+    page = <Forgot onDone={(n) => { setNotice(n); setNoticeOk(true); go('#/login'); }} />;
   } else if (!token || !api) {
-    page = <Login notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); go('#/home'); }} />;
+    page = (
+      <Login notice={notice} noticeTone={noticeOk ? 'success' : 'info'} onVerify={(email) => { setNotice(''); setVerifyEmail(email); }}
+        onSignedIn={() => { setNotice(''); void auth.idToken().then((t) => { setToken(t); go('#/home'); }); }} />
+    );
   } else if (load.state === 'loading' || load.state === 'no-account') {
     page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
   } else if (load.state === 'error') {

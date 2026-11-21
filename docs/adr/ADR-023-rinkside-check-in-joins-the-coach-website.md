@@ -92,6 +92,18 @@ code.** From Batch 18 the websites sign in only through Cognito, locally too: lo
 real user pool with real passwords, and the local APIs accept that pool's tokens. The APIs' token stub and its
 `/api/*/local/token` routes leave their shipped code; tests mint tokens from test-only code.
 
+**Amended — 2026-11-20.** *Decided by the owner (I32 in `AI/plan-history.md`).* Decision 11's forms, narrowed for
+Batch 18:
+- **A coach's MFA code is its own batch, designed first** (Batch 28): turning MFA on with an authenticator app, its
+  code at log-in and before a schedule save. Until then the forms don't ask for a code; if Cognito asks anyway, the
+  form says so plainly and stops.
+- **A family's login email can't be changed.** The family Profile shows it read-only, so `UpdateUserAttributes` and
+  the changed-email code aren't used on the family website.
+- **A family changes its password through forgot password,** linked from the log-in page as "Forgot/change
+  password". Only the coach's Profile → Account has Change password (`ChangePassword`).
+- **The seed generator signs its people in through a test-only token stub,** started from the APIs' test classpath,
+  so I31's "nothing of it in a Lambda package" holds.
+
 **Amended — 2026-11-12.** *Decided by the owner.* **Decision 11's sign-in library is AWS Amplify's
 Auth module** (`aws-amplify` version 6, the sign-in part only), keeping SRP. It handles every Cognito
 call the forms make, the MFA and new-password challenges, and token refresh. It is the free,
@@ -104,7 +116,9 @@ on S3 and CloudFront, deployed with CDK. Its drawbacks are mitigated as follows:
 - **Tokens in tab storage** (`sessionStorage`), set explicitly, never Amplify's default `localStorage`.
   A test fails if a token lands in `localStorage`. They survive a reload and clear when the tab closes.
 - **Page size measured** in the first build that uses it and recorded here, with the rinkside page
-  checked on a slow connection.
+  checked on a slow connection. *Measured 2026-11-20 (Batch 18, `aws-amplify` 6.22.2): Amplify adds about 38 KB
+  gzipped of script to each page. Each page's script, gzipped: coach website 149 KB (was 112), rinkside page 122 KB
+  (was 84), family website 144 KB (was 106). The slow-connection check is with the click-through in dev.*
 - **Decision 11's tests stay the assurance** that matters: no request to `api-coach` or `api-client`
   carries a password or a code, and both app clients allow only SRP and refresh.
 Alternatives weighed: `amazon-cognito-identity-js` (little active development), AWS's plain Cognito
@@ -225,6 +239,11 @@ save.
 - **The window is configuration.** 15 minutes is the starting value.
 - **The preview is not guarded,** only the save. The coach can review the impact without
   re-entering a password and is asked once, at the moment it matters.
+- **Three wrong passwords sign the coach out** (*owner, 2026-11-20, I33*). A wrong password otherwise leaves the
+  sign-in as it was, edits kept; the third in a row ends the session, and the unsaved changes are lost. Several wrong
+  passwords suggest it isn't the coach at the keyboard, and the open session reaches every family's details. The box
+  always warns that several wrong passwords sign you out and the changes aren't saved; no warning marks the last try.
+  Cognito's own lockout (five wrong passwords) still applies on top.
 
 ### 5. The API Gateway authorizer stays Cognito's built-in one
 
@@ -455,8 +474,8 @@ older users. It also matches the Harbor designs as drawn.
   [ADR-027](ADR-027-on-demand-dev-environment.md) are no longer needed for Cognito's sign-in
   redirects; the cross-origin (CORS) rule and the custom domain still need them.
 - The websites need a browser library that does SRP ~~(Open)~~ *: AWS Amplify's Auth module (2026-11-12, amendment above).*
-- Until the user pool exists, the local build's token stub stands in for these calls (the root
-  `README.md`, shortcuts SC-1 and SC-10).
+- ~~Until the user pool exists, the local build's token stub stands in for these calls (the root
+  `README.md`, shortcuts SC-1 and SC-10).~~ *Built 2026-11-20 (Batch 18); SC-1 and SC-10 closed.*
 
 **Tests** ([ADR-013](ADR-013-testing-requirement.md)): no request to `api-coach` or `api-client`
 carries a password or a code; both app clients allow only SRP and refresh, with no secret and no

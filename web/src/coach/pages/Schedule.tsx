@@ -10,10 +10,10 @@
  * Not yet: time off and special schedules (Batch 6) and the save's impact preview (Batch 6; with no
  * bookings yet, Review shows the week and saves).
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { signInLocally } from '../../shared/auth/localAuth';
-import { Badge, Banner, Button, Card, Dialog, Icon } from '../../shared/components/harbor';
+import { AuthFailure, coachAuth } from '../../shared/auth';
+import { Badge, Banner, Button, Card, Dialog, Field, Icon } from '../../shared/components/harbor';
 import {
   DAYS, LESSON_LENGTHS, MAX_NAME, MAX_SKATERS, MAX_SPECIAL_DAYS, QUARTER_HOURS, addDays, dateRange, datesBetween, dayOfWeek, forDate,
   formatMoney, formatTime, isOff, label, lessonsOn, longDate, nextSeq, oddCentsWarning, parseMoney, problems,
@@ -273,9 +273,14 @@ export function TimeOffForm({ api, profile, onSaved, onToken, onError }: {
 export interface Saved { lessons: number; families: number; since: number }
 
 /**
- * Saving with the 15-minute sign-in (ADR-023 d4): a refused save asks to sign in again, keeps the edits, and retries
- * with the new sign-in (locally the token stub, SC-7).
+ * Saving with the 15-minute sign-in (ADR-023 d4): a refused save asks for the password again, keeps the edits, and
+ * retries with the new sign-in. A wrong password leaves the coach signed in as before, edits and all (shared/auth),
+ * but the third in a row signs them out, edits lost (owner, I33): several wrong passwords suggest it isn't the coach.
  */
+export const WRONG_PASSWORDS_ALLOWED = 3;
+/** The 401 code the coach website shows on Log in after the third wrong password (App's handleError). */
+export const SIGNED_OUT_WRONG_PASSWORDS = 'WRONG_PASSWORDS';
+
 export function useGuardedSave(profile: Profile, onToken: (t: string) => void, onError: (e: unknown) => void) {
   const [reauth, setReauth] = useState<null | ((api: ScheduleApi) => Promise<void>)>(null);
   const [busy, setBusy] = useState(false);
@@ -293,27 +298,58 @@ export function useGuardedSave(profile: Profile, onToken: (t: string) => void, o
       setBusy(false);
     }
   };
-  /** LOCAL STAND-IN for entering the password again (shortcut SC-1): a fresh stub sign-in, then the same save. */
-  const signInAndSave = async () => {
+  const [password, setPassword] = useState('');
+  const [reauthError, setReauthError] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
+  // Wrong passwords in a row, counted while this page is open; a right one starts again.
+  const [wrong, setWrong] = useState(0);
+  const closeReauth = () => { setReauth(null); setPassword(''); setReauthError(''); };
+  /** The password again (Cognito, from the browser; ADR-023 d11), then the same save with the new sign-in. */
+  const signInAndSave = async (e: FormEvent) => {
+    e.preventDefault();
     const save = reauth;
-    setReauth(null);
     if (!save) return;
+    if (!password) { setReauthError('Enter your password.'); return; }
+    setSigningIn(true);
+    setReauthError('');
     try {
-      const token = await signInLocally(profile.loginEmail);
-      onToken(token);
-      await run(scheduleApi(token), save);
-    } catch (e) {
-      onError(e);
+      await coachAuth().confirmPassword(profile.loginEmail, password);
+    } catch (err) {
+      setPassword('');
+      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' && wrong + 1 >= WRONG_PASSWORDS_ALLOWED) {
+        closeReauth();
+        setWrong(0);
+        await coachAuth().signOut();
+        onError(new ApiError(401, SIGNED_OUT_WRONG_PASSWORDS,
+          'You were signed out after too many wrong passwords. Your changes weren’t saved.'));
+        return;
+      }
+      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD') setWrong(wrong + 1);
+      setReauthError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+      return;
+    } finally {
+      setSigningIn(false);
     }
+    setWrong(0);
+    closeReauth();
+    const token = await coachAuth().idToken();
+    if (token) onToken(token);
+    await run(scheduleApi(() => coachAuth().idToken()), save);
   };
   const dialog = reauth && (
-    <Dialog onClose={() => setReauth(null)} labelledBy="reauth-title">
-      <h2 className="h2" id="reauth-title">Confirm it’s you</h2>
-      <p className="muted">Saving your schedule needs a sign-in from the last 15 minutes. Your changes are kept.</p>
-      <div className="actions">
-        <Button variant="secondary" onClick={() => setReauth(null)}>Not now</Button>
-        <Button onClick={signInAndSave}>Sign in again and save</Button>
-      </div>
+    <Dialog onClose={closeReauth} labelledBy="reauth-title">
+      <form onSubmit={signInAndSave} noValidate>
+        <h2 className="h2" id="reauth-title">Confirm it’s you</h2>
+        <p className="muted">Saving your schedule needs a sign-in from the last 15 minutes. Your changes are kept.</p>
+        {reauthError && <Banner tone="danger">{reauthError}</Banner>}
+        <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password"
+          hint={`For ${profile.loginEmail}`} />
+        <p className="fine">Warning: several wrong passwords will sign you out, and your changes won’t be saved.</p>
+        <div className="actions">
+          <Button variant="secondary" onClick={closeReauth}>Not now</Button>
+          <Button type="submit" disabled={signingIn}>Sign in again and save</Button>
+        </div>
+      </form>
     </Dialog>
   );
   return { run, busy, errors, setErrors, dialog };

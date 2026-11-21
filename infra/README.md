@@ -71,6 +71,10 @@ npx cdk destroy bladebook-dev-app --profile bladebook-dev
   pages and rinkside's service worker with `no-cache`, then CloudFront's copies are cleared. Nothing is pruned. GitHub's
   role gets no new permission: the upload runs as CloudFormation. A merge's release carries `websites.tar.gz`, which
   the deploy unpacks into `web/dist-sites/`.
+  With the pages goes each website's `config.json` (Batch 18): the region, the user pool and that website's own app
+  client, for its sign-in forms (`siteConfig`). One build serves every environment, so these come from the stack, not
+  the build. Locally, `npm run dev-pool` here writes dev's to `~/.bladebook/`, for the APIs' local profile and the Vite
+  dev server (I31).
 
 - **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
   version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those
@@ -114,14 +118,16 @@ before a seed file exists fails.
 ### The seed file
 
 `seed/seed.ts` writes the one file dev's table is created from (ADR-028). It doesn't write items
-itself: it starts both APIs from `backend/` in the local profile against a fresh `bladebook-seed`
-table on DynamoDB Local (ports 18080 and 18081, so it doesn't clash with a local run), and the
-people in `seed/scenario.ts` sign up, post schedules, link, get approved and book through the
-real routes. The local token stub is given the test accounts' real Cognito `sub`s, read by email
-from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you can sign
-in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
+itself: it starts both APIs from `backend/` against a fresh `bladebook-seed` table on DynamoDB
+Local (ports 18080 and 18081, so it doesn't clash with a local run), and the people in
+`seed/scenario.ts` sign up, post schedules, link, get approved and book through the real routes.
+They sign in through the APIs' test-only token stub (ruling I32): the APIs start from their test
+classpath (`spring-boot:test-run`, profiles `local,stub-tokens`), so the stub is never in a Lambda
+package, and CI checks that. The stub is given the test accounts' real Cognito `sub`s, read by
+email from the user pool (`bladebook.local.subs-file`), so every item belongs to an account you
+can sign in as. The table is then scanned into `seed/current/items.json.gz` (gzip DynamoDB JSON), its items
 are counted into `seed/current.manifest.json`, and both are uploaded to the seed bucket, replacing
-the last seed. `--no-upload` stops before the upload; `--skip-build` reuses the built jars.
+the last seed. `--no-upload` stops before the upload; `--skip-build` skips the backend's `install`.
 
 What's in it: three coaches (one with two-skater lessons), ten families (guardians and adult
 skaters, one with two coaches), 18 lessons booked, two weekly series, one cancellation, and two

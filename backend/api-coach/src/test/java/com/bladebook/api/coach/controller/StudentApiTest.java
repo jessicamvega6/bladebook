@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import com.bladebook.core.data.AccessLog;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.CodeRepository;
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The coach's Students and Waiting for approval tabs over HTTP (Batch 3). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class StudentApiTest {
 
     @DynamicPropertySource
@@ -55,7 +55,7 @@ class StudentApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     TenantClients clients;

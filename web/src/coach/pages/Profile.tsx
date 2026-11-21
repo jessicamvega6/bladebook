@@ -1,9 +1,12 @@
 /**
  * Profile → Details, Business email, Visibility & texts, and Payments (design: profile-details,
- * profile-details-code-pending, profile-email, profile-visibility, profile-payments, profile-payments-verify). Account
- * isn't built yet (gap G-4). The texts switch waits on ADR-007 d8 (G-3).
+ * profile-details-code-pending, profile-email, profile-visibility, profile-payments, profile-payments-verify), and
+ * Account (design: profile-account; Batch 18, G-4): the login email, Change password through Cognito, and Log out. The
+ * texts switch waits on ADR-007 d8 (G-3).
  */
 import { useState, type FormEvent } from 'react';
+import { AuthFailure, coachAuth } from '../../shared/auth';
+import { passwordOk, PasswordRules } from '../../shared/components/auth';
 import { Badge, Banner, Button, Card, Dialog, Field, Help, Icon, Select, TextArea, Toggle } from '../../shared/components/harbor';
 import { TIMEZONES } from '../../shared/logic/timezones';
 import type { CoachApi, EmailRow, PaymentType, PaymentTypeName, Profile } from '../api';
@@ -13,7 +16,7 @@ import { allTypes, PaymentTypeRows, PAY_TYPES } from '../components/PaymentTypeR
 import { fieldErrors, payErrors } from './SignupBusiness';
 
 const TABS: Array<[label: string, route: string | null]> = [
-  ['Details', '#/profile'], ['Business email', '#/profile/email'], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', null],
+  ['Details', '#/profile'], ['Business email', '#/profile/email'], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', '#/profile/account'],
 ];
 
 function ProfileHead({ tab }: { tab: string }) {
@@ -364,5 +367,81 @@ export function ProfileVisibility({ api, profile, onChange }: PageProps) {
         <SaveBar busy={busy} saved={saved} />
       </form>
     </>
+  );
+}
+
+/**
+ * Profile → Account (design: profile-account, and its Change password dialog). The login email can't be changed here.
+ * The password changes at Cognito, from the browser (ADR-023 d11); the rinkside page stays signed in until its own
+ * session runs out.
+ */
+export function ProfileAccount({ profile, onLogOut }: { profile: Profile; onLogOut: () => void }) {
+  const [changing, setChanging] = useState(false);
+  const [flash, setFlash] = useState('');
+  return (
+    <>
+      <ProfileHead tab="Account" />
+      {flash && <Banner tone="success">{flash}</Banner>}
+      <Card title="Signing in">
+        <div className="fieldset"><div className="label">Login email</div>
+          <div className="input input--readonly"><span className="input__val">{profile.loginEmail}</span><Badge tone="success" icon="check">Verified</Badge></div>
+          <div className="hint">You sign in with this and your morning email comes here. It can’t be changed from this page; families never see it unless it’s also your business email.</div>
+        </div>
+        <div className="row row--boxed">
+          <div className="row__main"><span className="roundicon"><Icon name="lock" size={16} /></span>
+            <div><div className="row__title">Password</div><div className="row__sub">Sign-in is handled by Amazon Cognito.</div></div></div>
+          <div className="row__side"><Button variant="secondary" sm onClick={() => { setFlash(''); setChanging(true); }}>Change password</Button></div>
+        </div>
+      </Card>
+      <Card title="Rinkside app" flush>
+        <div className="row">
+          <div className="row__main"><span className="roundicon"><Icon name="phone" size={16} /></span>
+            <div><div className="row__title">BladeBook rinkside page</div>
+              <div className="row__sub">Check skaters in from your phone. It uses the same email and password, and shows today’s lessons, attendance and cancelling.</div></div></div>
+        </div>
+      </Card>
+      <div className="actions"><div></div><div className="actions__r"><Button variant="secondary" icon="arrowL" onClick={onLogOut}>Log out</Button></div></div>
+      {changing && <ChangePassword onClose={() => setChanging(false)} onChanged={() => { setChanging(false); setFlash('Password changed.'); }} />}
+    </>
+  );
+}
+
+function ChangePassword({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!current) { setError('Enter your current password.'); return; }
+    if (!passwordOk(next)) { setError('Use a new password that meets every rule below.'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      await coachAuth().changePassword(current, next);
+      onChanged();
+    } catch (err) {
+      // A wrong current password comes back as Cognito's "not authorized".
+      setError(err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' ? 'Your current password isn’t right.'
+        : err instanceof Error ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog onClose={onClose} labelledBy="pw-title">
+      <form onSubmit={save} noValidate>
+        <h2 className="h2" id="pw-title">Change password</h2>
+        {error && <Banner tone="danger">{error}</Banner>}
+        <Field label="Current password" type="password" value={current} onChange={setCurrent} autoComplete="current-password" />
+        <Field label="New password" type="password" value={next} onChange={setNext} autoComplete="new-password" placeholder="At least 8 characters" />
+        <PasswordRules password={next} />
+        <p className="fine">Your rinkside app stays signed in until its session runs out.</p>
+        <div className="dialog__actions">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={busy}>Change password</Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

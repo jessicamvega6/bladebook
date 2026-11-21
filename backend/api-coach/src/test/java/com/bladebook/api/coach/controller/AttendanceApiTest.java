@@ -1,7 +1,7 @@
 package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.LocalDynamo;
-import com.bladebook.api.coach.security.LocalTokenStub;
+import com.bladebook.api.coach.security.TestTokenStub;
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.ClientContext;
@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The rinkside page and the Lessons page over HTTP (Batch 7). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("local")
+@ActiveProfiles({"local", "stub-tokens"})
 class AttendanceApiTest {
 
     @DynamicPropertySource
@@ -71,7 +71,7 @@ class AttendanceApiTest {
     int port;
 
     @Autowired
-    LocalTokenStub stub;
+    TestTokenStub stub;
 
     @Autowired
     TenantClients clients;

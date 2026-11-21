@@ -37,22 +37,29 @@ You need Docker, Java 17 and Node 24.
 # 1. DynamoDB Local on localhost:8000 (data kept in a Docker volume)
 docker compose up -d
 
-# 2. api-coach on :8080, in the local profile (DynamoDB Local + the token stub)
+# 2. Once, and again whenever dev's identity stack is rebuilt: point local runs at dev's real user pool (I31).
+#    Signed in to dev (aws sso login --sso-session bladebook). Writes ~/.bladebook/dev-pool.properties and .json.
+npm --prefix infra install && npm --prefix infra run dev-pool
+
+# 3. api-coach on :8080, in the local profile (DynamoDB Local; it accepts dev's user pool's tokens)
 cd backend
 ./mvnw -q clean install -DskipTests   # clean: otherwise a change to core/ alone can leave the old core inside the api-coach jar
 java -jar api-coach/target/api-coach-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
-# 3. api-client (the family website's API) on :8081, in a second terminal
+# 4. api-client (the family website's API) on :8081, in a second terminal
 java -jar api-client/target/api-client-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 
-# 4. The websites on :5173, which pass /api/coach to :8080 and /api/client to :8081
+# 5. The websites on :5173, which pass /api/coach to :8080 and /api/client to :8081
 cd web
 npm install
 npm run dev
 ```
 
-Open **http://localhost:5173/coach/**. The first page is the local sign-in stand-in: type any
-names and email. The same email always signs in as the same coach.
+Open **http://localhost:5173/coach/**. Signing in is real, against dev's user pool (I31): log in as one of dev's
+test accounts (the shared password is in Secrets Manager, the identity stack's `TestAccountsPasswordSecret` output), or
+choose *Create a coach account*, and Cognito emails the 6-digit code to that address. The test accounts' lessons are in
+dev's table, not the local one, so locally a test coach starts at sign-up step 3 unless you load the seed file
+(`infra/README.md`, "The seed file").
 
 Open **http://localhost:5173/family/** for the family website, and choose *Sign up with a coach code*.
 A coach's code is on their Today page and their Profile → Details tab; it works once their business email is confirmed (*Use my login
@@ -80,12 +87,12 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 
 | ID | What | Closed by |
 |---|---|---|
-| SC-1 | Signing in is a **local token stub**, not Amazon Cognito. `api-coach` issues ID tokens with the `Coach` group and the coach app client; `api-client` issues them with the `Client` group and the family app client. The real checks (group, app client, 60-minute sign-in from `auth_time`) run against them. The coach's sign-up steps 1–2 and Log in are one stand-in page; the family's Log in is a stand-in page with no password. | Batch 18 (real sign-in), on Batch 17's user pool |
+| SC-1 | ~~Signing in is a **local token stub**, not Amazon Cognito. `api-coach` issues ID tokens with the `Coach` group and the coach app client; `api-client` issues them with the `Client` group and the family app client. The real checks (group, app client, 60-minute sign-in from `auth_time`) run against them. The coach's sign-up steps 1–2 and Log in are one stand-in page; the family's Log in is a stand-in page with no password.~~ *Closed 2026-11-20 (Batch 18, I31): both websites sign in through Cognito with BladeBook's own forms (Amplify's Auth module, SRP); the token stub is test code only, and CI checks no Lambda package holds it.* | Closed (Batch 18) |
 | SC-3 | ~~Data is in **DynamoDB Local** through one unscoped client. The `coach-tenant`, `client-tenant` and `code-lookup` roles, their session tags and the database gate aren't exercised; DynamoDB Local ignores IAM (Identity and Access Management). The code still goes through the same doors (`AccessContext`, `ClientContext`, `LinkedCoach`), and a waiting family's code path reads nothing of the coach.~~ *Closed 2026-11-20 (17c): the gate tests passed against dev's real table and tenant roles, 76 of 76 (`docs/runbooks/database-gate-tests.md`).* | Batch 17 (infrastructure, then the gate tests on real AWS) |
 | SC-5 | **A schedule save updates the lesson times in-process.** On AWS the save raises `ScheduleChanged` through DynamoDB Streams and EventBridge, and `consumer-schedule-change` does it; locally `LocalEventDispatcher` calls the same core service straight after the write. Since Batch 6 it also cancels and re-prices booked lessons through a change batch, with the lines planned first; nothing retries it, so a save that fails part-way isn't resumed (ADR-MASTER §9 resumes from the event's ID). Time off and special-schedule saves go the same way. | Batch 17 (Streams, the Pipe, the consumer Lambda) |
-| SC-7 | **"Sign in again and save"** after the 15-minute limit asks the local token stub for a fresh sign-in; there is no password to enter. | Batch 18 (real sign-in), on Batch 17's user pool |
+| SC-7 | ~~**"Sign in again and save"** after the 15-minute limit asks the local token stub for a fresh sign-in; there is no password to enter.~~ *Closed 2026-11-20 (Batch 18): the dialog asks for the password and signs in again through Cognito; a wrong password leaves the coach signed in, edits kept.* | Closed (Batch 18) |
 | SC-8 | **The family's link and the coaches' copies are updated in-process.** On AWS, approving or declining raises `StudentChanged` and `consumer-student-link` updates the family's link; a family's contact change raises `FamilyChanged` and `consumer-family-sync` copies it to each coach. Locally each API's `LocalEventDispatcher` calls the same core service straight after the write. Since Batch 11 `consumer-family-sync` also issues share codes: locally after sign-up and *Add a skater*, and, for a skater made before Batch 11, when the family's profile loads. | Batch 17 (Streams, the Pipe, the consumer Lambdas) |
-| SC-10 | **The family's “Create account” stores no password.** The password rules and the matching confirm box are checked in the browser, then the local stand-in signs the family in with the email alone. Because the stand-in signs any email in, it then checks for an existing family and refuses the email on step 2, as Cognito's sign-up will. | Batch 18 (real sign-in), on Batch 17's user pool |
+| SC-10 | ~~**The family's “Create account” stores no password.** The password rules and the matching confirm box are checked in the browser, then the local stand-in signs the family in with the email alone. Because the stand-in signs any email in, it then checks for an existing family and refuses the email on step 2, as Cognito's sign-up will.~~ *Closed 2026-11-20 (Batch 18): Cognito creates the account with its password and emails the 6-digit code (step 3).* | Closed (Batch 18) |
 | SC-15 | **The access log goes to the application log** (`bladebook.pii-access`, one JSON line per read, the request ID `local-…` and the socket's address), not to its own group. On AWS each API writes its lines straight to that group before the response (ADR-MASTER §18; built in Batch 17b, 2026-11-17). | Stays: local runs have no access-log group |
 | SC-12 | **The paging alarms on the family's never-linked failures don't exist** (3 in 15 minutes, 10 in a day). The failures themselves are access-log lines (`security:never-linked-<operation>`), with the request ID and source address on AWS (Batch 17b, 2026-11-17). | Batch 17b (the alarms, piece 7) |
 | SC-14 | **A coach's cancel of more than one lesson is carried out as it goes.** *Ruled 2026-11-17 (I8): it will write every line `PLANNED` first, and `sched-drift-check` hands a batch stuck over an hour to `consumer-schedule-change` to finish (ADR-009, ADR-010). Built in 17b.* `api-coach` writes the change-batch header `PLANNED`, then each lesson in its own transaction with its `CANCELLED#` lines already `EXECUTED`, then marks the header `EXECUTED`. ADR-MASTER §9 writes every line `PLANNED` first so a retry can resume; here a failure part-way leaves the header `PLANNED` with the lessons done so far, and nothing resumes it. | Batch 17 (the retried event that resumes a batch) |
@@ -105,12 +112,12 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | A1 | No profile photo upload; families see the coach's initials. Ruled 2026-11-06. | Phase 2 |
 | A3 | No texts switch at sign-up. Ruled 2026-11-06: it's on the profile only, under Visibility & texts (G-3). | G-3 |
 | G-3 | Profile → Visibility & texts: the *Text me when a family cancels late* switch is shown off and can't be turned on. The two contact switches are built (Batch 16). | ADR-007 d8 |
-| G-4 | Profile → Account: change password, log out through Cognito. | Batch 18 (real sign-in), on Batch 17's user pool |
-| G-5 | Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them. | Batch 18 (real sign-in), on Batch 17's user pool |
+| G-4 | ~~Profile → Account: change password, log out through Cognito.~~ *Built 2026-11-20 (Batch 18): Profile → Account, with Change password at Cognito and Log out.* | Closed (Batch 18) |
+| G-5 | ~~Sign-up steps 1–2 (create the account, verify the login email): Cognito owns them.~~ *Built 2026-11-20 (Batch 18): steps 1–2 are BladeBook's own forms calling Cognito.* | Closed (Batch 18) |
 | G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Phase 3 (owner, 2026-11-12): changing the time zone; decided then |
 | G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | Batch 20 (owner, 2026-11-12) |
-| G-14 | Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done. | Batch 18 (real sign-in), on Batch 17's user pool |
-| G-15 | A family can't change its login email; Profile shows it read-only. | Batch 18 (real sign-in), on Batch 17's user pool |
+| G-14 | ~~Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done.~~ *Built 2026-11-20 (Batch 18): the code step, with Resend code and Use a different email.* | Closed (Batch 18) |
+| G-15 | ~~A family can't change its login email; Profile shows it read-only.~~ *Ruled 2026-11-20 by the owner (I32): families don't change their login email. Read-only is the design; its "Changing it sends a code" text is removed.* | Closed (I32) |
 | G-19 | The coach's download of skater numbers for the rink. | Phase 2 (owner, 2026-11-09); the name is split when the file is made |
 | G-20 | **Two parts of repeating bookings aren't built.** A key seen again with a different request isn't refused, and nothing asks about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b). The coach's day view says how often a series repeats as it was booked; a family's later *Make it less frequent* isn't reflected there, as the coach can't read the family's header. | Batch 24 (owner, 2026-11-13) |
 | G-22 | **No clash warning across coaches** (ADR-025 d5). A time that overlaps the skater's lesson or pick with another coach isn't marked, and the confirm pop-up lists no clashes. | Batch 19 (owner, 2026-11-12) |

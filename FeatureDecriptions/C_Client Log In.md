@@ -14,7 +14,9 @@ Fields:
 
 Links and buttons:
   Log in: signs the family in and takes them to Home (see ClientHomeView).
-  Forgot your password?: goes to the forgot password page (see C_Client Forgot Password.md).
+  Forgot/change password: goes to the forgot password page (see C_Client Forgot Password.md). *Worded for changing
+  the password too (owner, 2026-11-20, I32): it's how a family changes its password; the family Profile has no
+  Change password.*
   "First time here?" note beside the form: a family needs a code from their coach to sign up,
   with a link to sign up with a coach code (see Client Sign Up).
 

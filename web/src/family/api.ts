@@ -2,7 +2,7 @@
  * The family website's calls to api-client. The only IDs it gets are the family's own: its skaters', and each
  * approving coach's. It sends them back to book, and api-client checks each against the family's links.
  */
-import { apiFetch } from '../shared/api/client';
+import { apiFetch, type TokenSource } from '../shared/api/client';
 import type { FoundCoach } from '../shared/logic/coachCodes';
 import type { SkatingOrg } from '../shared/logic/registrationNumber';
 
@@ -139,7 +139,7 @@ export interface SeriesChanged { cancelled: number; late: boolean; coachFirstNam
 export const lookupCoach = (code: string) =>
   apiFetch<FoundCoach>(`/api/client/coach-codes/${encodeURIComponent(code)}`);
 
-export function familyApi(token: string) {
+export function familyApi(token: TokenSource) {
   return {
     me: () => apiFetch<Family>('/api/client/me', { token }),
     register: (body: RegistrationBody) => apiFetch<Family>('/api/client/registration', { method: 'POST', body, token }),

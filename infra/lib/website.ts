@@ -32,6 +32,16 @@ export interface WebsiteProps {
   readonly api?: Api;
   /** The built website to upload: a folder from `siteFiles`. */
   readonly files: string;
+  /**
+   * What the website's sign-in forms need (ADR-023 d11), uploaded as its `config.json` (I32's batch, 18): CI builds one
+   * copy of the websites for every environment, so the user pool can't be built in. Public, as any browser app's are.
+   */
+  readonly signIn: { readonly userPoolId: string; readonly appClientId: string };
+}
+
+/** The website's `config.json`, read by `web/src/shared/auth/config.ts` before anything signs in. */
+export function siteConfig(region: string, signIn: WebsiteProps['signIn']): Record<string, string> {
+  return { region, userPoolId: signIn.userPoolId, appClientId: signIn.appClientId };
 }
 
 /**
@@ -291,7 +301,10 @@ export class Website extends Construct {
       memoryLimit: 512,
     });
     const pages = new s3deploy.BucketDeployment(this, 'UploadPages', {
-      sources: [s3deploy.Source.asset(props.files, { exclude: ['assets'] })],
+      sources: [
+        s3deploy.Source.asset(props.files, { exclude: ['assets', 'config.json'] }),
+        s3deploy.Source.jsonData('config.json', siteConfig(Stack.of(this).region, props.signIn)),
+      ],
       destinationBucket: this.bucket,
       cacheControl: [s3deploy.CacheControl.fromString(PAGE_CACHE)],
       prune: false,

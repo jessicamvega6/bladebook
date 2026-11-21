@@ -1,5 +1,6 @@
 /**
- * The coach website. Batch 1: local sign-in stand-in → sign-up step 3 (and step 4 when a different
+ * The coach website. Batch 18: real sign-in, BladeBook's own forms calling Cognito (ADR-023 d11): Log in, Forgot
+ * password, sign-up steps 1–2, Profile → Account, signing in again before a schedule save. Batch 1: sign-up step 3 (and step 4 when a different
  * business email waits for its link) → Today and Profile. Batch 2: Schedule (hub and weekly editor) and
  * Calendar (month, week and day). Batch 3: Students and Waiting for approval, with the waiting count on the
  * Students tab and Today's new-families card. Batch 14: Profile → Business email (#/profile/email) and the confirm page
@@ -10,15 +11,15 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../shared/api/client';
-import { getToken, signOut } from '../shared/auth/localAuth';
+import { coachAuth, emailFromToken } from '../shared/auth';
 import { Banner } from '../shared/components/harbor';
 import { coachApi, financesApi, lessonsApi, paymentsApi, scheduleApi, studentApi, todayApi, type Profile, type StudentsDto } from './api';
 import { CoachShell } from './components/Shells';
 import { Calendar, type CalendarRoute } from './pages/Calendar';
-import { LocalSignIn } from './pages/LocalSignIn';
-import { ProfileBusinessEmail, ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
+import { Forgot, Login, SignupAccount, SignupVerify, signupEmail } from './pages/SignIn';
+import { ProfileAccount, ProfileBusinessEmail, ProfileDetails, ProfilePayments, ProfileVisibility } from './pages/Profile';
 import { ConfirmEmail } from './pages/ConfirmEmail';
-import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, TimeOffForm, type Saved } from './pages/Schedule';
+import { ChooseDates, DeleteDates, ScheduleEditor, ScheduleHub, SIGNED_OUT_WRONG_PASSWORDS, TimeOffForm, type Saved } from './pages/Schedule';
 import { SaveStatus } from './pages/ScheduleReview';
 import { Lessons } from './pages/Lessons';
 import { Payments } from './pages/Payments';
@@ -62,28 +63,34 @@ function go(route: string) {
   window.location.hash = route;
 }
 
-/** The login email from the token (display only; the API reads it from the verified token). */
-function emailFromToken(token: string): string {
-  try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return (JSON.parse(atob(payload)) as { email?: string }).email ?? '';
-  } catch {
-    return '';
-  }
-}
+const auth = coachAuth();
 
 export function App() {
-  // Opening the plain address (no page named) always starts at the sign-in page, signed out, so the last coach
-  // in this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
-  const [token, setToken] = useState<string | null>(() => {
+  // The sign-in's current ID token: undefined while this tab's sign-in is looked up, null when signed out. Requests
+  // get theirs from the sign-in itself (auth.idToken), refreshed when it expires; this one marks who is signed in.
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    // Opening the plain address (no page named) always starts at the sign-in page, signed out, so the last coach
+    // in this tab isn't resumed. A link to a page inside the site, or a refresh, keeps the sign-in (owner, 2026-11-09).
     const hash = window.location.hash;
-    if (hash === '' || hash === '#' || hash === '#/') {
-      signOut();
-      return null;
-    }
-    return getToken();
-  });
+    const plain = hash === '' || hash === '#' || hash === '#/';
+    let live = true;
+    (plain ? auth.signOut().then(() => null) : auth.idToken())
+      .then((t) => { if (live) setToken(t); })
+      .catch(() => { if (live) setToken(null); });
+    return () => { live = false; };
+  }, []);
+  // Log in shows once the tab's sign-in is gone, so a page opened next can't find it.
+  const signOut = useCallback(async () => {
+    await auth.signOut();
+    setToken(null);
+  }, []);
+  const signedIn = useCallback(async () => {
+    setNotice('');
+    setToken(await auth.idToken());
+  }, []);
   const [notice, setNotice] = useState('');
+  const [noticeOk, setNoticeOk] = useState(false);
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState('');
@@ -92,26 +99,27 @@ export function App() {
   const [saved, setSaved] = useState<Saved | null>(null);
   const afterSave = useCallback((s: Saved) => { setSaved(s); go('#/schedule/status'); window.scrollTo(0, 0); }, []);
   const route = useHashRoute();
-  const api = useMemo(() => (token ? coachApi(token) : null), [token]);
-  const schedules = useMemo(() => (token ? scheduleApi(token) : null), [token]);
-  const lessons = useMemo(() => (token ? lessonsApi(token) : null), [token]);
-  const payments = useMemo(() => (token ? paymentsApi(token) : null), [token]);
-  const finances = useMemo(() => (token ? financesApi(token) : null), [token]);
-  const todays = useMemo(() => (token ? todayApi(token) : null), [token]);
-  const studentsApi = useMemo(() => (token ? studentApi(token) : null), [token]);
+  const api = useMemo(() => (token ? coachApi(auth.idToken) : null), [token]);
+  const schedules = useMemo(() => (token ? scheduleApi(auth.idToken) : null), [token]);
+  const lessons = useMemo(() => (token ? lessonsApi(auth.idToken) : null), [token]);
+  const payments = useMemo(() => (token ? paymentsApi(auth.idToken) : null), [token]);
+  const finances = useMemo(() => (token ? financesApi(auth.idToken) : null), [token]);
+  const todays = useMemo(() => (token ? todayApi(auth.idToken) : null), [token]);
+  const studentsApi = useMemo(() => (token ? studentApi(auth.idToken) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
   useEffect(() => { if (route !== '#/schedule') setFlash(''); setNote(''); }, [route]);
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && e.status === 401) {
-      signOut();
-      setToken(null);
-      setNotice(e.code === 'SIGN_IN_AGAIN' ? 'You’ve been signed in for a while. Please sign in again.' : 'Please sign in.');
+      void signOut();
+      setNoticeOk(false);
+      setNotice(e.code === 'SIGN_IN_AGAIN' ? 'You’ve been signed in for a while. Please sign in again.'
+        : e.code === SIGNED_OUT_WRONG_PASSWORDS ? e.message : 'Please sign in.');
       return;
     }
     setLoad({ state: 'error', message: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
-  }, []);
+  }, [signOut]);
 
   useEffect(() => {
     if (!api || !token) return;
@@ -123,10 +131,12 @@ export function App() {
       .catch((e: unknown) => {
         if (!live) return;
         if (e instanceof ApiError && e.code === 'NO_PROFILE') setLoad({ state: 'no-profile', loginEmail: emailFromToken(token) });
+        // A family's account (one user pool, ADR-023 d7, d9): signed out again, with the API's reason on Log in.
+        else if (e instanceof ApiError && e.status === 403) void signOut().then(() => { setNotice(e.message); setNoticeOk(false); });
         else handleError(e);
       });
     return () => { live = false; };
-  }, [api, token, handleError]);
+  }, [api, token, handleError, signOut]);
 
   // The waiting count on the Students tab and Today's sign-ups card; reloaded on each page change.
   const ready = load.state === 'ready';
@@ -147,9 +157,22 @@ export function App() {
   const setProfile = (profile: Profile) => setLoad({ state: 'ready', profile });
 
   let page;
-  if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances || !todays) {
-    // A business-email link opened while signed out comes back to its confirm page after sign-in (ADR-016, 2026-11-12).
-    page = <LocalSignIn notice={notice} onSignedIn={(t) => { setNotice(''); setToken(t); if (!route.startsWith(CONFIRM)) go('#/today'); }} />;
+  if (token === undefined) {
+    page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
+  } else if (!token || !api || !schedules || !studentsApi || !lessons || !payments || !finances || !todays) {
+    // Signed out: BladeBook's own forms, talking to Cognito (ADR-023 d11). A business-email link opened while signed
+    // out comes back to its confirm page after sign-in (ADR-016, 2026-11-12).
+    const inside = () => { if (!route.startsWith(CONFIRM)) go('#/today'); };
+    const toLogin = (n: string) => { setNotice(n); setNoticeOk(true); go('#/login'); };
+    if (route === '#/signup') {
+      page = <SignupAccount onCreated={() => go('#/signup/verify')} />;
+    } else if (route === '#/signup/verify' && signupEmail()) {
+      page = <SignupVerify email={signupEmail()} onVerified={() => { void signedIn(); go('#/today'); }} onLogIn={toLogin} />;
+    } else if (route === '#/forgot') {
+      page = <Forgot onDone={toLogin} />;
+    } else {
+      page = <Login notice={notice} noticeTone={noticeOk ? 'success' : 'info'} onSignedIn={() => { void signedIn().then(inside); }} onVerify={() => go('#/signup/verify')} />;
+    }
   } else if (load.state === 'loading') {
     page = <div className="app"><main className="main" aria-busy="true"><p className="muted">Loading…</p></main></div>;
   } else if (load.state === 'error') {
@@ -246,6 +269,8 @@ export function App() {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else if (route === '#/profile/visibility') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+    } else if (route === '#/profile/account') {
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileAccount profile={profile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/payments') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
     } else {
