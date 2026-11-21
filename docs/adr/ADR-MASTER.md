@@ -1348,7 +1348,10 @@ notified.
   configuration.
 - **The coach website warns before 60 minutes run out** and keeps unsaved work, above all in the
   schedule editor.
-- MFA is available to coaches.
+- MFA is available to coaches. *Built in Batch 28, after a design (owner, 2026-11-20, I32); Batch 18 signs in without
+  it.*
+- **A family's login email can't be changed**, and a family changes its password through "Forgot/change password" on
+  the log-in page; only the coach's Profile → Account has Change password (owner, 2026-11-20, I32).
 - Queued rinkside check-ins wait across a sign-out and send after the next sign-in **by the same
   coach**. Each entry carries the coach's ID; another coach signing in on that phone leaves them
   waiting. Logging out with entries waiting warns first: they stay on the phone and send at the

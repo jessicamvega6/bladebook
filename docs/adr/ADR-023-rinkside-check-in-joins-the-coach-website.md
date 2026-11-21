@@ -92,6 +92,18 @@ code.** From Batch 18 the websites sign in only through Cognito, locally too: lo
 real user pool with real passwords, and the local APIs accept that pool's tokens. The APIs' token stub and its
 `/api/*/local/token` routes leave their shipped code; tests mint tokens from test-only code.
 
+**Amended — 2026-11-20.** *Decided by the owner (I32 in `AI/plan-history.md`).* Decision 11's forms, narrowed for
+Batch 18:
+- **A coach's MFA code is its own batch, designed first** (Batch 28): turning MFA on with an authenticator app, its
+  code at log-in and before a schedule save. Until then the forms don't ask for a code; if Cognito asks anyway, the
+  form says so plainly and stops.
+- **A family's login email can't be changed.** The family Profile shows it read-only, so `UpdateUserAttributes` and
+  the changed-email code aren't used on the family website.
+- **A family changes its password through forgot password,** linked from the log-in page as "Forgot/change
+  password". Only the coach's Profile → Account has Change password (`ChangePassword`).
+- **The seed generator signs its people in through a test-only token stub,** started from the APIs' test classpath,
+  so I31's "nothing of it in a Lambda package" holds.
+
 **Amended — 2026-11-12.** *Decided by the owner.* **Decision 11's sign-in library is AWS Amplify's
 Auth module** (`aws-amplify` version 6, the sign-in part only), keeping SRP. It handles every Cognito
 call the forms make, the MFA and new-password challenges, and token refresh. It is the free,

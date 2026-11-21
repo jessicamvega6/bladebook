@@ -110,7 +110,7 @@ they're recorded; the websites don't show it. Writing a gap down doesn't count a
 | G-13 | Changing the time zone on the profile doesn't move lesson times already made. | Phase 3 (owner, 2026-11-12): changing the time zone; decided then |
 | G-7 | No warning before the 60-minute sign-in runs out; the next request asks the coach to sign in again. | Batch 20 (owner, 2026-11-12) |
 | G-14 | Family sign-up step 3 (verify the email with a 6-digit code): Cognito owns it. The stepper shows it as done. | Batch 18 (real sign-in), on Batch 17's user pool |
-| G-15 | A family can't change its login email; Profile shows it read-only. | Batch 18 (real sign-in), on Batch 17's user pool |
+| G-15 | ~~A family can't change its login email; Profile shows it read-only.~~ *Ruled 2026-11-20 by the owner (I32): families don't change their login email. Read-only is the design; its "Changing it sends a code" text is removed.* | Closed (I32) |
 | G-19 | The coach's download of skater numbers for the rink. | Phase 2 (owner, 2026-11-09); the name is split when the file is made |
 | G-20 | **Two parts of repeating bookings aren't built.** A key seen again with a different request isn't refused, and nothing asks about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b). The coach's day view says how often a series repeats as it was booked; a family's later *Make it less frequent* isn't reflected there, as the coach can't read the family's header. | Batch 24 (owner, 2026-11-13) |
 | G-22 | **No clash warning across coaches** (ADR-025 d5). A time that overlaps the skater's lesson or pick with another coach isn't marked, and the confirm pop-up lists no clashes. | Batch 19 (owner, 2026-11-12) |
