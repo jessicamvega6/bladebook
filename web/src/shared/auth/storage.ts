@@ -24,6 +24,21 @@ function tab(): Storage | null {
   }
 }
 
+/**
+ * Wrong passwords in a row in the "Confirm it's you" box (owner, I33: the third signs the coach out). Kept in this tab
+ * next to the sign-in, so a reload or another editor doesn't start it again; it goes with the sign-in (`clear`) and on
+ * a right password. Read and written in one step, so two quick submits both count.
+ */
+const WRONG_PASSWORDS = 'bb.wrongPasswords';
+export const wrongPasswords = (): number => Number(tab()?.getItem(WRONG_PASSWORDS) ?? 0) || 0;
+/** Counts one more and returns the count. */
+export function addWrongPassword(): number {
+  const n = wrongPasswords() + 1;
+  tab()?.setItem(WRONG_PASSWORDS, String(n));
+  return n;
+}
+export const clearWrongPasswords = () => tab()?.removeItem(WRONG_PASSWORDS);
+
 export class TabStorage implements KeyValueStorage {
   private staged: Map<string, string | null> | null = null;
 
@@ -50,6 +65,7 @@ export class TabStorage implements KeyValueStorage {
     const t = tab();
     if (!t) return;
     for (const k of Object.keys(t)) if (k.startsWith(KEY_PREFIX)) t.removeItem(k);
+    t.removeItem(WRONG_PASSWORDS);
   }
 
   /** From now until `commit` or `discard`, nothing touches the tab's tokens; the sign-in sees no one signed in. */

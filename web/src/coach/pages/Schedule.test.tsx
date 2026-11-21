@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { fakes } from '../../test/fakeAuth';
@@ -204,6 +204,61 @@ test('the third wrong password signs the coach out, unsaved; the box always warn
   expect(fakes.coach.calls.at(-1)).toBe('signOut');
   expect(auths).toEqual(['Bearer old']); // nothing more was sent to save
   expect(props.onSaved).not.toHaveBeenCalled();
+});
+
+/** The weekly editor's save, refused for a sign-in older than 15 minutes, up to the password box. */
+async function toPasswordBox() {
+  serve({ scheduleVersion: 1, exists: true, templates: [MORNING] },
+    () => json(401, { error: 'SIGN_IN_TO_SAVE', message: 'Enter your password again to save your schedule.' }));
+  const props = editor();
+  await screen.findByRole('heading', { name: 'Edit Morning ice' });
+  await userEvent.click(screen.getByRole('button', { name: /Review changes/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Accept & save' }));
+  return { props, dialog: await screen.findByRole('dialog', { name: 'Confirm it’s you' }) };
+}
+
+async function wrongPassword(dialog: HTMLElement) {
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Sign in again and save' }));
+  expect(await within(dialog).findByText('That email and password don’t match. Check them and try again.')).toBeInTheDocument();
+}
+
+test('the wrong-password count survives a reload and is shared by every editor in the tab (I33)', async () => {
+  fakes.coach.signedInAs(PROFILE.loginEmail);
+  const first = await toPasswordBox();
+  await wrongPassword(first.dialog);
+  await wrongPassword(first.dialog);
+  cleanup();                                                    // a reload, or another editor
+  const { props, dialog } = await toPasswordBox();
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Sign in again and save' }));
+  await waitFor(() => expect(props.onError).toHaveBeenCalledWith(expect.objectContaining({ status: 401, code: 'WRONG_PASSWORDS' })));
+  expect(fakes.coach.token).toBeNull();
+});
+
+test('two quick wrong passwords both count (I33)', async () => {
+  fakes.coach.signedInAs(PROFILE.loginEmail);
+  const { props, dialog } = await toPasswordBox();
+  await wrongPassword(dialog);
+  fireEvent.change(within(dialog).getByLabelText('Password'), { target: { value: 'wrong' } });
+  const form = dialog.querySelector('form')!;
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  await waitFor(() => expect(props.onError).toHaveBeenCalledWith(expect.objectContaining({ status: 401, code: 'WRONG_PASSWORDS' })));
+});
+
+test('a right password starts the count again (I33)', async () => {
+  fakes.coach.signedInAs(PROFILE.loginEmail);
+  const { props, dialog } = await toPasswordBox();
+  await wrongPassword(dialog);
+  await wrongPassword(dialog);
+  await userEvent.type(within(dialog).getByLabelText('Password'), 'Right-pw1');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Sign in again and save' }));
+  const again = await screen.findByRole('dialog', { name: 'Confirm it’s you' });   // the save is refused again
+  await wrongPassword(again);
+  await wrongPassword(again);
+  expect(props.onError).not.toHaveBeenCalled();
+  expect(fakes.coach.token).not.toBeNull();
 });
 
 test('a save from a stale window shows why and stays on the review', async () => {
