@@ -255,9 +255,9 @@ export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
           </div>
           {!token && (
             <>
-              <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
+              <Field label="Password" type="password" reveal value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
               <PasswordRules password={pw} />
-              <Field label="Confirm password" type="password" value={pw2} onChange={setPw2} autoComplete="new-password" placeholder="Type it again" noPaste
+              <Field label="Confirm password" type="password" reveal value={pw2} onChange={setPw2} autoComplete="new-password" placeholder="Type it again" noPaste
                 error={show(problems.pw2)} hint="Type it again rather than pasting. Pasting is turned off here." />
             </>
           )}
