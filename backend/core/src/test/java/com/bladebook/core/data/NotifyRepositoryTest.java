@@ -27,6 +27,18 @@ class NotifyRepositoryTest {
     }
 
     @Test
+    void aOnceOnlyGuardIsClaimedOnceWhateverTheStamp() {
+        // Two runs at once each stamp their own time: the second must still find it taken.
+        put("COACH#c1", "SEAT#2026-11-16#06:00#s1");
+        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:00Z")).isTrue();
+        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:01Z")).isFalse();
+        repo.release("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:01Z"); // not its claim
+        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:02Z")).isFalse();
+        repo.release("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:00Z");
+        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:03Z")).isTrue();
+    }
+
+    @Test
     void aReleasedGuardCanBeClaimedAgain() {
         put("COACH#c1", "PROFILE");
         repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16");

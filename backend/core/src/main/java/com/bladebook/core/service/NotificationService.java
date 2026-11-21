@@ -127,7 +127,7 @@ public final class NotificationService {
             }
             List<SeatRow> mine = new ArrayList<>();
             for (SeatRow r : e.getValue()) {
-                if (repo.claim("COACH#" + coachId, r.seat().key(), NotifyRepository.CONFIRMATION_SENT, stamp)) {
+                if (repo.claimOnce("COACH#" + coachId, r.seat().key(), NotifyRepository.CONFIRMATION_SENT, stamp)) {
                     mine.add(r);
                 }
             }
@@ -193,7 +193,7 @@ public final class NotificationService {
             return false;
         }
         String stamp = clock.instant().toString();
-        if (!repo.claim("COACH#" + coachId, seatKey, NotifyRepository.PAYMENT_REMINDER_SENT, stamp)) {
+        if (!repo.claimOnce("COACH#" + coachId, seatKey, NotifyRepository.PAYMENT_REMINDER_SENT, stamp)) {
             return false;
         }
         List<SeatRow> in = repo.seatsAt(coachId, s.lessonDate(), s.startTime());
@@ -507,7 +507,7 @@ public final class NotificationService {
         for (SeatRow r : rows) {
             Seat s = r.seat();
             Optional<LessonTime> t = repo.lesson(coach.coachId(), s.lessonDate(), s.startTime());
-            if (t.isPresent() && ok.test(t.get()) && repo.claim("COACH#" + coach.coachId(), s.key(), guard, stamp)) {
+            if (t.isPresent() && ok.test(t.get()) && repo.claimOnce("COACH#" + coach.coachId(), s.key(), guard, stamp)) {
                 claimed.add(new Dated(s, t.get(), repo.seatsAt(coach.coachId(), s.lessonDate(), s.startTime())));
             }
         }
