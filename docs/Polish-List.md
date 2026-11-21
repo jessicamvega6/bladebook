@@ -14,7 +14,8 @@ prefer if you know.
 
 ## Coach app
 
-- [ ]
+- [ ] Schedule, **Your teaching week**: remove "no dates, just the shape of your week" from the
+  line under the heading, leaving "Repeats every week." (`web/src/coach/pages/Schedule.tsx:501`).
 
 ## Family app
 
