@@ -239,6 +239,11 @@ save.
 - **The window is configuration.** 15 minutes is the starting value.
 - **The preview is not guarded,** only the save. The coach can review the impact without
   re-entering a password and is asked once, at the moment it matters.
+- **Three wrong passwords sign the coach out** (*owner, 2026-11-20, I33*). A wrong password otherwise leaves the
+  sign-in as it was, edits kept; the third in a row ends the session, and the unsaved changes are lost. Several wrong
+  passwords suggest it isn't the coach at the keyboard, and the open session reaches every family's details. The box
+  always warns that several wrong passwords sign you out and the changes aren't saved; no warning marks the last try.
+  Cognito's own lockout (five wrong passwords) still applies on top.
 
 ### 5. The API Gateway authorizer stays Cognito's built-in one
 

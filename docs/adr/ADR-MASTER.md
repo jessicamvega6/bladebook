@@ -1345,7 +1345,8 @@ notified.
   limits on `auth_time`, returning a "sign in again" error the sites handle.
 - **A schedule save past 15 minutes** is refused with a specific error; the website asks for the
   password (and multi-factor authentication (MFA) code if on) and retries the save. The window is
-  configuration.
+  configuration. **The third wrong password there signs the coach out**, unsaved changes lost; the box always warns
+  that several wrong passwords do (owner, 2026-11-20, I33).
 - **The coach website warns before 60 minutes run out** and keeps unsaved work, above all in the
   schedule editor.
 - MFA is available to coaches. *Built in Batch 28, after a design (owner, 2026-11-20, I32); Batch 18 signs in without
