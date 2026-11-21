@@ -216,7 +216,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Coach code | `CODE#<coachCode>` | `CODE` | `coachId`, `coachFirstName`, `coachLastName`, `profilePhotoKey` |
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `days` (weekday → blocks), `scheduleName`, `scheduleVersion` |
 | Temporary schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName`, `startDate`, `endDate` |
-| Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId`, `appliedBy` (`COACH` on the dates a cancel-a-day or time off writes: the API cancels their lessons itself, so `consumer-schedule-change` skips them; 2026-11-21) |
+| Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId` |
 | Coach's skater record | `COACH#<coachId>` | `STUDENT#<studentId>` | `clientId`, `studentStatus`, `studentName`, contact copies (`clientName`, `clientEmail`, `clientPhone`), `skatingOrg`, `registrationNumber` |
 | Lesson time | `COACH#<coachId>` | `LESSON#<date>#<startTime>` | `lessonStatus`, `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `missedLessonFeeMinor`, `requiredNoticeHours`, `maxSkaters`, `seatsTaken`, `shareCount`, `joinOrder`, `blockSeq`, `iceType`, `scheduleVersion`, `pendingLeave`, `dueAt`/`dueKind` |
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
@@ -1002,8 +1002,13 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   leave the booking page, as for any time off. The coach can rename or delete it like any time off.
   - **Inside a special schedule**, those dates in it become *no lessons* and the rest of it stays;
     dates already in a time off are already empty. A cancel never shows an overlap error.
-  - **Families get the *cancelled by the coach* email**, not the schedule-change one: the batch
-    records `cancelledBy = COACH` with `batchSource` `DAY` or `WEEK`.
+  - ~~**Families get the *cancelled by the coach* email**, not the schedule-change one: the batch
+    records `cancelledBy = COACH` with `batchSource` `DAY` or `WEEK`.~~ *Since 2026-11-21 (owner,
+    I35): families get the **schedule-change email**, which reads like the cancel email ("Cancelled:
+    Mia's lesson on …", "Coach Dana can't teach …", "Book another time") whenever it carries only
+    cancellations. The batch records `cancelledBy = SCHEDULE_CHANGE` with `batchSource` `DAY` or
+    `WEEK`. The time off's write also sets off `consumer-schedule-change`; whichever run cancels a
+    lesson first, its family gets one email, and the coach is told the count read before saving.*
   - **Rest of the week starts now:** lessons that have started or finished keep their attendance and
     payment; the time off covers only what hasn't started.
 - **Only *this lesson* asks release or hold** (seats move to `CANCELLED#`, and the lesson time
@@ -1034,7 +1039,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   - **A cancel from the check-in list always confirms, even for one lesson.** The dialog names the
     lesson (skater, date, time), puts its confirm button away from where the original tap landed,
     keeps the lesson if dismissed, and holds the release-or-hold choice.
-- Both surfaces write the same records with `cancelledBy = COACH`.
+- Both surfaces write the same records: `cancelledBy = COACH` for one lesson, `SCHEDULE_CHANGE` for a day or the week (I35).
 
 ---
 

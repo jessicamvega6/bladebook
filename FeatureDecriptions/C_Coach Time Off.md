@@ -26,8 +26,8 @@ Choosing time off or a special schedule:
   schedule. *(from ADR-008 §6b, moved 2026-11-08)*
   *Changed by the owner, 2026-11-18 (I24):* *cancel this day* and *cancel this week* now write a time off
   named "Cancelled" for those dates (from now on, for the week), with no release-or-hold question; inside a
-  special schedule, those dates become "no lessons" and the rest of it stays. Families get the "cancelled by
-  the coach" email. The two notes below are kept for the record and no longer describe what happens.
+  special schedule, those dates become "no lessons" and the rest of it stays. Families get the ~~"cancelled by
+  the coach"~~ schedule-change email, worded as a cancel (owner, 2026-11-21, I35). The two notes below are kept for the record and no longer describe what happens.
   *Settled by the owner, 2026-09-30:* an unplanned day off during a special schedule is a cancellation, not a
   schedule change: *cancel this day*, holding the freed times so families can't rebook them, with the special
   schedule left as it is. A **planned** change inside a special schedule, such as shortening a camp, is an edit of

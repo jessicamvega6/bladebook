@@ -106,7 +106,7 @@ export const TEMPLATES = [
   },
   {
     name: 'lesson-cancelled-by-coach', group: 'families', title: 'Lesson cancelled by the coach',
-    when: 'When the coach cancels a lesson, a day or a week. One email per family.', sender: 'λ Change notifier', always: true,
+    when: 'When the coach cancels one lesson. (A day or a week is time off, so it sends the schedule-change email, worded as a cancel: owner, 2026-11-21.)', sender: 'λ Change notifier', always: true,
     ...FROM_FAMILY, to: 'grace.chen@example.com',
     subject: '{{#if oneLesson}}Cancelled: {{skaterNames}}’s lesson on {{firstDate}}{{else}}Cancelled: {{lessonCount}} lessons with Coach {{coachFirst}}{{/if}}',
     preheader: 'You won’t be charged.',
@@ -126,14 +126,20 @@ export const TEMPLATES = [
   },
   {
     name: 'schedule-change', group: 'families', title: 'Schedule change',
-    when: 'When a coach’s schedule save cancels or re-prices a family’s lessons. One email per family per save (ADR-020).', sender: 'λ Change notifier', always: true,
+    when: 'When a coach’s schedule save, time off, or Cancel this day or rest of week cancels or re-prices a family’s lessons. One email per family per save (ADR-020). With only cancellations it reads as a cancel, like a single lesson’s (owner, 2026-11-21, I35).', sender: 'λ Change notifier', always: true,
     ...FROM_FAMILY, to: 'grace.chen@example.com',
-    subject: 'Changes to your upcoming lessons with Coach {{coachFirst}}',
-    preheader: '{{#if cancelled}}Some lessons are cancelled. {{/if}}{{#if priceDown}}Good news: some lessons cost less. {{/if}}{{#if priceUp}}Some later lessons have a new price.{{/if}}',
-    eyebrow: 'Schedule change',
-    headline: 'Coach {{coachFirst}} changed their schedule',
+    subject: '{{#if onlyCancelled}}{{#if oneLesson}}Cancelled: {{skaterNames}}’s lesson on {{firstDate}}{{else}}Cancelled: {{lessonCount}} lessons with Coach {{coachFirst}}{{/if}}{{else}}Changes to your upcoming lessons with Coach {{coachFirst}}{{/if}}',
+    preheader: '{{#if onlyCancelled}}You won’t be charged.{{else}}{{#if cancelled}}Some lessons are cancelled. {{/if}}{{#if priceDown}}Good news: some lessons cost less. {{/if}}{{#if priceUp}}Some later lessons have a new price.{{/if}}{{/if}}',
+    eyebrow: '{{#if onlyCancelled}}Lesson cancelled{{else}}Schedule change{{/if}}',
+    headline: '{{#if onlyCancelled}}Coach {{coachFirst}} cancelled {{#if oneLesson}}a lesson{{else}}{{lessonCount}} lessons{{/if}}{{else}}Coach {{coachFirst}} changed their schedule{{/if}}',
     blocks: [
       'Hi {{familyFirst}},',
+      { if: 'onlyCancelled', then: [
+        'Coach {{coachFirst}} can’t teach {{#if oneLesson}}this lesson{{else}}these lessons{{/if}}, so {{#if oneLesson}}it’s{{else}}they’re{{/if}} cancelled:',
+        { lessons: { each: 'cancelled', primary: '{{date}} · {{time}}', secondary: '{{skater}}', strike: true } },
+        { notice: { tone: 'success', text: 'You won’t be charged.' } },
+        { button: { label: 'Book another time', href: '{{bookUrl}}' } },
+      ], else: [
       'This changes some of your upcoming lessons.',
       { if: 'cancelled', then: [
         { h: 'Cancelled' },
@@ -150,9 +156,11 @@ export const TEMPLATES = [
         { fine: 'A higher price applies only to lessons more than {{noticeHours}} hours away. If you’d rather not keep a lesson at the new price, you can cancel it on My bookings with no charge until the notice period starts.' },
       ] },
       { button: { label: 'See my bookings', href: '{{myBookingsUrl}}' } },
+      ] },
     ],
     sample: {
       ...FAMILY,
+      onlyCancelled: false,
       cancelled: [{ date: 'Mon, Nov 2', time: '6:00 AM', skater: 'Mia' }],
       priceDown: [], priceDownSummary: '',
       priceUp: [{ date: 'Wed, Nov 4', time: '6:30 AM', skater: 'Mia', oldPrice: '$50', newPrice: '$55' }, { date: 'Wed, Nov 11', time: '6:30 AM', skater: 'Mia', oldPrice: '$50', newPrice: '$55' }],

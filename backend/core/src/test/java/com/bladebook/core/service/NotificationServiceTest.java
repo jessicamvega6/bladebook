@@ -275,16 +275,20 @@ class NotificationServiceTest {
     }
 
     @Test
-    void theCoachsCancelEmailsEachFamilyOnceAndStampsTheLines() {
+    void aCancelledDayEmailsEachFamilyOnceInTheScheduleChangeEmailWordedAsACancelAndStampsTheLines() {
         book(park, ava, null, SIX, MON);
         book(chen, mia, null, HALF_SIX, MON);
         drain();
         coachCancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD"),
                 new CoachCancelRequest.PickInput(MON.toString(), "06:30", "RELEASE")), null));
         List<Email> sent = drain();
-        assertThat(sent).extracting(Email::template).containsOnly("lesson-cancelled-by-coach");
+        // One email for a schedule change, worded as a cancel when it only cancels (owner, 2026-11-21, I35).
+        assertThat(sent).extracting(Email::template).containsOnly("schedule-change");
         assertThat(sent).extracting(Email::to).containsExactlyInAnyOrder("sarah@example.com", "grace@example.com");
-        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.COACH).findFirst().orElseThrow();
+        Email ava = sent.stream().filter(e -> e.to().equals("sarah@example.com")).findFirst().orElseThrow();
+        assertThat(ava.data()).containsEntry("onlyCancelled", true).containsEntry("oneLesson", true).containsEntry("skaterNames", "Ava")
+                .containsEntry("firstDate", "Mon, Nov 16").containsEntry("lessonCount", "1").containsKey("bookUrl");
+        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.SCHEDULE_CHANGE).findFirst().orElseThrow();
         assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines()).extracting(NotifyRepository.LineRow::notificationStatus)
                 .containsOnly("SENT");
         assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero(); // a replay
@@ -336,8 +340,8 @@ class NotificationServiceTest {
         drain();
         coachCancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD"),
                 new CoachCancelRequest.PickInput(MON.toString(), "06:30", "HOLD")), null));
-        assertThat(drain()).extracting(Email::template).containsExactly("lesson-cancelled-by-coach");
-        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.COACH).findFirst().orElseThrow();
+        assertThat(drain()).extracting(Email::template).containsExactly("schedule-change");
+        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.SCHEDULE_CHANGE).findFirst().orElseThrow();
         List<NotifyRepository.LineRow> lines = notify.batch(dana.coachId(), b.key()).orElseThrow().lines();
         assertThat(lines).hasSize(2);
         // The run stopped after marking the first line: the second is as it was before the email.
@@ -360,6 +364,7 @@ class NotificationServiceTest {
             assertThat(l).containsEntry("oldPrice", "$50").containsEntry("newPrice", "$40").containsEntry("skater", "Ava");
         });
         assertThat(e.data()).containsEntry("priceDownSummary", "a lesson costs less");
+        assertThat(e.data()).containsEntry("onlyCancelled", false); // a price change keeps the schedule-change wording
     }
 
     // --------------------------------------------------------------- attendance

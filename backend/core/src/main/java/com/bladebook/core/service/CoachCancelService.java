@@ -22,8 +22,10 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The coach cancels from the calendar: one lesson, a day, or the rest of the week (ADR-MASTER section 10, "By the
@@ -95,17 +97,31 @@ public final class CoachCancelService {
         if (plan.isEmpty()) {
             throw DomainException.conflict(NOTHING);
         }
-        // Marked, so consumer-schedule-change leaves these dates to the apply below: their lessons are cancelled by the
-        // coach, never by a schedule change, whichever would have run first (I24).
+        // What the days' time off cancels, read before it's saved: booked lessons not started, nobody checked in. The time
+        // off's write also sets off consumer-schedule-change, which may cancel them before the apply below does; either
+        // way it's the same schedule change and the same one email per family (owner, 2026-11-21, I35), so the coach is
+        // told this count, not whichever run got there.
+        Instant now = clock.instant();
+        Map<String, List<Seat>> seats = schedules.seats(ctx, first, request.last()).stream()
+                .collect(Collectors.groupingBy(s -> LessonTime.key(s.lessonDate(), s.startTime())));
+        List<List<Seat>> cancelled = schedules.lessonTimes(ctx, first, request.last()).stream()
+                .filter(t -> t.lessonStatus() == LessonTime.Status.BOOKED && t.startsAtUtc().isAfter(now))
+                .map(t -> seats.getOrDefault(t.key(), List.of()))
+                .filter(in -> in.stream().noneMatch(s -> s.seatStatus() == Seat.Status.CHECKED_IN || s.seatStatus() == Seat.Status.NO_SHOW))
+                .filter(in -> in.stream().anyMatch(s -> s.seatStatus() == Seat.Status.BOOKED))
+                .toList();
+        int families = (int) cancelled.stream().flatMap(List::stream).filter(s -> s.seatStatus() == Seat.Status.BOOKED)
+                .map(Seat::clientId).distinct().count();
+
         for (TempSchedule t : plan.newTimeOff()) {
             schedules.saveTemp(ctx, new TempSchedule(UUID.randomUUID().toString(), t.kind(), t.name(), t.startDate(), t.endDate(),
-                    t.templates(), t.off()), null, ScheduleRepository.APPLIED_BY_COACH);
+                    t.templates(), t.off()), null);
         }
         for (CoachCancelDays.Change c : plan.specials()) {
-            schedules.saveTemp(ctx, c.after(), c.before(), ScheduleRepository.APPLIED_BY_COACH);
+            schedules.saveTemp(ctx, c.after(), c.before());
         }
-        ScheduleChangeService.Result r = change.apply(ctx, request.scope(), ChangeBatch.By.COACH);
-        return new Result(r.cancelled(), 0, 0, r.families(), 0);
+        change.apply(ctx, request.scope(), ChangeBatch.By.SCHEDULE_CHANGE);
+        return new Result(cancelled.size(), 0, 0, families, 0);
     }
 
     /** The whole batch is this one lesson: header, lines and lesson time in one transaction. */

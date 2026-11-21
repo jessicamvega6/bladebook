@@ -163,12 +163,6 @@ public final class ScheduleRepository {
     }
 
     /**
-     * A date item's {@code appliedBy}: the coach's Cancel this day or rest of week, which applies its dates itself as the
-     * coach's cancel (owner, 2026-11-18, I24), so {@code consumer-schedule-change} leaves that record alone.
-     */
-    public static final String APPLIED_BY_COACH = "COACH";
-
-    /**
      * Saves time off or a special schedule: on an edit, the old version's date items the new one no longer has go first
      * (only those still carrying its {@code tempId}); then one date item per date, up to 99 per transaction, each written
      * only where no other one already has the date or it's this one's (an edited date is overwritten in place, never
@@ -178,11 +172,6 @@ public final class ScheduleRepository {
      * @throws DomainException CONFLICT if another time off or special schedule took one of the dates meanwhile
      */
     public void saveTemp(AccessContext ctx, TempSchedule t, TempSchedule previous) {
-        saveTemp(ctx, t, previous, null);
-    }
-
-    /** As {@link #saveTemp(AccessContext, TempSchedule, TempSchedule)}, each date item marked {@code appliedBy}. */
-    public void saveTemp(AccessContext ctx, TempSchedule t, TempSchedule previous, String appliedBy) {
         if (previous != null) {
             for (LocalDate d : previous.dates()) {
                 if (t.dateBlocks().containsKey(d)) {
@@ -201,9 +190,6 @@ public final class ScheduleRepository {
             Map<String, AttributeValue> item = new HashMap<>(key(ctx, DATE + e.getKey()));
             item.put("blocks", blocksAttr(e.getValue()));
             item.put("tempId", s(t.tempId()));
-            if (appliedBy != null) {
-                item.put("appliedBy", s(appliedBy));
-            }
             writes.add(TransactWriteItem.builder().put(Put.builder().tableName(table).item(item)
                     .conditionExpression("attribute_not_exists(SK) OR tempId = :id")
                     .expressionAttributeValues(Map.of(":id", s(t.tempId()))).build()).build());

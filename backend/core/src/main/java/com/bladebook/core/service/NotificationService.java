@@ -375,8 +375,19 @@ public final class NotificationService {
     }
 
     private void scheduleChanged(Map<String, Object> d, List<LineRow> cancels, List<RepriceRow> reprices) {
-        d.put("cancelled", sorted(cancels).stream().map(l -> (Object) Map.of("date", EmailFormat.date(l.lessonDate()),
+        List<CancellationLine> cs = sorted(cancels);
+        d.put("cancelled", cs.stream().map(l -> (Object) Map.of("date", EmailFormat.date(l.lessonDate()),
                 "time", EmailFormat.time(l.startTime()), "skater", EmailFormat.first(l.studentName()))).toList());
+        // Only cancellations (a day or week cancelled, time off, a block dropped): worded as a cancel, "Cancelled: Mia's
+        // lesson on …", like a single lesson's (owner, 2026-11-21, I35).
+        boolean onlyCancelled = reprices.isEmpty() && !cs.isEmpty();
+        d.put("onlyCancelled", onlyCancelled);
+        if (onlyCancelled) {
+            d.put("oneLesson", cs.size() == 1);
+            d.put("skaterNames", EmailFormat.and(cs.stream().map(l -> EmailFormat.first(l.studentName())).distinct().toList()));
+            d.put("firstDate", EmailFormat.date(cs.get(0).lessonDate()));
+            d.put("lessonCount", Integer.toString(cs.size()));
+        }
         List<RepriceLine> rs = reprices.stream().map(RepriceRow::line)
                 .sorted(Comparator.comparing(RepriceLine::lessonDate).thenComparing(RepriceLine::startTime)).toList();
         List<Object> down = new ArrayList<>();

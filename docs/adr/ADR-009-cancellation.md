@@ -108,6 +108,14 @@ the 2026-11-17 amendment above.* That amendment had no place to plan a lesson no
 - **Only *this lesson* asks release or hold** (decision 5), and it is one transaction, so it can't stop
   part-way.
 
+**Amended — 2026-11-21.** *Decided by the owner (ruling I35 in `AI/plan-history.md`).* A day or the
+rest of the week is recorded as **a schedule change** (`cancelledBy = SCHEDULE_CHANGE`), not the
+coach's, so families get the **schedule-change email**. That email now reads like the
+*cancelled by the coach* one whenever it carries only cancellations: the subject "Cancelled: Mia's
+lesson on …", "Coach Dana can't teach …", "You won't be charged", "Book another time". The *cancelled
+by the coach* email stays for a single lesson. Why: both said the lesson was gone, and keeping them
+apart needed a special case so the stream's own run of the time off couldn't send the other email.
+
 So the 2026-11-08 and 2026-11-16 amendments' "the rest of the week holds everything" and "a whole day
 still asks release-or-hold for each lesson", and decisions 5 and 5a where they apply to a day or a
 week, no longer describe what happens.

@@ -170,7 +170,9 @@ In week view there will be multiple ways to cancel.
     cancelled.
   - Inside a special schedule, that schedule's times are switched off on those dates and the rest of it stays. A cancel
     never shows an overlap error.
-  - Families get the "cancelled by the coach" email, as before.
+  - ~~Families get the "cancelled by the coach" email, as before.~~ *Since 2026-11-21 (owner, I35):* families get the
+    schedule-change email, which reads as a cancel ("Cancelled: Mia's lesson on …", "Book another time") when it only
+    cancels. The "cancelled by the coach" email is for a single lesson.
   - The weekly schedule doesn't change, so the next week is untouched. Lessons that have started are kept.
   - Only a single lesson asks release or hold.
 

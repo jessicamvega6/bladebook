@@ -1295,8 +1295,9 @@ I24; ADR-009, amended that day). Those dates become a time off named **"Cancelle
 for the week), or, inside a special schedule, that schedule's times are switched off on those dates.
 There is no release-or-hold question and nothing is held: the times leave the booking page. The
 schedule change (§6.5) then cancels the booked lessons in one planned batch, in the same request,
-recorded as the coach's (`cancelledBy = COACH`, `batchSource` `DAY` or `WEEK`), so families get the
-*cancelled by the coach* email, and a batch that stops part-way is finished like any schedule
+~~recorded as the coach's (`cancelledBy = COACH`, `batchSource` `DAY` or `WEEK`), so families get the
+*cancelled by the coach* email,~~ recorded as a schedule change (`cancelledBy = SCHEDULE_CHANGE`,
+`batchSource` `DAY` or `WEEK`), so families get the schedule-change email, worded as a cancel when it only cancels (owner, 2026-11-21, I35), and a batch that stops part-way is finished like any schedule
 change. Lessons that have started, and seats already `CHECKED_IN` or `NO_SHOW`, are never cancelled.
 
 **A family cancelling a shared lesson is leaving it** (ADR-031 d8). Their seat moves to its
