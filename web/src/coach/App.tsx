@@ -81,11 +81,6 @@ export function App() {
       .catch(() => { if (live) setToken(null); });
     return () => { live = false; };
   }, []);
-  // Log in shows once the tab's sign-in is gone, so a page opened next can't find it.
-  const signOut = useCallback(async () => {
-    await auth.signOut();
-    setToken(null);
-  }, []);
   const signedIn = useCallback(async () => {
     setNotice('');
     setToken(await auth.idToken());
@@ -109,6 +104,16 @@ export function App() {
   const studentsApi = useMemo(() => (token ? studentApi(auth.idToken) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
+  // Log in shows once the tab's sign-in is gone, so a page opened next can't find it. The last coach's profile and
+  // students go with it: the next sign-in (another coach, or a family's account turned away) starts from Loading,
+  // never from the page the last coach left.
+  const signOut = useCallback(async () => {
+    await auth.signOut();
+    setToken(null);
+    setLoad({ state: 'loading' });
+    setStudents(null);
+    setStudentsError('');
+  }, []);
   useEffect(() => { if (route !== '#/schedule') setFlash(''); setNote(''); }, [route]);
 
   const handleError = useCallback((e: unknown) => {
