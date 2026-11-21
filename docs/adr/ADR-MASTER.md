@@ -216,7 +216,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Coach code | `CODE#<coachCode>` | `CODE` | `coachId`, `coachFirstName`, `coachLastName`, `profilePhotoKey` |
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `days` (weekday → blocks), `scheduleName`, `scheduleVersion` |
 | Temporary schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName`, `startDate`, `endDate` |
-| Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId` |
+| Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId`, `appliedBy` (`COACH` on the dates a cancel-a-day or time off writes: the API cancels their lessons itself, so `consumer-schedule-change` skips them; 2026-11-21) |
 | Coach's skater record | `COACH#<coachId>` | `STUDENT#<studentId>` | `clientId`, `studentStatus`, `studentName`, contact copies (`clientName`, `clientEmail`, `clientPhone`), `skatingOrg`, `registrationNumber` |
 | Lesson time | `COACH#<coachId>` | `LESSON#<date>#<startTime>` | `lessonStatus`, `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `missedLessonFeeMinor`, `requiredNoticeHours`, `maxSkaters`, `seatsTaken`, `shareCount`, `joinOrder`, `blockSeq`, `iceType`, `scheduleVersion`, `pendingLeave`, `dueAt`/`dueKind` |
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
@@ -228,8 +228,8 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
 | Family profile | `CLIENT#<sub>` | `PROFILE` | `clientName`, `clientEmail`, `clientPhone`, `smsOptIn` (Phase 2) |
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
-| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name |
-| Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus` |
+| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name, `signedUpAt` (the coach's record's, so a decline deletes only the link it belonged to; 2026-11-21) |
+| Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus`, `changingId` and `changingSince` (a change in progress: claimed before any lesson is cancelled, so a second window's change is refused; counts as abandoned after 5 minutes; 2026-11-21) |
 | Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
 
 The family profile is the **source of truth** for contact details, and the `SKATER#` item for who
@@ -1245,7 +1245,12 @@ batches go to the coach (late ones only); `NO_ANSWER` batches go to the staying 
 **Notification state** on each line: `notificationStatus`, `notifiedAt`, `channels`,
 `failureReason`. The notifier reads the batch's `EXECUTED` lines, groups by family, sends, stamps
 that family's lines; families already `SENT` are skipped on a retry; `SKIPPED` lines aren't
-notified.
+notified. *2026-11-21 (state-machine review, `docs/tla/ChangeNotifier.tla`):* before sending, the
+notifier claims the family's first line (`PENDING`, only if it has no status), so two deliveries
+of the same event can't both send; a family whose first line has any status is skipped. `FAILED`
+now means SES refused the message (`MessageRejected`), which is final; any other failure gives the
+claim back and fails the event, so it is retried and, after that, replayed from the dead-letter
+queue. The same rule holds for every email guard (`docs/tla/EmailGuard.tla`).
 
 ### The coach's late-cancellation SMS (the only SMS in MVP)
 
