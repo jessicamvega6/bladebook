@@ -3,39 +3,40 @@
 // `client-tenant` tagged with the family's `sub` (and, for its second session, the coach and its standing with them), or
 // `code-lookup` before sign-in. Each policy limits the session to its own partition by `dynamodb:LeadingKeys`.
 //
-// The statements follow the gate tests' policies (docs/runbooks/database-gate-tests.sh), with ADR-022's 2026-11-17
-// allowlist and BatchGetItem, and ADR-MASTER §16's share-code read. Change a statement here and in that script together,
-// and re-run the gate tests (ADR-022 decision 9).
+// The database gate tests (docs/runbooks/database-gate-tests.sh) run against these very roles in dev (I11), through
+// `<prefix>-gate-test`, which only dev's tenant roles trust. Change a statement here, then re-run them (ADR-022 d9).
 
-import { Validations } from 'aws-cdk-lib';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Duration, Validations } from 'aws-cdk-lib';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
-/** What a family may read in an `ACTIVE` coach's partition (ADR-022 decision 6, written 2026-11-17). Fails closed. */
-export const COACH_PUBLIC_ATTRIBUTES = [
-  'PK', 'SK',
-  'days', 'blocks', 'scheduleVersion', 'tempKind', 'scheduleName', 'startDate', 'endDate',
-  'lessonDate', 'startTime', 'startsAtUtc', 'coachTz', 'durationMinutes',
-  'priceMinor', 'currency', 'lessonStatus', 'shareCount', 'joinOrder', 'blockSeq',
-  'requiredNoticeHours', 'maxSkaters', 'seatsTaken',
-  'idempotencyKey', 'studentStatus',
-  'firstName', 'lastName', 'coachTimezone',
-  'displayPhoneToClients', 'displayEmailToClients', 'businessEmail', 'phone',
-  'acceptsCash', 'acceptsCashapp', 'acceptsVenmo', 'acceptsPaypal',
-  'cashappHandle', 'venmoHandle', 'paypalHandle',
-] as const;
+/**
+ * The read allowlists, from the one copy both sides use: core's `client-read-allowlist.json`, which core.data's local mode
+ * also enforces (ADR-022 d3, d6, d7; written 2026-11-17, I2). They fail closed.
+ */
+const allowlist = JSON.parse(readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../../backend/core/src/main/resources/bladebook/client-read-allowlist.json'), 'utf8',
+)) as { coachPublic: string[]; coachCode: string[]; skaterCode: string[] };
+
+/** What a family may read in an `ACTIVE` coach's partition (ADR-022 decision 6). */
+export const COACH_PUBLIC_ATTRIBUTES: readonly string[] = allowlist.coachPublic;
 
 /** A `CODE#` item's fields: what the code screen shows (ADR-022 decision 7). */
-export const CODE_ATTRIBUTES = ['PK', 'SK', 'coachId', 'coachFirstName', 'coachLastName', 'profilePhotoKey'] as const;
+export const CODE_ATTRIBUTES: readonly string[] = allowlist.coachCode;
 
 /** A `SKATERCODE#` item's fields: the skater's ID and display name (ADR-MASTER §16, ADR-026). */
-export const SKATER_CODE_ATTRIBUTES = ['PK', 'SK', 'studentId', 'studentName'] as const;
+export const SKATER_CODE_ATTRIBUTES: readonly string[] = allowlist.skaterCode;
 
 const ITEM_WRITES = ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem', 'dynamodb:ConditionCheckItem'];
 
 export interface TenantRolesProps {
   readonly table: dynamodb.ITable;
+  /** Dev only (I11): the gate tests' role, which the tenant roles trust as they trust the APIs. */
+  readonly gateTest?: { readonly prefix: string };
 }
 
 export class TenantRoles extends Construct {
@@ -46,6 +47,8 @@ export class TenantRoles extends Construct {
   readonly coachTenant: iam.Role;
   readonly clientTenant: iam.Role;
   readonly codeLookup: iam.Role;
+  /** Dev only: `<prefix>-gate-test`, which the owner signs into to run the gate tests. */
+  readonly gateTest?: iam.Role;
 
   constructor(scope: Construct, id: string, props: TenantRolesProps) {
     super(scope, id);
@@ -59,10 +62,21 @@ export class TenantRoles extends Construct {
     this.apiCoachRole = lambdaRole('ApiCoachRole', 'api-coach: no DynamoDB actions; assumes coach-tenant per request.');
     this.apiClientRole = lambdaRole('ApiClientRole',
       'api-client: no DynamoDB actions; assumes client-tenant per request and code-lookup before sign-in.');
+    // Dev only (I11): the owner signs into it (anyone in this account who may assume roles) and it can do nothing but
+    // start tenant sessions, under the same tag rules as the APIs. No DynamoDB actions of its own (ADR-021 row 8).
+    if (props.gateTest) {
+      this.gateTest = new iam.Role(this, 'GateTestRole', {
+        roleName: `${props.gateTest.prefix}-gate-test`,
+        assumedBy: new iam.AccountRootPrincipal(),
+        maxSessionDuration: Duration.hours(1),
+        description: 'Dev only: runs the database gate tests against the real tenant roles (ADR-021 d7, ADR-022 d9, I11).',
+      });
+    }
+    const gate = this.gateTest ? [this.gateTest] : [];
 
     // ------------------------------------------------------------------------------------------------- coach-tenant
     this.coachTenant = this.tenantRole('CoachTenant', 'coach-tenant: one coach\'s partition, tagged coachId.',
-      trust(this.apiCoachRole, ['coachId'], 'coachId'), [
+      trust([this.apiCoachRole, ...gate], ['coachId'], 'coachId'), [
         new iam.PolicyStatement({
           sid: 'OwnPartitionOnly',
           actions: ['dynamodb:GetItem', 'dynamodb:BatchGetItem', 'dynamodb:Query', ...ITEM_WRITES],
@@ -96,7 +110,7 @@ export class TenantRoles extends Construct {
     const linkedCoach = { 'dynamodb:LeadingKeys': ['COACH#${aws:PrincipalTag/coachId}'] };
     this.clientTenant = this.tenantRole('ClientTenant',
       'client-tenant: one family\'s partition, and reads of its ACTIVE coach\'s public fields.',
-      trust(this.apiClientRole, ['clientId', 'coachId', 'linkStatus'], 'clientId'), [
+      trust([this.apiClientRole, ...gate], ['clientId', 'coachId', 'linkStatus'], 'clientId'), [
         new iam.PolicyStatement({
           sid: 'OwnClientPartition',
           actions: ['dynamodb:GetItem', 'dynamodb:BatchGetItem', 'dynamodb:Query', ...ITEM_WRITES],
@@ -132,12 +146,13 @@ export class TenantRoles extends Construct {
     // Untagged: no identity exists before sign-in. Its trust gives no sts:TagSession, so no session can carry a tag.
     this.codeLookup = this.tenantRole('CodeLookup', 'code-lookup: before sign-in, a coach code\'s name fields only.', {
       Version: '2012-10-17',
-      Statement: [{ Effect: 'Allow', Principal: { AWS: this.apiClientRole.roleArn }, Action: 'sts:AssumeRole' }],
+      Statement: [{ Effect: 'Allow', Principal: { AWS: [this.apiClientRole, ...gate].map((r) => r.roleArn) }, Action: 'sts:AssumeRole' }],
     }, [codeRead('CoachCodeRead', 'CODE#', CODE_ATTRIBUTES)]);
 
     // ----------------------------------------------------------------------------- the API roles may assume them
     this.apiCoachRole.addToPrincipalPolicy(assume([this.coachTenant]));
     this.apiClientRole.addToPrincipalPolicy(assume([this.clientTenant, this.codeLookup]));
+    this.gateTest?.addToPrincipalPolicy(assume([this.coachTenant, this.clientTenant, this.codeLookup]));
 
     for (const role of [this.apiCoachRole, this.apiClientRole]) {
       Validations.of(role).acknowledge({
@@ -160,16 +175,17 @@ export class TenantRoles extends Construct {
 }
 
 /**
- * Only `caller` may assume the role, for one hour, with tag keys from `keys` alone and `required` always present, and
+ * Only `callers` (the API, and in dev the gate tests' role) may assume the role, for one hour, with tag keys from `keys` alone and `required` always present, and
  * with the person's `sub` as source identity (ADR-MASTER §16).
  */
-function trust(caller: iam.IRole, keys: string[], required: string): object {
+function trust(callers: iam.IRole[], keys: string[], required: string): object {
+  const principal = { AWS: callers.map((c) => c.roleArn) };
   return {
     Version: '2012-10-17',
     Statement: [
       {
         Effect: 'Allow',
-        Principal: { AWS: caller.roleArn },
+        Principal: principal,
         Action: ['sts:AssumeRole', 'sts:TagSession'],
         Condition: {
           'ForAllValues:StringEquals': { 'aws:TagKeys': keys },
@@ -178,7 +194,7 @@ function trust(caller: iam.IRole, keys: string[], required: string): object {
       },
       // Its own statement: STS checks setting the source identity without the request's tags, so the tag conditions
       // above would refuse it (found deploying to dev, 2026-11-17).
-      { Effect: 'Allow', Principal: { AWS: caller.roleArn }, Action: 'sts:SetSourceIdentity' },
+      { Effect: 'Allow', Principal: principal, Action: 'sts:SetSourceIdentity' },
     ],
   };
 }

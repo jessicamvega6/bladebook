@@ -139,6 +139,17 @@ So nothing on the allowlist may identify a person:
 
 Decision 9 gains rows 15 to 17.
 
+**Amended — 2026-11-20.** *Decided by the owner (Batch 17c, I30 in `AI/plan-history.md`).* **Writes into
+several coaches' partitions go one coach at a time.** Registration, adding a skater and adding a coach
+wrote every chosen coach's `PENDING` `STUDENT#` record in one transaction through the first session,
+which carries no `coachId`, so decision 8 refuses them on AWS. A session is tagged with one coach, and a
+family may pick up to ten. So each coach gets its own transaction through its own second session (its
+`STUDENT#` records and the family's link items for it); the profile and `SKATER#` items go with the
+first. Decision 8's guarantee stands unchanged: a family's writes land only in a coach it resolved.
+Accepted: if a later coach's write fails after the SDK's retries, the family is registered with the
+earlier coaches and is told to add the missed one from Profile → Add a coach. Local mode now plays this
+role's policy (`LocalFamilyPolicy`), which is how this was found.
+
 ---
 
 ## Context
@@ -458,6 +469,12 @@ ADR-031.*
 `LeadingKeys` on an index query checks the index's partition key. If it does not, the
 client's own bookings move from GSI1 to a copy under `CLIENT#<sub>`, written in the same
 transaction as the booking.
+
+**Amended — 2026-11-20.** *Batch 17c (I11).* **Run against dev's real table and deployed roles: 76 passed, 0 failed**
+(`docs/runbooks/gate-results-20261120-155510.txt`). The script now reads the stack's outputs and the seed's records
+instead of building a sandbox copy, and runs as `bladebook-dev-gate-test`, a dev-only role the tenant roles trust. Every row 1–17 holds, against the written allowlist; row 15 returned seat keys, as accepted; the
+rows the 2026-10-13 note asked for (`LESSON#`, `SEAT#`, GSI4) are in. "Another family's accepted seat can't be
+changed" isn't a database row: decision 8 leaves it to the code's link check.
 
 *Answered 2026-10-05:*
 

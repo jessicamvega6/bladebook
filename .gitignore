@@ -10,6 +10,7 @@ docs/dynamodb-primer.md
 target/
 node_modules/
 web/dist/
+web/dist-sites/
 
 # Editor settings
 .idea/

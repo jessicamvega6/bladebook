@@ -6,7 +6,7 @@ import { DATA_BUCKETS, dataBucketPattern, dataDenyStatements, LOG_READS, OBJECT_
 import { templateFiles } from '../lib/email.ts';
 import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
-import { apiRequestCode, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
+import { apiRequestCode, ASSET_CACHE, contentSecurityPolicy, PAGE_CACHE, REFUSAL_MESSAGE, siteRequestCode, spaRoutingCode, VIEWER_IP_HEADER } from '../lib/website.ts';
 import { build, synthWithSecurityChecks, TEST_MAILBOX, testDev, testProd } from './helpers.ts';
 
 const dev = build(testDev);
@@ -113,6 +113,41 @@ describe('websites', () => {
   test('dev asks search engines not to index; production does not', () => {
     assert.equal(robotsHeaders(dev.app).length, 2);
     assert.equal(robotsHeaders(prod.app).length, 0);
+  });
+  test('a strict Content Security Policy: report-only in dev until every page is clicked through, enforced in production (I17)', () => {
+    const policies = (t: typeof dev.app) => Object.values(t.findResources('AWS::CloudFront::ResponseHeadersPolicy'))
+      .map((r) => r.Properties.ResponseHeadersPolicyConfig);
+    for (const p of policies(prod.app)) {
+      assert.equal(p.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy, contentSecurityPolicy('us-east-1'));
+      assert.equal(p.SecurityHeadersConfig.ContentSecurityPolicy.Override, true);
+    }
+    for (const p of policies(dev.app)) {
+      assert.equal(p.SecurityHeadersConfig.ContentSecurityPolicy, undefined);
+      const h = p.CustomHeadersConfig.Items.find((i: { Header: string }) => i.Header === 'Content-Security-Policy-Report-Only');
+      assert.equal(h.Value, contentSecurityPolicy('us-east-1'));
+    }
+    const enforced = build({ ...testDev, csp: 'enforce' }).app;
+    for (const p of policies(enforced)) assert.ok(p.SecurityHeadersConfig.ContentSecurityPolicy);
+    const csp = contentSecurityPolicy('us-east-1');
+    assert.equal(csp, "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; "
+      + "connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com; manifest-src 'self'; worker-src 'self'; frame-src 'none'; "
+      + "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
+  });
+  test('each website uploads its build: hashed files cached a year, then the pages, rechecked, then CloudFront cleared', () => {
+    const uploads = Object.entries(dev.app.findResources('Custom::CDKBucketDeployment'));
+    assert.equal(uploads.length, 4);
+    for (const site of ['CoachSite', 'FamilySite']) {
+      const mine = uploads.filter(([id]) => id.startsWith(site));
+      const [assetsId, assets] = mine.find(([id]) => id.includes('UploadAssets'))!;
+      const [, pages] = mine.find(([id]) => id.includes('UploadPages'))!;
+      assert.equal(assets.Properties.DestinationBucketKeyPrefix, 'assets/');
+      assert.deepEqual(assets.Properties.SystemMetadata, { 'cache-control': ASSET_CACHE });
+      assert.deepEqual(pages.Properties.SystemMetadata, { 'cache-control': PAGE_CACHE });
+      for (const u of [assets, pages]) assert.equal(u.Properties.Prune, false);
+      assert.deepEqual(pages.Properties.DistributionPaths, ['/*']);
+      assert.ok(assets.Properties.DistributionId === undefined, 'the assets alone don\'t clear CloudFront');
+      assert.ok(JSON.stringify(pages.DependsOn ?? []).includes(assetsId.slice(0, 20)), `${site}: pages after assets`);
+    }
   });
 });
 
@@ -382,6 +417,38 @@ describe('dev test accounts and seed bucket (ADR-027 d3, ADR-028, I15, I18)', ()
   });
 });
 
+
+describe('the gate tests\' role (ADR-021 d7, ADR-022 d9, I11)', () => {
+  const role = (t: typeof dev.app) => Object.entries(t.findResources('AWS::IAM::Role'))
+    .filter(([, r]) => r.Properties.RoleName === 'bladebook-dev-gate-test' || r.Properties.RoleName === 'bladebook-prod-gate-test');
+  const tenants = (t: typeof dev.app) => Object.values(t.findResources('AWS::IAM::Role'))
+    .filter((r) => /^(coach-tenant|client-tenant|code-lookup):/.test(String(r.Properties.Description)));
+  test('dev only: production has no gate role, and its tenant roles trust only the APIs', () => {
+    assert.equal(role(prod.app).length, 0);
+    assert.equal(role(dev.app).length, 1);
+    for (const r of tenants(prod.app)) assert.doesNotMatch(JSON.stringify(r.Properties.AssumeRolePolicyDocument), /GateTest/);
+  });
+  test('in dev each tenant role trusts it beside its API, under the same tag rules', () => {
+    const [id] = role(dev.app)[0]!;
+    assert.equal(tenants(dev.app).length, 3);
+    for (const r of tenants(dev.app)) {
+      for (const st of r.Properties.AssumeRolePolicyDocument.Statement) {
+        const aws = JSON.stringify(st.Principal.AWS);
+        assert.match(aws, new RegExp(id), 'the gate role is a principal');
+        assert.match(aws, /ApiC(oach|lient)Role/, 'beside the API');
+      }
+    }
+  });
+  test('it can only start tenant sessions: no DynamoDB, nothing else', () => {
+    const [id] = role(dev.app)[0]!;
+    const statements = Object.values(dev.app.findResources('AWS::IAM::Policy'))
+      .filter((p) => JSON.stringify(p.Properties.Roles).includes(id))
+      .flatMap((p) => p.Properties.PolicyDocument.Statement as { Action: string[] }[]);
+    assert.deepEqual(statements.flatMap((st) => [st.Action].flat()).sort(),
+      ['sts:AssumeRole', 'sts:SetSourceIdentity', 'sts:TagSession']);
+    assert.ok(!JSON.stringify(role(dev.app)[0]![1].Properties).includes('dynamodb'));
+  });
+});
 
 describe('the database gate (ADR-MASTER §16, ADR-022)', () => {
   type Statement = { Sid?: string; Action: string | string[]; Resource?: unknown; Condition?: Record<string, Record<string, unknown>> };

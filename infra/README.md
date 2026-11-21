@@ -7,7 +7,8 @@ reason (ADR-032).
 
 **Status (Batch 17b, under way, 2026-11-17):** in dev, `bladebook-dev-identity` and
 `bladebook-dev-app` are deployed: the account stack with the test accounts, and the app stack with
-both websites (still empty), the table built from the seed file, the tenant roles, and the API
+both websites (uploaded by the stack since 17c: the coach site at `/` with rinkside at `/rinkside/`, the family
+site at `/`), the table built from the seed file, the tenant roles, and the API
 (`api-coach` and `api-client` behind API Gateway, served under `/api/*` on each site's host). The
 event backbone, the scheduled jobs, the firewall, the alarms and `auth-post-confirmation` followed.
 Piece 9 adds the deploy workflow, the bootstrap's data denies and `bladebook-dev-deploy-access`
@@ -63,6 +64,13 @@ npx cdk destroy bladebook-dev-app --profile bladebook-dev
 ```
 
 ### The deploy workflow (ADR-032, I13, I29)
+
+- **The websites (17c):** `npm run build` in `web/` assembles `web/dist-sites/coach/` and `web/dist-sites/family/`
+  (`web/scripts/sites.mjs`), and `cdk.json` runs it before each synth, as it runs Maven. The app stack uploads them
+  itself (`lib/website.ts`, CDK's `BucketDeployment`): `assets/` with `public, max-age=31536000, immutable`, then the
+  pages and rinkside's service worker with `no-cache`, then CloudFront's copies are cleared. Nothing is pruned. GitHub's
+  role gets no new permission: the upload runs as CloudFormation. A merge's release carries `websites.tar.gz`, which
+  the deploy unpacks into `web/dist-sites/`.
 
 - **Every merge into `main`** runs `.github/workflows/ci.yml`'s checks (backend, web, infra) and then tags a
   version, `v<year>.<month>.<day>.<run>`. The tag's GitHub Release holds the three Lambda archives those
@@ -152,9 +160,12 @@ in `cdk.context.json`. Commit that file, so later synths (and CI) don't need the
 
 Change any of these in `lib/` and its test together.
 
-- **The tenant roles' policies (`lib/tenant-roles.ts`) follow the gate tests'**
-  (`docs/runbooks/database-gate-tests.sh`), with ADR-022's 2026-11-17 allowlist. Change one and the
-  other together, and re-run the gate tests. Two details no ADR names: the trust policies also allow
+- **The tenant roles' policies (`lib/tenant-roles.ts`) are what the gate tests test**
+  (`docs/runbooks/database-gate-tests.sh`, run against dev's deployed roles through the dev-only
+  `bladebook-dev-gate-test` role, I11; 76 of 76 on 2026-11-20). Change a policy, then re-run them. The allowlists themselves live in one file,
+  `backend/core/src/main/resources/bladebook/client-read-allowlist.json`: this stack builds the role from it,
+  and core.data's local mode enforces it (`LocalFamilyPolicy`), so a family read or write AWS would refuse
+  fails in the backend's tests too (17c, I30). Two details no ADR names: the trust policies also allow
   `sts:SetSourceIdentity`, so each session carries the person's `sub` as its source identity; and
   `coach-tenant` may `BatchGetItem` in its own partition, as `client-tenant` may in its own.
   ADR-MASTER §16 says the policy also refuses `ReturnValuesOnConditionCheckFailure` on the client
@@ -257,10 +268,11 @@ Change any of these in `lib/` and its test together.
 - **Security headers on both sites:** HTTP Strict Transport Security (HSTS) for two years,
   `nosniff`, no framing, `strict-origin-when-cross-origin`, and a `Permissions-Policy` that turns
   off the camera, microphone and location. Dev adds `X-Robots-Tag: noindex`.
-- **No Content Security Policy yet.** One written before the real build is served would likely
-  break it. Add it with Batch 17c's upload and test it there. *Ruled 2026-11-17 (I17): a strict
-  policy, only BladeBook's own site plus Cognito for sign-in, with Figtree served from BladeBook's
-  own files (ADR-MASTER §1).*
+- **The Content Security Policy** (I17, ADR-MASTER §1; `contentSecurityPolicy()` in `lib/website.ts`): only
+  BladeBook's own files, plus Cognito for sign-in; Figtree is served from the site. `config.ts`'s `csp` sets it per
+  environment: production enforces it, dev sends it as `Content-Security-Policy-Report-Only` until Batch 18's
+  real sign-in lets every signed-in page be clicked through (the three sign-in screens reported nothing on
+  2026-11-20).
 - **The access-log archive moves to Deep Archive after 30 days**, to match ADR-017's archive.
   ADR-012 doesn't give a day.
 - **The WAF matches Cognito's sign-up and sign-in calls by their `X-Amz-Target` header**

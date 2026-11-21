@@ -30,7 +30,8 @@ import java.util.function.Supplier;
  * untagged, before sign-in. Every session has the person's {@code sub} as its source identity and lasts an hour. Sessions
  * are cached per tags in the container and renewed five minutes before they expire.
  *
- * <p><b>Local mode</b> ({@link #local}) returns one unscoped client and refuses to start unless the endpoint is localhost, so
+ * <p><b>Local mode</b> ({@link #local}) plays the family roles' policies ({@link LocalFamilyPolicy}), so a read AWS would
+ * refuse fails locally too; otherwise it returns one unscoped client and refuses to start unless the endpoint is localhost, so
  * it can never point at a real table.
  */
 public final class TenantClients {
@@ -141,7 +142,7 @@ public final class TenantClients {
     public DynamoDbClient clientFor(ClientContext ctx) {
         Objects.requireNonNull(ctx, "ctx");
         if (local != null) {
-            return local;
+            return LocalFamilyPolicy.family(local, ctx.clientId());
         }
         refuseInConsumer();
         return sessions.get(sessions.roles.clientTenant(), "client-" + ctx.clientId(), ctx.clientId(),
@@ -157,7 +158,7 @@ public final class TenantClients {
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(coach, "coach");
         if (local != null) {
-            return local;
+            return LocalFamilyPolicy.familyWithCoach(local, ctx.clientId(), coach.coachId(), coach.active());
         }
         refuseInConsumer();
         return sessions.get(sessions.roles.clientTenant(), "client-" + ctx.clientId(), ctx.clientId(), List.of(
@@ -169,7 +170,7 @@ public final class TenantClients {
     /** Before sign-in: {@code code-lookup}, untagged, which can only read a {@code CODE#} item's name fields. */
     public DynamoDbClient forCodeLookup() {
         if (local != null) {
-            return local;
+            return LocalFamilyPolicy.codeLookup(local);
         }
         refuseInConsumer();
         return sessions.get(sessions.roles.codeLookup(), "code-lookup", null, List.of());

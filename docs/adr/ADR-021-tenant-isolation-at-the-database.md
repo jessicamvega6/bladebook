@@ -331,6 +331,11 @@ by BladeBook's own code.
   sort-key condition exists, so `api-checkin`'s role still cannot stop a schedule write.
   Token scope and routing do that.
 
+
+**Amended — 2026-11-20.** *Batch 17c (I11).* **Run against dev's real table and deployed roles: 76 passed, 0 failed**
+(`docs/runbooks/gate-results-20261120-155510.txt`). The script now reads the stack's outputs and the seed's records
+instead of building a sandbox copy, and runs as `bladebook-dev-gate-test`, a dev-only role the tenant roles trust. Rows 1–8 hold; row 6 also covers GSI4.
+
 ---
 
 ## Alternatives considered

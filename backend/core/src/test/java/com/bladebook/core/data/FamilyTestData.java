@@ -75,14 +75,19 @@ final class FamilyTestData {
         ClientContext ctx = new ClientContext(UUID.randomUUID().toString());
         FamilyProfile p = profile(ctx);
         List<StudentRecord> students = new ArrayList<>();
-        Map<String, CoachName> names = new java.util.HashMap<>();
+        List<CodeRepository.Found> names = new ArrayList<>();
         for (AccessContext c : coaches) {
-            names.put(c.coachId(), new CoachName("Dana", "Whitfield"));
+            names.add(found(c.coachId()));
             for (Skater s : skaters) {
                 students.add(pending(c.coachId(), s, p));
             }
         }
         new FamilyRepository(f.clients, f.table).register(ctx, p, skaters, students, names);
         return ctx;
+    }
+
+    /** A coach as registration resolves it from a code: its ID, waiting, named Dana Whitfield. */
+    static CodeRepository.Found found(String coachId) {
+        return new CodeRepository.Found(new LinkedCoach(coachId, StudentStatus.PENDING), new CoachName("Dana", "Whitfield"));
     }
 }

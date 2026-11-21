@@ -3,6 +3,7 @@ package com.bladebook.core.service;
 import com.bladebook.core.data.ClientContext;
 import com.bladebook.core.data.CodeRepository;
 import com.bladebook.core.data.FamilyRepository;
+import com.bladebook.core.data.LinkedCoach;
 import com.bladebook.core.domain.ClientRelationship;
 import com.bladebook.core.domain.CoachCode;
 import com.bladebook.core.domain.CoachName;
@@ -24,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -71,19 +73,19 @@ public final class RegistrationService {
                 r.relationship(), now);
         List<Skater> skaters = new ArrayList<>();
         List<StudentRecord> students = new ArrayList<>();
-        Map<String, CoachName> names = new HashMap<>();
+        Map<String, CodeRepository.Found> named = new LinkedHashMap<>();
         for (NewSkater s : r.skaters()) {
             Skater k = new Skater(newStudentId.get(), s.name(), s.isMinor(), s.skatingOrg(), s.registrationNumber());
             skaters.add(k);
             for (CoachCode code : s.coachCodes()) {
                 CodeRepository.Found coach = coaches.get(code);
-                names.put(coach.coachId(), coach.name());
+                named.putIfAbsent(coach.coachId(), coach);
                 students.add(new StudentRecord(coach.coachId(), k.studentId(), ctx.clientId(), StudentStatus.PENDING,
                         k.name(), k.isMinor(), r.relationship(), profile.fullName(), loginEmail, r.phone(),
                         k.skatingOrg(), k.registrationNumber(), now));
             }
         }
-        families.register(ctx, profile, skaters, students, names);
+        families.register(ctx, profile, skaters, students, List.copyOf(named.values()));
         return view.view(ctx);
     }
 
@@ -125,16 +127,18 @@ public final class RegistrationService {
         }
         // Only coaches who've approved one of the family's skaters: a waiting family is never given a coach's ID
         // (ADR-MASTER section 16), so any other ID is refused, not trusted. A waiting coach is reached through Add a coach.
-        Map<String, CoachName> mine = new HashMap<>();
-        a.links().stream().filter(l -> a.standing().statusWith(l.coachId()).orElse(null) == StudentStatus.ACTIVE)
-                .forEach(l -> mine.put(l.coachId(), new CoachName(l.coachFirstName(), l.coachLastName())));
+        Map<String, CoachName> names = new HashMap<>();
+        a.links().forEach(l -> names.put(l.coachId(), new CoachName(l.coachFirstName(), l.coachLastName())));
+        Map<String, CodeRepository.Found> mine = new HashMap<>();
+        families.linkedCoaches(ctx).stream().filter(LinkedCoach::active)
+                .forEach(c -> mine.put(c.coachId(), new CodeRepository.Found(c, names.get(c.coachId()))));
         if (!mine.keySet().containsAll(picked)) {
             throw DomainException.invalid("coachIds", "Pick from your approved coaches. For any other coach, use Add a coach.");
         }
         Instant now = clock.instant();
         Skater k = new Skater(newStudentId.get(), name, true, org, number);
         List<StudentRecord> records = picked.stream().map(coachId -> pending(coachId, k, p, now)).toList();
-        families.addSkater(ctx, p.relationship(), k, records, mine);
+        families.addSkater(ctx, p.relationship(), k, records, picked.stream().map(mine::get).toList());
         return view.view(ctx);
     }
 
@@ -171,7 +175,7 @@ public final class RegistrationService {
         if (records.isEmpty()) {
             throw DomainException.invalid("studentIds", "Those skaters are already with Coach " + first + ".");
         }
-        families.addCoach(ctx, records, Map.of(coach.coachId(), coach.name()));
+        families.addCoach(ctx, records, coach);
         return view.view(ctx);
     }
 

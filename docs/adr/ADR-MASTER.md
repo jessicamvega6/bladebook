@@ -99,7 +99,11 @@ bladebook/
   img-src 'self' data:; connect-src 'self' https://cognito-idp.<region>.amazonaws.com;
   frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. Batch 17c adds
   it, runs it report-only in dev until a click-through of every page reports nothing, then enforces
-  it. Anything new from another site needs the policy changed on purpose.
+  it. Anything new from another site needs the policy changed on purpose. *Built 2026-11-20 (17c), with
+  `manifest-src`, `worker-src` and `frame-src 'none'` spelled out too (`infra/lib/website.ts`). Production
+  enforces it; dev runs it report-only. The three sign-in screens reported nothing; the signed-in pages
+  are clicked through once Batch 18's real sign-in works on AWS, and dev then enforces it. The font is
+  `@fontsource/figtree` (pinned), imported by `web/src/shared/styles/fonts.css`.*
 - **Scheduler rules** are one per job, pinned to the launch timezone (`America/Chicago`, Central; owner, 2026-11-17, I7) with
   Scheduler's IANA timezone support. A second timezone is one more rule per job; the data
   already carries each coach's timezone. Until then a Pacific coach's families get the 7am
@@ -391,7 +395,10 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 5. For each skater they choose which of the entered coaches the skater joins, and give the
    skater's **registration number** (below).
 6. Registration writes the `SKATER#` items, and one link and one `PENDING` `STUDENT#` record per
-   skater per coach. The coach's name is copied onto each link item.
+   skater per coach. The coach's name is copied onto each link item. *One transaction per coach, each
+   through that coach's own session (ADR-022 d8), the profile and skaters with the first; if a later
+   coach's write fails, the family is registered with the earlier coaches and told to add the missed one
+   from Profile → Add a coach. The same for adding a skater (owner, 2026-11-20, I30).*
 
 ### Approval
 

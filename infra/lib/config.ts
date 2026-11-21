@@ -39,6 +39,11 @@ export interface EnvConfig {
   readonly retainData: boolean;
   /** Ask search engines not to index the sites (ADR-027: dev is not indexed). */
   readonly noindex: boolean;
+  /**
+   * The Content Security Policy (I17): `report-only` while it's proved (the browser reports what it would block, and
+   * blocks nothing), then `enforce`.
+   */
+  readonly csp: 'report-only' | 'enforce';
   /** ADR-MASTER §12: the weekly unpaid reminder lists lessons unpaid longer than this (Parameter Store). */
   readonly unpaidThresholdDays: number;
   /** ADR-MASTER §19: alarms and the up-check, on in production; in dev only to prove they fire (`-c alarms=on`). */
@@ -59,6 +64,11 @@ export interface EnvConfig {
   readonly testAccounts?: { readonly coaches: number; readonly clients: number };
   /** ADR-028 d1: the table is created by one import from the seed bucket. Dev only. */
   readonly seedImport: boolean;
+  /**
+   * ADR-021 d7, ADR-022 d9 (I11): the database gate tests run against this environment's real table and tenant roles,
+   * through `<prefix>-gate-test`, a role the owner signs into, which the tenant roles trust. Dev only.
+   */
+  readonly gateTest: boolean;
 }
 
 const productName = 'BladeBook';
@@ -81,6 +91,9 @@ export const dev: EnvConfig = {
   emailDomain: { name: 'dev.bladebook.org' },
   retainData: false,
   noindex: true,
+  // I17 (ADR-MASTER section 1): report-only until a click-through of every page reports nothing. On 2026-11-20 the
+  // three sign-in screens reported nothing; the signed-in pages need Batch 18's real sign-in, which then enforces it.
+  csp: 'report-only',
   // ADR-MASTER §17: off in dev by default; turned on in block mode to rehearse.
   unpaidThresholdDays: 7,
   alarms: false,
@@ -89,6 +102,7 @@ export const dev: EnvConfig = {
   // ADR-011 8c: three to five coaches, about ten families.
   testAccounts: { coaches: 3, clients: 10 },
   seedImport: true,
+  gateTest: true,
 };
 
 export const prod: EnvConfig = {
@@ -104,6 +118,7 @@ export const prod: EnvConfig = {
   emailDomain: undefined,
   retainData: true,
   noindex: false,
+  csp: 'enforce',
   // ADR-MASTER §17: count mode for the first two weeks, then block.
   unpaidThresholdDays: 7,
   alarms: true,
@@ -111,6 +126,7 @@ export const prod: EnvConfig = {
   github: { repo: githubRepo, subjectRepo: githubSubjectRepo, environment: 'production' },
   // Production's canary accounts are settled when production is built (ADR-027 d7).
   seedImport: false,
+  gateTest: false,
 };
 
 export const environments: readonly EnvConfig[] = [dev, prod];

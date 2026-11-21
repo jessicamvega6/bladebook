@@ -4,8 +4,11 @@
 //
 // The /api/* behaviour sends API calls to API Gateway on the same host, with the origin secret (ADR-019, I1). Both
 // behaviours refuse visitors outside the United States with a CloudFront Function (ADR-019, amended 2026-11-17).
-// Not here yet: uploading the Vite build with its cache headers (the deploy workflow).
+// The built website is uploaded by the stack itself (Batch 17c): see `Website`'s upload below.
 
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Duration, RemovalPolicy, Stack, Validations } from 'aws-cdk-lib';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
@@ -13,6 +16,7 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import type { SiteConfig } from './config.ts';
 import type { Api } from './api.ts';
@@ -22,9 +26,54 @@ export interface WebsiteProps {
   readonly site: SiteConfig;
   readonly zone: route53.IHostedZone;
   readonly noindex: boolean;
+  readonly csp: 'report-only' | 'enforce';
   readonly removalPolicy: RemovalPolicy;
   /** Sends `/api/*` to the API. */
   readonly api?: Api;
+  /** The built website to upload: a folder from `siteFiles`. */
+  readonly files: string;
+}
+
+/**
+ * The Content Security Policy (I17; ADR-MASTER section 1): BladeBook's own files only, plus Cognito, which the sign-in
+ * forms call directly (ADR-023 d11). No inline scripts or styles (the built pages have none), no framing, plugins, base
+ * changes or forms posting elsewhere. Fonts are BladeBook's own (Figtree, web/src/shared/styles/fonts.css).
+ */
+export function contentSecurityPolicy(region: string): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    `connect-src 'self' https://cognito-idp.${region}.amazonaws.com`,
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+}
+
+/** Hashed file names change with their content, so a browser may keep them a year. */
+export const ASSET_CACHE = 'public, max-age=31536000, immutable';
+/** Pages and rinkside's service worker keep their names, so they're checked again on every visit. */
+export const PAGE_CACHE = 'no-cache';
+
+/**
+ * The built website, `web/dist-sites/<site>/` from `npm run build` (web/scripts/sites.mjs, I14). Like the Lambda packages, a
+ * deploy can't ship without it; the deploy workflow puts the tagged release's copy there. The tests use a stand-in.
+ */
+export function siteFiles(scope: Construct, site: 'coach' | 'family'): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  if (scope.node.tryGetContext('bladebook:placeholderCode')) return join(here, '../test/placeholder-site');
+  const dir = join(here, '../../web/dist-sites', site);
+  if (!existsSync(join(dir, 'index.html'))) {
+    throw new Error(`${dir} is missing: build the websites first (cd web && npm ci && npm run build)`);
+  }
+  return dir;
 }
 
 /** The header the API's firewall counts by: the visitor's address, written by CloudFront, never the visitor (I1). */
@@ -161,11 +210,17 @@ export class Website extends Construct {
           referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
           override: true,
         },
+        ...(props.csp === 'enforce'
+          ? { contentSecurityPolicy: { contentSecurityPolicy: contentSecurityPolicy(Stack.of(this).region), override: true } }
+          : {}),
       },
       customHeadersBehavior: {
         customHeaders: [
           { header: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()', override: true },
           ...(props.noindex ? [{ header: 'X-Robots-Tag', value: 'noindex, nofollow', override: true }] : []),
+          ...(props.csp === 'report-only'
+            ? [{ header: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicy(Stack.of(this).region), override: true }]
+            : []),
         ],
       },
     });
@@ -223,6 +278,28 @@ export class Website extends Construct {
         functionAssociations: [{ function: apiRequest, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
       });
     }
+
+    // The upload (Batch 17c), done by the stack itself, so GitHub's role still assumes only CDK's roles (I13). The
+    // hashed files first, then the pages that name them, then CloudFront's copies are cleared. Nothing is pruned: a
+    // page already open in a browser can still fetch the files it was built with.
+    const assets = new s3deploy.BucketDeployment(this, 'UploadAssets', {
+      sources: [s3deploy.Source.asset(join(props.files, 'assets'))],
+      destinationBucket: this.bucket,
+      destinationKeyPrefix: 'assets/',
+      cacheControl: [s3deploy.CacheControl.fromString(ASSET_CACHE)],
+      prune: false,
+      memoryLimit: 512,
+    });
+    const pages = new s3deploy.BucketDeployment(this, 'UploadPages', {
+      sources: [s3deploy.Source.asset(props.files, { exclude: ['assets'] })],
+      destinationBucket: this.bucket,
+      cacheControl: [s3deploy.CacheControl.fromString(PAGE_CACHE)],
+      prune: false,
+      memoryLimit: 512,
+      distribution: this.distribution,
+      distributionPaths: ['/*'],
+    });
+    pages.node.addDependency(assets);
 
     const target = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(this.distribution));
     new route53.ARecord(this, 'AliasA', { zone, recordName: site.host, target });

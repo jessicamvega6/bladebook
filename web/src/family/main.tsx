@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../shared/styles/fonts.css';
 import '../shared/styles/harbor.css';
 import './family.css';
 import './booking.css';

@@ -1,6 +1,6 @@
 # The checks every pull request needs (ADR-013 d2, ADR-032), and, on every merge into main, a tagged version
-# (ADR-032, amended 2026-11-19, I29): the Lambda archives these checks built, with their SHA-256 sums, attached to
-# the tag's GitHub Release. The deploy workflow (deploy.yml) ships exactly those files, never a rebuild.
+# (ADR-032, amended 2026-11-19, I29): the Lambda archives and the two websites these checks built, with their SHA-256
+# sums, attached to the tag's GitHub Release. The deploy workflow (deploy.yml) ships exactly those files, never a rebuild.
 #
 # ADR-032 d2: every action is pinned to a full commit hash, its version in a comment; the token is read-only except
 # where a job says otherwise; no pull_request_target, so a fork's pull request never gets more than read access.
@@ -77,7 +77,16 @@ jobs:
         run: npm test
 
       - name: Type-check and build
-        run: npm run build
+        run: npm run build   # also assembles both websites in dist-sites/ (scripts/sites.mjs)
+
+      - name: Keep the websites (merges only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: websites
+          path: web/dist-sites/
+          if-no-files-found: error
+          retention-days: 1
 
   # The infrastructure's tests, cdk-nag included: a finding fails the synth (ADR-001 A4, ADR-032).
   infra:
@@ -121,17 +130,24 @@ jobs:
           name: lambda-archives
           path: archives
 
+      - name: Fetch the websites this run built
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: websites
+          path: websites
+
       - name: Tag and release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          tar -czf archives/websites.tar.gz -C websites .
           cd archives
           find . -name '*.zip' -exec mv {} . \;
-          sha256sum ./*-lambda.zip | sed 's| \./| |' > SHA256SUMS
+          sha256sum ./*-lambda.zip ./websites.tar.gz | sed 's| \./| |' > SHA256SUMS
           cat SHA256SUMS
           tag="v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
           gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$tag" --notes "Built and tested from ${GITHUB_SHA} on main." \
-            ./*-lambda.zip SHA256SUMS
+            ./*-lambda.zip websites.tar.gz SHA256SUMS
           echo "Tagged **$tag** from \`${GITHUB_SHA}\`." >> "$GITHUB_STEP_SUMMARY"

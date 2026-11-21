@@ -1,291 +1,67 @@
 #!/usr/bin/env bash
-# BladeBook database-gate tests: ADR-021 decision 7 and ADR-022 decision 9.
-# Runbook: docs/runbooks/database-gate-tests.md
+# BladeBook database-gate tests: ADR-021 decision 7 and ADR-022 decision 9, against dev's REAL table and tenant roles
+# (owner, 2026-11-17, I11). Runbook: docs/runbooks/database-gate-tests.md
 #
-#   ./database-gate-tests.sh setup      create the test table and IAM roles
-#   ./database-gate-tests.sh seed       write the sample coaches, families and bookings
-#   ./database-gate-tests.sh run        run every check and write a results file
-#   ./database-gate-tests.sh teardown   delete the table and the roles
+#   ./database-gate-tests.sh run      run every check and write a results file
+#   ./database-gate-tests.sh clean    delete what an interrupted run wrote (TEST# items and its CODE#GATE… code)
 #
-# Touches only resources named bb-gate-*. Written for macOS's bash 3.2.
+# Nothing is copied: the policies are the deployed roles (infra/lib/tenant-roles.ts), read from the stack's outputs. The
+# records are the seed's (dev's table is created from the seed file, ADR-028): coach A is a coach with booked seats from
+# two families, A and B. Every test runs as a tenant session started from <prefix>-gate-test, a dev-only role you sign
+# into, which has no DynamoDB access of its own. You (your own sign-in) only read the stack's outputs, pick the seed
+# records by their keys, and delete the TEST# items the run wrote. The only writes are TEST# items, which no event
+# consumer matches, and one CODE#GATE… code claim; all are deleted at the end. Written for macOS's bash 3.2.
 
 set -uo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
-TABLE="bb-gate-test"
-PREFIX="bb-gate"
-ROLES="exec coach-tenant client-tenant code-lookup"
+STACK="${BLADEBOOK_STACK:-bladebook-dev-app}"
 export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION" AWS_PAGER=""
+cd "$(dirname "$0")"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
-
 command -v aws >/dev/null || die "the AWS CLI is not installed"
 command -v jq  >/dev/null || die "jq is not installed (brew install jq)"
+aws sts get-caller-identity >/dev/null 2>&1 || die "not signed in to AWS. Run 'aws sso login --sso-session bladebook' and export AWS_PROFILE=bladebook-dev."
 
-ACCT=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) \
-  || die "not signed in to AWS. Run 'aws sso login' or 'aws configure' first."
-TABLE_ARN="arn:aws:dynamodb:${REGION}:${ACCT}:table/${TABLE}"
-role_arn() { echo "arn:aws:iam::${ACCT}:role/${PREFIX}-$1"; }
+output() { aws cloudformation describe-stacks --stack-name "$STACK" --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+TABLE=$(output TableName);                   [ -n "$TABLE" ] && [ "$TABLE" != None ] || die "no TableName output on $STACK"
+COACH_ROLE=$(output CoachTenantRoleArn)
+CLIENT_ROLE=$(output ClientTenantRoleArn)
+LOOKUP_ROLE=$(output CodeLookupRoleArn)
+GATE_ROLE=$(output GateTestRoleArn);         [ -n "$GATE_ROLE" ] && [ "$GATE_ROLE" != None ] || die "no GateTestRoleArn: the gate role exists in dev only"
+RUN=$(date +%s)
 
-confirm() {
-  echo "Account: ${ACCT}   Region: ${REGION}   Identity: $(aws sts get-caller-identity --query Arn --output text)"
-  printf 'This will %s. Continue? [y/N] ' "$1"
-  read -r answer
-  [ "$answer" = "y" ] || [ "$answer" = "Y" ] || die "stopped"
-}
+# ---------------------------------------------------------------- the seed's records, by key only
 
-# ---------------------------------------------------------------- policies
-# Copied from ADR-021 d2 and d5, and ADR-022 d3, d4, d6, d7 and d8 as of 2026-10-05.
-# __TABLE_ARN__, __ACCT__ and __PREFIX__ are filled in by fill().
-
-fill() { sed -e "s|__TABLE_ARN__|${TABLE_ARN}|g" -e "s|__ACCT__|${ACCT}|g" -e "s|__PREFIX__|${PREFIX}|g"; }
-
-trust_account() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [ {
-  "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::__ACCT__:root" }, "Action": "sts:AssumeRole" } ] }
-EOF
-}
-
-# The stand-in for a Lambda execution role: may assume the tenant roles, holds no DynamoDB actions.
-exec_policy() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [ {
-  "Effect": "Allow", "Action": ["sts:AssumeRole", "sts:TagSession"],
-  "Resource": ["arn:aws:iam::__ACCT__:role/__PREFIX__-coach-tenant",
-               "arn:aws:iam::__ACCT__:role/__PREFIX__-client-tenant",
-               "arn:aws:iam::__ACCT__:role/__PREFIX__-code-lookup"] } ] }
-EOF
-}
-
-trust_coach_tenant() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [ {
-  "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::__ACCT__:role/__PREFIX__-exec" },
-  "Action": ["sts:AssumeRole", "sts:TagSession"],
-  "Condition": {
-    "ForAllValues:StringEquals": { "aws:TagKeys": ["coachId"] },
-    "Null": { "aws:RequestTag/coachId": "false" } } } ] }
-EOF
-}
-
-coach_tenant_policy() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [
-  { "Sid": "OwnPartitionOnly", "Effect": "Allow",
-    "Action": ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem",
-               "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem"],
-    "Resource": ["__TABLE_ARN__", "__TABLE_ARN__/index/GSI3"],
-    "Condition": { "ForAllValues:StringEquals": {
-      "dynamodb:LeadingKeys": ["COACH#${aws:PrincipalTag/coachId}"] } } },
-  { "Sid": "CoachCodeWrite", "Effect": "Allow",
-    "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem",
-               "dynamodb:ConditionCheckItem"],
-    "Resource": "__TABLE_ARN__",
-    "Condition": {
-      "ForAllValues:StringLike": {
-        "dynamodb:LeadingKeys": ["CODE#*"],
-        "dynamodb:Attributes": ["PK", "SK", "coachId", "coachFirstName", "coachLastName",
-                                "profilePhotoKey"] },
-      "StringEqualsIfExists": { "dynamodb:ReturnValues": "NONE" } } } ] }
-EOF
-}
-
-trust_client_tenant() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [ {
-  "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::__ACCT__:role/__PREFIX__-exec" },
-  "Action": ["sts:AssumeRole", "sts:TagSession"],
-  "Condition": {
-    "ForAllValues:StringEquals": { "aws:TagKeys": ["clientId", "coachId", "linkStatus"] },
-    "Null": { "aws:RequestTag/clientId": "false" } } } ] }
-EOF
-}
-
-code_read_statement() { cat <<'EOF'
-  { "Sid": "CoachCodeRead", "Effect": "Allow", "Action": "dynamodb:GetItem",
-    "Resource": "__TABLE_ARN__",
-    "Condition": {
-      "ForAllValues:StringLike": { "dynamodb:LeadingKeys": ["CODE#*"] },
-      "ForAllValues:StringEquals": { "dynamodb:Attributes": ["PK", "SK", "coachId",
-        "coachFirstName", "coachLastName", "profilePhotoKey"] },
-      "StringEquals": { "dynamodb:Select": "SPECIFIC_ATTRIBUTES" } } }
-EOF
-}
-
-client_tenant_policy() { { cat <<'EOF'
-{ "Version": "2012-10-17", "Statement": [
-  { "Sid": "OwnClientPartition", "Effect": "Allow",
-    "Action": ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem",
-               "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem"],
-    "Resource": "__TABLE_ARN__",
-    "Condition": { "ForAllValues:StringEquals": {
-      "dynamodb:LeadingKeys": ["CLIENT#${aws:PrincipalTag/clientId}"] } } },
-  { "Sid": "OwnClientIndex", "Effect": "Allow", "Action": "dynamodb:Query",
-    "Resource": "__TABLE_ARN__/index/GSI1",
-    "Condition": { "ForAllValues:StringEquals": {
-      "dynamodb:LeadingKeys": ["CLIENT#${aws:PrincipalTag/clientId}"] } } },
-  { "Sid": "CoachPartitionPublicRead", "Effect": "Allow",
-    "Action": ["dynamodb:GetItem", "dynamodb:Query"],
-    "Resource": "__TABLE_ARN__",
-    "Condition": {
-      "ForAllValues:StringEquals": {
-        "dynamodb:LeadingKeys": ["COACH#${aws:PrincipalTag/coachId}"],
-        "dynamodb:Attributes": ["PK", "SK",
-          "days", "blocks", "scheduleName", "tempId", "startDate", "endDate",
-          "durationMinutes", "bookingStatus",
-          "firstName", "lastName", "coachTimezone", "currency", "requiredNoticeHours",
-          "profilePhotoKey", "displayPhoneToClients", "displayEmailToClients",
-          "acceptsCash", "acceptsCashapp", "acceptsVenmo", "acceptsPaypal",
-          "businessEmail", "phone", "paymentInstructions",
-          "cashappHandle", "venmoHandle", "paypalHandle"] },
-      "StringEquals": { "dynamodb:Select": "SPECIFIC_ATTRIBUTES",
-                        "aws:PrincipalTag/linkStatus": "ACTIVE" } } },
-  { "Sid": "CoachPartitionWrite", "Effect": "Allow",
-    "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem",
-               "dynamodb:ConditionCheckItem"],
-    "Resource": "__TABLE_ARN__",
-    "Condition": {
-      "ForAllValues:StringEquals": {
-        "dynamodb:LeadingKeys": ["COACH#${aws:PrincipalTag/coachId}"] },
-      "StringEqualsIfExists": { "dynamodb:ReturnValues": "NONE" } } },
-EOF
-  code_read_statement
-  echo '] }'
-} | fill
-}
-
-trust_code_lookup() { fill <<'EOF'
-{ "Version": "2012-10-17", "Statement": [ {
-  "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::__ACCT__:role/__PREFIX__-exec" },
-  "Action": "sts:AssumeRole" } ] }
-EOF
-}
-
-code_lookup_policy() { { echo '{ "Version": "2012-10-17", "Statement": ['; code_read_statement; echo '] }'; } | fill; }
-
-# ---------------------------------------------------------------- setup / teardown
-
-# IAM takes a few seconds to recognise a new role as a principal. A trust policy naming
-# bb-gate-exec straight after it was created fails with "Invalid principal", so retry that.
-retry_iam() {
-  local i out
-  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    out=$("$@" 2>&1) && { [ -n "$out" ] && echo "$out"; return 0; }
-    grep -q "Invalid principal" <<<"$out" || { echo "$out" >&2; return 1; }
-    echo "  IAM doesn't see the new role yet; waiting 5 seconds (attempt $i of 12)…"
-    sleep 5
+fixtures() {
+  local scan
+  scan=$(aws dynamodb scan --table-name "$TABLE" --output json \
+    --projection-expression "PK, SK, clientId, studentStatus, coachId") || die "could not read the table's keys"
+  # Coach A: the coach whose booked seats come from the most families; families A and B: two of them.
+  COACH_A=$(jq -r '[.Items[] | select(.SK.S|startswith("SEAT#")) | {c:.PK.S, f:.clientId.S}] | group_by(.c)
+    | map({c:.[0].c, n:(map(.f)|unique|length)}) | max_by(.n) | .c' <<<"$scan")
+  COACH_B=$(jq -r --arg a "$COACH_A" '[.Items[] | select((.PK.S|startswith("COACH#")) and .SK.S=="PROFILE" and .PK.S!=$a) | .PK.S][0]' <<<"$scan")
+  FAMILY_A=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("SEAT#"))) | .clientId.S] | unique | .[0]' <<<"$scan")
+  FAMILY_B=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("SEAT#"))) | .clientId.S] | unique | .[1]' <<<"$scan")
+  SEAT_A=$(jq -r --arg a "$COACH_A" --arg f "$FAMILY_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("SEAT#")) and .clientId.S==$f) | .SK.S][0]' <<<"$scan")
+  SEAT_B=$(jq -r --arg a "$COACH_A" --arg f "$FAMILY_B" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("SEAT#")) and .clientId.S==$f) | .SK.S][0]' <<<"$scan")
+  LESSON_1=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("LESSON#"))) | .SK.S] | sort | .[0]' <<<"$scan")
+  LESSON_2=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("LESSON#"))) | .SK.S] | sort | .[1]' <<<"$scan")
+  LESSON_B=$(jq -r --arg b "$COACH_B" '[.Items[] | select(.PK.S==$b and (.SK.S|startswith("LESSON#"))) | .SK.S] | sort | .[0]' <<<"$scan")
+  ACTIVE_STUDENT=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("STUDENT#")) and .studentStatus.S=="ACTIVE") | .SK.S][0]' <<<"$scan")
+  PENDING_STUDENT=$(jq -r --arg a "$COACH_A" '[.Items[] | select(.PK.S==$a and (.SK.S|startswith("STUDENT#")) and .studentStatus.S=="PENDING") | .SK.S][0]' <<<"$scan")
+  CODE_A=$(jq -r --arg a "${COACH_A#COACH#}" '[.Items[] | select((.PK.S|startswith("CODE#")) and .coachId.S==$a) | .PK.S][0]' <<<"$scan")
+  SKATER_CODE=$(jq -r '[.Items[] | select(.PK.S|startswith("SKATERCODE#")) | .PK.S][0]' <<<"$scan")
+  local v
+  for v in COACH_A COACH_B FAMILY_A FAMILY_B SEAT_A SEAT_B LESSON_1 LESSON_2 LESSON_B ACTIVE_STUDENT PENDING_STUDENT CODE_A SKATER_CODE; do
+    eval "[ -n \"\${$v}\" ] && [ \"\${$v}\" != null ]" || die "the seed has no record for $v: rebuild dev from the seed (infra/README.md)"
   done
-  echo "$out" >&2; return 1
+  FAMILY_A="CLIENT#${FAMILY_A}"; FAMILY_B="CLIENT#${FAMILY_B}"
+  C_A="${COACH_A#COACH#}"; C_B="${COACH_B#COACH#}"; F_A="${FAMILY_A#CLIENT#}"
 }
 
-make_role() { # name trust-json policy-json  (safe to re-run: an existing role is updated)
-  local name="${PREFIX}-$1"
-  if aws iam get-role --role-name "$name" >/dev/null 2>&1; then
-    echo "$name already exists; updating its trust and permissions."
-    retry_iam aws iam update-assume-role-policy --role-name "$name" --policy-document "$2" \
-      || die "could not update the trust policy on $name"
-  else
-    retry_iam aws iam create-role --role-name "$name" --assume-role-policy-document "$2" \
-      --description "BladeBook gate test (temporary)" --output text --query Role.Arn \
-      || die "could not create role $name"
-  fi
-  aws iam put-role-policy --role-name "$name" --policy-name gate --policy-document "$3" \
-    || die "could not attach the policy to $name"
-}
-
-setup() {
-  confirm "create table ${TABLE} and roles ${PREFIX}-{exec,coach-tenant,client-tenant,code-lookup}"
-  for f in trust_account exec_policy trust_coach_tenant coach_tenant_policy trust_client_tenant \
-           client_tenant_policy trust_code_lookup code_lookup_policy; do
-    "$f" | jq empty || die "policy $f is not valid JSON"
-  done
-
-  if aws dynamodb describe-table --table-name "$TABLE" >/dev/null 2>&1; then
-    echo "Table ${TABLE} already exists; keeping it."
-  else
-    create_table
-  fi
-
-  echo "Creating roles…"
-  make_role exec          "$(trust_account)"       "$(exec_policy)"
-  make_role coach-tenant  "$(trust_coach_tenant)"  "$(coach_tenant_policy)"
-  make_role client-tenant "$(trust_client_tenant)" "$(client_tenant_policy)"
-  make_role code-lookup   "$(trust_code_lookup)"   "$(code_lookup_policy)"
-
-  echo "Waiting 20 seconds for IAM to propagate…"
-  sleep 20
-  echo "Setup done. Next: ./database-gate-tests.sh seed"
-}
-
-create_table() {
-  echo "Creating table ${TABLE}…"
-  local gsi='[
-    {"IndexName":"GSI1","KeySchema":[{"AttributeName":"GSI1PK","KeyType":"HASH"},{"AttributeName":"GSI1SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},
-    {"IndexName":"GSI2","KeySchema":[{"AttributeName":"GSI2PK","KeyType":"HASH"},{"AttributeName":"GSI2SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},
-    {"IndexName":"GSI3","KeySchema":[{"AttributeName":"GSI3PK","KeyType":"HASH"},{"AttributeName":"GSI3SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]'
-  aws dynamodb create-table --table-name "$TABLE" --billing-mode PAY_PER_REQUEST \
-    --attribute-definitions \
-      AttributeName=PK,AttributeType=S AttributeName=SK,AttributeType=S \
-      AttributeName=GSI1PK,AttributeType=S AttributeName=GSI1SK,AttributeType=S \
-      AttributeName=GSI2PK,AttributeType=S AttributeName=GSI2SK,AttributeType=S \
-      AttributeName=GSI3PK,AttributeType=S AttributeName=GSI3SK,AttributeType=S \
-    --key-schema AttributeName=PK,KeyType=HASH AttributeName=SK,KeyType=RANGE \
-    --global-secondary-indexes "$gsi" --output text --query TableDescription.TableArn \
-    || die "could not create the table"
-  aws dynamodb wait table-exists --table-name "$TABLE"
-}
-
-teardown() {
-  confirm "delete table ${TABLE} and roles ${PREFIX}-*"
-  for r in $ROLES; do
-    aws iam delete-role-policy --role-name "${PREFIX}-$r" --policy-name gate 2>/dev/null
-    aws iam delete-role --role-name "${PREFIX}-$r" 2>/dev/null && echo "Deleted role ${PREFIX}-$r"
-  done
-  aws dynamodb delete-table --table-name "$TABLE" --output text --query TableDescription.TableStatus 2>/dev/null \
-    && aws dynamodb wait table-not-exists --table-name "$TABLE" && echo "Deleted table ${TABLE}"
-  echo "Teardown done."
-}
-
-# ---------------------------------------------------------------- seed data
-
-booking() { # pk sk client student date time  → a booking item, as the coach's partition holds it
-  jq -nc --arg pk "$1" --arg sk "$2" --arg c "$3" --arg s "$4" --arg d "$5" --arg t "$6" \
-    --arg coach "${1#COACH#}" '{PutRequest:{Item:{
-      PK:{S:$pk}, SK:{S:$sk}, bookingStatus:{S:"BOOKED"}, durationMinutes:{N:"30"},
-      studentId:{S:$s}, clientId:{S:$c}, clientEmail:{S:($c+"@example.com")},
-      priceMinor:{N:"4500"}, paymentStatus:{S:"UNPAID"},
-      GSI1PK:{S:("CLIENT#"+$c)}, GSI1SK:{S:("BOOKING#"+$d+"#"+$t)},
-      GSI2PK:{S:("DATE#"+$d)},   GSI2SK:{S:("COACH#"+$coach+"#"+$t)},
-      GSI3PK:{S:$pk},            GSI3SK:{S:("UNPAID#"+$d+"#"+$s)} }}}'
-}
-item() { # pk sk [name value]…  → a PutRequest with string attributes
-  local pk="$1" sk="$2"; shift 2
-  local obj; obj=$(jq -nc --arg pk "$pk" --arg sk "$sk" '{PK:{S:$pk},SK:{S:$sk}}')
-  while [ $# -ge 2 ]; do obj=$(jq -c --arg k "$1" --arg v "$2" '. + {($k):{S:$v}}' <<<"$obj"); shift 2; done
-  jq -c '{PutRequest:{Item:.}}' <<<"$obj"
-}
-
-seed() {
-  local items
-  items=$( {
-    item COACH#coach-a PROFILE firstName Dana lastName Reyes coachTimezone America/New_York \
-      currency USD businessEmail dana@example.com phone +15550100 paymentInstructions "Venmo, please" \
-      venmoHandle @dana-reyes loginEmail dana.login@example.com
-    item COACH#coach-a SCHEDULE#DEFAULT days MON,TUE blocks 16:00-18:00 scheduleName Fall
-    booking COACH#coach-a "SLOT#2026-11-03#16:00#s1" client-a stu-a1 2026-11-03 16:00
-    booking COACH#coach-a "SLOT#2026-11-03#16:30#s2" client-b stu-b1 2026-11-03 16:30
-    item COACH#coach-a STUDENT#stu-a1 studentName "Mia R." studentStatus ACTIVE clientId client-a
-    item COACH#coach-a STUDENT#stu-b1 studentName "Leo K." studentStatus ACTIVE clientId client-b
-    item COACH#coach-b PROFILE firstName Sam lastName Ortiz
-    booking COACH#coach-b "SLOT#2026-11-04#09:00#s3" client-c stu-c1 2026-11-04 09:00
-    item CLIENT#client-a PROFILE email client-a@example.com
-    item CLIENT#client-a "STUDENT#coach-a#stu-a1" linkStatus ACTIVE coachFirstName Dana
-    item CLIENT#client-b PROFILE email client-b@example.com
-    item CODE#DANA7K2Q CODE coachId coach-a coachFirstName Dana coachLastName Reyes createdAt 2026-10-05
-  } | jq -sc --arg t "$TABLE" '{($t): .}' )
-  aws dynamodb batch-write-item --request-items "$items" --output json \
-    | jq -e '.UnprocessedItems == {}' >/dev/null || die "some items were not written; run seed again"
-  echo "Seeded 12 items: coaches coach-a and coach-b, families client-a and client-b (both coach-a's), code DANA7K2Q."
-  echo "Next: ./database-gate-tests.sh run"
-}
-
-# ---------------------------------------------------------------- test helpers
+# ---------------------------------------------------------------- sessions and helpers
 
 creds_from() { jq -r '.Credentials | "AWS_ACCESS_KEY_ID=\(.AccessKeyId) AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey) AWS_SESSION_TOKEN=\(.SessionToken)"'; }
 
@@ -297,12 +73,12 @@ as() {
   env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE $creds aws "$@"
 }
 
-assume() { # role session-name [Key=…,Value=…]…
+assume() { # role-arn session-name [Key=…,Value=…]…
   local role="$1" name="$2"; shift 2
   if [ $# -gt 0 ]; then
-    as "$EXEC" sts assume-role --role-arn "$(role_arn "$role")" --role-session-name "$name" --tags "$@" --output json | creds_from
+    as "$GATE" sts assume-role --role-arn "$role" --role-session-name "$name" --tags "$@" --output json | creds_from
   else
-    as "$EXEC" sts assume-role --role-arn "$(role_arn "$role")" --role-session-name "$name" --output json | creds_from
+    as "$GATE" sts assume-role --role-arn "$role" --role-session-name "$name" --output json | creds_from
   fi
 }
 
@@ -335,160 +111,225 @@ qp() { # creds pk sk-prefix attrs  (query with begins_with and a projection)
     --expression-attribute-values "$(pkskval "$2" "$3")" \
     --projection-expression "$(expr "$4")" --expression-attribute-names "$(names "$4")"
 }
-qnp() { # creds pk sk-prefix  (same query, no projection)
-  ddb "$1" query --key-condition-expression "PK = :pk AND begins_with(SK, :sk)" --expression-attribute-values "$(pkskval "$2" "$3")"
-}
-gp() { # creds pk sk attrs  (get-item with a projection)
-  ddb "$1" get-item --key "$(key "$2" "$3")" --projection-expression "$(expr "$4")" --expression-attribute-names "$(names "$4")"
+qnp() { ddb "$1" query --key-condition-expression "PK = :pk AND begins_with(SK, :sk)" --expression-attribute-values "$(pkskval "$2" "$3")"; }
+gp() { # creds pk sk attrs [extra args]  (get-item with a projection)
+  local c="$1" pk="$2" sk="$3" a="$4"; shift 4
+  ddb "$c" get-item --key "$(key "$pk" "$sk")" --projection-expression "$(expr "$a")" --expression-attribute-names "$(names "$a")" "$@"
 }
 qi() { local c="$1" idx="$2" pk="$3"; ddb "$c" query --index-name "$idx" --key-condition-expression "${idx}PK = :pk" --expression-attribute-values "$(pkval "$pk")"; }
 transact() { as "$1" dynamodb transact-write-items --transact-items "$2" --output json; }
+bget() { # creds attrs-or-empty pk:sk…  (BatchGetItem; an empty attrs means no projection)
+  local c="$1" a="$2"; shift 2
+  local keys="[]" k
+  for k in "$@"; do keys=$(jq -c --argjson k "$(key "${k%%|*}" "${k#*|}")" '. + [$k]' <<<"$keys"); done
+  local req
+  if [ -n "$a" ]; then
+    req=$(jq -nc --arg t "$TABLE" --argjson k "$keys" --arg p "$(expr "$a")" --argjson n "$(names "$a")" \
+      '{($t):{Keys:$k, ProjectionExpression:$p, ExpressionAttributeNames:$n}}')
+  else
+    req=$(jq -nc --arg t "$TABLE" --argjson k "$keys" '{($t):{Keys:$k}}')
+  fi
+  as "$c" dynamodb batch-get-item --request-items "$req" --output json
+}
+exists_as_owner() { aws dynamodb get-item --table-name "$TABLE" --key "$(key "$1" "$2")" --output json | jq -e '.Item' >/dev/null 2>&1; }
 
-ALLOWED_SLOT="PK,SK,bookingStatus,durationMinutes"
+# What the lesson-time reads may name: a few of the allowlist's lesson fields (ADR-022 d3, written 2026-11-17).
+LESSON_FIELDS="PK,SK,lessonDate,startTime,startsAtUtc,durationMinutes,priceMinor,currency,lessonStatus,seatsTaken,maxSkaters"
+
+# ---------------------------------------------------------------- clean up
+
+WRITTEN=""
+wrote() { WRITTEN="${WRITTEN} $1|$2"; }
+clean_written() {
+  local k
+  for k in $WRITTEN; do aws dynamodb delete-item --table-name "$TABLE" --key "$(key "${k%%|*}" "${k#*|}")" >/dev/null 2>&1; done
+}
+clean() { # an interrupted run's leftovers: TEST# items in any partition, and CODE#GATE… claims
+  local items
+  items=$(aws dynamodb scan --table-name "$TABLE" --output json --projection-expression "PK, SK" \
+    --filter-expression "begins_with(SK, :t) OR begins_with(PK, :g)" \
+    --expression-attribute-values '{":t":{"S":"TEST#"},":g":{"S":"CODE#GATE"}}' | jq -c '.Items[]')
+  [ -z "$items" ] && { echo "Nothing to clean."; return; }
+  while read -r k; do aws dynamodb delete-item --table-name "$TABLE" --key "$k" >/dev/null; done <<<"$items"
+  echo "Deleted $(wc -l <<<"$items" | tr -d ' ') leftover item(s)."
+}
 
 # ---------------------------------------------------------------- the checks
 
 run_tests() {
   RESULTS="gate-results-$(date +%Y%m%d-%H%M%S).txt"
-  local run; run=$(date +%s)
-  echo "BladeBook database-gate tests · account ${ACCT} · ${REGION} · $(date)" | tee "$RESULTS"
+  echo "BladeBook database-gate tests · ${TABLE} and its tenant roles (${STACK}) · ${REGION} · $(date)" | tee "$RESULTS"
+  fixtures
+  echo "Seed records: coach A, coach B, families A and B (seats with coach A), 3 lesson times, 2 skaters (ACTIVE, PENDING), 2 codes." | tee -a "$RESULTS"
+  trap clean_written EXIT
 
-  EXEC=$(aws sts assume-role --role-arn "$(role_arn exec)" --role-session-name gate-exec --output json | creds_from) \
-    || die "could not assume ${PREFIX}-exec. Did setup run? Wait a minute after setup and try again."
-  [ -n "$EXEC" ] || die "could not assume ${PREFIX}-exec"
-  COACH_A=$(assume coach-tenant coach-a Key=coachId,Value=coach-a)
-  CLIENT_A=$(assume client-tenant client-a Key=clientId,Value=client-a Key=coachId,Value=coach-a Key=linkStatus,Value=ACTIVE)
-  CLIENT_A_PENDING=$(assume client-tenant client-a-pending Key=clientId,Value=client-a Key=coachId,Value=coach-a Key=linkStatus,Value=PENDING)
-  CLIENT_A_FIRST=$(assume client-tenant client-a-first Key=clientId,Value=client-a)
-  LOOKUP=$(assume code-lookup code-lookup)
-  for v in COACH_A CLIENT_A CLIENT_A_PENDING CLIENT_A_FIRST LOOKUP; do
+  GATE=$(aws sts assume-role --role-arn "$GATE_ROLE" --role-session-name "gate-$RUN" --output json | creds_from) \
+    || die "could not assume the gate-test role. Your sign-in must be able to assume roles in dev."
+  COACH=$(assume "$COACH_ROLE" coach-a Key=coachId,Value="$C_A")
+  ACTIVE=$(assume "$CLIENT_ROLE" family-a Key=clientId,Value="$F_A" Key=coachId,Value="$C_A" Key=linkStatus,Value=ACTIVE)
+  PENDING=$(assume "$CLIENT_ROLE" family-a-pending Key=clientId,Value="$F_A" Key=coachId,Value="$C_A" Key=linkStatus,Value=PENDING)
+  FIRST=$(assume "$CLIENT_ROLE" family-a-first Key=clientId,Value="$F_A")
+  LOOKUP=$(assume "$LOOKUP_ROLE" code-lookup)
+  local v
+  for v in COACH ACTIVE PENDING FIRST LOOKUP; do
     eval "[ -n \"\$$v\" ]" || echo "WARNING: could not start the $v session; its checks will show NOSESSION." | tee -a "$RESULTS"
   done
 
   echo | tee -a "$RESULTS"
-  echo "== ADR-021 decision 7 · as coach A's tenant session (blocker #4) ==" | tee -a "$RESULTS"
-  check 021-1a ALLOW "GetItem own profile"                     ddb "$COACH_A" get-item --key "$(key COACH#coach-a PROFILE)"
-  check 021-1b ALLOW "Query own partition"                     q "$COACH_A" COACH#coach-a
-  check 021-2a DENY  "GetItem coach B's profile"               ddb "$COACH_A" get-item --key "$(key COACH#coach-b PROFILE)"
-  check 021-2b DENY  "Query coach B's partition"               q "$COACH_A" COACH#coach-b
-  check 021-2c DENY  "PutItem into coach B"                    ddb "$COACH_A" put-item --item "$(key COACH#coach-b "TEST#021-2c-$run")"
-  check 021-2d DENY  "UpdateItem coach B's profile"            ddb "$COACH_A" update-item --key "$(key COACH#coach-b PROFILE)" \
-                                                                 --update-expression "SET lastName = :v" --expression-attribute-values '{":v":{"S":"Changed"}}'
-  check 021-2e DENY  "DeleteItem coach B's profile"            ddb "$COACH_A" delete-item --key "$(key COACH#coach-b PROFILE)"
-  check 021-3a ALLOW "OPEN · Query GSI3 for own coach"         qi "$COACH_A" GSI3 COACH#coach-a
-  check 021-3b DENY  "OPEN · Query GSI3 for coach B"           qi "$COACH_A" GSI3 COACH#coach-b
-  local tx4 tx5
-  tx4=$(jq -nc --arg t "$TABLE" --arg r "$run" '[
-    {Put:{TableName:$t, Item:{PK:{S:"COACH#coach-a"}, SK:{S:("TEST#021-4-"+$r)}}}},
-    {Put:{TableName:$t, Item:{PK:{S:"COACH#coach-b"}, SK:{S:("TEST#021-4-"+$r)}}}}]')
-  check 021-4  DENY  "Transaction: one item in A, one in B"   transact "$COACH_A" "$tx4"
-  if aws dynamodb get-item --table-name "$TABLE" --key "$(key COACH#coach-a "TEST#021-4-$run")" --output json | jq -e '.Item' >/dev/null 2>&1; then
+  echo "== ADR-021 decision 7 · coach-tenant, as coach A ==" | tee -a "$RESULTS"
+  check 021-1a ALLOW "GetItem own profile"                     ddb "$COACH" get-item --key "$(key "$COACH_A" PROFILE)"
+  check 021-1b ALLOW "Query own partition"                     q "$COACH" "$COACH_A" --max-items 5
+  check 021-2a DENY  "GetItem coach B's profile"               ddb "$COACH" get-item --key "$(key "$COACH_B" PROFILE)"
+  check 021-2b DENY  "Query coach B's partition"               q "$COACH" "$COACH_B" --max-items 5
+  wrote "$COACH_B" "TEST#021-2c-$RUN"; wrote "$FAMILY_A" "TEST#021-6a-$RUN"
+  wrote "$COACH_B" "TEST#022-7b-$RUN"; wrote "$COACH_A" "TEST#022-8-$RUN"
+  # Writes expected to be refused carry a condition that can't pass, so a wrongly allowed one still changes nothing.
+  check 021-2c DENY  "PutItem into coach B"                    ddb "$COACH" put-item --item "$(key "$COACH_B" "TEST#021-2c-$RUN")"
+  check 021-2d DENY  "UpdateItem coach B's profile"            ddb "$COACH" update-item --key "$(key "$COACH_B" PROFILE)" \
+                                                                 --update-expression "SET gateTest = :v" --expression-attribute-values '{":v":{"S":"x"}}' \
+                                                                 --condition-expression "attribute_not_exists(PK)"
+  check 021-2e DENY  "DeleteItem coach B's profile"            ddb "$COACH" delete-item --key "$(key "$COACH_B" PROFILE)" \
+                                                                 --condition-expression "attribute_not_exists(PK)"
+  check 021-3a ALLOW "Query GSI3 for own coach"                qi "$COACH" GSI3 "$COACH_A"
+  check 021-3b DENY  "Query GSI3 for coach B"                  qi "$COACH" GSI3 "$COACH_B"
+  local tx
+  tx=$(jq -nc --arg t "$TABLE" --arg a "$COACH_A" --arg b "$COACH_B" --arg s "TEST#021-4-$RUN" '[
+    {Put:{TableName:$t, Item:{PK:{S:$a}, SK:{S:$s}}}}, {Put:{TableName:$t, Item:{PK:{S:$b}, SK:{S:$s}}}}]')
+  wrote "$COACH_A" "TEST#021-4-$RUN"; wrote "$COACH_B" "TEST#021-4-$RUN"
+  check 021-4  DENY  "Transaction: one item in A, one in B"   transact "$COACH" "$tx"
+  if exists_as_owner "$COACH_A" "TEST#021-4-$RUN"; then
     printf '%-5s %-8s %s\n' FAIL 021-4v "coach A's half of the denied transaction WAS written" | tee -a "$RESULTS"
   else
     printf '%-5s %-8s %s\n' PASS 021-4v "nothing from the denied transaction was written" | tee -a "$RESULTS"
   fi
-  tx5=$(jq -nc --arg t "$TABLE" --arg r "$run" '[
-    {Put:{TableName:$t, Item:{PK:{S:"COACH#coach-a"}, SK:{S:("TEST#021-5-"+$r)}}}},
-    {Put:{TableName:$t, Item:{PK:{S:("CODE#GATE"+$r)}, SK:{S:"CODE"}, coachId:{S:"coach-a"},
-          coachFirstName:{S:"Dana"}, coachLastName:{S:"Reyes"}}, ConditionExpression:"attribute_not_exists(PK)"}}]')
-  check 021-5  ALLOW "Transaction: own item plus a CODE# claim" transact "$COACH_A" "$tx5"
-  check 021-6a DENY  "PutItem under CLIENT#"                   ddb "$COACH_A" put-item --item "$(key CLIENT#client-a "TEST#021-6a-$run")"
-  check 021-6b DENY  "Query GSI1"                              qi "$COACH_A" GSI1 CLIENT#client-a
-  check 021-6c DENY  "Query GSI2"                              qi "$COACH_A" GSI2 DATE#2026-11-03
-  check 021-6d DENY  "Scan the table"                          ddb "$COACH_A" scan --max-items 1
-  check 021-7a DENY  "AssumeRole with no coachId tag"          as "$EXEC" sts assume-role --role-arn "$(role_arn coach-tenant)" --role-session-name notag
-  check 021-7b DENY  "AssumeRole with an extra tag key"        as "$EXEC" sts assume-role --role-arn "$(role_arn coach-tenant)" --role-session-name extratag \
-                                                                 --tags Key=coachId,Value=coach-a Key=extra,Value=x
-  check 021-8  DENY  "DynamoDB with the execution role's own credentials" ddb "$EXEC" get-item --key "$(key COACH#coach-a PROFILE)"
+  tx=$(jq -nc --arg t "$TABLE" --arg a "$COACH_A" --arg c "$C_A" --arg r "$RUN" '[
+    {Put:{TableName:$t, Item:{PK:{S:$a}, SK:{S:("TEST#021-5-"+$r)}}}},
+    {Put:{TableName:$t, Item:{PK:{S:("CODE#GATE"+$r)}, SK:{S:"CODE"}, coachId:{S:$c}, coachFirstName:{S:"Gate"},
+          coachLastName:{S:"Test"}}, ConditionExpression:"attribute_not_exists(PK)"}}]')
+  wrote "$COACH_A" "TEST#021-5-$RUN"; wrote "CODE#GATE$RUN" CODE
+  check 021-5  ALLOW "Transaction: own item plus a CODE# claim" transact "$COACH" "$tx"
+  check 021-6a DENY  "PutItem under CLIENT#"                   ddb "$COACH" put-item --item "$(key "$FAMILY_A" "TEST#021-6a-$RUN")"
+  check 021-6b DENY  "Query GSI1"                              qi "$COACH" GSI1 "$FAMILY_A"
+  check 021-6c DENY  "Query GSI2"                              qi "$COACH" GSI2 "DATE#${SEAT_A:5:10}"
+  check 021-6d DENY  "Scan the table"                          ddb "$COACH" scan --max-items 1
+  check 021-6e DENY  "Query GSI4 (the deadline sweep's only)"  qi "$COACH" GSI4 DUE
+  check 021-7a DENY  "AssumeRole with no coachId tag"          as "$GATE" sts assume-role --role-arn "$COACH_ROLE" --role-session-name notag
+  check 021-7b DENY  "AssumeRole with an extra tag key"        as "$GATE" sts assume-role --role-arn "$COACH_ROLE" --role-session-name extratag \
+                                                                 --tags Key=coachId,Value="$C_A" Key=extra,Value=x
+  check 021-8  DENY  "DynamoDB with the gate role's own credentials" ddb "$GATE" get-item --key "$(key "$COACH_A" PROFILE)"
 
   echo | tee -a "$RESULTS"
-  echo "== ADR-022 decision 9 · as client A, a family of coach A (blocker #5) ==" | tee -a "$RESULTS"
-  check 022-1a ALLOW "Query own CLIENT# partition"             q "$CLIENT_A" CLIENT#client-a
-  check 022-1b ALLOW "OPEN · Query GSI1 for own bookings"      qi "$CLIENT_A" GSI1 CLIENT#client-a
-  check 022-2a DENY  "Query client B's partition"              q "$CLIENT_A" CLIENT#client-b
-  check 022-2b DENY  "OPEN · Query GSI1 for client B"          qi "$CLIENT_A" GSI1 CLIENT#client-b
-  check 022-3a ALLOW "Coach's slots, allowlisted fields"       qp "$CLIENT_A" COACH#coach-a SLOT# "$ALLOWED_SLOT"
-  check 022-3b ALLOW "Coach's schedule, allowlisted fields"    qp "$CLIENT_A" COACH#coach-a SCHEDULE# "PK,SK,days,blocks,scheduleName"
-  check 022-4a DENY  "Slots with studentId"                    qp "$CLIENT_A" COACH#coach-a SLOT# "$ALLOWED_SLOT,studentId"
-  check 022-4b DENY  "Slots with clientEmail"                  qp "$CLIENT_A" COACH#coach-a SLOT# "$ALLOWED_SLOT,clientEmail"
-  check 022-4c DENY  "Slots with priceMinor"                   qp "$CLIENT_A" COACH#coach-a SLOT# "$ALLOWED_SLOT,priceMinor"
-  check 022-4d DENY  "Slots with no projection"                qnp "$CLIENT_A" COACH#coach-a SLOT#
-  check 022-5a DENY  "PENDING: coach's slots"                  qp "$CLIENT_A_PENDING" COACH#coach-a SLOT# "$ALLOWED_SLOT"
-  check 022-5b DENY  "PENDING: coach's profile"                gp "$CLIENT_A_PENDING" COACH#coach-a PROFILE "firstName,lastName"
-  check 022-5c ALLOW "ACTIVE: coach's profile"                 gp "$CLIENT_A" COACH#coach-a PROFILE "firstName,lastName"
-  check 022-6a DENY  "Coach B's profile"                       gp "$CLIENT_A" COACH#coach-b PROFILE "firstName,lastName"
-  check 022-6b DENY  "Coach B's slots"                         qp "$CLIENT_A" COACH#coach-b SLOT# "$ALLOWED_SLOT"
-  local bk
-  bk=$(jq -nc --arg r "$run" --arg pk COACH#coach-a '{PK:{S:$pk}, SK:{S:("SLOT#2026-11-10#16:00#k7-"+$r)},
-       bookingStatus:{S:"BOOKED"}, studentId:{S:"stu-a1"}, clientId:{S:"client-a"}}')
-  check 022-7a ALLOW "Conditional booking into coach A"        ddb "$CLIENT_A" put-item --item "$bk" --condition-expression "attribute_not_exists(PK)"
-  check 022-7b DENY  "Conditional booking into coach B"        ddb "$CLIENT_A" put-item --condition-expression "attribute_not_exists(PK)" \
-                                                                 --item "$(jq -c '.PK.S = "COACH#coach-b"' <<<"$bk")"
-  check 022-8  DENY  "Write to coach A with ReturnValues ALL_OLD" ddb "$CLIENT_A" put-item --item "$(key COACH#coach-a "TEST#022-8-$run")" --return-values ALL_OLD
+  echo "== ADR-022 decision 9 · client-tenant, as family A of coach A ==" | tee -a "$RESULTS"
+  check 022-1a ALLOW "Query own CLIENT# partition"             q "$ACTIVE" "$FAMILY_A"
+  check 022-1b ALLOW "Query GSI1 for own seats"                qi "$ACTIVE" GSI1 "$FAMILY_A"
+  check 022-2a DENY  "Query family B's partition"              q "$ACTIVE" "$FAMILY_B"
+  check 022-2b DENY  "Query GSI1 for family B"                 qi "$ACTIVE" GSI1 "$FAMILY_B"
+  check 022-3a ALLOW "Coach's lesson times, allowlisted fields" qp "$ACTIVE" "$COACH_A" LESSON# "$LESSON_FIELDS"
+  check 022-3b ALLOW "Coach's weekly schedule, allowlisted"    gp "$ACTIVE" "$COACH_A" SCHEDULE#DEFAULT "PK,SK,days,blocks,scheduleVersion"
+  check 022-4a DENY  "Lesson times with pendingLeave"          qp "$ACTIVE" "$COACH_A" LESSON# "$LESSON_FIELDS,pendingLeave"
+  check 022-4b DENY  "Seats with studentName"                  qp "$ACTIVE" "$COACH_A" SEAT# "PK,SK,studentName"
+  check 022-4c DENY  "Seats with clientId"                     qp "$ACTIVE" "$COACH_A" SEAT# "PK,SK,clientId"
+  check 022-4d DENY  "Lesson times with no projection"         qnp "$ACTIVE" "$COACH_A" LESSON#
+  check 022-5a DENY  "PENDING: coach's lesson times"           qp "$PENDING" "$COACH_A" LESSON# "$LESSON_FIELDS"
+  check 022-5b DENY  "PENDING: coach's profile"                gp "$PENDING" "$COACH_A" PROFILE "firstName,lastName"
+  check 022-5c ALLOW "ACTIVE: coach's profile"                 gp "$ACTIVE" "$COACH_A" PROFILE "firstName,lastName,coachTimezone,acceptsVenmo,venmoHandle"
+  check 022-5d DENY  "ACTIVE: coach's profile with loginEmail" gp "$ACTIVE" "$COACH_A" PROFILE "firstName,loginEmail"
+  check 022-6a DENY  "Coach B's profile"                       gp "$ACTIVE" "$COACH_B" PROFILE "firstName,lastName"
+  check 022-6b DENY  "Coach B's lesson times"                  qp "$ACTIVE" "$COACH_B" LESSON# "$LESSON_FIELDS"
+  wrote "$COACH_A" "TEST#022-7a-$RUN"
+  check 022-7a ALLOW "Conditional write into coach A"          ddb "$ACTIVE" put-item --item "$(key "$COACH_A" "TEST#022-7a-$RUN")" --condition-expression "attribute_not_exists(PK)"
+  check 022-7b DENY  "Conditional write into coach B"          ddb "$ACTIVE" put-item --item "$(key "$COACH_B" "TEST#022-7b-$RUN")" --condition-expression "attribute_not_exists(PK)"
+  check 022-8  DENY  "Write to coach A with ReturnValues ALL_OLD" ddb "$ACTIVE" put-item --item "$(key "$COACH_A" "TEST#022-8-$RUN")" --return-values ALL_OLD
 
-  # Row 9 records an answer rather than passing or failing. A booking attempt on client B's
-  # taken slot, first without and then with ReturnValuesOnConditionCheckFailure = ALL_OLD.
-  # The first is the control: it must fail on the condition, which proves the write itself is
-  # allowed, so any difference in the second comes from the ALL_OLD option alone.
-  local taken out9 code9 dbg leak
-  taken=$(key COACH#coach-a "SLOT#2026-11-03#16:30#s2")
-  check 022-9a CONDFAIL "Control: book client B's taken slot, no return values" \
-    ddb "$CLIENT_A" put-item --item "$taken" --condition-expression "attribute_not_exists(PK)"
-  out9=$(ddb "$CLIENT_A" put-item --item "$taken" --condition-expression "attribute_not_exists(PK)" \
+  # Row 9 records an answer. A write onto family B's seat that must fail its condition, first with no return option (the
+  # control: the write itself is allowed), then asking for the old item back on failure.
+  local out9 code9
+  check 022-9a CONDFAIL "Control: write onto family B's seat, no return values" \
+    ddb "$ACTIVE" put-item --item "$(key "$COACH_A" "$SEAT_B")" --condition-expression "attribute_not_exists(PK)"
+  out9=$(ddb "$ACTIVE" put-item --item "$(key "$COACH_A" "$SEAT_B")" --condition-expression "attribute_not_exists(PK)" \
            --return-values-on-condition-check-failure ALL_OLD 2>&1)
   code9=$(grep -oE '\(([A-Za-z]+)\)' <<<"$out9" | head -1 | tr -d '()')
-  printf '%-5s %-8s %s\n' INFO 022-9b "Same attempt with ALL_OLD on failure: error code ${code9:-none (the write succeeded)}" | tee -a "$RESULTS"
-  case "$code9" in
-    AccessDeniedException)
-      leak="DENIED: with ALL_OLD the request is refused by IAM, so nothing can leak (the policy blocks it)" ;;
-    ConditionalCheckFailedException)
-      dbg=$(ddb "$CLIENT_A" put-item --item "$taken" --condition-expression "attribute_not_exists(PK)" \
-              --return-values-on-condition-check-failure ALL_OLD --debug 2>&1)
-      if grep -q "stu-b1" <<<"$dbg"; then leak="LEAKS: the failed write returned client B's booking, including studentId"
-      else leak="DOES NOT LEAK: the failed write returned none of client B's booking"; fi ;;
-    *) leak="UNEXPECTED: $(tr '\n' ' ' <<<"$out9" | head -c 300)" ;;
-  esac
-  printf '%-5s %-8s %s\n' INFO 022-9 "$leak" | tee -a "$RESULTS"
+  if [ "$code9" = AccessDeniedException ]; then
+    printf '%-5s %-8s %s\n' PASS 022-9b "With ALL_OLD on failure: refused by IAM, nothing comes back" | tee -a "$RESULTS"
+  else
+    printf '%-5s %-8s %s\n' FAIL 022-9b "With ALL_OLD on failure: ${code9:-the write succeeded} (expected AccessDeniedException)" | tee -a "$RESULTS"
+  fi
 
-  check 022-10a DENY  "First session (clientId only): coach's slots" qp "$CLIENT_A_FIRST" COACH#coach-a SLOT# "$ALLOWED_SLOT"
-  check 022-10b ALLOW "First session: own profile"             ddb "$CLIENT_A_FIRST" get-item --key "$(key CLIENT#client-a PROFILE)"
-  check 022-11a ALLOW "code-lookup: code with allowed fields"  gp "$LOOKUP" CODE#DANA7K2Q CODE "coachId,coachFirstName,coachLastName"
-  check 022-11b DENY  "code-lookup: code with createdAt"       gp "$LOOKUP" CODE#DANA7K2Q CODE "coachId,createdAt"
-  check 022-11c DENY  "code-lookup: code, no projection"       ddb "$LOOKUP" get-item --key "$(key CODE#DANA7K2Q CODE)"
-  check 022-11d DENY  "code-lookup: Query a code"              q "$LOOKUP" CODE#DANA7K2Q
-  check 022-11e DENY  "code-lookup: coach's profile"           gp "$LOOKUP" COACH#coach-a PROFILE "firstName"
-  check 022-11f DENY  "code-lookup: a family's profile"        ddb "$LOOKUP" get-item --key "$(key CLIENT#client-a PROFILE)"
+  check 022-10a DENY  "First session (clientId only): coach's lesson times" qp "$FIRST" "$COACH_A" LESSON# "$LESSON_FIELDS"
+  check 022-10b ALLOW "First session: own profile"             ddb "$FIRST" get-item --key "$(key "$FAMILY_A" PROFILE)"
+  check 022-11a ALLOW "code-lookup: code with its name fields" gp "$LOOKUP" "$CODE_A" CODE "coachFirstName,coachLastName"
+  check 022-11b DENY  "code-lookup: code with createdAt"       gp "$LOOKUP" "$CODE_A" CODE "coachId,createdAt"
+  check 022-11c DENY  "code-lookup: code, no projection"       ddb "$LOOKUP" get-item --key "$(key "$CODE_A" CODE)"
+  check 022-11d DENY  "code-lookup: Query a code"              q "$LOOKUP" "$CODE_A"
+  check 022-11e DENY  "code-lookup: coach's profile"           gp "$LOOKUP" "$COACH_A" PROFILE "firstName"
+  check 022-11f DENY  "code-lookup: a family's profile"        ddb "$LOOKUP" get-item --key "$(key "$FAMILY_A" PROFILE)"
+  check 022-11g ALLOW "First session: the code with coachId (registration resolves it)" gp "$FIRST" "$CODE_A" CODE "coachId,coachFirstName"
+
+  tx=$(jq -nc --arg t "$TABLE" --arg a "$COACH_A" --arg s "$PENDING_STUDENT" --arg r "$RUN" '[
+    {ConditionCheck:{TableName:$t, Key:{PK:{S:$a}, SK:{S:$s}}, ConditionExpression:"studentStatus = :a",
+      ExpressionAttributeValues:{":a":{S:"ACTIVE"}}}},
+    {Put:{TableName:$t, Item:{PK:{S:$a}, SK:{S:("TEST#022-12-"+$r)}}}}]')
+  wrote "$COACH_A" "TEST#022-12-$RUN"
+  check 022-12  CONDFAIL "Transaction naming a PENDING skater: refused whole" transact "$ACTIVE" "$tx"
+  if exists_as_owner "$COACH_A" "TEST#022-12-$RUN"; then
+    printf '%-5s %-8s %s\n' FAIL 022-12v "the refused transaction's put WAS written" | tee -a "$RESULTS"
+  else
+    printf '%-5s %-8s %s\n' PASS 022-12v "nothing from the refused transaction was written" | tee -a "$RESULTS"
+  fi
+  check 022-13a ALLOW "Share-check: a skater's studentStatus only" gp "$ACTIVE" "$COACH_A" "$ACTIVE_STUDENT" "studentStatus"
+  check 022-13b DENY  "Share-check with studentName"           gp "$ACTIVE" "$COACH_A" "$ACTIVE_STUDENT" "studentStatus,studentName"
+  check 022-13c DENY  "Share-check, no projection"             ddb "$ACTIVE" get-item --key "$(key "$COACH_A" "$ACTIVE_STUDENT")"
+  check 022-13d DENY  "Share-check as a PENDING session"       gp "$PENDING" "$COACH_A" "$ACTIVE_STUDENT" "studentStatus"
+  check 022-14a ALLOW "BatchGetItem lesson times, allowlisted" bget "$ACTIVE" "$LESSON_FIELDS" "$COACH_A|$LESSON_1" "$COACH_A|$LESSON_2"
+  check 022-14b DENY  "BatchGetItem with pendingLeave"         bget "$ACTIVE" "$LESSON_FIELDS,pendingLeave" "$COACH_A|$LESSON_1"
+  check 022-14c DENY  "BatchGetItem, no projection"            bget "$ACTIVE" "" "$COACH_A|$LESSON_1"
+  check 022-14d DENY  "BatchGetItem with a key in coach B"     bget "$ACTIVE" "$LESSON_FIELDS" "$COACH_A|$LESSON_1" "$COACH_B|$LESSON_B"
+  check 022-14e DENY  "BatchGetItem as a PENDING session"      bget "$PENDING" "$LESSON_FIELDS" "$COACH_A|$LESSON_1"
+  local keys15
+  keys15=$(qp "$ACTIVE" "$COACH_A" SEAT# "PK,SK" 2>/dev/null | jq -r '.Items | length' 2>/dev/null)
+  check 022-15  ALLOW "Seats' keys only (accepted risk: skater IDs, no names)" qp "$ACTIVE" "$COACH_A" SEAT# "PK,SK"
+  printf '%-5s %-8s %s\n' INFO 022-15r "${keys15:-0} seat keys came back, as the 2026-11-17 amendment accepts" | tee -a "$RESULTS"
+  check 022-16a DENY  "Family B's seat with studentName"       gp "$ACTIVE" "$COACH_A" "$SEAT_B" "studentName"
+  check 022-16b DENY  "Family B's seat with clientId"          gp "$ACTIVE" "$COACH_A" "$SEAT_B" "clientId"
+  check 022-16c DENY  "Family B's seat with seatStatus"        gp "$ACTIVE" "$COACH_A" "$SEAT_B" "seatStatus"
+  check 022-16d DENY  "Family B's seat with partnerName"       gp "$ACTIVE" "$COACH_A" "$SEAT_B" "partnerName"
+  check 022-16e ALLOW "Own seat with idempotencyKey, consistent" gp "$ACTIVE" "$COACH_A" "$SEAT_A" "idempotencyKey" --consistent-read
+  check 022-17a ALLOW "GSI1: own seats, every attribute"       qi "$ACTIVE" GSI1 "$FAMILY_A"
+  check 022-17b DENY  "GSI1: family B's seats"                 qi "$ACTIVE" GSI1 "$FAMILY_B"
+
+  echo | tee -a "$RESULTS"
+  echo "== ADR-MASTER §16 and I30 · share codes, the deadline index, one coach per write ==" | tee -a "$RESULTS"
+  check sc-1a ALLOW "Share code: studentId and studentName"   gp "$FIRST" "$SKATER_CODE" CODE "studentId,studentName"
+  check sc-1b DENY  "Share code with clientId"                gp "$FIRST" "$SKATER_CODE" CODE "studentId,clientId"
+  check sc-1c DENY  "Share code, no projection"               ddb "$FIRST" get-item --key "$(key "$SKATER_CODE" CODE)"
+  check sc-1d DENY  "code-lookup: a share code"               gp "$LOOKUP" "$SKATER_CODE" CODE "studentId,studentName"
+  check gsi4    DENY  "A family querying GSI4"                qi "$ACTIVE" GSI4 DUE
+  tx=$(jq -nc --arg t "$TABLE" --arg f "$FAMILY_A" --arg a "$COACH_A" --arg r "$RUN" '[
+    {Put:{TableName:$t, Item:{PK:{S:$f}, SK:{S:("TEST#I30-"+$r)}}}}, {Put:{TableName:$t, Item:{PK:{S:$a}, SK:{S:("TEST#I30-"+$r)}}}}]')
+  wrote "$FAMILY_A" "TEST#I30-$RUN"; wrote "$COACH_A" "TEST#I30-$RUN"
+  check i30-a  ALLOW "Own items plus one coach's, through that coach's (waiting) session" transact "$PENDING" "$tx"
+  tx=$(jq -nc --arg t "$TABLE" --arg f "$FAMILY_A" --arg a "$COACH_A" --arg r "$RUN" '[
+    {Put:{TableName:$t, Item:{PK:{S:$f}, SK:{S:("TEST#I30b-"+$r)}}}}, {Put:{TableName:$t, Item:{PK:{S:$a}, SK:{S:("TEST#I30b-"+$r)}}}}]')
+  wrote "$FAMILY_A" "TEST#I30b-$RUN"; wrote "$COACH_A" "TEST#I30b-$RUN"
+  check i30-b  DENY  "The same through the first session (no coach tag)" transact "$FIRST" "$tx"
 
   summary
 }
 
-got() { grep -E "^[A-Z]+ +$1 " "$RESULTS" | sed -E 's/.* got ([A-Z]+) .*/\1/'; }
-
 summary() {
-  local pass fail a b
+  local pass fail
   pass=$(grep -c '^PASS' "$RESULTS"); fail=$(grep -c '^FAIL' "$RESULTS")
   {
     echo
     echo "== Summary =="
     echo "${pass} passed, ${fail} failed."
-    a=$(got 021-3a); b=$(got 021-3b)
-    if   [ "$a" = ALLOW ] && [ "$b" = DENY ]; then echo "Blocker #4 (GSI3): the index IS locked to the coach. ADR-021 stands as written."
-    elif [ "$a" = DENY ];                     then echo "Blocker #4 (GSI3): the policy refuses even the coach's own index query. Take GSI3 off coach-tenant (ADR-021 d7 fallback)."
-    else                                           echo "Blocker #4 (GSI3): the index is NOT locked (coach B readable). Take GSI3 off coach-tenant (ADR-021 d7 fallback)."; fi
-    a=$(got 022-1b); b=$(got 022-2b)
-    if   [ "$a" = ALLOW ] && [ "$b" = DENY ]; then echo "Blocker #5 (GSI1): the index IS locked to the family. ADR-022 stands as written."
-    elif [ "$a" = DENY ];                     then echo "Blocker #5 (GSI1): the policy refuses even the family's own index query. Use the CLIENT# booking copy (ADR-022 d9 fallback)."
-    else                                           echo "Blocker #5 (GSI1): the index is NOT locked (client B readable). Use the CLIENT# booking copy (ADR-022 d9 fallback)."; fi
-    grep '022-9' "$RESULTS" | tail -1 | sed 's/^/Row 9: /'
-    [ "$fail" -gt 0 ] && echo "Any other FAIL is a finding: the policy does not do what the ADR says. See the runbook, step 7."
-    echo "Results saved to ${RESULTS}"
+    [ "$fail" -gt 0 ] && echo "A FAIL is a finding: the deployed policy doesn't do what its ADR says. See the runbook, step 4."
+    echo "Results saved to docs/runbooks/${RESULTS}. The TEST# items and the CODE#GATE code are deleted on exit."
   } | tee -a "$RESULTS"
 }
 
 case "${1:-}" in
-  setup)    setup ;;
-  seed)     seed ;;
-  run)      run_tests ;;
-  teardown) teardown ;;
-  *) echo "usage: $0 setup | seed | run | teardown"; exit 1 ;;
+  run)   run_tests ;;
+  clean) clean ;;
+  *) echo "usage: $0 run | clean"; exit 1 ;;
 esac
