@@ -199,8 +199,7 @@ test('the third wrong password signs the coach out, unsaved; the box always warn
   await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong');
   await userEvent.click(screen.getByRole('button', { name: 'Sign in again and save' }));
 
-  await waitFor(() => expect(props.onError).toHaveBeenCalled());
-  expect(props.onError.mock.calls[0]![0]).toMatchObject({ status: 401, code: 'WRONG_PASSWORDS' });
+  await waitFor(() => expect(props.onError).toHaveBeenCalledWith(expect.objectContaining({ status: 401, code: 'WRONG_PASSWORDS' })));
   expect(fakes.coach.token).toBeNull();
   expect(fakes.coach.calls.at(-1)).toBe('signOut');
   expect(auths).toEqual(['Bearer old']); // nothing more was sent to save
