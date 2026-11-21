@@ -459,6 +459,7 @@ On `CANCELLED#` and `REPRICED#` lines marked `SKIPPED`.
 | `BOOKING_GONE` | The booking no longer exists — usually the family cancelled it, which produced its own record and message. |
 | `NO_LONGER_NEEDED` | The coach's current schedule no longer calls for the change — they restored the slot, or a later batch set a different price. The coach's latest intent wins. |
 | `LESSON_PASSED` | The lesson's time passed before the change could be applied. For a cancellation this is the one unrecoverable case — the family was never told — so the coach is told instead. |
+| `CHECKED_IN` | Someone in the lesson is checked in or marked a no-show, so the change keeps the lesson (a bulk action never cancels one under way). Shown on the coach's save status, not emailed (2026-11-21). |
 
 ### `REPRICED_LESSON.direction` — which way the price moved (ADR-020)
 

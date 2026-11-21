@@ -508,7 +508,7 @@ erDiagram
         datetime cancelledAt
         int    noticeHours "gap to the lesson start"
         enum   executionStatus "PLANNED|EXECUTED|SKIPPED, ADR-010 d5f"
-        enum   skippedReason "BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED, ADR-010 d5i"
+        enum   skippedReason "BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED|CHECKED_IN, ADR-010 d5i"
         enum   notificationStatus "PENDING|SENT|FAILED|SUPPRESSED"
         datetime notifiedAt
         list   channels
@@ -533,7 +533,7 @@ erDiagram
         int    newMissedLessonFeeMinor
         enum   direction "INCREASE|DECREASE"
         enum   executionStatus "PLANNED|EXECUTED|SKIPPED"
-        enum   skippedReason "BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED"
+        enum   skippedReason "BOOKING_GONE|NO_LONGER_NEEDED|LESSON_PASSED|CHECKED_IN"
         enum   notificationStatus "PENDING|SENT|FAILED|SUPPRESSED"
         datetime notifiedAt
         list   channels

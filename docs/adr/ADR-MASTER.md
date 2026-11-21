@@ -265,7 +265,7 @@ GSI1 keys only from `consumer-invite` (§8).
 | `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `RECURRENCE` \| `RECONCILE` |
 | `planStatus` | `WRITING` \| `COMPLETE` |
 | `executionStatus` | `PLANNED` \| `EXECUTED` \| `SKIPPED` |
-| `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` |
+| `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` \| `CHECKED_IN` (2026-11-21) |
 | `notificationStatus` | `PENDING` \| `SENT` \| `FAILED` \| `SUPPRESSED` |
 | `dueKind` | `EXPIRE` \| `ANSWER` |
 | `recurrenceStatus` | `ACTIVE` \| `ENDED` |
@@ -926,7 +926,8 @@ during the review".)
    re-runs the evaluator and writes only missing lines.
 4. **Re-checks each line** against the current schedule and the current lesson time and seats
    before acting; if no longer needed, marks it `SKIPPED` with `BOOKING_GONE`,
-   `NO_LONGER_NEEDED` or `LESSON_PASSED`.
+   `NO_LONGER_NEEDED` or `LESSON_PASSED`; a lesson someone is checked in to or marked a no-show
+   is kept and marked `CHECKED_IN` (a bulk action never cancels it, §10 "General"; 2026-11-21).
 5. **Carries out each line in its own transaction**, marking it `EXECUTED` in the same
    transaction.
 6. **Marks the header `EXECUTED` last.**
@@ -934,12 +935,13 @@ during the review".)
    family** covering everything in the batch.
 
 **`LESSON_PASSED`** lines are reported to the coach in the batch notification (wording:
-`FeatureDecriptions/Email templates Needed:`).
+`FeatureDecriptions/Email templates Needed:`). **`CHECKED_IN`** lines are shown on the save
+status only, never emailed, and the review before saving lists them as kept (owner, 2026-11-21).
 
 ### The coach sees whether it finished
 
 The schedule page reads the latest batch's header, refreshing while it applies, and shows whether
-it is applying, emailing families, done, stuck for over an hour, or has `LESSON_PASSED` lines. The
+it is applying, emailing families, done, stuck for over an hour, or has `LESSON_PASSED` or `CHECKED_IN` lines. The
 states' wording: `FeatureDecriptions/C_Coach Schedule Save Status.md` (moved 2026-11-08).
 
 ### Change-batch records

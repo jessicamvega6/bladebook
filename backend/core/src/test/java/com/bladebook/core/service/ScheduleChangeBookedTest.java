@@ -398,7 +398,36 @@ class ScheduleChangeBookedTest {
                 .contains(org.assertj.core.groups.Tuple.tuple(mia, Seat.Status.CHECKED_IN));
         assertThat(cancels.lines(dana)).extracting(CancellationLine::studentId, CancellationLine::executionStatus)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(mia, ChangeBatch.Execution.SKIPPED));
-        assertThat(change.status(dana).orElseThrow().passed()).extracting(CancellationLine::studentId).containsExactly(mia);
+        // Kept, not passed: the coach sees it as kept because someone's checked in, with no prompt to waive it.
+        ScheduleChangeService.Status st = change.status(dana).orElseThrow();
+        assertThat(st.passed()).isEmpty();
+        assertThat(st.checkedIn()).extracting(CancellationLine::studentId).containsExactly(mia);
+    }
+
+    @Test
+    void aCheckInBetweenTheReadAndTheCancelIsKeptAsCheckedInNotAsABookingGone() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z"));
+        schedules.save(dana, 1, List.of(shorter(5000)));
+        // Read as booked and planned for cancelling; the coach checks Mia in before the cancel is written.
+        beforeTheFirstBatchWrite(() -> setSeat(MONDAY, "07:00", mia, Seat.Status.CHECKED_IN));
+
+        change.apply(dana);
+
+        assertThat(at(MONDAY, "07:00").lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        ScheduleChangeService.Status st = change.status(dana).orElseThrow();
+        assertThat(st.passed()).isEmpty();
+        assertThat(st.checkedIn()).extracting(CancellationLine::studentId).containsExactly(mia);
+    }
+
+    @Test
+    void thePreviewShowsALessonSomeoneIsCheckedInToAsKeptNotCancelled() {
+        now.set(Instant.parse("2026-11-16T12:15:00Z"));
+        setSeat(MONDAY, "07:00", mia, Seat.Status.CHECKED_IN);
+
+        ScheduleChangeService.Preview p = change.previewWeekly(dana, List.of(shorter(5000)));
+
+        assertThat(p.cancel()).extracting(i -> i.date() + " " + i.startTime()).doesNotContain("2026-11-16 07:00");
+        assertThat(p.checkedIn()).extracting(i -> i.date() + " " + i.startTime()).containsExactly("2026-11-16 07:00");
     }
 
     @Test

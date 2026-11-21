@@ -38,7 +38,14 @@ import java.util.Optional;
 public final class ChangeBatchRepository {
 
     /** What a schedule-change batch looks like now, for the save status. */
-    public record Latest(ChangeBatch batch, String planStatus, List<CancellationLine> passed) {
+    /** A line skipped because the lesson had started before the change reached it: the coach is prompted to waive it. */
+    public static final String LESSON_PASSED = "LESSON_PASSED";
+    /** A line skipped because someone in the lesson is checked in or a no-show: kept, and the coach is told (2026-11-21). */
+    public static final String CHECKED_IN = "CHECKED_IN";
+    /** A line skipped because its booking was cancelled or changed before the change reached it. */
+    public static final String BOOKING_GONE = "BOOKING_GONE";
+
+    public record Latest(ChangeBatch batch, String planStatus, List<CancellationLine> passed, List<CancellationLine> checkedIn) {
     }
 
     private final TenantClients clients;
@@ -120,7 +127,10 @@ public final class ChangeBatchRepository {
         return write(db(ctx), items);
     }
 
-    /** Lines that won't be carried out, with why: {@code BOOKING_GONE}, {@code NO_LONGER_NEEDED} or {@code LESSON_PASSED}. */
+    /**
+     * Lines that won't be carried out, with why: {@code BOOKING_GONE}, {@code NO_LONGER_NEEDED}, {@code LESSON_PASSED} or
+     * {@code CHECKED_IN} (someone in the lesson is checked in or a no-show, so a bulk action keeps it; 2026-11-21).
+     */
     public void skip(AccessContext ctx, List<String> lineKeys, String reason) {
         for (String k : lineKeys) {
             try {
@@ -180,7 +190,7 @@ public final class ChangeBatchRepository {
         return planned.size();
     }
 
-    /** The newest schedule-change batch (the weekly schedule or a dated one), with any lines skipped as passed. */
+    /** The newest schedule-change batch (the weekly schedule or a dated one), with any lines skipped as passed or checked in. */
     public Optional<Latest> latest(AccessContext ctx) {
         Map<String, AttributeValue> found = null;
         Map<String, AttributeValue> start = null;
@@ -203,12 +213,16 @@ public final class ChangeBatchRepository {
         }
         ChangeBatch b = CancellationItems.batch(found);
         List<CancellationLine> passed = new ArrayList<>();
+        List<CancellationLine> checkedIn = new ArrayList<>();
         for (Map<String, AttributeValue> m : query(ctx, CancellationItems.LINE + b.stamp() + "#" + b.batchId())) {
-            if ("LESSON_PASSED".equals(FamilyItems.str(m, "skippedReason"))) {
+            String why = FamilyItems.str(m, "skippedReason");
+            if (LESSON_PASSED.equals(why)) {
                 passed.add(CancellationItems.lineFrom(m));
+            } else if (CHECKED_IN.equals(why)) {
+                checkedIn.add(CancellationItems.lineFrom(m));
             }
         }
-        return Optional.of(new Latest(b, FamilyItems.str(found, "planStatus"), passed));
+        return Optional.of(new Latest(b, FamilyItems.str(found, "planStatus"), passed, checkedIn));
     }
 
     /** The batch's re-price lines, oldest first. */

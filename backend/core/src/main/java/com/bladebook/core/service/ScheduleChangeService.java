@@ -62,11 +62,12 @@ public final class ScheduleChangeService {
     }
 
     /** The review page (ADR-MASTER section 9, "The preview"). It is advisory: the save decides. */
-    public record Preview(List<Impact> cancel, List<Impact> reprice, List<Impact> kept, int families, List<PriceChange> big) {
+    public record Preview(List<Impact> cancel, List<Impact> reprice, List<Impact> kept, List<Impact> checkedIn, int families,
+                          List<PriceChange> big) {
     }
 
     /** The newest schedule-change batch: {@code stuck} once it's over an hour old and not {@code EXECUTED}. */
-    public record Status(ChangeBatch batch, boolean stuck, List<CancellationLine> passed) {
+    public record Status(ChangeBatch batch, boolean stuck, List<CancellationLine> passed, List<CancellationLine> checkedIn) {
     }
 
     /** The drift check's threshold, which the save status shares (C_Coach Schedule Save Status.md). */
@@ -256,14 +257,14 @@ public final class ScheduleChangeService {
             List<Seat> all = seats.getOrDefault(c.time().key(), List.of());
             if (all.stream().anyMatch(ScheduleChangeService::started)) {
                 // Someone is checked in or marked a no-show: the lesson has started for them, and a bulk action never
-                // cancels it (ADR-MASTER section 10, "General"). The coach is told, as for a lesson that passed.
-                batches.skip(ctx, keys, "LESSON_PASSED");
+                // cancels it (ADR-MASTER section 10, "General"). The save status lists it as kept (owner, 2026-11-21).
+                batches.skip(ctx, keys, ChangeBatchRepository.CHECKED_IN);
             } else if (batches.cancel(ctx, c.time(), all, c.replacement(), keys, clock.instant())) {
                 cancelled++;
                 bookedIn(seats, c.time()).forEach(s -> told.add(s.clientId()));
             } else {
                 failed++;
-                batches.skip(ctx, keys, c.time().startsAtUtc().isAfter(clock.instant()) ? "BOOKING_GONE" : "LESSON_PASSED");
+                batches.skip(ctx, keys, whyNotCancelled(ctx, c.time()));
             }
         }
         for (ScheduleChange.Reprice r : plan.reprice()) {
@@ -272,7 +273,8 @@ public final class ScheduleChangeService {
                 repriced++;
                 bookedIn(seats, r.time()).forEach(s -> told.add(s.clientId()));
             } else {
-                batches.skip(ctx, keys, r.time().startsAtUtc().isAfter(clock.instant()) ? "BOOKING_GONE" : "LESSON_PASSED");
+                batches.skip(ctx, keys, r.time().startsAtUtc().isAfter(clock.instant())
+                        ? ChangeBatchRepository.BOOKING_GONE : ChangeBatchRepository.LESSON_PASSED);
             }
         }
         batches.finish(ctx, batch.executed(cancelled + repriced, told.size()));
@@ -298,8 +300,15 @@ public final class ScheduleChangeService {
         Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
         List<Impact> cancel = new ArrayList<>(), reprice = new ArrayList<>(), kept = new ArrayList<>();
         Set<String> families = new LinkedHashSet<>();
+        List<Impact> checkedIn = new ArrayList<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
-            if (onlyDates.test(c.time().lessonDate())) {
+            if (!onlyDates.test(c.time().lessonDate())) {
+                continue;
+            }
+            // A lesson someone is checked in to won't be cancelled (the save keeps it), so it isn't shown as cancelled.
+            if (seats.getOrDefault(c.time().key(), List.of()).stream().anyMatch(ScheduleChangeService::started)) {
+                checkedIn.add(impact(c.time(), null, seats, null));
+            } else {
                 cancel.add(impact(c.time(), null, seats, families));
             }
         }
@@ -313,7 +322,7 @@ public final class ScheduleChangeService {
                 kept.add(impact(r.time(), r.newPriceMinor(), seats, null));
             }
         }
-        return new Preview(cancel, reprice, kept, families.size(), big);
+        return new Preview(cancel, reprice, kept, checkedIn, families.size(), big);
     }
 
     /**
@@ -367,16 +376,18 @@ public final class ScheduleChangeService {
     /** The newest schedule-change batch, for the save status. */
     public Optional<Status> status(AccessContext ctx) {
         Optional<Status> out = buildStatus(ctx);
-        out.filter(st -> !st.passed().isEmpty()).ifPresent(st -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
-                .addAll("studentId", st.passed().stream().map(CancellationLine::studentId).toList())
-                .addAll("clientId", st.passed().stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
+        out.map(st -> java.util.stream.Stream.concat(st.passed().stream(), st.checkedIn().stream()).toList())
+                .filter(shown -> !shown.isEmpty()).ifPresent(shown -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
+                .addAll("studentId", shown.stream().map(CancellationLine::studentId).toList())
+                .addAll("clientId", shown.stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
         return out;
     }
 
     private Optional<Status> buildStatus(AccessContext ctx) {
         Instant now = clock.instant();
         return batches.latest(ctx).map(l -> new Status(l.batch(),
-                l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed()));
+                l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed(),
+                l.checkedIn()));
     }
 
     // ---------------------------------------------------------------------- helpers
@@ -405,6 +416,19 @@ public final class ScheduleChangeService {
     /** Every skater in the lesson, booked, checked in or a no-show; not an invited one. */
     private static List<Seat> joinedIn(Map<String, List<Seat>> seats, LessonTime t) {
         return seats.getOrDefault(t.key(), List.of()).stream().filter(s -> s.seatStatus() != Seat.Status.INVITED).toList();
+    }
+
+    /**
+     * Why a planned cancel was refused: the lesson started, someone was checked in (or marked a no-show) after the plan
+     * read it, or its booking changed.
+     */
+    private String whyNotCancelled(AccessContext ctx, LessonTime t) {
+        if (!t.startsAtUtc().isAfter(clock.instant())) {
+            return ChangeBatchRepository.LESSON_PASSED;
+        }
+        boolean checkedIn = schedules.seats(ctx, t.lessonDate(), t.lessonDate()).stream()
+                .anyMatch(s -> s.startTime().equals(t.startTime()) && started(s));
+        return checkedIn ? ChangeBatchRepository.CHECKED_IN : ChangeBatchRepository.BOOKING_GONE;
     }
 
     /** Checked in or marked a no-show: check-in opens an hour before the start ({@code Attendance.EARLY}). */

@@ -168,7 +168,9 @@ export interface ImpactDto {
 
 /** The review page: what saving would cancel and re-price, what an increase won't reach, and big price changes. */
 export interface PreviewDto {
-  cancel: ImpactDto[]; reprice: ImpactDto[]; kept: ImpactDto[]; families: number;
+  cancel: ImpactDto[]; reprice: ImpactDto[]; kept: ImpactDto[];
+  /** Booked lessons the change drops but someone is checked in to: kept, never cancelled (2026-11-21). */
+  checkedIn: ImpactDto[]; families: number;
   big: Array<{ seq: number; label: string; fromMinor: number; toMinor: number; percent: number; cut: boolean }>;
 }
 
@@ -176,6 +178,8 @@ export interface PreviewDto {
 export interface ChangeStatusDto {
   exists: boolean; createdAt: string | null; executionStatus: 'PLANNED' | 'EXECUTED' | 'SKIPPED' | null;
   lessonCount: number; clientCount: number; stuck: boolean; passed: ImpactDto[];
+  /** Lessons the change kept because someone is checked in or marked a no-show (owner, 2026-11-21: shown, not emailed). */
+  checkedIn: ImpactDto[];
 }
 
 export function scheduleApi(token: TokenSource) {

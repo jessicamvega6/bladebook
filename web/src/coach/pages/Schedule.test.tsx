@@ -20,7 +20,7 @@ function json(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
 }
 
-const NOTHING: PreviewDto = { cancel: [], reprice: [], kept: [], families: 0, big: [] };
+const NOTHING: PreviewDto = { cancel: [], reprice: [], kept: [], checkedIn: [], families: 0, big: [] };
 
 function serve(schedule: ScheduleDto, onPut?: (body: { scheduleVersion: number; templates: TemplateDto[] }, auth: string) => Promise<Response>,
   extra: { preview?: PreviewDto; temps?: TempDto[]; onTemp?: (body: TempDto, method: string) => Promise<Response> } = {}) {
@@ -310,7 +310,7 @@ test('the review lists what the save cancels and re-prices, and a big cut must b
     preview: {
       cancel: [IMPACT('2026-11-16', '07:00', 'Mia R.', 5000)],
       reprice: [IMPACT('2026-11-23', '06:00', 'Ava P.', 5000, 500)],
-      kept: [IMPACT('2026-11-12', '06:00', 'Leo M.', 5000, 6000)],
+      kept: [IMPACT('2026-11-12', '06:00', 'Leo M.', 5000, 6000)], checkedIn: [],
       families: 2, big: [{ seq: 1, label: 'Morning ice', fromMinor: 5000, toMinor: 500, percent: 90, cut: true }],
     },
   });
