@@ -226,6 +226,14 @@ vary is the number of weeks between occurrences. `intervalWeeks` is an integer, 
   `newInterval > currentInterval`. A named enum needs an explicit ordering that has to be
   maintained as values are added.
 
+**Amended 2026-11-23 (owner): the new interval must also be a multiple of the current one.**
+The change only cancels, so the lessons kept have to be ones already booked. From every 2
+weeks to every 3, the kept dates are weeks 0, 6, 12, which is really every 6 weeks while the
+header says every 3. So from weekly any of 2, 3 or 4 is offered, from every 2 weeks only 4,
+and from every 3 weeks nothing (the page says it can't be spaced out further). Re-spacing the
+series onto new dates was set aside until Kim says families ask for it (`Items to ask Kim
+About.md` §15).
+
 The cap of 4 is where a standing arrangement stops being one. It also interacts with
 ADR-006 decision 4's twelve-month ceiling: at interval 1 that is up to 52 lessons, at
 interval 4 it is 13.

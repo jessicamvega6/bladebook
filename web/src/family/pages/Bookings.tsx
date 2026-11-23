@@ -343,11 +343,15 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
   // B4: while any lesson still to come has another skater, joined or invited, only "Cancel all future lessons" is offered.
   const shared = lessons.some(sharedNow);
   const mode = shared ? 2 : chosen;
-  const next = interval || Math.min(a.intervalWeeks + 1, 4);
+  // Only a multiple of the current interval keeps an even rhythm: every 2 weeks to every 3 would really run every 6
+  // (owner, 2026-11-23). Every 3 weeks has none left within the limit of every 4.
+  const spacings = [2, 3, 4].filter((n) => n > a.intervalWeeks && n % a.intervalWeeks === 0);
+  const noSpacing = a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks' : spacings.length ? '' : 'Can’t be spaced out further. To change the rhythm, cancel the series and book again';
+  const next = interval || spacings[0] || a.intervalWeeks;
   const weeks = (x: string, y: string) => Math.round((Date.parse(`${y}T00:00:00Z`) - Date.parse(`${x}T00:00:00Z`)) / (7 * 864e5));
   const plan = future.map((l) => ({ l, cut: mode === 2 ? true : mode === 0 ? !!end && l.date > end : weeks(future[0]!.date, l.date) % next !== 0 }));
   const err = mode === 0 ? (!end ? 'Pick a new last date.' : end >= a.endDate ? `Pick a date before ${shortDate(a.endDate)}. To add lessons, book again.` : end < today ? 'Pick a date from today on.' : '')
-    : mode === 1 ? (a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks.' : '') : '';
+    : mode === 1 ? (noSpacing ? `${noSpacing}.` : '') : '';
   const cut = err ? [] : plan.filter((p) => p.cut);
   const lateLs = cut.filter((p) => insideNotice(p.l)).map((p) => p.l);
   const h = lateLs[0]?.requiredNoticeHours ?? 24;
@@ -398,10 +402,10 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
             <div className="bk-optfield"><div className={`field${mode === 0 && err && end ? ' field--error' : ''}`}><label className="label" htmlFor="bk-rec-end">New last date</label>
               <input id="bk-rec-end" type="date" className="ctl" value={end} onChange={(e) => setEnd(e.target.value)} />
               {err && end && <div className="hint hint--error"><Icon name="alert" size={14} />{err}</div>}</div></div>)}
-          {!shared && opt(1, 'repeat', 'Make it less frequent', a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks' : `Now ${every}`,
-            a.intervalWeeks >= 4 ? undefined : <div className="bk-optfield"><div className="field"><label className="label" htmlFor="bk-rec-int">Repeats</label>
+          {!shared && opt(1, 'repeat', 'Make it less frequent', noSpacing || `Now ${every}`,
+            noSpacing ? undefined : <div className="bk-optfield"><div className="field"><label className="label" htmlFor="bk-rec-int">Repeats</label>
               <select id="bk-rec-int" className="ctl" value={next} onChange={(e) => setIntervalWeeks(Number(e.target.value))}>
-                {[2, 3, 4].filter((n) => n > a.intervalWeeks).map((n) => <option key={n} value={n}>Every {n} weeks</option>)}
+                {spacings.map((n) => <option key={n} value={n}>Every {n} weeks</option>)}
               </select></div></div>)}
           {opt(2, 'calOff', 'Cancel all future lessons', lessons.some((l) => l.date === today) ? 'Today’s lesson is kept' : `${plural(plan.length, 'lesson')} from tomorrow on`)}
         </Card>

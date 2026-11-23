@@ -485,6 +485,32 @@ schedule and deletes it, families could get an email for a mistake.
 
 ---
 
+## 15. Switching a repeating lesson to a different rhythm
+
+*Added 2026-11-23.*
+
+**The scenario.** A family can make a repeating lesson less frequent, but BladeBook only cancels
+lessons to do it; it never books new dates. So a lesson every 2 weeks can become every 4 weeks
+(keep every other one), but not every 3 weeks: weeks 3 and 9 were never booked, so it would
+really end up every 6 weeks. For now, a family on every 2 weeks is only offered every 4, and a
+family on every 3 weeks can't space it out further without cancelling the series and booking
+again.
+
+**Questions:**
+
+1. Do families ever ask to go from every 2 weeks to every 3, or from every 3 weeks to every 4?
+2. If they did, would you be happy for them to cancel the series and book a new one, or should
+   BladeBook move their lessons onto the new rhythm for them (which needs those new times to be
+   free)?
+
+**What the answers decide:**
+
+- Whether "Make it less frequent" learns to re-space a series onto new dates, or keeps offering
+  only the rhythms the booked dates already fit (ADR-009 §4a, amended 2026-11-23;
+  `FeatureDecriptions/cancelation.md`).
+
+---
+
 ## Already waiting on a coach
 
 These came up earlier and are recorded in `Open-Pending.md` as needing coach input.
