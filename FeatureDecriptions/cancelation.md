@@ -34,6 +34,12 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
       the lesson as "Cancelled, no answer" with no charge, and the card is gone. An invitation still unanswered when its
       lesson starts shows "This lesson is no longer available" at once.
     Both emails ("keep at full price or cancel", "cancelled, no answer") are always sent.*
+    *Changed by the owner 2026-11-23 (I36): when the other skater leaves in time, the staying skater's lesson is
+    private at the full price straight away, and the family is told. Their card and email say: the other skater left,
+    the lesson is now private at the full price; keep it, or cancel with no charge by the answer-by time; no answer
+    keeps the lesson at the new price. Nothing is cancelled for no answer, there's no "Cancelled, no answer" and no
+    "cancelled, no answer" email. They can invite another skater to the freed place straight away, which ends the
+    question.*
   Late: the one cancelling may be charged their share of the late-cancellation fee (half, for two skaters); the other skater keeps their share of the price.
   *Added 2026-10-13 (ADR-031):*
   The time goes back on the coach's calendar only when the last skater in it has gone.

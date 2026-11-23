@@ -123,18 +123,18 @@ test('an invitation whose lesson started, or that has ended, is no longer availa
 
 const LEFT_BY = '2026-11-15T12:00:00Z';
 const left = (date: string, rid: string | null = null) => lesson({
-  date, startTime: '06:00', startsAtUtc: `${date}T12:00:00Z`, priceMinor: 2500, recurrenceId: rid, intervalWeeks: rid ? 1 : 0,
+  date, startTime: '06:00', startsAtUtc: `${date}T12:00:00Z`, priceMinor: 5000, recurrenceId: rid, intervalWeeks: rid ? 1 : 0,
   share: share({ partnerName: 'Owen B.', partnerStatus: 'LEFT', answerBy: LEFT_BY }),
 });
 
-test('one date waiting: keep it at the full price, or cancel with no charge, by its answer-by time', async () => {
+test('one date waiting: already private at the full price; keep it, or cancel with no charge by its answer-by time (owner, 2026-11-23)', async () => {
   at('2026-11-10T15:00:00Z');
   const keep = vi.fn(() => Promise.resolve({ studentName: null, coachFirstName: null, hostName: null, done: ['2026-11-16'], skipped: [] }));
   const onChanged = vi.fn();
   render(<WaitingCards lessons={[left('2026-11-16')]} api={{ keep } as unknown as FamilyApi} onChanged={onChanged} onError={vi.fn()} />);
 
   expect(screen.getByText('Owen B. can’t make Ava’s shared lesson on Mon, Nov 16 at 6:00 AM')).toBeInTheDocument();
-  expect(screen.getByText(/at the full \$50 \(Ava’s share was \$25\).*answer by Sun, Nov 15 at 6:00 AM/)).toBeInTheDocument();
+  expect(screen.getByText('Ava’s lesson is now private at the full $50. Keep it, or cancel it with no charge by Sun, Nov 15 at 6:00 AM. If you don’t answer, Ava keeps the lesson at $50.')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Keep at $50' }));
   expect(keep).toHaveBeenCalledWith({ coachId: 'dana', studentId: 'ava', startTime: '06:00', dates: ['2026-11-16'] });
   expect(onChanged).toHaveBeenCalled();
@@ -153,7 +153,7 @@ test('a series gets one card, and Cancel all remaining dates confirms first (B3)
   expect(cancelWaiting).toHaveBeenCalledWith({ coachId: 'dana', studentId: 'ava', startTime: '06:00', dates: ['2026-11-16', '2026-11-23'] });
 });
 
-test('a date past its answer-by time has no card: it’s cancelled with no answer (B8)', () => {
+test('a date past its answer-by time has no card: no answer keeps it (owner, 2026-11-23)', () => {
   at(LEFT_BY);
   const { container } = render(<WaitingCards lessons={[left('2026-11-16')]} api={{} as FamilyApi} onChanged={vi.fn()} onError={vi.fn()} />);
   expect(container).toBeEmptyDOMElement();
@@ -183,22 +183,23 @@ test('each lesson says who it’s shared with; an unanswered invitation can be w
   expect(await screen.findByText(/The invitation to Mia C\. is withdrawn\./)).toBeInTheDocument();
 });
 
-test('a lesson the skater joined is a shared lesson, and its cancel says the other family is asked', async () => {
+test('a lesson the skater joined is a shared lesson, and its cancel says the other skater’s lesson becomes private', async () => {
   at('2026-11-10T15:00:00Z');
   const data: MyBookings = { upcoming: [lesson({ priceMinor: 2500, share: share({ partnerName: 'Ava P.', partnerStatus: 'BOOKED', joined: true }) })], recent: [] };
   render(<Bookings family={FAMILY} api={bookingsApi(data)} onError={vi.fn()} />);
 
   expect(await screen.findByText('Shared lesson')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-  expect(screen.getByText('Ava P.’s family is asked whether to keep it as a private lesson at the full $50, or cancel it with no charge.')).toBeInTheDocument();
+  expect(screen.getByText('Ava P.’s lesson becomes private at the full $50. Their family is told and can cancel it with no charge.')).toBeInTheDocument();
 });
 
-test('past its answer-by time a waiting lesson shows Cancelled, no answer, with no charge (B8)', async () => {
+test('past its answer-by time a lesson the other skater left is kept at the full price (owner, 2026-11-23)', async () => {
   at(LEFT_BY);
   render(<Bookings family={FAMILY} api={bookingsApi({ upcoming: [left('2026-11-16')], recent: [] })} onError={vi.fn()} />);
-  expect(await screen.findByText('Cancelled, no answer')).toBeInTheDocument();
-  expect(screen.getByText(/· No charge/)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  expect(await screen.findByText(/· \$50/)).toBeInTheDocument();
+  expect(screen.queryByText('Cancelled, no answer')).not.toBeInTheDocument();
+  expect(screen.queryByText('Needs your answer')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
 });
 
 test('a kept lesson offers Invite a skater for that lesson only', async () => {

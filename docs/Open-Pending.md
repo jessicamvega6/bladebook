@@ -124,7 +124,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   action writes another family's records. The total price is stored only on the lesson time;
   each share is worked out as `priceMinor ÷ shareCount`, and a re-price changes only the lesson
   time's price. A leave in time is recorded as a pending leave on the lesson time; the staying
-  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.*
+  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.* *Amended 2026-11-23
+  (owner, I36): the leave makes the staying skater's lesson private at the full price at once, and
+  no answer keeps it.*
   *Changed 2026-10-20 (ADR-033): only a skater ACTIVE with the coach can be invited or added as a
   sibling; inviting a skater new to the coach is Phase 2.*
 - **Open question — needs Kim (§8 Q7): Is 7 days the right limit** for the staying family to
@@ -862,6 +864,8 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 
 - **To-do: Write the two shared-lesson emails to the family who stays** — "the other skater can't
   make it: keep at full price or cancel" and "cancelled, no answer". Both always sent.
+  *Amended 2026-11-23 (I36): one email, "now private — keep or cancel"; "cancelled, no answer" is
+  gone, since no answer keeps the lesson.*
   *Added by the owner 2026-10-13.* (ADR-026, amended 2026-10-13; `FeatureDecriptions/Email templates Needed:`)
   *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time in both is whichever comes
   first, the start of the notice period or 7 days after the leave.*

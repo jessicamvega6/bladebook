@@ -261,13 +261,13 @@ GSI1 keys only from `consumer-invite` (§8).
 | `seatOutcome` | `DECLINED` \| `WITHDRAWN` \| `EXPIRED` |
 | `paymentStatus` | `UNPAID` \| `PAID` \| `WAIVED` |
 | `paidVia` | `CASH` \| `CASHAPP` \| `VENMO` \| `PAYPAL` \| `OTHER` |
-| `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` |
+| `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` (older records only; no longer written, 2026-11-23, I36) |
 | `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `RECURRENCE` \| `RECONCILE` |
 | `planStatus` | `WRITING` \| `COMPLETE` |
 | `executionStatus` | `PLANNED` \| `EXECUTED` \| `SKIPPED` |
 | `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` \| `CHECKED_IN` (2026-11-21) |
 | `notificationStatus` | `PENDING` \| `SENT` \| `FAILED` \| `SUPPRESSED` |
-| `dueKind` | `EXPIRE` \| `ANSWER` |
+| `dueKind` | `EXPIRE` (`ANSWER` only on records before 2026-11-23, I36; the sweep clears it) |
 | `recurrenceStatus` | `ACTIVE` \| `ENDED` |
 | `skatingOrg` | `USFS` \| `USA_HOCKEY` \| `LEARN_TO_SKATE_USA` |
 
@@ -767,7 +767,8 @@ reopens if no seat is left.
 - `partnerName` and `partnerStatus` on each seat — the other skater's display name and status;
 - `invitedClientId` and GSI1 keys on an invited seat;
 - `choiceAnswerBy` on the staying seat while a pending leave waits, with `partnerStatus = LEFT`;
-  cleared once answered.
+  cleared once answered;
+- `freedPlace = true` on the staying seat as soon as a pending leave names it (2026-11-23, I36).
 
 Each family reads only its own seats. The lesson time's pending leave is the authority.
 
@@ -778,34 +779,42 @@ Each family reads only its own seats. The lesson time's pending leave is the aut
   payment reminder, the coach's Payments page and unpaid list, the weekly unpaid reminder, the
   financial page.
 - **`shareCount`** counts skaters splitting the price. It goes up when a skater joins or fills a
-  freed place; is set to the remaining skaters when the staying family keeps after an in-time
-  leave; **doesn't change on a late leave**. `INVITED` seats don't count.
+  freed place; is set to the remaining skaters **by an in-time leave itself** *(2026-11-23, I36;
+  until then, when the staying family chose Keep)*; **doesn't change on a late leave**. `INVITED`
+  seats don't count.
 - **`joinOrder`** appends a joiner. After an in-time leave the leaver stays in it until the staying
-  family answers; Keep sets it to the remaining skaters. A late leaver stays in it.
+  family answers or fills the place (so the email can say what the share was); Keep, or filling the
+  freed place, sets it to the remaining skaters. A late leaver stays in it.
 
 ### Leaving
 
 Either family, the same rules. One transaction per date.
 
 - **In time** (outside the notice period): the leaver's seat → `CANCELLED#` line; `seatsTaken`
-  drops; the **lesson time** records a **`pendingLeave`** (`leaveId`, `leftStudentId`, `leftAt`,
-  `stayingStudentId`, `answerBy`). The staying seat isn't touched; their share stands.
+  drops; **`shareCount = 1`, so the staying skater's lesson is private at the full price at once**;
+  the **lesson time** records a **`pendingLeave`** (`leaveId`, `leftStudentId`, `leftAt`,
+  `stayingStudentId`, `answerBy`) for the staying family's question. *Amended 2026-11-23 (owner,
+  I36): until then the staying share stood until they answered, and no answer cancelled.*
 - **Late** (inside the notice period, or a no-show): the leaver's line records their share of the
   missed-lesson fee (charge is Phase 2). The staying skater keeps their share and isn't asked.
 
 **`answerBy`** is whichever comes first: the start of that lesson's notice period, or **7 days
 after the leave**.
 
-**The staying family answers:**
+**The staying family is told, and answers:** the lesson is already private at the full price.
 
-- **Keep it private at the full price** — their own write to the lesson time, conditional on the
-  pending leave naming their skater as staying: clears it, `shareCount = 1`. The lesson becomes a
-  **freed place**.
+- **Keep it** — their own write to the lesson time, conditional on the pending leave naming their
+  skater as staying and `answerBy` not passed: clears it.
 - **Cancel with no charge** — their seat → `CANCELLED#`, pending leave cleared.
-- **No answer by `answerBy`** — the hourly sweep cancels it with no charge (`cancelledBy =
-  NO_ANSWER`).
+- **No answer by `answerBy`** — **the lesson stays booked at the full price**. Nothing is due for
+  the sweep; the card stops showing at `answerBy`, worked out from the clock, and the family's later
+  cancels follow the ordinary rules. *Amended 2026-11-23 (owner, I36): until then the hourly sweep
+  cancelled it with no charge (`cancelledBy = NO_ANSWER`). Why: a sweep that runs late could meet a
+  lesson already started, and the price that applied then was undefined; and since `answerBy` is
+  never later than the start of the notice period, an ordinary cancel is free until then anyway.*
 
-Both emails — *keep at full price or cancel*, and *cancelled, no answer* — are always sent.
+The *"now private: keep or cancel"* email is always sent. *(The "cancelled, no answer" email is
+gone, 2026-11-23.)*
 
 ### The staying family's card
 
@@ -821,8 +830,10 @@ Both emails — *keep at full price or cancel*, and *cancelled, no answer* — a
 
 ### Freed places
 
-After a Keep, the staying family can invite a skater to **that one lesson only**, the same way as a
-booking-time invitation (where: `FeatureDecriptions/Schedule lesson split`, "A freed place").
+As soon as the other skater leaves in time *(2026-11-23, I36; until then, after a Keep)*, the
+staying family can invite a skater to **that one lesson only**, the same way as a booking-time
+invitation (where: `FeatureDecriptions/Schedule lesson split`, "A freed place"). Doing so ends their
+question.
 
 ### Changing a shared series
 
@@ -836,20 +847,20 @@ frequency are not allowed until no future lesson is shared (product —
 | `dueKind` | On | When |
 |---|---|---|
 | `EXPIRE` | Invited seat still `INVITED` | The lesson's start |
-| `ANSWER` | Lesson time | The pending leave's `answerBy` |
+| ~~`ANSWER`~~ | ~~Lesson time~~ | ~~The pending leave's `answerBy`~~ *Removed 2026-11-23 (I36): no answer keeps the lesson, so nothing is due; one left on an older record is cleared.* |
 
 An invitation still unanswered at the lesson's start expires with the ordinary "no longer
 available" email.
 
-Screens work out *expired* and *cancelled, no answer* from the time itself, never waiting for the
-sweep.
+Screens work out *expired* ~~and *cancelled, no answer*~~ from the time itself, never waiting for the
+sweep. *(2026-11-23, I36: past `answerBy` the staying family's card just stops showing.)*
 
 ### Who sends what
 
 - `consumer-invite`: the invitation, and every outcome email — joined, declined, withdrawn,
   expired ("no longer available")~~, and "the other skater can't make it — keep or cancel"~~.
-- `consumer-change-notifier`: every cancellation email, including *cancel all* and *no answer*,
-  *and (2026-11-13) "the other skater can't make it — keep or cancel", from the leaving family's
+- `consumer-change-notifier`: every cancellation email, including *cancel all* ~~and *no answer*~~ *(gone 2026-11-23)*,
+  *and (2026-11-13) "the other skater can't make it — keep or cancel" (2026-11-23: "now private — keep or cancel"), from the leaving family's
   `CLIENT` batch, so a series stopped in one go is one email.*
 - **One email per invitation or answer, not per date** (owner, 2026-11-13, G-38). The invitation,
   joined, declined, withdrawn and no-longer-available emails each list every date of the
@@ -1247,7 +1258,7 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 | Business-email confirmation link | Coach | New business email | |
 
 **Routing by actor:** `COACH` and `SCHEDULE_CHANGE` batches go to each affected family; `CLIENT`
-batches go to the coach (late ones only); `NO_ANSWER` batches go to the staying family.
+batches go to the coach (late ones only)~~; `NO_ANSWER` batches go to the staying family~~ *(no longer written, 2026-11-23, I36)*.
 
 **Notification state** on each line: `notificationStatus`, `notifiedAt`, `channels`,
 `failureReason`. The notifier reads the batch's `EXECUTED` lines, groups by family, sends, stamps
@@ -1288,7 +1299,7 @@ queue. The same rule holds for every email guard (`docs/tla/EmailGuard.tla`).
 | `sched-unpaid-reminder` | Weekly, Monday morning | §12. Threshold 7 days; lists every Monday until settled. |
 | `sched-drift-check` | Nightly | §19. Reads only; finishes a stuck batch through `consumer-schedule-change`. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
-| `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
+| `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. ~~Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`.~~ *Since 2026-11-23 (I36) it only expires invitations and cancels nothing.* |
 | `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
 
 - **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no

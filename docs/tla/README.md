@@ -35,13 +35,18 @@ invariant broken for a `current` model, no error for a `fixed` one.
 | `EmailGuard` | The once-only guard on a seat or invitation email, claimed before sending | `NotifyRepository.claim`, `NotificationService` | The claim's condition `g <> :v` with a fresh timestamp lets a second run claim too, so two copies of an event both send. A failed send gives the guard back but the event succeeds, so nothing sends it again | `AtMostOnce`, `NeverLost` (unless SES refused the address for good) |
 | `ChangeNotifier` | One email per family per change batch | `NotificationService.stamped`, `NotifyRepository.markLines` | Sends before marking, with no claim: two runs both send, and a retry after a part-marked family resends | `OneEmailPerFamily`, `EmailSent` |
 | `LessonTime` | A lesson time and its seat during a schedule change | `ScheduleChangeService`, `ChangeBatchRepository.cancel` | Deletes a checked-in seat with no record; leaves an OPEN time the schedule no longer makes when the family cancels mid-change; leaves another family booked on a dropped block, never told, when they book the freed time mid-change | `AttendanceKept`, `NoOrphanOpen`, `NoOrphanBooked` |
-| `SharedLeave` | The no-answer sweep after one family leaves a shared lesson | `ShareRepository.cancelNoAnswer` | A sweep that catches up after about a day down cancels a lesson already started, deleting a checked-in seat (notice is at least 24 hours, so a sweep on time can't) | `SweepSafe` |
 | `Invitation` | Answering a shared-lesson invitation from two tabs | `ShareService.answer`, `ShareRepository.decline` | Says "declined" when the other tab joined; declines after the start | `TruthfulAnswer`, `NoDeclineAfterStart` |
 | `Series` | A repeating series' header and its lessons, changed from two tabs | `RecurrenceService.change`, `RecurrenceRepository.save` | Unconditional header save: an ENDED series keeps a lesson after a failed cancel; two tabs leave an ACTIVE header with no lessons | `EndedHasNoSeats`, `HeaderMatchesSeats` |
 | `StudentLink` | The coach's skater record and the family's link, after a decline | `EventConsumers`, `SyncRepository.deleteLink` | A redelivered decline sends the email twice and deletes the family's newer link | `OneEmailPerDecline`, `LinkFollowsRecord` |
 | `Payment` | A seat's UNPAID / PAID / WAIVED status from two tabs | `PaymentService`, `PaymentRepository.update` | The write checks a status the server read, not the one the tab showed, so a stale tab overwrites | `NoBlindWrite` |
 | `RinksideQueue` | The rinkside page's offline capture queue | `web/src/rinkside/App.tsx`, `offline.ts` | A server error leaves the page "offline" for good; an old tap's answer deletes a newer re-tap | `NoTapLost`, `NotStuckOffline` |
 | `WrongPasswords` | Ruling I33's three wrong passwords before a save | `web/src/coach/pages/Schedule.tsx` | A reload or another editor resets the count | `ThirdWrongSignsOut` |
+
+**Retired:** `SharedLeave` modelled the hourly sweep cancelling a shared lesson whose staying family
+hadn't answered, and found that a sweep catching up after about a day down could cancel a lesson
+already started or checked in. On 2026-11-23 the owner ruled that an in-time leave makes the staying
+skater's lesson private at the full price at once and that no answer keeps it (ruling I36), so the
+sweep no longer cancels anything and the model has nothing left to check. It's in git history.
 
 The models are small on purpose: one lesson time, two tabs, two copies of an event. Each bug needs
 only that many actors to show, and TLC checks every interleaving of them.

@@ -134,7 +134,7 @@ const CLIENT = 'CLIENT#';
  * email guards (owner, 2026-11-18). No PutItem or DeleteItem.
  */
 export const INVITE_ATTRIBUTES = ['PK', 'SK', 'partnerName', 'partnerStatus', 'invitedClientId', 'GSI1PK', 'GSI1SK',
-  'choiceAnswerBy', 'inviteEmailSent', 'joinedEmailSent', 'emailSent'];
+  'choiceAnswerBy', 'freedPlace', 'inviteEmailSent', 'joinedEmailSent', 'emailSent'];
 
 /**
  * ADR-MASTER §2's role table, written from what each consumer's code calls (owner, 2026-11-18): the actions it uses,
@@ -160,7 +160,7 @@ export const CONSUMERS: readonly ConsumerSpec[] = [
   {
     name: 'consumer-change-notifier', handler: 'ChangeNotifier', event: 'LessonsChanged',
     templates: ['lesson-cancelled-by-coach', 'schedule-change', 'coach-lessons-passed', 'share-dates-cancelled',
-      'coach-late-cancellation', 'share-cancelled-no-answer', 'share-other-cant-make-it'],
+      'coach-late-cancellation', 'share-other-cant-make-it'],
     dynamo: (t) => [allow(['GetItem', 'Query'], [COACH, CLIENT], t), allow(['UpdateItem'], [COACH], t)],
   },
   {

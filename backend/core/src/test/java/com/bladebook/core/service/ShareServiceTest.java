@@ -319,15 +319,18 @@ class ShareServiceTest {
     // ------------------------------------------------------------------------ leaving
 
     @Test
-    void leavingInTimeAsksTheStayingFamilyAndTheirShareStands() {
+    void leavingInTimeMakesTheStayingSkatersLessonPrivateAtOnceAndAsksThem() {
+        // Owner, 2026-11-23: the staying skater's price goes to the full price with the leave, not when they answer.
         miaAccepted(MON);
         now.set(Instant.parse("2026-11-12T15:00:00Z")); // Thursday: 3 days and 21 hours before
         CancellationService.FamilyCancel c = cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
 
         assertThat(c.leave()).isEqualTo(Sharing.Leave.IN_TIME);
         assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(lesson(MON).shareCount()).isEqualTo(1);
         MyLesson mine = parkLesson(MON, ava);
-        assertThat(mine.priceMinor()).isEqualTo(2500);
+        assertThat(mine.priceMinor()).isEqualTo(5000);
+        assertThat(mine.share().freedPlace()).isTrue();
         assertThat(mine.share().partnerStatus()).isEqualTo("LEFT");
         assertThat(mine.share().partnerName()).isEqualTo("Mia C.");
         // Answer by the start of the 24-hour notice period, which comes before 7 days after the leave.
@@ -335,7 +338,7 @@ class ShareServiceTest {
     }
 
     @Test
-    void keepingMakesItPrivateAtTheFullPriceAndAFreedPlace() {
+    void keepingEndsTheQuestionAndTheLessonStaysPrivate() {
         miaAccepted(MON);
         now.set(Instant.parse("2026-11-12T15:00:00Z"));
         cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
@@ -366,6 +369,19 @@ class ShareServiceTest {
     }
 
     @Test
+    void aFreedPlaceCanBeFilledBeforeAnsweringAndThatEndsTheQuestion() {
+        miaAccepted(MON);
+        now.set(Instant.parse("2026-11-12T15:00:00Z"));
+        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
+
+        shares.fillFreedPlace(park, dana.coachId(), ava, MON, SIX, jackCode);
+
+        assertThat(parkLesson(MON, ava).priceMinor()).isEqualTo(2500);
+        assertThat(parkLesson(MON, ava).share().answerBy()).isNull();
+        assertThat(lesson(MON).joinOrder()).containsExactly(ava, jack);
+    }
+
+    @Test
     void cancellingAWaitingDateIsNoChargeAndReleasesTheTime() {
         miaAccepted(MON);
         now.set(Instant.parse("2026-11-12T15:00:00Z"));
@@ -379,21 +395,20 @@ class ShareServiceTest {
     }
 
     @Test
-    void noAnswerByTheAnswerByTimeIsCancelledByTheSweepWithNoAnswer() {
+    void noAnswerByTheAnswerByTimeKeepsTheLessonAtTheFullPrice() {
+        // Owner, 2026-11-23: silence keeps the lesson. Nothing is due for the sweep, and nothing is cancelled.
         miaAccepted(MON);
         now.set(Instant.parse("2026-11-12T15:00:00Z"));
         cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
         Instant by = SIX_AT.minus(Duration.ofHours(24));
 
-        assertThat(sweep.sweep(by.minusSeconds(60)).cancelledNoAnswer()).isZero();
-        assertThat(sweep.sweep(by).cancelledNoAnswer()).isEqualTo(1);
+        assertThat(sweep.sweep(by)).isEqualTo(new DeadlineSweepService.Swept(0, 0));
+        assertThat(sweep.sweep(SIX_AT.plusSeconds(600))).isEqualTo(new DeadlineSweepService.Swept(0, 0));
 
-        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.OPEN);
-        CancellationLine line = cancelRepo.lines(dana).stream().filter(l -> l.cancelledBy() == ChangeBatch.By.NO_ANSWER).findFirst().orElseThrow();
-        assertThat(line.studentId()).isEqualTo(ava);
-        assertThat(sweep.sweep(by.plusSeconds(3600))).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
+        assertThat(cancelRepo.lines(dana)).extracting(CancellationLine::studentId).containsExactly(mia);
         now.set(by);
-        assertThat(booking.myBookings(park).upcoming()).isEmpty();
+        assertThat(booking.myBookings(park).upcoming()).singleElement().satisfies(l -> assertThat(l.priceMinor()).isEqualTo(5000));
     }
 
     @Test
@@ -625,8 +640,8 @@ class ShareServiceTest {
         bookAva(null, MON);
         staleDeadline(Seat.key(MON, SIX, ava), "EXPIRE");
 
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0));
         assertThat(parkLesson(MON, ava).lesson().studentId()).isEqualTo(ava);     // the seat itself is untouched
     }
 
@@ -635,8 +650,8 @@ class ShareServiceTest {
         bookAva(null, MON);
         staleDeadline(LessonTime.key(MON, SIX), "ANSWER");
 
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0));
     }
 
     @Test
@@ -644,8 +659,8 @@ class ShareServiceTest {
         bookAva(null, MON);
         staleDeadline(LessonTime.key(MON, SIX), "SOMETHING_ELSE");
 
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 1));
-        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 1));
+        assertThat(sweep.sweep(SIX_AT)).isEqualTo(new DeadlineSweepService.Swept(0, 0));
     }
 
     @Test
@@ -656,62 +671,7 @@ class ShareServiceTest {
         assertThat(seen).containsExactly(MON + " 06:00");
     }
 
-    @Test
-    void noAnswerWhenTheStayingSeatIsAlreadyGoneStillEndsTheLeaveOnce() {
-        miaAccepted(MON);
-        now.set(Instant.parse("2026-11-12T15:00:00Z"));
-        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
-        t.f.clients.forSetup().deleteItem(b -> b.tableName(t.f.table).key(Map.of(
-                "PK", AttributeValue.fromS("COACH#" + dana.coachId()), "SK", AttributeValue.fromS(Seat.key(MON, SIX, ava)))));
-        Instant by = SIX_AT.minus(Duration.ofHours(24));
-
-        assertThat(sweep.sweep(by).cancelledNoAnswer()).isEqualTo(1);
-        assertThat(sweep.sweep(by.plusSeconds(60))).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
-    }
-
-    // ------------------------------------------------------- late sweeps, two windows, and declining after the start
-
-    private void setSeat(String studentId, Seat.Status status) {
-        t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()),
-                "SK", AttributeValue.fromS(Seat.key(MON, SIX, studentId)))).updateExpression("SET seatStatus = :s")
-                .expressionAttributeValues(Map.of(":s", AttributeValue.fromS(status.name()))));
-    }
-
-    private void miaLeftInTime() {
-        miaAccepted(MON);
-        now.set(Instant.parse("2026-11-12T15:00:00Z"));
-        cancels.cancel(chen, dana.coachId(), mia, MON, SIX);
-    }
-
-    private boolean leavePending() {
-        return new ShareRepository(t.f.clients, t.f.table).pendingLeave(dana.coachId(), MON, SIX).isPresent();
-    }
-
-    @Test
-    void aSweepThatRunsAfterTheLessonStartedLeavesItBookedAndEndsTheLeave() {
-        miaLeftInTime();
-
-        sweep.sweep(SIX_AT.plusSeconds(600)); // the sweep was late: the lesson started ten minutes ago
-
-        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
-        assertThat(scheduleRepo.seats(dana, MON, MON)).extracting(Seat::studentId).containsExactly(ava);
-        assertThat(cancelRepo.lines(dana)).noneMatch(l -> l.cancelledBy() == ChangeBatch.By.NO_ANSWER);
-        assertThat(leavePending()).isFalse();
-    }
-
-    @Test
-    void aSweepNeverCancelsAStayingSkaterWhoIsCheckedIn() {
-        miaLeftInTime();
-        setSeat(ava, Seat.Status.CHECKED_IN);
-
-        sweep.sweep(SIX_AT.minusSeconds(1800)); // late, half an hour before the start, after Ava checked in
-
-        assertThat(lesson(MON).lessonStatus()).isEqualTo(LessonTime.Status.BOOKED);
-        assertThat(scheduleRepo.seats(dana, MON, MON)).extracting(Seat::studentId, Seat::seatStatus)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple(ava, Seat.Status.CHECKED_IN));
-        assertThat(cancelRepo.lines(dana)).noneMatch(l -> l.cancelledBy() == ChangeBatch.By.NO_ANSWER);
-        assertThat(leavePending()).isFalse();
-    }
+    // ------------------------------------------------------- two windows, and declining after the start
 
     @Test
     void aDeclineWrittenAfterTheLessonStartedIsRefused() {

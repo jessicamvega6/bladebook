@@ -81,8 +81,9 @@ public final class CancellationRepository {
      *   <li>{@code RELEASE}: its last seat goes, so it's {@code OPEN} again, any pending leave cleared;</li>
      *   <li>{@code WITHDRAW}: the invitation this family sent, still unanswered, ends {@code WITHDRAWN} in the same
      *       transaction, and the time is released;</li>
-     *   <li>{@code IN_TIME}: the time stays booked for the other skater, with {@code pending} recorded and its {@code ANSWER}
-     *       deadline on GSI4; the staying skater's share stands until they answer;</li>
+     *   <li>{@code IN_TIME}: the time stays booked for the other skater, private at the full price at once
+     *       ({@code shareCount = 1}), with {@code pending} recorded for their family's keep-or-cancel question; no answer
+     *       keeps it (owner, 2026-11-23);</li>
      *   <li>{@code LATE}: the time stays booked; {@code shareCount} and {@code joinOrder} don't change.</li>
      * </ul>
      *
@@ -134,13 +135,11 @@ public final class CancellationRepository {
         v.put(":now", FamilyItems.s(seconds(now)));
         String set = "SET seatsTaken = :one";
         if (pending != null) {
-            String lessonKey = LessonTime.key(seat.lessonDate(), seat.startTime());
+            // In time: the staying skater's lesson is private at the full price at once, and their family is asked to keep
+            // it or cancel free by the answer-by time; no answer keeps it (owner, 2026-11-23). joinOrder keeps the leaver
+            // until the answer, so the email can say what the share was. Nothing is due for the sweep.
             v.put(":p", AttributeValue.fromM(ShareRepository.pendingLeaveItem(pending)));
-            v.put(":due", FamilyItems.s(SeatItems.DUE));
-            v.put(":dueSk", FamilyItems.s(com.bladebook.core.domain.Sharing.dueKey(pending.answerBy(), coachId, lessonKey)));
-            v.put(":kind", FamilyItems.s(SeatItems.ANSWER));
-            v.put(":at", FamilyItems.s(pending.answerBy().truncatedTo(ChronoUnit.SECONDS).toString()));
-            set += ", pendingLeave = :p, GSI4PK = :due, GSI4SK = :dueSk, dueKind = :kind, dueAt = :at";
+            set += ", shareCount = :one, pendingLeave = :p";
         }
         return TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(FamilyItems.key("COACH#" + coachId, LessonTime.key(seat.lessonDate(), seat.startTime())))

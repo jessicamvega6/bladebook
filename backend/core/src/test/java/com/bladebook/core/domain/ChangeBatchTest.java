@@ -44,7 +44,7 @@ class ChangeBatchTest {
     void theStatusesAreTheMastersLists() {
         assertThat(ChangeBatch.Source.values()).extracting(Enum::name)
                 .containsExactly("DEFAULT", "DATE_OVERRIDE", "LESSON", "DAY", "WEEK", "RECURRENCE", "RECONCILE");
-        assertThat(ChangeBatch.By.values()).extracting(Enum::name).containsExactly("CLIENT", "COACH", "SCHEDULE_CHANGE", "NO_ANSWER");
+        assertThat(ChangeBatch.By.values()).extracting(Enum::name).containsExactly("CLIENT", "COACH", "SCHEDULE_CHANGE", "NO_ANSWER"); // NO_ANSWER: older records only (2026-11-23)
         assertThat(ChangeBatch.Execution.values()).extracting(Enum::name).containsExactly("PLANNED", "EXECUTED", "SKIPPED");
     }
 

@@ -285,7 +285,6 @@ public final class ScheduledRuns {
             case DEADLINE_SWEEP -> {
                 DeadlineSweepService.Swept r = sweep.sweep(scheduledTime.truncatedTo(ChronoUnit.SECONDS));
                 counts.put("expired", r.expired());
-                counts.put("cancelledNoAnswer", r.cancelledNoAnswer());
                 counts.put("cleared", r.cleared());
             }
         }

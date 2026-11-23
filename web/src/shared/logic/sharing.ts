@@ -40,5 +40,8 @@ export const shareOf = (priceMinor: number, skaters: number, place = skaters - 1
 export const splitLine = (priceMinor: number, _currency: string | null) =>
   `Once they join, the lesson’s ${formatMoney(priceMinor)} is split between the skaters: with 2 skaters, each pays ${formatMoney(shareOf(priceMinor, 2))}.`;
 
-/** The staying family's answer-by time has passed: the lesson is "Cancelled, no answer", without waiting for the sweep (B8). */
-export const noAnswer = (answerBy: string | null | undefined, nowMs: number) => !!answerBy && nowMs >= Date.parse(answerBy);
+/**
+ * The staying family's answer-by time has passed: their question closes, and the lesson stays booked at the full price
+ * (owner, 2026-11-23; before then, no answer cancelled it).
+ */
+export const answerPassed = (answerBy: string | null | undefined, nowMs: number) => !!answerBy && nowMs >= Date.parse(answerBy);

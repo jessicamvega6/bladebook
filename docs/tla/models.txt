@@ -19,8 +19,6 @@ RinksideQueue     fixed               ok
 Series            current-partial     EndedHasNoSeats
 Series            current-two-tabs    HeaderMatchesSeats
 Series            fixed               ok
-SharedLeave       current             SweepSafe
-SharedLeave       fixed               ok
 Invitation        current-answer      TruthfulAnswer
 Invitation        current-start       NoDeclineAfterStart
 Invitation        fixed               ok

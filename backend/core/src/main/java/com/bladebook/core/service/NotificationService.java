@@ -291,12 +291,6 @@ public final class NotificationService {
                     sent += keepOrCancel(coachId, coach, inTime, unsent);
                 }
                 break;
-            case NO_ANSWER:
-                for (Map.Entry<String, List<LineRow>> e : byFamily(done).entrySet()) {
-                    sent += unsent.of(() -> perFamily(coachId, coach, e.getKey(), e.getValue(), List.of(),
-                            d -> noAnswer(d, coach, e.getValue().get(0).line(), b.batch().notes()), "share-cancelled-no-answer"));
-                }
-                break;
             default:
                 break;
         }
@@ -450,14 +444,6 @@ public final class NotificationService {
         return repo.seatsAt(coach.coachId(), l.lessonDate(), l.startTime()).stream()
                 .filter(r -> r.seat().seatStatus() != Seat.Status.INVITED && !r.seat().studentId().equals(l.studentId()))
                 .map(r -> r.seat().studentName()).findFirst().orElse("");
-    }
-
-    private void noAnswer(Map<String, Object> d, CoachProfile coach, CancellationLine l, Map<String, String> notes) {
-        d.put("skater", EmailFormat.first(l.studentName()));
-        d.put("otherSkater", notes.getOrDefault("otherSkater", "the other skater"));
-        d.put("date", EmailFormat.date(l.lessonDate()));
-        d.put("time", EmailFormat.time(l.startTime()));
-        d.put("answerBy", notes.containsKey("answerBy") ? EmailFormat.dateTime(Instant.parse(notes.get("answerBy")), coach.coachTimezone()) : "");
     }
 
     private static List<CancellationLine> sorted(List<LineRow> lines) {

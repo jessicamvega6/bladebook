@@ -616,7 +616,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    void aLeaveInTimeAsksTheStayingFamilyThenTheSweepCancels() {
+    void aLeaveInTimeTellsTheStayingFamilyTheNewPriceAndSilenceKeepsIt() {
         book(park, ava, miaCode, SIX, MON);
         shares.accept(chen, shares.invitations(chen).get(0).inviteId());
         drain();
@@ -630,11 +630,9 @@ class NotificationServiceTest {
         assertThat(list(ask, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM"));
         assertThat(drain()).isEmpty();
 
-        now.set(Instant.parse("2026-11-15T13:00:00Z")); // past the answer-by time
+        now.set(Instant.parse("2026-11-15T13:00:00Z")); // past the answer-by time: no answer keeps it (owner, 2026-11-23)
         sweep.sweep(now.get());
-        Email gone = only(drain(), "share-cancelled-no-answer");
-        assertThat(gone.to()).isEqualTo("sarah@example.com");
-        assertThat(gone.data()).containsEntry("otherSkater", "Mia C.").containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM");
+        assertThat(drain()).isEmpty();
     }
 
     @Test
