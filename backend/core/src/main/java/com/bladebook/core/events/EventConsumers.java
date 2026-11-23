@@ -86,7 +86,7 @@ public final class EventConsumers {
         this.scheduleChange = new ScheduleChangeService(new ScheduleRepository(clients, table),
                 new CoachRepository(clients, table), clock);
         SyncRepository sync = new SyncRepository(clients, table);
-        this.studentLink = new StudentLinkService(sync);
+        this.studentLink = new StudentLinkService(sync, clock);
         this.familySync = new FamilySyncService(sync);
         this.inviteSync = new InviteSyncService(new ShareRepository(clients, table));
     }
@@ -229,9 +229,10 @@ public final class EventConsumers {
             return new Outcome(Event.StudentChanged, "links approved", 1);
         }
         if (after.isEmpty() && before.isPresent() && before.get().status() == StudentStatus.PENDING) {
-            // The link's removal is the decline email's guard: only the run that removed it sends.
-            boolean removed = studentLink.declined(before.get());
-            return new Outcome(Event.StudentChanged, "decline emails sent", removed && notifications.declined(before.get()) ? 1 : 0);
+            // The email is claimed on the family's link and sent before the link goes (StudentLinkService#declined).
+            StudentRecord b = before.get();
+            return new Outcome(Event.StudentChanged, "decline emails sent",
+                    studentLink.declined(b, giveBack -> notifications.declined(b, giveBack)) ? 1 : 0);
         }
         return skipped(Event.StudentChanged);
     }

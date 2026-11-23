@@ -658,7 +658,7 @@ class NotificationServiceTest {
         t.registration.register(lee, "lee@example.com", new RegistrationRequest("Kim", "Lee", "(205) 555-0122", "GUARDIAN", List.of(DANA),
                 List.of(FamilyTestSupport.kid("Sam Lee", DANA))));
         StudentRecord before = t.studentRepo.list(dana).stream().filter(r -> r.studentName().equals("Sam Lee")).findFirst().orElseThrow();
-        assertThat(notifications.declined(before)).isTrue();
+        assertThat(notifications.declined(before, () -> { })).isTrue();
         Email e = outbox.list().get(0).email();
         assertThat(e.template()).isEqualTo("signup-declined");
         assertThat(e.to()).isEqualTo("lee@example.com");

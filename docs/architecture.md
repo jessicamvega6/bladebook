@@ -1374,7 +1374,7 @@ sequenceDiagram
 
 ### 6.7 Client registration and coach approval
 
-A family looks up one or more coach codes before it has an account, signs up on BladeBook's own sign-up steps (the browser talks to Cognito directly, ADR-023 d11), then registers. The codes are resolved again in the family's own session, the family's partition is written, and a `PENDING` `STUDENT#` item goes to each coach. The coach accepts or declines through `api-coach`, which writes only the `STUDENT#` item; `consumer-student-link` mirrors the change onto the family's link item, and on a decline deletes it and sends the decline email (ADR-002, ADR-021 d6, ADR-022 d7, ADR-025 d2).
+A family looks up one or more coach codes before it has an account, signs up on BladeBook's own sign-up steps (the browser talks to Cognito directly, ADR-023 d11), then registers. The codes are resolved again in the family's own session, the family's partition is written, and a `PENDING` `STUDENT#` item goes to each coach. The coach accepts or declines through `api-coach`, which writes only the `STUDENT#` item; `consumer-student-link` mirrors the change onto the family's link item, and on a decline sends the decline email and then deletes it, so an email SES doesn't accept is retried (ADR-002, ADR-021 d6, ADR-022 d7, ADR-025 d2; order changed 2026-11-23).
 
 ```mermaid
 sequenceDiagram

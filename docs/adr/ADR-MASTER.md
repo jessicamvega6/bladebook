@@ -158,7 +158,7 @@ what its single-item actions allow.
 | `consumer-payment-reminder` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's. *Query added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I22)* | none | `ses:SendEmail` (SNS from Phase 2) |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `TransactWriteItems` | none | none |
-| `consumer-student-link` | `UpdateItem`, `DeleteItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
+| `consumer-student-link` | `UpdateItem`, `DeleteItem` and `GetItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
 | `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
 | `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
@@ -228,7 +228,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
 | Family profile | `CLIENT#<sub>` | `PROFILE` | `clientName`, `clientEmail`, `clientPhone`, `smsOptIn` (Phase 2) |
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
-| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name, `signedUpAt` (the coach's record's, so a decline deletes only the link it belonged to; 2026-11-21) |
+| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name, `signedUpAt` (the coach's record's, so a decline deletes only the link it belonged to; 2026-11-21), `declineEmailAt` (the decline email's claim: the link goes only after the email, so a send SES doesn't accept is retried; 2026-11-23) |
 | Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus`, `changingId` and `changingSince` (a change in progress: claimed before any lesson is cancelled, so a second window's change is refused; counts as abandoned after 5 minutes; 2026-11-21) |
 | Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
 
@@ -413,7 +413,13 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 - **Declining deletes the skater record** (`STUDENT#` immediately; the link follows through
   `consumer-student-link`). Not archived. `consumer-student-link` emails the family from the
   removed item, so the removal's `StudentChanged` event must carry `clientEmail`. The family's
-  account stays. (The decline message: `FeatureDecriptions/Coach Dashboard on website.md`.)
+  account stays. *2026-11-23 (owner; `docs/tla/StudentLink.tla`):* the email goes **before** the
+  link is deleted. The consumer claims it on the link (`declineEmailAt`), sends, and then deletes
+  the link; if SES doesn't accept it, the claim is given back and the event fails with the link
+  still there, so the retry sends it. A run that finds another's claim fails and is retried; a
+  claim older than 2 minutes (the consumer times out after 1) is abandoned, and the run only
+  deletes the link. Before this the link went first, so a retry found nothing and the email was
+  lost. (The decline message: `FeatureDecriptions/Coach Dashboard on website.md`.)
 - `api-coach` writes only the `STUDENT#` item; the link item follows about a second later.
 
 ### What a waiting family sees
@@ -1599,7 +1605,8 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | `consumer-schedule-change` | Event-derived keys and the plan | **Reconcile, never replay** (pages) |
 | `consumer-booking-confirmation` | `confirmationSent` | Replay |
 | `consumer-payment-reminder` | `paymentReminderSent` | Replay |
-| `consumer-student-link`, `consumer-family-sync`, `consumer-invite` | Idempotent by construction | Replay |
+| `consumer-student-link` | `declineEmailAt` on the family's link, which goes after the email (2026-11-23) | Replay |
+| `consumer-family-sync`, `consumer-invite` | Idempotent by construction | Replay |
 | `sched-day-reminder` | `remindedOn`, `morningEmailSentOn` | **Discard** once the date has passed |
 | `sched-unpaid-reminder` | `settleReminderSentOn` | Discard |
 | `sched-drift-check` | Read-only | Discard |

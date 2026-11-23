@@ -10,6 +10,7 @@ LessonTime        current-rebooked    NoOrphanBooked
 LessonTime        fixed               ok
 StudentLink       current-email       OneEmailPerDecline
 StudentLink       current-link        LinkFollowsRecord
+StudentLink       first-fix-lost      NeverLost
 StudentLink       fixed               ok
 Payment           current             NoBlindWrite
 Payment           fixed               ok

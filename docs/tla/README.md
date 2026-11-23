@@ -13,7 +13,7 @@ Each model has a `Version` constant:
   no error.
 
 Some fixes changed while being modelled: TLC found a gap in the first fix for `LessonTime`,
-`Payment` and `Series`. Each model's header comment says what the simpler fix missed.
+`Payment`, `Series` and `StudentLink`. Each model's header comment says what the simpler fix missed.
 
 ## Running them
 
@@ -37,7 +37,7 @@ invariant broken for a `current` model, no error for a `fixed` one.
 | `LessonTime` | A lesson time and its seat during a schedule change | `ScheduleChangeService`, `ChangeBatchRepository.cancel` | Deletes a checked-in seat with no record; leaves an OPEN time the schedule no longer makes when the family cancels mid-change; leaves another family booked on a dropped block, never told, when they book the freed time mid-change | `AttendanceKept`, `NoOrphanOpen`, `NoOrphanBooked` |
 | `Invitation` | Answering a shared-lesson invitation from two tabs | `ShareService.answer`, `ShareRepository.decline` | Says "declined" when the other tab joined; declines after the start | `TruthfulAnswer`, `NoDeclineAfterStart` |
 | `Series` | A repeating series' header and its lessons, changed from two tabs | `RecurrenceService.change`, `RecurrenceRepository.save` | Unconditional header save: an ENDED series keeps a lesson after a failed cancel; two tabs leave an ACTIVE header with no lessons | `EndedHasNoSeats`, `HeaderMatchesSeats` |
-| `StudentLink` | The coach's skater record and the family's link, after a decline | `EventConsumers`, `SyncRepository.deleteLink` | A redelivered decline sends the email twice and deletes the family's newer link | `OneEmailPerDecline`, `LinkFollowsRecord` |
+| `StudentLink` | The coach's skater record and the family's link, after a decline | `StudentLinkService.declined`, `SyncRepository` | A redelivered decline sends the email twice and deletes the family's newer link. The first fix (`first-fix`) lost the email when SES didn't accept it, because the link, its guard, was already gone | `OneEmailPerDecline`, `LinkFollowsRecord`, `NeverLost` |
 | `Payment` | A seat's UNPAID / PAID / WAIVED status from two tabs | `PaymentService`, `PaymentRepository.update` | The write checks a status the server read, not the one the tab showed, so a stale tab overwrites | `NoBlindWrite` |
 | `RinksideQueue` | The rinkside page's offline capture queue | `web/src/rinkside/App.tsx`, `offline.ts` | A server error leaves the page "offline" for good; an old tap's answer deletes a newer re-tap | `NoTapLost`, `NotStuckOffline` |
 | `WrongPasswords` | Ruling I33's three wrong passwords before a save | `web/src/coach/pages/Schedule.tsx` | A reload or another editor resets the count | `ThirdWrongSignsOut` |

@@ -10,10 +10,13 @@ import com.bladebook.core.domain.StudentStatus;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -52,18 +55,76 @@ public final class SyncRepository {
         }
     }
 
+    /** The link is the declined record's: still there, with its {@code signedUpAt} (a link written before links carried it is taken as the same). */
+    private static final String DECLINED_GENERATION = "attribute_exists(PK) AND (attribute_not_exists(signedUpAt) OR signedUpAt = :t)";
+
+    /**
+     * A claim on the decline email older than this belongs to a run that has stopped: {@code consumer-student-link} times
+     * out after a minute (infra/lib/consumers.ts), so no live run holds one this old.
+     */
+    public static final Duration DECLINE_EMAIL_ABANDONED = Duration.ofMinutes(2);
+
+    /** What a run does about a decline, from the family's link: the decline email's guard (ADR-MASTER section 19). */
+    public enum DeclineStep {
+        /** This run claimed the email: send it, then delete the link. */
+        SEND,
+        /** Another run is sending it: fail, so the event is retried, and look again. */
+        WAIT,
+        /** The email was claimed by a run that stopped (sent or not; never sent twice): only delete the link. */
+        DELETE,
+        /** The link is gone, or is a later sign-up's: nothing to do. */
+        NOTHING
+    }
+
+    /**
+     * Claims the decline email on the declined record's link ({@code declineEmailAt}), if no run has. The link stays until
+     * the email has gone, so a retry after a send that wasn't accepted still finds it and sends.
+     */
+    public DeclineStep claimDeclineEmail(String clientId, String coachId, String studentId, Instant signedUpAt, Instant now) {
+        try {
+            clients.forConsumer().updateItem(UpdateItemRequest.builder().tableName(table)
+                    .key(FamilyItems.linkKey(clientId, coachId, studentId))
+                    .conditionExpression(DECLINED_GENERATION + " AND attribute_not_exists(declineEmailAt)")
+                    .updateExpression("SET declineEmailAt = :now")
+                    .expressionAttributeValues(Map.of(":t", FamilyItems.s(signedUpAt.toString()), ":now", FamilyItems.s(now.toString())))
+                    .build());
+            return DeclineStep.SEND;
+        } catch (ConditionalCheckFailedException goneNewOrClaimed) {
+            Map<String, AttributeValue> link = clients.forConsumer().getItem(GetItemRequest.builder().tableName(table)
+                    .key(FamilyItems.linkKey(clientId, coachId, studentId)).consistentRead(true).build()).item();
+            if (link == null || link.isEmpty() || link.containsKey("signedUpAt") && !link.get("signedUpAt").s().equals(signedUpAt.toString())
+                    || !link.containsKey("declineEmailAt")) {
+                return DeclineStep.NOTHING;
+            }
+            return Instant.parse(link.get("declineEmailAt").s()).isAfter(now.minus(DECLINE_EMAIL_ABANDONED))
+                    ? DeclineStep.WAIT : DeclineStep.DELETE;
+        }
+    }
+
+    /** Gives the decline email's claim back (SES didn't accept it), so the retry claims and sends it. */
+    public void releaseDeclineEmail(String clientId, String coachId, String studentId, Instant signedUpAt) {
+        try {
+            clients.forConsumer().updateItem(UpdateItemRequest.builder().tableName(table)
+                    .key(FamilyItems.linkKey(clientId, coachId, studentId))
+                    .conditionExpression(DECLINED_GENERATION).updateExpression("REMOVE declineEmailAt")
+                    .expressionAttributeValues(Map.of(":t", FamilyItems.s(signedUpAt.toString()))).build());
+        } catch (ConditionalCheckFailedException gone) {
+            // nothing to give back
+        }
+    }
+
     /**
      * Removes the link that went with a declined record: only if it's still there and has that record's {@code
-     * signedUpAt} (a link written before links carried it is taken as the same). A family that added the coach again
-     * meanwhile has a new record and a new link with a later time, which a retried or repeated decline leaves alone.
+     * signedUpAt}. A family that added the coach again meanwhile has a new record and a new link with a later time,
+     * which a retried or repeated decline leaves alone.
      *
      * @return whether this call removed it; {@code false} if it was already gone or isn't the declined record's
      */
-    public boolean deleteLink(String clientId, String coachId, String studentId, java.time.Instant signedUpAt) {
+    public boolean deleteLink(String clientId, String coachId, String studentId, Instant signedUpAt) {
         try {
             clients.forConsumer().deleteItem(DeleteItemRequest.builder().tableName(table)
                     .key(FamilyItems.linkKey(clientId, coachId, studentId))
-                    .conditionExpression("attribute_exists(PK) AND (attribute_not_exists(signedUpAt) OR signedUpAt = :t)")
+                    .conditionExpression(DECLINED_GENERATION)
                     .expressionAttributeValues(Map.of(":t", FamilyItems.s(signedUpAt.toString()))).build());
             return true;
         } catch (ConditionalCheckFailedException goneOrNew) {

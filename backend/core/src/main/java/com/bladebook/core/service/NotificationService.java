@@ -783,12 +783,11 @@ public final class NotificationService {
 
     /**
      * {@code consumer-student-link}, a {@code PENDING} skater declined: "your sign-up wasn't accepted", to the family's email
-     * on the coach's record (SC-9's designed wording, ADR-002 d2b). Its guard is the family's link: the caller sends it
-     * only if its own conditional delete removed the link ({@code StudentLinkService#declined}), so a repeated event sends
-     * nothing more. If it then isn't accepted the event fails, but its retry finds the link gone and sends nothing: this
-     * email can be lost, never sent twice (ADR-MASTER section 19, at most once).
+     * on the coach's record (SC-9's designed wording, ADR-002 d2b). Its guard is a claim on the family's link, which goes
+     * only after this ({@link StudentLinkService#declined}). If SES doesn't accept it, {@code giveBack} returns the claim
+     * and this throws, so the event's retry sends it. SES's own refusal is final.
      */
-    public boolean declined(StudentRecord before) {
+    public boolean declined(StudentRecord before, Runnable giveBack) {
         CoachProfile coach = repo.coach(before.coachId()).orElse(null);
         if (coach == null || before.clientEmail() == null) {
             return false;
@@ -799,7 +798,7 @@ public final class NotificationService {
         d.put("coachBusinessEmail", replyTo(coach));
         d.put("familyFirst", repo.family(before.clientId()).map(FamilyProfile::firstName).orElse(EmailFormat.first(before.clientName())));
         d.put("skater", EmailFormat.first(before.studentName()));
-        return send(Email.toFamily("signup-declined", before.clientEmail(), coach, d), () -> { });
+        return Sending.send(mailer, Email.toFamily("signup-declined", before.clientEmail(), coach, d), () -> { }, giveBack);
     }
 
     // -------------------------------------------------------------------- helpers

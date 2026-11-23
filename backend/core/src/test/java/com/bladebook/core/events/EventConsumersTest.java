@@ -115,6 +115,38 @@ class EventConsumersTest {
     }
 
     @Test
+    void aDeclineEmailNotAcceptedIsSentByTheRetryAndOnlyThenTheLinkGoes() {
+        String coachId = coach();
+        EventConsumers failing = new EventConsumers("bladebook-dev-consumer-student-link", f.clients, f.table, e -> {
+            throw new IllegalStateException("SES is unavailable");
+        }, new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.fixed(NOW, ZoneOffset.UTC));
+        link(coachId, "2026-11-09T15:00:00Z");
+        String declined = record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING"));
+
+        assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged, declined, "req-1")).hasMessageContaining("not accepted");
+        assertThat(linked(coachId)).isTrue(); // kept, with the claim given back
+
+        assertThat(consumers.run(EventConsumers.Event.StudentChanged, declined, "req-1-retry").count()).isEqualTo(1);
+        assertThat(outbox.list()).hasSize(1);
+        assertThat(linked(coachId)).isFalse();
+    }
+
+    @Test
+    void aCopyThatFindsTheEmailBeingSentFailsSoItIsRetriedAndLeavesTheLink() {
+        String coachId = coach();
+        link(coachId, "2026-11-09T15:00:00Z");
+        // another run claimed the email just now and is sending it
+        new com.bladebook.core.data.SyncRepository(f.clients, f.table).claimDeclineEmail("f1", coachId, "s1",
+                Instant.parse("2026-11-09T15:00:00Z"), NOW.minusSeconds(10));
+
+        assertThatThrownBy(() -> consumers.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-2"))
+                .isInstanceOf(com.bladebook.core.service.StudentLinkService.DeclineEmailInProgress.class);
+        assertThat(linked(coachId)).isTrue();
+        assertThat(outbox.list()).isEmpty();
+    }
+
+    @Test
     void aDeclinedSignUpIsEmailedAndLoggedAsOneLineForTheEvent() {
         String coachId = coach();
         link(coachId, "2026-11-09T15:00:00Z");
