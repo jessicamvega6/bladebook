@@ -284,7 +284,7 @@ erDiagram
         bool   smsCancellationAlerts "coach opts in; ADR-009 d9"
         string coachTimezone "IANA, required"
         string currency "USD|CAD, default USD, set at signup"
-        int    requiredNoticeHours "notice threshold for the missed-lesson fee, default 24; editable Phase 2"
+        int    requiredNoticeHours "notice threshold for the missed-lesson fee, default and minimum 24; raisable Phase 2"
         string coachCode "system-generated, ADR-002 d2a"
         string profilePhotoKey "optional, S3, Phase 2"
         string paymentInstructions "always in the reminder email"
@@ -673,7 +673,7 @@ reserved, which is why each carries a prefix.
 
 | Entity | PK | SK | Notable attributes |
 |---|---|---|---|
-| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24, editable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, cashapp/venmo/paypal handles, **acceptsCash / acceptsCashapp / acceptsVenmo / acceptsPaypal** (one switch per payment type, ADR-016 d7, 2026-10-12), **morningEmailSentOn** (the date the coach's morning email went out; retry guard, ADR-023, 2026-10-13), themeId *(Phase 2)* (ADR-016) |
+| Coach profile | `COACH#<coachId>` | `PROFILE` | firstName, lastName, loginEmail, **businessEmail** (Reply-To; defaults to loginEmail), phone, displayPhoneToClients, **displayEmailToClients**, **coachTimezone** (IANA, required), currency (USD\|CAD, default USD), **requiredNoticeHours** (ADR-015 d3; default 24 and never below it, raisable from Phase 2), **smsCancellationAlerts** (ADR-009 d9; default false), coachCode, profilePhotoKey, paymentInstructions, cashapp/venmo/paypal handles, **acceptsCash / acceptsCashapp / acceptsVenmo / acceptsPaypal** (one switch per payment type, ADR-016 d7, 2026-10-12), **morningEmailSentOn** (the date the coach's morning email went out; retry guard, ADR-023, 2026-10-13), themeId *(Phase 2)* (ADR-016) |
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `scheduleName` (optional), `days` — weekday → ordered blocks, **scheduleVersion** (goes up on every save, default or temporary; each lesson time records the version that made it — ADR-031 d14) |
 | Temp schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName` (optional), `startDate`, `endDate` |
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `tempId`, `blocks` — empty list means no lessons that day |

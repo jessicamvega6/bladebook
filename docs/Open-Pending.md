@@ -306,8 +306,12 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   `missedLessonFeeMinor` ≠ `priceMinor`** — client-facing wording on the outstanding view and
   the reminder. For MVP a no-show shows ~~its full lesson price~~ its share worked out from the lesson time (the
   full price, unless shared) *(Revised 2026-10-13 (ADR-031))*. (ADR-015)
-- **Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
-  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
+- ~~**Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
+  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)~~
+  **Settled 2026-11-23 by the owner: at least 24 hours.** A coach may raise it (Phase 2) but
+  never set it below 24; `CoachProfile` refuses less. This keeps a shared lesson's answer-by
+  time a day before the lesson. The upper bound and the control's shape are for the Phase 2
+  form. (ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
   an amount?** MVP says "may incur" everywhere. (ADR-015 decision 6)
 - **Open question (Phase 2): Is unpaid history shown to the client, or only the coach?**
