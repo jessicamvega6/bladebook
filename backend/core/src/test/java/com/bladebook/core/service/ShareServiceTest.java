@@ -684,18 +684,37 @@ class ShareServiceTest {
     }
 
     @Test
-    void decliningInOneWindowAfterAcceptingInAnotherIsNoLongerAvailable() {
+    void decliningInOneWindowAfterAcceptingInAnotherSaysItWasAlreadyAnswered() {
         bookAva(miaCode, MON);
         String id = shares.invitations(chen).get(0).inviteId();
         // Read as invited; the other window's Go ahead lands first.
         WriteRaces.beforeNextWrites(() -> shares.accept(chen, id));
         try {
             assertThatThrownBy(() -> shares.decline(chen, id)).isInstanceOf(DomainException.class)
-                    .hasMessage("This lesson is no longer available.");
+                    .hasMessage("This invitation was already answered. Reload to see where it stands.");
         } finally {
             WriteRaces.clear();
         }
         assertThat(chenLesson(MON).share().joined()).isTrue();
+    }
+
+    @Test
+    void answeringAgainFromAStaleWindowAfterAcceptingSaysItWasAlreadyAnswered() {
+        bookAva(miaCode, MON);
+        String id = shares.invitations(chen).get(0).inviteId();
+        shares.accept(chen, id);
+
+        assertThatThrownBy(() -> shares.decline(chen, id)).hasMessage("This invitation was already answered. Reload to see where it stands.");
+        assertThatThrownBy(() -> shares.accept(chen, id)).hasMessage("This invitation was already answered. Reload to see where it stands.");
+    }
+
+    @Test
+    void acceptingAfterDecliningInAnotherWindowIsNoLongerAvailable() {
+        bookAva(miaCode, MON);
+        String id = shares.invitations(chen).get(0).inviteId();
+        shares.decline(chen, id);
+
+        assertThatThrownBy(() -> shares.accept(chen, id)).hasMessage("This lesson is no longer available.");
     }
 
     // ------------------------------------------------------- Payments, for a shared lesson

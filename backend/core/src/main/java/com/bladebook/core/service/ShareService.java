@@ -79,6 +79,8 @@ public final class ShareService {
     }
 
     static final String GONE = "This lesson is no longer available.";
+    /** Answering again after this family's other window accepted the invitation (owner, 2026-11-23). */
+    static final String ANSWERED = "This invitation was already answered. Reload to see where it stands.";
     static final String NO_SUCH_CODE = "That code doesn’t match a skater. Check it with the other family.";
 
     private final ClientLinks links;
@@ -220,7 +222,7 @@ public final class ShareService {
         Instant now = clock.instant();
         List<Seat> seats = invitedSeats(ctx, inviteId, now);
         if (seats.isEmpty()) {
-            throw DomainException.conflict(GONE);
+            throw DomainException.conflict(gone(ctx, inviteId, now));
         }
         Seat first = seats.get(0);
         LinkedSkater skater;
@@ -247,9 +249,22 @@ public final class ShareService {
         // Nothing changed: never reported as done. A decline whose dates had all started is skipped, as it always was;
         // one whose write was refused (answered in another window meanwhile) is no longer available, as for accepting.
         if (done.isEmpty() && (accept || refused)) {
-            throw DomainException.conflict(GONE);
+            throw DomainException.conflict(gone(ctx, inviteId, now));
         }
         return new Answered(skater.studentName(), skater.coachFirstName(), first.share().partnerName(), done, skipped);
+    }
+
+    /**
+     * Why an answer changed nothing: "already answered" when this family's skater already holds a seat from the
+     * invitation (accepted in another window); otherwise "no longer available" (withdrawn, expired, cancelled by the
+     * coach, or declined in another window, which leaves no seat the family can read).
+     */
+    private String gone(ClientContext ctx, String inviteId, Instant now) {
+        LocalDate from = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(1);
+        boolean joined = bookings.familySeats(ctx, from, Weeks.storeUntil(from)).stream()
+                .anyMatch(s -> s.seatStatus() == Seat.Status.BOOKED && inviteId.equals(s.share().inviteId())
+                        && ctx.clientId().equals(s.clientId()));
+        return joined ? ANSWERED : GONE;
     }
 
     private List<Seat> invitedSeats(ClientContext ctx, String inviteId, Instant now) {

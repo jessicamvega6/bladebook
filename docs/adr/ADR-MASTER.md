@@ -744,6 +744,10 @@ product: see `FeatureDecriptions/Schedule lesson split`, `FeatureDecriptions/can
   hasn't started, and `shareCount` goes up. A skater no longer `ACTIVE` with the coach gets the
   ordinary "no longer available".
 - **Declining** (same condition as accepting) moves the seat to `SEATEND#` as `DECLINED`.
+- **Answering twice** (a second window, after the first already accepted) changes nothing and says
+  "This invitation was already answered. Reload to see where it stands." Any other answer that
+  finds nothing to change (withdrawn, expired, cancelled, or declined in the other window) gets
+  "no longer available". *Owner, 2026-11-23.*
 - **A series joins lesson by lesson**; each date succeeds or fails alone.
 
 ### Ending an invitation
