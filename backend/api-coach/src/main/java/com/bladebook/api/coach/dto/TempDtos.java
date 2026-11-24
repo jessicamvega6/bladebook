@@ -95,22 +95,27 @@ public final class TempDtos {
     }
 
     /** The review page: what the save will cancel and re-price, what an increase won't reach, and big price changes. */
-    public record PreviewDto(List<ImpactDto> cancel, List<ImpactDto> reprice, List<ImpactDto> kept, int families, List<BigChangeDto> big) {
+    public record PreviewDto(List<ImpactDto> cancel, List<ImpactDto> reprice, List<ImpactDto> kept, List<ImpactDto> checkedIn, int families,
+                             List<BigChangeDto> big) {
         public static PreviewDto of(ScheduleChangeService.Preview p) {
             return new PreviewDto(p.cancel().stream().map(ImpactDto::of).toList(), p.reprice().stream().map(ImpactDto::of).toList(),
-                    p.kept().stream().map(ImpactDto::of).toList(), p.families(), p.big().stream().map(BigChangeDto::of).toList());
+                    p.kept().stream().map(ImpactDto::of).toList(), p.checkedIn().stream().map(ImpactDto::of).toList(), p.families(),
+                    p.big().stream().map(BigChangeDto::of).toList());
         }
     }
 
     /** The newest schedule change's batch. {@code exists} false when no save has touched a booking yet. */
     public record StatusDto(boolean exists, String createdAt, String executionStatus, int lessonCount, int clientCount, boolean stuck,
-                            List<ImpactDto> passed) {
+                            List<ImpactDto> passed, List<ImpactDto> checkedIn) {
         public static StatusDto of(java.util.Optional<ScheduleChangeService.Status> s) {
             return s.map(x -> new StatusDto(true, x.batch().createdAt().toString(), x.batch().executionStatus().name(),
-                    x.batch().lessonCount(), x.batch().clientCount(), x.stuck(),
-                    x.passed().stream().map(l -> new ImpactDto(l.lessonDate().toString(), l.startTime().toString(), l.durationMinutes(),
-                            l.priceMinor(), null, List.of(new WhoDto(l.studentId(), l.studentName(), l.clientId())))).toList()))
-                    .orElse(new StatusDto(false, null, null, 0, 0, false, List.of()));
+                    x.batch().lessonCount(), x.batch().clientCount(), x.stuck(), lines(x.passed()), lines(x.checkedIn())))
+                    .orElse(new StatusDto(false, null, null, 0, 0, false, List.of(), List.of()));
+        }
+
+        private static List<ImpactDto> lines(List<com.bladebook.core.domain.CancellationLine> lines) {
+            return lines.stream().map(l -> new ImpactDto(l.lessonDate().toString(), l.startTime().toString(), l.durationMinutes(),
+                    l.priceMinor(), null, List.of(new WhoDto(l.studentId(), l.studentName(), l.clientId())))).toList();
         }
     }
 

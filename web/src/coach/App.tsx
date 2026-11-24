@@ -9,7 +9,7 @@
  * "First sign-in completes sign-up if the profile is missing" (ADR-MASTER section 4): a 404 on the
  * profile shows step 3.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../shared/api/client';
 import { coachAuth, emailFromToken } from '../shared/auth';
 import { Banner } from '../shared/components/harbor';
@@ -114,7 +114,9 @@ export function App() {
     setStudents(null);
     setStudentsError('');
   }, []);
-  useEffect(() => { if (route !== '#/schedule') setFlash(''); setNote(''); }, [route]);
+  // A note set as the page changes to Today (sign-up step 3, below) is kept for it.
+  const keepNote = useRef(false);
+  useEffect(() => { if (route !== '#/schedule') setFlash(''); if (keepNote.current) keepNote.current = false; else setNote(''); }, [route]);
 
   const handleError = useCallback((e: unknown) => {
     if (e instanceof ApiError && e.status === 401) {
@@ -185,9 +187,13 @@ export function App() {
     page = <div className="app"><main className="main"><Banner tone="danger" title="Couldn’t load your account">{load.message}</Banner></main></div>;
   } else if (load.state === 'no-profile') {
     page = (
-      <SignupBusiness api={api} loginEmail={load.loginEmail} onDone={(p) => {
+      <SignupBusiness api={api} loginEmail={load.loginEmail} onDone={(p, n) => {
         setProfile(p);
-        go(p.codeWorks ? '#/signup/done' : '#/signup/confirm');
+        if (!n) { go(p.codeWorks ? '#/signup/done' : '#/signup/confirm'); return; }
+        // Saved, but its email wasn't sent: Today says so and offers Resend.
+        setNote(n);
+        keepNote.current = route !== '#/today';
+        go('#/today');
       }} />
     );
   } else {

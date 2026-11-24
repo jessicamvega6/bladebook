@@ -56,20 +56,20 @@ class PaymentRepositoryTest {
 
     @Test
     void paidWithHowTheyPaidThenChangedThenUndone() {
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.VENMO, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, Payment.Via.VENMO, NOW)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
         assertThat(seat().paidVia()).isEqualTo(Payment.Via.VENMO);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, null, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, NOW, Payment.Via.VENMO, null, NOW)).isTrue();
         assertThat(seat().paidVia()).isNull();
-        assertThat(payments.undo(dana, seatKey)).isTrue();
+        assertThat(payments.undo(dana, seatKey, NOW, null)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
     }
 
     @Test
     void aWriteFromAStaleViewFails() {
         payments.waive(dana, seatKey, NOW);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW)).isFalse();
-        assertThat(payments.undo(dana, seatKey)).isFalse();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, null, NOW)).isFalse();
+        assertThat(payments.undo(dana, seatKey, NOW, null)).isFalse();
         assertThat(payments.waive(dana, seatKey, NOW)).isFalse();
         assertThat(seat().status()).isEqualTo(Payment.Status.WAIVED);
     }
@@ -79,7 +79,7 @@ class PaymentRepositoryTest {
         f.clients.forSetup().updateItem(b -> b.tableName(f.table).key(FamilyItems.key("COACH#" + dana.coachId(), seatKey))
                 .updateExpression("REMOVE paymentStatus"));
         assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
-        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.CASH, NOW)).isTrue();
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, Payment.Via.CASH, NOW)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
     }
 
@@ -88,9 +88,9 @@ class PaymentRepositoryTest {
         assertThat(payments.oldestUnpaid(dana)).contains(MONDAY);
         AccessContext sam = FamilyTestData.coach(f, "Sam", "8M3R-P2WX");
         assertThat(payments.oldestUnpaid(sam)).isEmpty();
-        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW);
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, null, NOW);
         assertThat(payments.oldestUnpaid(dana)).isEmpty();
-        payments.undo(dana, seatKey);
+        payments.undo(dana, seatKey, NOW, null);
         assertThat(payments.oldestUnpaid(dana)).contains(MONDAY);
         payments.waive(dana, seatKey, NOW);
         assertThat(payments.oldestUnpaid(dana)).isEmpty();
@@ -99,26 +99,41 @@ class PaymentRepositoryTest {
     @Test
     void anUndoAfterItsYearClosedWritesItsCorrectionInTheSameTransaction() {
         FinancialRepository finances = new FinancialRepository(f.clients, f.table);
-        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, Payment.Via.CASH, NOW);
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, Payment.Via.CASH, NOW);
         Instant at = Instant.parse("2027-02-01T15:00:00Z");
         FinancialRepository.Undone u = new FinancialRepository.Undone(at, seatKey, MONDAY, LocalTime.of(6, 0), seat().seat().studentId(),
                 5000, "USD", 2026);
-        assertThat(payments.undo(dana, seatKey, u)).isTrue();
+        assertThat(payments.undo(dana, seatKey, NOW, Payment.Via.CASH, u)).isTrue();
         assertThat(seat().status()).isEqualTo(Payment.Status.UNPAID);
         assertThat(finances.corrections(dana, Instant.parse("2027-01-01T06:00:00Z"), Instant.parse("2028-01-01T06:00:00Z")))
                 .containsExactly(new com.bladebook.core.domain.FinancialSummary.Correction(at, MONDAY, 5000, "USD"));
 
         // From a stale view (already unpaid) neither the seat nor a second correction is written.
-        assertThat(payments.undo(dana, seatKey, u)).isFalse();
-        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, NOW);
-        assertThat(payments.undo(dana, seatKey, u)).isFalse();            // the same correction can't be written twice
+        assertThat(payments.undo(dana, seatKey, NOW, null, u)).isFalse();
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, null, NOW);
+        assertThat(payments.undo(dana, seatKey, NOW, null, u)).isFalse();            // the same correction can't be written twice
         assertThat(seat().status()).isEqualTo(Payment.Status.PAID);
         assertThat(finances.corrections(dana, Instant.parse("2027-01-01T06:00:00Z"), Instant.parse("2028-01-01T06:00:00Z"))).hasSize(1);
     }
 
     @Test
+    void aWriteConditionsOnWhenThePaymentTheCoachSawWasMade() {
+        payments.markPaid(dana, seatKey, Payment.Status.UNPAID, null, null, Payment.Via.CASH, NOW);
+        Instant older = NOW.minusSeconds(60);
+        assertThat(payments.markPaid(dana, seatKey, Payment.Status.PAID, older, Payment.Via.CASH, Payment.Via.VENMO, NOW)).isFalse();
+        assertThat(payments.undo(dana, seatKey, older, Payment.Via.CASH)).isFalse();
+        // A closed year's undo reads the year from paidAt: it can't write a correction for a payment it didn't see.
+        FinancialRepository.Undone u = new FinancialRepository.Undone(Instant.parse("2027-02-01T15:00:00Z"), seatKey, MONDAY,
+                LocalTime.of(6, 0), seat().seat().studentId(), 5000, "USD", 2026);
+        assertThat(payments.undo(dana, seatKey, older, Payment.Via.CASH, u)).isFalse();
+        assertThat(seat().paidVia()).isEqualTo(Payment.Via.CASH);
+        assertThat(payments.undo(dana, seatKey, NOW, Payment.Via.VENMO, u)).isFalse();      // shown paid another way
+        assertThat(payments.undo(dana, seatKey, NOW, Payment.Via.CASH, u)).isTrue();
+    }
+
+    @Test
     void aSeatThatIsGoneCantBePaid() {
-        assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, NOW)).isFalse();
+        assertThat(payments.markPaid(dana, Seat.key(MONDAY, LocalTime.of(7, 0), "nobody"), Payment.Status.UNPAID, null, null, null, NOW)).isFalse();
         assertThat(Map.<String, AttributeValue>of()).isEmpty();
     }
 }

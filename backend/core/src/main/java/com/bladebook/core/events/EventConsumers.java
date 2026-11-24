@@ -43,7 +43,9 @@ import java.util.function.Function;
  *
  * <p>Each event that reads personal data writes one access-log line (ADR-MASTER section 18; owner, 2026-11-17, I21): the
  * function, the event, the IDs it was about and the names of the fields it read for it. Written when the event's work is
- * done; if that write fails the event fails, and the retry finds the guards already set.
+ * done, or has failed; if that write fails the event fails, and the retry finds the guards already set. An email not
+ * accepted ({@link com.bladebook.core.service.EmailNotAccepted}) fails the event too, with its guard given back, so the
+ * retry sends it (ADR-MASTER section 19).
  */
 public final class EventConsumers {
 
@@ -84,14 +86,14 @@ public final class EventConsumers {
         this.scheduleChange = new ScheduleChangeService(new ScheduleRepository(clients, table),
                 new CoachRepository(clients, table), clock);
         SyncRepository sync = new SyncRepository(clients, table);
-        this.studentLink = new StudentLinkService(sync);
+        this.studentLink = new StudentLinkService(sync, clock);
         this.familySync = new FamilySyncService(sync);
         this.inviteSync = new InviteSyncService(new ShareRepository(clients, table));
     }
 
     /**
      * On Lambda, from the function's environment (set by {@code infra/lib/consumers.ts}). A function with no sending
-     * addresses sends nothing: its mailer refuses, which fails the event.
+     * addresses sends nothing ({@link Mailer#none}), and its events still succeed.
      */
     public static EventConsumers fromEnvironment() {
         return fromEnvironment(System::getenv);
@@ -101,10 +103,7 @@ public final class EventConsumers {
         String function = required(env, "AWS_LAMBDA_FUNCTION_NAME");
         AccessLog.install(CloudWatchAccessLog.aws(required(env, "BLADEBOOK_ACCESSLOGGROUP"), function), Clock.systemUTC());
         String from = env.apply("BLADEBOOK_MAIL_FROM");
-        Mailer mailer = from == null || from.isBlank()
-                ? email -> {
-                    throw new IllegalStateException(function + " has no sending address; it sends no email");
-                }
+        Mailer mailer = from == null || from.isBlank() ? Mailer.none(function)
                 : SesMailer.aws(new SesMailer.Senders(from, required(env, "BLADEBOOK_MAIL_NOREPLY")));
         return new EventConsumers(function, TenantClients.consumer(), required(env, "BLADEBOOK_TABLE"), mailer,
                 new NotificationService.Links(required(env, "BLADEBOOK_COACHSITEURL"), required(env, "BLADEBOOK_FAMILYSITEURL")),
@@ -133,14 +132,36 @@ public final class EventConsumers {
         }
         TableRecord r = TableRecord.parse(json);
         AccessLog.begin(requestId, null);
+        RuntimeException failure = null;
         try {
-            Outcome o = handle(event, r);
+            Outcome o;
+            try {
+                o = handle(event, r);
+            } catch (RuntimeException e) {
+                // It may have read what it needed before failing (an email not accepted, say), or nothing (its first read
+                // throttled): the line is still written, marked failed, then the event fails and is retried.
+                failure = e;
+                AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event), true);
+                throw e;
+            }
             if (o.count() >= 0) {
                 AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event));
             }
             return o;
         } finally {
+            endKeeping(failure);
+        }
+    }
+
+    /** Writes the run's access-log lines; if that fails too, the run's own failure is the one thrown, carrying it. */
+    static void endKeeping(RuntimeException failure) {
+        try {
             AccessLog.end();
+        } catch (RuntimeException logFailed) {
+            if (failure == null) {
+                throw logFailed;
+            }
+            failure.addSuppressed(logFailed);
         }
     }
 
@@ -158,13 +179,19 @@ public final class EventConsumers {
     Outcome reconcile(String coachId, String requestId) {
         AccessContext ctx = new AccessContext(coachId);
         AccessLog.begin(requestId, null);
+        AccessLog.Ids ids = new AccessLog.Ids().add("coachId", coachId);
+        RuntimeException failure = null;
         try {
             ScheduleChangeService.Reconciled r = scheduleChange.reconcile(ctx);
-            AccessLog.consumerRun(function, "reconcile", new AccessLog.Ids().add("coachId", coachId), FIELDS.get(Event.ScheduleChanged));
+            AccessLog.consumerRun(function, "reconcile", ids, FIELDS.get(Event.ScheduleChanged));
             return new Outcome(Event.ScheduleChanged, "batches settled, then lessons cancelled or re-priced",
                     r.settled() + r.result().cancelled() + r.result().repriced());
+        } catch (RuntimeException e) {
+            failure = e;
+            AccessLog.consumerRun(function, "reconcile", ids, FIELDS.get(Event.ScheduleChanged), true);
+            throw e;
         } finally {
-            AccessLog.end();
+            endKeeping(failure);
         }
     }
 
@@ -205,7 +232,10 @@ public final class EventConsumers {
         } else {
             return skipped(Event.ScheduleChanged);
         }
-        ScheduleChangeService.Result res = scheduleChange.apply(new AccessContext(r.partitionId()), source);
+        // The event's id, so a retry of a run that stopped takes its own lease back (ScheduleChangeService#apply).
+        AccessContext ctx = new AccessContext(r.partitionId());
+        ScheduleChangeService.Result res = r.eventId() == null ? scheduleChange.apply(ctx, source)
+                : scheduleChange.apply(ctx, source, ChangeBatch.By.SCHEDULE_CHANGE, r.eventId());
         return new Outcome(Event.ScheduleChanged, "lessons cancelled or re-priced", res.cancelled() + res.repriced());
     }
 
@@ -222,8 +252,10 @@ public final class EventConsumers {
             return new Outcome(Event.StudentChanged, "links approved", 1);
         }
         if (after.isEmpty() && before.isPresent() && before.get().status() == StudentStatus.PENDING) {
-            studentLink.declined(before.get());
-            return new Outcome(Event.StudentChanged, "decline emails sent", notifications.declined(before.get()) ? 1 : 0);
+            // The email is claimed on the family's link and sent before the link goes (StudentLinkService#declined).
+            StudentRecord b = before.get();
+            return new Outcome(Event.StudentChanged, "decline emails sent",
+                    studentLink.declined(b, giveBack -> notifications.declined(b, giveBack)) ? 1 : 0);
         }
         return skipped(Event.StudentChanged);
     }

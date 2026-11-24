@@ -164,9 +164,20 @@ public final class AccessLog {
      * operation, and the fields named once.
      */
     public static void consumerRun(String function, String event, Ids ids, Collection<String> fields) {
-        Objects.requireNonNull(function, "function");
-        record("consumer", function, null, event, ids, fields);
+        consumerRun(function, event, ids, fields, false);
     }
+
+    /**
+     * {@code failed}: the run failed part-way, so it may have read these fields, or none of them; the operation is
+     * {@code <event>:failed} (2026-11-23).
+     */
+    public static void consumerRun(String function, String event, Ids ids, Collection<String> fields, boolean failed) {
+        Objects.requireNonNull(function, "function");
+        record("consumer", function, null, failed ? event + FAILED : event, ids, fields);
+    }
+
+    /** Ends the operation of a run that failed part-way: it may have read the fields its line names, or none of them. */
+    public static final String FAILED = ":failed";
 
     /**
      * A scheduled job's one line per run (ADR-MASTER section 18; I21): the function, the job and the date it ran for, how
@@ -174,12 +185,18 @@ public final class AccessLog {
      */
     public static void jobRun(String function, String job, java.time.LocalDate date, Map<String, Integer> counts,
                               Collection<String> fields) {
+        jobRun(function, job, date, counts, fields, false);
+    }
+
+    /** {@code failed}: the run failed part-way; the operation ends {@link #FAILED} (2026-11-23). */
+    public static void jobRun(String function, String job, java.time.LocalDate date, Map<String, Integer> counts,
+                              Collection<String> fields, boolean failed) {
         Objects.requireNonNull(function, "function");
         Objects.requireNonNull(date, "date");
         if (fields.isEmpty()) {
             return;
         }
-        Line line = new Line(clock.instant(), null, null, "job", function, null, job + ":" + date, Map.of(),
+        Line line = new Line(clock.instant(), null, null, "job", function, null, job + ":" + date + (failed ? FAILED : ""), Map.of(),
                 Collections.unmodifiableMap(new TreeMap<>(counts)), Collections.unmodifiableSortedSet(new TreeSet<>(fields)));
         Pending p = CURRENT.get();
         if (p == null) {

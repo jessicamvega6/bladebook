@@ -35,7 +35,7 @@ public record Recurrence(String coachId, String recurrenceId, String studentId, 
      * in order.
      *
      * @throws DomainException INVALID for an end date not before the current one or before today, or an interval that
-     *                         isn't less frequent
+     *                         isn't less frequent or isn't a multiple of the current one
      */
     public List<LocalDate> cancels(Change change, LocalDate newEnd, Integer newInterval, List<LocalDate> future, LocalDate today) {
         List<LocalDate> out = new ArrayList<>();
@@ -54,7 +54,9 @@ public record Recurrence(String coachId, String recurrenceId, String studentId, 
                 future.stream().filter(d -> d.isAfter(newEnd)).forEach(out::add);
             }
             case LESS_OFTEN -> {
-                if (newInterval == null || newInterval <= intervalWeeks || newInterval > 4) {
+                // Only a multiple of the current interval keeps an even rhythm: every 2 weeks to every 3 would keep
+                // weeks 0, 6, 12, really every 6 (owner, 2026-11-23).
+                if (newInterval == null || newInterval <= intervalWeeks || newInterval > 4 || newInterval % intervalWeeks != 0) {
                     throw DomainException.invalid("intervalWeeks", "Pick a less frequent option.");
                 }
                 if (!future.isEmpty()) {

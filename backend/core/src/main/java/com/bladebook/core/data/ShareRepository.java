@@ -62,7 +62,7 @@ public final class ShareRepository {
                                Instant answerBy) {
     }
 
-    /** One deadline on GSI4: {@code EXPIRE} on an invited seat, {@code ANSWER} on a lesson time. */
+    /** One deadline on GSI4: {@code EXPIRE} on an invited seat ({@code ANSWER} on a lesson time only on records before 2026-11-23). */
     public record Due(String coachId, String itemKey, String kind, Instant dueAt) {
     }
 
@@ -148,12 +148,16 @@ public final class ShareRepository {
         return write(clients.clientFor(ctx, invited.coach()), items);
     }
 
-    /** Decline, one date: the invited seat moves to {@code SEATEND#} as {@code DECLINED} and its place is freed. */
+    /**
+     * Decline, one date: the invited seat moves to {@code SEATEND#} as {@code DECLINED} and its place is freed. The same
+     * condition as accepting, the start included (ADR-MASTER section 8): once the lesson starts, the sweep expires it.
+     */
     public boolean decline(ClientContext ctx, LinkedSkater invited, Seat seat, Instant now) {
         List<TransactWriteItem> items = new ArrayList<>();
         items.add(TransactWriteItem.builder().delete(Delete.builder().tableName(table).key(seatKey(seat.coachId(), seat.key()))
-                .conditionExpression("seatStatus = :invited AND attribute_not_exists(clientId) AND invitedClientId = :me")
-                .expressionAttributeValues(Map.of(":invited", FamilyItems.s(Seat.Status.INVITED.name()), ":me", FamilyItems.s(invited.clientId())))
+                .conditionExpression("seatStatus = :invited AND attribute_not_exists(clientId) AND invitedClientId = :me AND startsAtUtc > :now")
+                .expressionAttributeValues(Map.of(":invited", FamilyItems.s(Seat.Status.INVITED.name()), ":me", FamilyItems.s(invited.clientId()),
+                        ":now", FamilyItems.s(seconds(now))))
                 .build()).build());
         items.add(put(ended(seat, Ended.DECLINED, invited.clientId(), invited.clientId(), now)));
         items.add(placeFreed(seat.coachId(), seat.lessonDate(), seat.startTime()));
@@ -189,8 +193,9 @@ public final class ShareRepository {
 
     /**
      * Keep it private at the full price (ADR-MASTER section 8, "Leaving"): the family's own write to the lesson time,
-     * conditional on its pending leave naming their skater as staying and not being past its answer-by time. The skater
-     * pays the whole price, and the lesson becomes a freed place.
+     * conditional on its pending leave naming their skater as staying and not being past its answer-by time. The leave
+     * already made the lesson private at the full price and a freed place (owner, 2026-11-23); keeping ends the question
+     * and drops the one who left from {@code joinOrder}.
      */
     public boolean keep(ClientContext ctx, LinkedSkater staying, Seat seat, Instant now) {
         Map<String, AttributeValue> lv = new HashMap<>();
@@ -203,7 +208,7 @@ public final class ShareRepository {
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(seatKey(staying.coachId(), LessonTime.key(seat.lessonDate(), seat.startTime())))
                 .conditionExpression("lessonStatus = :booked AND pendingLeave.stayingStudentId = :me AND pendingLeave.answerBy > :now")
-                .updateExpression("SET shareCount = :one, joinOrder = :order REMOVE pendingLeave, GSI4PK, GSI4SK, dueKind, dueAt")
+                .updateExpression("SET shareCount = :one, joinOrder = :order REMOVE pendingLeave")
                 .expressionAttributeValues(lv).build()).build());
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(seatKey(staying.coachId(), seat.key()))
                 .conditionExpression("clientId = :c AND seatStatus = :booked")
@@ -218,7 +223,9 @@ public final class ShareRepository {
     /**
      * Invite a skater to a freed place, that one lesson only (ADR-MASTER section 8, "Freed places"): the same as a
      * booking-time invitation, or a sibling added directly. The lesson must still hold only this family's skater, at the
-     * full price, with no pending leave.
+     * full price, and not have started. If the other skater left in time and the staying family hasn't answered yet,
+     * filling the place answers for them: the pending leave ends, so their keep-or-cancel choice, with its free cancel,
+     * goes too (owner, 2026-11-23).
      */
     public boolean fillFreedPlace(ClientContext ctx, LinkedSkater host, Seat hostSeat, BookingRepository.Partner partner, Instant now) {
         boolean sibling = partner.sibling() != null;
@@ -228,15 +235,21 @@ public final class ShareRepository {
         lv.put(":one", AttributeValue.fromN("1"));
         lv.put(":two", AttributeValue.fromN("2"));
         lv.put(":now", FamilyItems.s(seconds(now)));
+        // Filling the place before answering the staying family's question answers it: the pending leave ends, and the
+        // one who left goes from joinOrder (owner, 2026-11-23).
         String set = "SET seatsTaken = :two";
         if (sibling) {
-            lv.put(":sib", AttributeValue.fromL(List.of(FamilyItems.s(partner.studentId()))));
-            set += ", shareCount = :two, joinOrder = list_append(joinOrder, :sib)";
+            lv.put(":order", AttributeValue.fromL(List.of(FamilyItems.s(hostSeat.studentId()), FamilyItems.s(partner.studentId()))));
+            set += ", shareCount = :two, joinOrder = :order";
+        } else {
+            lv.put(":order", AttributeValue.fromL(List.of(FamilyItems.s(hostSeat.studentId()))));
+            set += ", joinOrder = :order";
         }
+        set += " REMOVE pendingLeave";
         items.add(TransactWriteItem.builder().update(Update.builder().tableName(table)
                 .key(seatKey(host.coachId(), LessonTime.key(hostSeat.lessonDate(), hostSeat.startTime())))
                 .conditionExpression("lessonStatus = :booked AND seatsTaken = :one AND shareCount = :one AND maxSkaters >= :two"
-                        + " AND startsAtUtc > :now AND attribute_not_exists(pendingLeave)")
+                        + " AND startsAtUtc > :now")
                 .updateExpression(set).expressionAttributeValues(lv).build()).build());
         Map<String, AttributeValue> sv = new HashMap<>();
         sv.put(":c", FamilyItems.s(host.clientId()));
@@ -326,6 +339,9 @@ public final class ShareRepository {
             if (pending.isPresent() && pending.get().stayingStudentId().equals(s.studentId())) {
                 v.put(":cab", FamilyItems.s(pending.get().answerBy().toString()));
                 set.add("choiceAnswerBy = :cab");
+                // The leave made the lesson private at once, so it's a freed place straight away (owner, 2026-11-23).
+                v.put(":fp", AttributeValue.fromBool(true));
+                set.add("freedPlace = :fp");
             } else {
                 remove.add("choiceAnswerBy");
             }
@@ -353,7 +369,7 @@ public final class ShareRepository {
                 Instant.parse(FamilyItems.str(p, "answerBy"))));
     }
 
-    /** A pending leave as the lesson time stores it, with its {@code ANSWER} deadline on GSI4 (written by the leaver's cancel). */
+    /** A pending leave as the lesson time stores it (written by the leaver's cancel); nothing is due on GSI4 for it. */
     static Map<String, AttributeValue> pendingLeaveItem(PendingLeave p) {
         Map<String, AttributeValue> m = new HashMap<>();
         m.put("leaveId", FamilyItems.s(p.leaveId()));
@@ -423,40 +439,6 @@ public final class ShareRepository {
         } catch (ConditionalCheckFailedException gone) {
             // nothing left to clear
         }
-    }
-
-    /**
-     * {@code ANSWER}: the staying family didn't answer by the answer-by time, so their seat is cancelled with no charge,
-     * through a change batch with {@code cancelledBy = NO_ANSWER}, and the time goes back on the coach's calendar
-     * (ADR-MASTER section 8, "Leaving"; section 14). Conditional on the same pending leave.
-     *
-     * @param staying the staying skater's seat, or {@code null} when it's gone: then only the pending leave is cleared
-     */
-    public boolean cancelNoAnswer(String coachId, PendingLeave pending, Seat staying, ChangeBatch batch, CancellationLine line,
-                                  LocalDate date, LocalTime start, Instant now) {
-        List<TransactWriteItem> items = new ArrayList<>();
-        Map<String, AttributeValue> lv = new HashMap<>();
-        lv.put(":id", FamilyItems.s(pending.leaveId()));
-        lv.put(":now", FamilyItems.s(seconds(now)));
-        String set;
-        if (staying != null) {
-            items.add(TransactWriteItem.builder().delete(Delete.builder().tableName(table).key(seatKey(coachId, staying.key()))
-                    .conditionExpression("seatStatus = :st AND joinedAt = :j")
-                    .expressionAttributeValues(Map.of(":st", FamilyItems.s(staying.seatStatus().name()), ":j", FamilyItems.s(staying.joinedAt().toString())))
-                    .build()).build());
-            items.add(put(CancellationItems.header(coachId, batch)));
-            items.add(put(CancellationItems.line(coachId, line)));
-            lv.put(":open", FamilyItems.s(LessonTime.Status.OPEN.name()));
-            lv.put(":zero", AttributeValue.fromN("0"));
-            lv.put(":none", AttributeValue.fromL(List.of()));
-            set = "SET lessonStatus = :open, seatsTaken = :zero, shareCount = :zero, joinOrder = :none ";
-        } else {
-            set = "";
-        }
-        items.add(TransactWriteItem.builder().update(Update.builder().tableName(table).key(seatKey(coachId, LessonTime.key(date, start)))
-                .conditionExpression("pendingLeave.leaveId = :id AND pendingLeave.answerBy <= :now")
-                .updateExpression(set + "REMOVE pendingLeave, GSI4PK, GSI4SK, dueKind, dueAt").expressionAttributeValues(lv).build()).build());
-        return write(clients.forConsumer(), items);
     }
 
     // ---------------------------------------------------------------------- helpers

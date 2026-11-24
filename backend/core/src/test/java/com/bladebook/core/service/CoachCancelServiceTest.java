@@ -180,7 +180,7 @@ class CoachCancelServiceTest {
     }
 
     @Test
-    void aDayIsTimeOffCalledCancelledAndItsLessonsAreCancelledAsTheCoachs() {
+    void aDayIsTimeOffCalledCancelledAndItsLessonsAreCancelledAsAScheduleChange() {
         CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
                 List.of(dayPick("06:00"), dayPick("06:30"), dayPick("07:00")), null));
 
@@ -194,10 +194,11 @@ class CoachCancelServiceTest {
         // No release-or-hold: the times leave the booking page, as for any time off.
         assertThat(scheduleRepo.lessonTimes(dana, MONDAY, MONDAY)).isEmpty();
         assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).isEmpty();
-        assertThat(cancelRepo.lines(dana)).hasSize(3).allSatisfy(l -> assertThat(l.cancelledBy()).isEqualTo(ChangeBatch.By.COACH));
+        // Time off like any other: a schedule change, so families get the one schedule-change email (I35).
+        assertThat(cancelRepo.lines(dana)).hasSize(3).allSatisfy(l -> assertThat(l.cancelledBy()).isEqualTo(ChangeBatch.By.SCHEDULE_CHANGE));
         ChangeBatch b = cancelRepo.batches(dana).get(0);
         assertThat(b.batchSource()).isEqualTo(ChangeBatch.Source.DAY);
-        assertThat(b.cancelledBy()).isEqualTo(ChangeBatch.By.COACH);
+        assertThat(b.cancelledBy()).isEqualTo(ChangeBatch.By.SCHEDULE_CHANGE);
         assertThat(b.executionStatus()).isEqualTo(ChangeBatch.Execution.EXECUTED);
         assertThat(b.clientCount()).isEqualTo(2);
     }
@@ -245,6 +246,43 @@ class CoachCancelServiceTest {
         });
         assertThat(scheduleRepo.lessonTimes(dana, MONDAY, MONDAY)).isEmpty();
         assertThat(scheduleRepo.lessonTimes(dana, tuesday, tuesday)).hasSize(4); // the rest of the camp stays
+    }
+
+    @Test
+    void aCancelledDayCountsItsLessonsEvenWhenTheStreamConsumerCancelledThemFirst() {
+        // consumer-schedule-change, set off by the time off's write, gets there before the request's own apply: the coach
+        // is still told what the day's cancel did (I35).
+        java.util.concurrent.atomic.AtomicBoolean ran = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable consumer = () -> {
+            if (!ran.get() && !temps().isEmpty()) {
+                ran.set(true);
+                new ScheduleChangeService(scheduleRepo, t.coaches, Clock.fixed(now.get(), ZoneOffset.UTC)).apply(dana, ChangeBatch.Source.DATE_OVERRIDE);
+            }
+        };
+        WriteRaces.beforeNextWrites(java.util.Collections.nCopies(20, consumer).toArray(Runnable[]::new));
+
+        CoachCancelService.Result r = service.cancel(dana, CoachCancelRequest.parse("DAY",
+                List.of(dayPick("06:00"), dayPick("06:30"), dayPick("07:00")), null));
+
+        assertThat(ran).isTrue();
+        assertThat(r).isEqualTo(new CoachCancelService.Result(3, 0, 0, 2, 0));
+        assertThat(scheduleRepo.seats(dana, MONDAY, MONDAY)).isEmpty();
+    }
+
+    @Test
+    void cancellingADayInsideASpecialScheduleNeverLeavesItsDatesMissingPartWay() {
+        LocalDate tuesday = MONDAY.plusDays(1);
+        TempSchedule camp = new TempSchedule(UUID.randomUUID().toString(), TempSchedule.Kind.SPECIAL, "Camp", MONDAY,
+                tuesday, List.of(mondayMornings(5000)), java.util.Map.of());
+        scheduleRepo.saveTemp(dana, camp, null);
+        new ScheduleChangeService(scheduleRepo, t.coaches, Clock.fixed(now.get(), ZoneOffset.UTC)).apply(dana);
+        // As consumer-schedule-change would see the dates while the camp is rewritten: never the weekly schedule instead.
+        List<java.util.Set<LocalDate>> seenDates = new java.util.ArrayList<>();
+        WriteRaces.beforeNextWrites(() -> seenDates.add(scheduleRepo.overrides(dana, MONDAY, tuesday).keySet()));
+
+        service.cancel(dana, CoachCancelRequest.parse("DAY", List.of(dayPick("06:00")), null));
+
+        assertThat(seenDates).containsExactly(java.util.Set.of(MONDAY, tuesday));
     }
 
     @Test

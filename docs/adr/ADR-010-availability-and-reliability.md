@@ -408,6 +408,7 @@ longer `OPEN` — a family booked it after the preview — becomes a cancel, not
 | `BOOKING_GONE` | The booking no longer exists — most likely the family cancelled it, which produced its own record and message |
 | `NO_LONGER_NEEDED` | The current schedule no longer calls for the change — the coach restored the slot, or set a different price in a later batch |
 | `LESSON_PASSED` | The lesson's time passed before the change could be applied |
+| `CHECKED_IN` | Someone in the lesson is checked in or marked a no-show, so the change keeps it: a bulk action never cancels a lesson under way (*2026-11-21*) |
 
 Re-checking against the current schedule, not merely the booking's old values, is what makes
 **two batches in flight** safe: a stuck batch planning $50→$60 resumes after a later batch
@@ -499,6 +500,7 @@ applying. The states it tells apart:
 | `EXECUTED`, every line notified | Done |
 | Not `EXECUTED`, **over an hour old** — the same threshold the drift check pages on (5k) | Stuck; the owner has been paged |
 | Any line `SKIPPED` as `LESSON_PASSED` | Lessons the coach must follow up — the same information the coach is emailed (5i) |
+| Any line `SKIPPED` as `CHECKED_IN` | Lessons kept because someone is already checked in; shown here only, not emailed (owner, *2026-11-21*) |
 
 *The coach-facing wording for each state moved to `FeatureDecriptions/C_Coach Schedule Save
 Status.md` on 2026-11-08 — product content, not an architecture decision.*

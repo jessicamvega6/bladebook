@@ -40,7 +40,13 @@ const same = (a: Queued, b: Pick<Queued, 'coach' | 'date' | 'startTime' | 'stude
 export const queue = (): Queued[] => read<Queued[]>(QUEUE, []);
 /** One entry per skater and lesson: a second tap replaces the first. */
 export function enqueue(q: Queued) { write(QUEUE, [...queue().filter((x) => !same(x, q)), q]); }
-export function dequeue(q: Queued) { write(QUEUE, queue().filter((x) => !same(x, q))); }
+/**
+ * Removes the entry that was sent, and only that one: a newer tap of the same skater queued while it was on its way
+ * (its own outcome and tap time) stays, to be sent next.
+ */
+export function dequeue(q: Queued) {
+  write(QUEUE, queue().filter((x) => !(same(x, q) && x.outcome === q.outcome && x.outcomeAt === q.outcomeAt)));
+}
 export const queuedFor = (coach: string) => queue().filter((q) => q.coach === coach);
 
 /** Entries still within 7 days of being turned down; older ones are removed as they're read. */

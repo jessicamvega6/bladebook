@@ -209,6 +209,8 @@ class CoachProfileServiceTest {
 
         assertThat(after.firstName()).isEqualTo("Danielle");
         assertThat(after.phone()).isNull();
+        assertThat(after.displayPhoneToClients()).isFalse();                   // no phone to show
+        assertThat(service.profile(ctx).displayPhoneToClients()).isFalse();
         assertThat(after.coachTimezone()).isEqualTo("America/Toronto");
         assertThat(after.currency()).isEqualTo(before.currency());
         assertThat(after.coachCode()).isEqualTo(before.coachCode());
@@ -488,7 +490,6 @@ class CoachProfileServiceTest {
 
         assertThat(after.displayPhoneToClients()).isTrue();
         assertThat(after.displayEmailToClients()).isTrue();
-        assertThat(service.profile(ctx).displayPhoneToClients()).isTrue();
         assertThat(service.updateVisibility(ctx, false, true).displayPhoneToClients()).isFalse();
         assertThat(service.profile(ctx).displayEmailToClients()).isTrue();
     }

@@ -27,6 +27,7 @@ public record ChangeBatch(String batchId, Instant createdAt, Source batchSource,
     public enum Source { DEFAULT, DATE_OVERRIDE, LESSON, DAY, WEEK, RECURRENCE, RECONCILE }
 
     /** {@code cancelledBy}. */
+    /** {@code NO_ANSWER}: the sweep's cancel of an unanswered shared lesson; no longer written (owner, 2026-11-23), kept so older records read. */
     public enum By { CLIENT, COACH, SCHEDULE_CHANGE, NO_ANSWER }
 
     /** {@code executionStatus}, on the header and each line. */

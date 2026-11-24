@@ -124,7 +124,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   action writes another family's records. The total price is stored only on the lesson time;
   each share is worked out as `priceMinor ÷ shareCount`, and a re-price changes only the lesson
   time's price. A leave in time is recorded as a pending leave on the lesson time; the staying
-  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.*
+  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.* *Amended 2026-11-23
+  (owner, I36): the leave makes the staying skater's lesson private at the full price at once, and
+  no answer keeps it.*
   *Changed 2026-10-20 (ADR-033): only a skater ACTIVE with the coach can be invited or added as a
   sibling; inviting a skater new to the coach is Phase 2.*
 - **Open question — needs Kim (§8 Q7): Is 7 days the right limit** for the staying family to
@@ -306,8 +308,12 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   `missedLessonFeeMinor` ≠ `priceMinor`** — client-facing wording on the outstanding view and
   the reminder. For MVP a no-show shows ~~its full lesson price~~ its share worked out from the lesson time (the
   full price, unless shared) *(Revised 2026-10-13 (ADR-031))*. (ADR-015)
-- **Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
-  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
+- ~~**Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
+  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)~~
+  **Settled 2026-11-23 by the owner: at least 24 hours.** A coach may raise it (Phase 2) but
+  never set it below 24; `CoachProfile` refuses less. This keeps a shared lesson's answer-by
+  time a day before the lesson. The upper bound and the control's shape are for the Phase 2
+  form. (ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
   an amount?** MVP says "may incur" everywhere. (ADR-015 decision 6)
 - **Open question (Phase 2): Is unpaid history shown to the client, or only the coach?**
@@ -861,6 +867,8 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 
 - **To-do: Write the two shared-lesson emails to the family who stays** — "the other skater can't
   make it: keep at full price or cancel" and "cancelled, no answer". Both always sent.
+  *Amended 2026-11-23 (I36): one email, "now private — keep or cancel"; "cancelled, no answer" is
+  gone, since no answer keeps the lesson.*
   *Added by the owner 2026-10-13.* (ADR-026, amended 2026-10-13; `FeatureDecriptions/Email templates Needed:`)
   *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time in both is whichever comes
   first, the start of the notice period or 7 days after the leave.*

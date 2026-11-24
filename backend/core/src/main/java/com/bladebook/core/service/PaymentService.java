@@ -66,6 +66,17 @@ public final class PaymentService {
         }
     }
 
+    /**
+     * What the coach's page showed for the lesson: its status, and on a paid one when it was marked paid and how. A
+     * write is made only while the lesson is still as shown, so a stale window can't overwrite, or undo, a newer payment.
+     */
+    public record Seen(Payment.Status status, Instant paidAt, Payment.Via paidVia) {
+
+        boolean matches(PaidSeat s) {
+            return status == s.status() && java.util.Objects.equals(paidAt, s.paidAt()) && paidVia == s.paidVia();
+        }
+    }
+
     static final String CHANGED = "This lesson changed in another window. Reload the page and try again.";
     static final String NOT_YET = "That lesson hasn’t happened yet.";
     static final int MAX_DAYS = 366;
@@ -128,19 +139,24 @@ public final class PaymentService {
     }
 
     /** Marks paid, or on a paid lesson changes how they paid. {@code paidVia} blank for none. */
-    public Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
-        Row out = markPaidRow(ctx, date, start, studentId, paidVia);
+    public Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia, Seen seen) {
+        Row out = markPaidRow(ctx, date, start, studentId, paidVia, seen);
         log(ctx, "payments-markpaid", List.of(out));
         return out;
     }
 
-    private Row markPaidRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
+    /** For tests: as a page loaded just now would. */
+    Row markPaid(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia) {
+        return markPaid(ctx, date, start, studentId, paidVia, shown(ctx, date, start, studentId));
+    }
+
+    private Row markPaidRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId, String paidVia, Seen seen) {
         CoachProfile coach = coach(ctx);
-        PaidSeat s = happened(ctx, date, start, studentId);
+        PaidSeat s = happened(ctx, date, start, studentId, seen);
         Payment.checkMarkPaid(s.status());
         Payment.checkChangeable(date, LocalDate.ofInstant(clock.instant(), ZoneId.of(coach.coachTimezone())));
         Payment.Via via = Payment.via(paidVia, coach.payments(), s.paidVia());
-        if (!payments.markPaid(ctx, s.seat().key(), s.status(), via, clock.instant())) {
+        if (!payments.markPaid(ctx, s.seat().key(), s.status(), s.paidAt(), s.paidVia(), via, clock.instant())) {
             throw DomainException.conflict(CHANGED);
         }
         return reread(ctx, date, start, studentId);
@@ -150,14 +166,19 @@ public final class PaymentService {
      * Waives an unpaid lesson. It can't be undone (R7); the website always asks first. Allowed on a view-only lesson too
      * (owner, 2026-11-16), so an old unpaid lesson can still be settled; a waive never touches the figures.
      */
-    public Row waive(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
-        Row out = waiveRow(ctx, date, start, studentId);
+    public Row waive(AccessContext ctx, LocalDate date, LocalTime start, String studentId, Seen seen) {
+        Row out = waiveRow(ctx, date, start, studentId, seen);
         log(ctx, "payments-waive", List.of(out));
         return out;
     }
 
-    private Row waiveRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
-        PaidSeat s = happened(ctx, date, start, studentId);
+    /** For tests: as a page loaded just now would. */
+    Row waive(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        return waive(ctx, date, start, studentId, shown(ctx, date, start, studentId));
+    }
+
+    private Row waiveRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId, Seen seen) {
+        PaidSeat s = happened(ctx, date, start, studentId, seen);
         Payment.checkWaive(s.status());
         if (!payments.waive(ctx, s.seat().key(), clock.instant())) {
             throw DomainException.conflict(CHANGED);
@@ -170,14 +191,19 @@ public final class PaymentService {
      * (if nothing has saved them yet), and the undo is written with a correction that counts in this year, flagged as
      * for an earlier year, so the closed year doesn't change (Batch 26; ADR-030 decision 4, amended 2026-11-16).
      */
-    public Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
-        Row out = undoRow(ctx, date, start, studentId);
+    public Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId, Seen seen) {
+        Row out = undoRow(ctx, date, start, studentId, seen);
         log(ctx, "payments-undo", List.of(out));
         return out;
     }
 
-    private Row undoRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
-        PaidSeat s = happened(ctx, date, start, studentId);
+    /** For tests: as a page loaded just now would. */
+    Row undo(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        return undo(ctx, date, start, studentId, shown(ctx, date, start, studentId));
+    }
+
+    private Row undoRow(AccessContext ctx, LocalDate date, LocalTime start, String studentId, Seen seen) {
+        PaidSeat s = happened(ctx, date, start, studentId, seen);
         Payment.checkUndo(s.status());
         Instant now = clock.instant();
         ZoneId zone = ZoneId.of(coach(ctx).coachTimezone());
@@ -190,10 +216,10 @@ public final class PaymentService {
             }
             closedYears.saveBeforeUndo(ctx, counted.getAsInt());
             Row was = reread(ctx, date, start, studentId);
-            done = payments.undo(ctx, s.seat().key(), new FinancialRepository.Undone(now, s.seat().key(), date, start, studentId,
+            done = payments.undo(ctx, s.seat().key(), s.paidAt(), s.paidVia(), new FinancialRepository.Undone(now, s.seat().key(), date, start, studentId,
                     was.amountMinor(), was.currency(), counted.getAsInt()));
         } else {
-            done = payments.undo(ctx, s.seat().key());
+            done = payments.undo(ctx, s.seat().key(), s.paidAt(), s.paidVia());
         }
         if (!done) {
             throw DomainException.conflict(CHANGED);
@@ -222,14 +248,30 @@ public final class PaymentService {
         return counted.isPresent() && counted.getAsInt() < thisYear ? counted.getAsInt() : null;
     }
 
-    private PaidSeat happened(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
-        String key = Seat.key(date, start, studentId);
-        PaidSeat s = payments.seats(ctx, date, date).stream().filter(x -> x.seat().key().equals(key)).findFirst()
-                .orElseThrow(() -> DomainException.notFound("That lesson couldn’t be found."));
+    /**
+     * The lesson, if it has happened and is still as the coach's page showed it. The write that follows is conditional
+     * on the same status and payment, so a change made in between is caught too.
+     */
+    private PaidSeat happened(AccessContext ctx, LocalDate date, LocalTime start, String studentId, Seen seen) {
+        PaidSeat s = seat(ctx, date, start, studentId);
         if (!s.seat().hasStarted(clock.instant())) {
             throw DomainException.conflict(NOT_YET);
         }
+        if (!seen.matches(s)) {
+            throw DomainException.conflict(CHANGED);
+        }
         return s;
+    }
+
+    private PaidSeat seat(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        String key = Seat.key(date, start, studentId);
+        return payments.seats(ctx, date, date).stream().filter(x -> x.seat().key().equals(key)).findFirst()
+                .orElseThrow(() -> DomainException.notFound("That lesson couldn’t be found."));
+    }
+
+    private Seen shown(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {
+        PaidSeat s = seat(ctx, date, start, studentId);
+        return new Seen(s.status(), s.paidAt(), s.paidVia());
     }
 
     private Row reread(AccessContext ctx, LocalDate date, LocalTime start, String studentId) {

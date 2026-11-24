@@ -8,11 +8,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 const row = (startTime: string, fullName: string, o: Partial<PaymentRowDto> = {}): PaymentRowDto => ({
   date: '2026-11-16', startTime, durationMinutes: 30, studentId: fullName, fullName, familyName: 'Sarah Park', relationship: 'GUARDIAN',
-  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], closedYear: null, viewOnly: false, ...o,
+  attendance: 'CHECKED_IN', amountMinor: 5000, currency: 'USD', status: 'UNPAID', paidVia: null, sharedWith: [], closedYear: null, viewOnly: false, paidAt: null, ...o,
 });
 
 const VIEW: PaymentsDto = {
-  rows: [row('06:00', 'Ava Park'), row('06:30', 'Jack Park', { attendance: 'NO_SHOW' }), row('07:00', 'Mia Rossi', { status: 'PAID', paidVia: 'VENMO' }),
+  rows: [row('06:00', 'Ava Park'), row('06:30', 'Jack Park', { attendance: 'NO_SHOW' }), row('07:00', 'Mia Rossi', { status: 'PAID', paidVia: 'VENMO', paidAt: '2026-11-16T14:00:00Z' }),
     row('07:30', 'Leo Martin', { status: 'WAIVED', attendance: 'NOT_RECORDED' })],
   totals: { unpaid: { USD: 10000 }, unpaidCount: 2, paid: { USD: 5000 }, paidCount: 1, noShows: 1, noShowsUnpaid: { USD: 5000 }, notRecorded: 1 },
   choices: ['VENMO', 'OTHER'], currency: 'USD', thisYear: 2026,
@@ -68,7 +68,24 @@ test('Mark paid asks how they paid, from the coach’s types and Other, and says
   await userEvent.click(within(dialog).getByRole('button', { name: 'Venmo' }));
   await userEvent.click(within(dialog).getByRole('button', { name: 'Mark paid' }));
   expect(await screen.findByText('Ava Park, Nov 16: marked paid by Venmo.')).toBeInTheDocument();
-  expect(posts).toEqual([{ path: '/api/coach/payments/paid', body: { date: '2026-11-16', startTime: '06:00', studentId: 'Ava Park', paidVia: 'VENMO' } }]);
+  expect(posts).toEqual([{ path: '/api/coach/payments/paid', body: { date: '2026-11-16', startTime: '06:00', studentId: 'Ava Park', paidVia: 'VENMO',
+    seen: { status: 'UNPAID', paidAt: null, paidVia: null } } }]);
+});
+
+test('a write carries the lesson as the page showed it, so a change made in another window is caught', async () => {
+  const posts = serve();
+  render(<Payments api={paymentsApi('t')} onError={vi.fn()} />);
+  pick();
+  await screen.findByRole('heading', { name: 'Unpaid lessons' });
+  await userEvent.click(screen.getByRole('button', { name: 'All' }));
+  const mia = screen.getByText('Mia Rossi').closest('tr')!;
+  await userEvent.click(within(mia).getByRole('link', { name: 'Change' }));
+  const dialog = screen.getByRole('dialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Other' }));
+  await userEvent.click(within(dialog).getAllByRole('button').at(-1)!);
+  await waitFor(() => expect(posts).toHaveLength(1));
+  expect(posts[0].body).toEqual({ date: '2026-11-16', startTime: '07:00', studentId: 'Mia Rossi', paidVia: 'OTHER',
+    seen: { status: 'PAID', paidAt: '2026-11-16T14:00:00Z', paidVia: 'VENMO' } });
 });
 
 test('Waive always asks first, and a lesson changed elsewhere says so', async () => {
