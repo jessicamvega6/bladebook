@@ -132,14 +132,16 @@ public final class EventConsumers {
         }
         TableRecord r = TableRecord.parse(json);
         AccessLog.begin(requestId, null);
+        RuntimeException failure = null;
         try {
             Outcome o;
             try {
                 o = handle(event, r);
             } catch (RuntimeException e) {
-                // The event's record was one it acts on, and it read what it needed before failing (an email not
-                // accepted, say): the line is still written, then the event fails and is retried.
-                AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event));
+                // It may have read what it needed before failing (an email not accepted, say), or nothing (its first read
+                // throttled): the line is still written, marked failed, then the event fails and is retried.
+                failure = e;
+                AccessLog.consumerRun(function, event.name(), ids(r), FIELDS.get(event), true);
                 throw e;
             }
             if (o.count() >= 0) {
@@ -147,7 +149,19 @@ public final class EventConsumers {
             }
             return o;
         } finally {
+            endKeeping(failure);
+        }
+    }
+
+    /** Writes the run's access-log lines; if that fails too, the run's own failure is the one thrown, carrying it. */
+    static void endKeeping(RuntimeException failure) {
+        try {
             AccessLog.end();
+        } catch (RuntimeException logFailed) {
+            if (failure == null) {
+                throw logFailed;
+            }
+            failure.addSuppressed(logFailed);
         }
     }
 
@@ -165,13 +179,19 @@ public final class EventConsumers {
     Outcome reconcile(String coachId, String requestId) {
         AccessContext ctx = new AccessContext(coachId);
         AccessLog.begin(requestId, null);
+        AccessLog.Ids ids = new AccessLog.Ids().add("coachId", coachId);
+        RuntimeException failure = null;
         try {
             ScheduleChangeService.Reconciled r = scheduleChange.reconcile(ctx);
-            AccessLog.consumerRun(function, "reconcile", new AccessLog.Ids().add("coachId", coachId), FIELDS.get(Event.ScheduleChanged));
+            AccessLog.consumerRun(function, "reconcile", ids, FIELDS.get(Event.ScheduleChanged));
             return new Outcome(Event.ScheduleChanged, "batches settled, then lessons cancelled or re-priced",
                     r.settled() + r.result().cancelled() + r.result().repriced());
+        } catch (RuntimeException e) {
+            failure = e;
+            AccessLog.consumerRun(function, "reconcile", ids, FIELDS.get(Event.ScheduleChanged), true);
+            throw e;
         } finally {
-            AccessLog.end();
+            endKeeping(failure);
         }
     }
 

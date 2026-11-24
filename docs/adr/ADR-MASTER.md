@@ -1572,6 +1572,10 @@ same coach (held by `LinkedSkater` and the ownership condition).
   `x-bladebook-viewer-ip`, and writes them before any response body. A line is JSON: time,
   request ID, source, role, actor, `relationship` when known, operation, the IDs by kind, and the
   field names. Security events (a family's never-linked ask) are lines too, `security:<what>`.
+  *2026-11-23 (owner, after a code review):* a consumer or job run that fails part-way still writes
+  its line, with the operation ending `:failed` (`StudentChanged:failed`): it may have read the
+  fields it names before failing, or none of them. If the line itself can't be written, the run's
+  own error is the one reported, carrying the logging error with it.
 - **A family line carries `clientRelationship` when the request already read the family's
   account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).

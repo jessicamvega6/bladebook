@@ -111,7 +111,23 @@ class EventConsumersTest {
         assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged,
                 record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-9"))
                 .hasMessageContaining("not accepted");
-        assertThat(log.only("StudentChanged").requestId()).isEqualTo("req-9");
+        // Marked failed: it may have read these fields before failing, or none of them (2026-11-23).
+        assertThat(log.only("StudentChanged:failed").requestId()).isEqualTo("req-9");
+    }
+
+    @Test
+    void whenTheAccessLogCantBeWrittenEitherTheRunsOwnFailureIsTheOneThrown() {
+        String coachId = coach();
+        EventConsumers failing = new EventConsumers("bladebook-dev-consumer-student-link", f.clients, f.table, e -> {
+            throw new IllegalStateException("SES is unavailable");
+        }, new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.fixed(NOW, ZoneOffset.UTC));
+        link(coachId, "2026-11-09T15:00:00Z");
+        AccessLog.install(lines -> { throw new IllegalStateException("CloudWatch is unavailable"); }, Clock.systemUTC());
+
+        assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-10"))
+                .hasMessageContaining("not accepted")
+                .satisfies(e -> assertThat(e.getSuppressed()).extracting(Throwable::getMessage).containsExactly("CloudWatch is unavailable"));
     }
 
     @Test

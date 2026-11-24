@@ -241,9 +241,14 @@ public final class ScheduledRuns {
         try {
             return run(job, scheduledTime, date, counts);
         } catch (RuntimeException e) {
-            // It read what it needed before failing (an email not accepted, say): the line is still written, with no
-            // counts, then the run fails and the Scheduler retries it (ADR-MASTER section 19).
-            AccessLog.jobRun(function, job.rule, date, Map.of(), FIELDS.get(job));
+            // It may have read what it needed before failing (an email not accepted, say), or nothing: the line is still
+            // written, with no counts and marked failed, then the run fails and the Scheduler retries it (ADR-MASTER
+            // section 19). If the line can't be written either, the run's own failure is the one thrown.
+            try {
+                AccessLog.jobRun(function, job.rule, date, Map.of(), FIELDS.get(job), true);
+            } catch (RuntimeException logFailed) {
+                e.addSuppressed(logFailed);
+            }
             throw e;
         }
     }
