@@ -93,6 +93,8 @@ final class FamilyItems {
         m.put("studentStatus", s(r.status().name()));
         m.put("coachFirstName", s(coach.firstName()));
         m.put("coachLastName", s(coach.lastName()));
+        // The coach's record's own: a decline removes only the link that went with the record declined (SyncRepository).
+        m.put("signedUpAt", s(r.signedUpAt().toString()));
         return m;
     }
 

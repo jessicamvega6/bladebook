@@ -167,6 +167,40 @@ class PaymentServiceTest {
     }
 
     @Test
+    void aWriteFromAPageThatShowedAnOlderStatusIsRefusedSoThePageReloads() {
+        PaymentService.Seen unpaid = new PaymentService.Seen(Payment.Status.UNPAID, null, null);
+        // Tab A shows Ava unpaid; tab B marks her paid; A's "paid, Venmo" doesn't overwrite B's payment.
+        Instant first = now.get();
+        service.markPaid(dana, MONDAY, SIX, ava, "OTHER", unpaid);
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "VENMO", unpaid)).hasMessage(PaymentService.CHANGED);
+        assertThatThrownBy(() -> service.waive(dana, MONDAY, SIX, ava, unpaid)).hasMessage(PaymentService.CHANGED);
+        PaymentService.Seen paidFirst = new PaymentService.Seen(Payment.Status.PAID, first, Payment.Via.OTHER);
+
+        // A shows the payment from `first`; B undoes it and marks it paid again later. A's Undo mustn't undo B's newer one.
+        service.undo(dana, MONDAY, SIX, ava, paidFirst);
+        now.set(first.plusSeconds(60));
+        service.markPaid(dana, MONDAY, SIX, ava, "OTHER", unpaid);
+        assertThatThrownBy(() -> service.undo(dana, MONDAY, SIX, ava, paidFirst)).hasMessage(PaymentService.CHANGED);
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "VENMO", paidFirst)).hasMessage(PaymentService.CHANGED);
+        PaymentService.Row r = service.list(dana, MONDAY, MONDAY).rows().get(0);
+        assertThat(r.status() + " " + r.paidVia() + " " + r.paidAt()).isEqualTo("PAID OTHER " + first.plusSeconds(60));
+        assertThat(service.undo(dana, MONDAY, SIX, ava, new PaymentService.Seen(Payment.Status.PAID, first.plusSeconds(60), Payment.Via.OTHER)).status())
+                .isEqualTo(Payment.Status.UNPAID);
+    }
+
+    @Test
+    void aWriteFromAPageThatShowedAnotherWayOfPayingIsRefused() {
+        Instant at = now.get();
+        service.markPaid(dana, MONDAY, SIX, ava, "OTHER", new PaymentService.Seen(Payment.Status.UNPAID, null, null));
+        PaymentService.Seen other = new PaymentService.Seen(Payment.Status.PAID, at, Payment.Via.OTHER);
+        // Tab A shows "paid, Other"; tab B changes it to Venmo (paidAt stays). A's change or Undo is refused.
+        service.markPaid(dana, MONDAY, SIX, ava, "VENMO", other);
+        assertThatThrownBy(() -> service.markPaid(dana, MONDAY, SIX, ava, "", other)).hasMessage(PaymentService.CHANGED);
+        assertThatThrownBy(() -> service.undo(dana, MONDAY, SIX, ava, other)).hasMessage(PaymentService.CHANGED);
+        assertThat(service.list(dana, MONDAY, MONDAY).rows().get(0).paidVia()).isEqualTo(Payment.Via.VENMO);
+    }
+
+    @Test
     void aPaidLessonCantBeWaived() {
         service.markPaid(dana, MONDAY, SIX, ava, "");
         assertThatThrownBy(() -> service.waive(dana, MONDAY, SIX, ava))

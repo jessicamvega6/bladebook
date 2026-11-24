@@ -62,11 +62,12 @@ public final class ScheduleChangeService {
     }
 
     /** The review page (ADR-MASTER section 9, "The preview"). It is advisory: the save decides. */
-    public record Preview(List<Impact> cancel, List<Impact> reprice, List<Impact> kept, int families, List<PriceChange> big) {
+    public record Preview(List<Impact> cancel, List<Impact> reprice, List<Impact> kept, List<Impact> checkedIn, int families,
+                          List<PriceChange> big) {
     }
 
     /** The newest schedule-change batch: {@code stuck} once it's over an hour old and not {@code EXECUTED}. */
-    public record Status(ChangeBatch batch, boolean stuck, List<CancellationLine> passed) {
+    public record Status(ChangeBatch batch, boolean stuck, List<CancellationLine> passed, List<CancellationLine> checkedIn) {
     }
 
     /** The drift check's threshold, which the save status shares (C_Coach Schedule Save Status.md). */
@@ -98,6 +99,38 @@ public final class ScheduleChangeService {
      * week, which is time off (owner, 2026-11-18, I24): families get the "cancelled by the coach" email.
      */
     public Result apply(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by) {
+        return apply(ctx, source, by, UUID.randomUUID().toString());
+    }
+
+    /**
+     * The change, one run at a time for each coach (owner, 2026-11-23; {@code docs/tla/ScheduleApply.tla}). One save sets
+     * off a run per date it writes; the first to take the coach's lease applies the whole save, so each family's lessons
+     * go in one batch and one email. A run that finds the lease held asks the holder to run again and does nothing
+     * itself: the holder's next pass reads the schedule afresh, which covers a save made meanwhile. {@code runId} is the
+     * event's id, so a retry of a run that stopped takes its own lease back; a lease left longer than
+     * {@link ScheduleRepository#LEASE_ABANDONED} is taken by anyone.
+     */
+    public Result apply(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by, String runId) {
+        if (!schedules.takeLease(ctx, runId, clock.instant())) {
+            return new Result(0, 0, 0, 0, 0, 0, 0);
+        }
+        Result total = new Result(0, 0, 0, 0, 0, 0, 0);
+        try {
+            do {
+                Result r = pass(ctx, source, by);
+                total = new Result(total.added() + r.added(), total.removed() + r.removed(), total.replaced() + r.replaced(),
+                        total.skipped() + r.skipped(), total.cancelled() + r.cancelled(), total.repriced() + r.repriced(),
+                        total.families() + r.families());
+            } while (schedules.releaseOrRerun(ctx, runId, clock.instant()));
+        } catch (RuntimeException e) {
+            schedules.releaseLease(ctx, runId);
+            throw e;
+        }
+        return total;
+    }
+
+    /** One pass of the change, from a fresh read, under the lease. */
+    private Result pass(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by) {
         CoachProfile coach = coach(ctx);
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         Instant now = clock.instant();
@@ -108,14 +141,45 @@ public final class ScheduleChangeService {
                 coach.currency().name(), coach.requiredNoticeHours(), now);
 
         ScheduleRepository.Applied done = schedules.apply(ctx, ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now));
+        int cancelled = 0, repriced = 0, told = 0;
         // Read again: a time booked since the first read is cancelled or re-priced in this batch (ADR-MASTER section 9).
-        ScheduleChange booked = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now);
-        if (!booked.touchesBookings()) {
-            return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), 0, 0, 0);
+        // A cancel or re-price refused because the lesson changed under it (a family left, another booked or joined) is
+        // planned again from a fresh read, as its own batch, so whoever is booked now gets the change on a line of their
+        // own and is emailed; the family who left is skipped (owner, 2026-11-21). A few rounds at most: anything still
+        // changing after that is the drift check's.
+        for (int round = 0; round < ROUNDS; round++) {
+            Instant at = clock.instant();
+            ScheduleChange booked = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, at);
+            // A time a family cancelled since the last read, now open, is removed or replaced like any open time.
+            done = plus(done, openTimes(ctx, booked));
+            if (!booked.touchesBookings()) {
+                break;
+            }
+            int[] counts = runBatch(ctx, source, by, booked, seatsByTime(schedules.seats(ctx, today, until)), at);
+            cancelled += counts[0];
+            repriced += counts[1];
+            told += counts[2];
+            if (counts[3] == 0) {
+                break;
+            }
         }
-        Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
-        int[] counts = runBatch(ctx, source, by, booked, seats, now);
-        return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), counts[0], counts[1], counts[2]);
+        return new Result(done.added(), done.removed(), done.replaced(), done.skipped(), cancelled, repriced, told);
+    }
+
+    /** How many batches one apply runs at most: the first, and fresh ones for lessons that changed under it. */
+    static final int ROUNDS = 3;
+
+    /** The plan's open-time writes only (adds, removes, replaces), each under its condition; nothing booked is touched. */
+    private ScheduleRepository.Applied openTimes(AccessContext ctx, ScheduleChange plan) {
+        if (plan.isEmpty()) {
+            return new ScheduleRepository.Applied(0, 0, 0, 0);
+        }
+        return schedules.apply(ctx, new ScheduleChange(plan.add(), plan.remove(), plan.replace()));
+    }
+
+    private static ScheduleRepository.Applied plus(ScheduleRepository.Applied a, ScheduleRepository.Applied b) {
+        return new ScheduleRepository.Applied(a.added() + b.added(), a.removed() + b.removed(), a.replaced() + b.replaced(),
+                a.skipped() + b.skipped());
     }
 
     /** What a reconcile did: stuck batches settled, and the new batch's result. */
@@ -159,7 +223,11 @@ public final class ScheduleChangeService {
         List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, today, until), today, until, zone,
                 coach.currency().name(), coach.requiredNoticeHours(), now);
         ScheduleChange verdict = ScheduleChange.plan(schedules.lessonTimes(ctx, today, until), desired, now);
-        return new Drift(batches.unfinished(ctx, now.minus(STUCK)).size(), verdict.cancel().size(), verdict.reprice().size());
+        // A lesson someone is checked in to is kept on purpose (CHECKED_IN), so it isn't a missed cancellation.
+        Map<String, List<Seat>> seats = verdict.cancel().isEmpty() ? Map.of() : seatsByTime(schedules.seats(ctx, today, until));
+        long missed = verdict.cancel().stream()
+                .filter(c -> seats.getOrDefault(c.time().key(), List.of()).stream().noneMatch(ScheduleChangeService::started)).count();
+        return new Drift(batches.unfinished(ctx, now.minus(STUCK)).size(), (int) missed, verdict.reprice().size());
     }
 
     /**
@@ -168,6 +236,10 @@ public final class ScheduleChangeService {
      * Takes the date it's for, as the Scheduler gives it (ADR-MASTER section 14), and works from the start of that day in
      * the coach's zone.
      *
+     * <p>Each date's adds are written only while its schedule is still the one read ({@link ScheduleRepository#roll}), so
+     * a time a schedule change has just removed is never put back. If a date changed meanwhile, it's planned again once
+     * from a fresh read; anything still left is the next night's run.
+     *
      * @return lesson times added
      */
     public int roll(AccessContext ctx, LocalDate date) {
@@ -175,14 +247,23 @@ public final class ScheduleChangeService {
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         Instant from = date.atStartOfDay(zone).toInstant();
         LocalDate until = Weeks.storeUntil(date);
-        WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
-        List<LessonTime> desired = LessonTimes.make(weekly, schedules.overrides(ctx, date, until), date, until, zone,
-                coach.currency().name(), coach.requiredNoticeHours(), from);
-        ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
-        if (plan.add().isEmpty()) {
-            return 0;
+        int added = 0;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            WeeklySchedule weekly = schedules.findDefault(ctx).orElse(null);
+            Map<LocalDate, List<ScheduleBlock>> overrides = schedules.overrides(ctx, date, until);
+            List<LessonTime> desired = LessonTimes.make(weekly, overrides, date, until, zone,
+                    coach.currency().name(), coach.requiredNoticeHours(), from);
+            ScheduleChange plan = ScheduleChange.plan(schedules.lessonTimes(ctx, date, until), desired, from);
+            if (plan.add().isEmpty()) {
+                break;
+            }
+            ScheduleRepository.Rolled r = schedules.roll(ctx, plan.add(), weekly == null ? null : weekly.scheduleVersion(), overrides);
+            added += r.added();
+            if (!r.stale()) {
+                break;
+            }
         }
-        return schedules.apply(ctx, new ScheduleChange(plan.add(), List.of(), List.of())).added();
+        return added;
     }
 
     /** Header, planned lines, then each lesson in its own transaction, then the header {@code EXECUTED}. */
@@ -201,7 +282,7 @@ public final class ScheduleChangeService {
         Map<String, List<CancellationLine>> cancelLines = new HashMap<>();
         Map<String, List<RepriceLine>> repriceLines = new HashMap<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
-            List<Seat> in = bookedIn(seats, c.time());
+            List<Seat> in = joinedIn(seats, c.time());
             List<String> order = in.stream().map(Seat::studentId).toList();
             cancelLines.put(c.time().key(), in.stream().map(s -> CancellationLine.of(batch, s,
                     c.time().shareFor(c.time().priceMinor(), s.studentId(), order), c.time().currency(), now)
@@ -217,29 +298,36 @@ public final class ScheduleChangeService {
         batches.plan(ctx, batch, cancelLines.values().stream().flatMap(List::stream).toList(),
                 repriceLines.values().stream().flatMap(List::stream).toList());
 
-        int cancelled = 0, repriced = 0;
+        int cancelled = 0, repriced = 0, failed = 0;
         Set<String> told = new LinkedHashSet<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
             List<String> keys = cancelLines.get(c.time().key()).stream().map(CancellationLine::key).toList();
             List<Seat> all = seats.getOrDefault(c.time().key(), List.of());
-            if (batches.cancel(ctx, c.time(), all, c.replacement(), keys, clock.instant())) {
+            if (all.stream().anyMatch(ScheduleChangeService::started)) {
+                // Someone is checked in or marked a no-show: the lesson has started for them, and a bulk action never
+                // cancels it (ADR-MASTER section 10, "General"). The save status lists it as kept (owner, 2026-11-21).
+                batches.skip(ctx, keys, ChangeBatchRepository.CHECKED_IN);
+            } else if (batches.cancel(ctx, c.time(), all, c.replacement(), keys, clock.instant())) {
                 cancelled++;
                 bookedIn(seats, c.time()).forEach(s -> told.add(s.clientId()));
             } else {
-                batches.skip(ctx, keys, c.time().startsAtUtc().isAfter(clock.instant()) ? "BOOKING_GONE" : "LESSON_PASSED");
+                failed++;
+                batches.skip(ctx, keys, whyNotCancelled(ctx, c.time()));
             }
         }
         for (ScheduleChange.Reprice r : plan.reprice()) {
             List<String> keys = repriceLines.get(r.time().key()).stream().map(RepriceLine::key).toList();
-            if (batches.reprice(ctx, r.time(), r.newPriceMinor(), keys, clock.instant())) {
+            if (batches.reprice(ctx, r.time(), bookedIn(seats, r.time()), r.newPriceMinor(), keys, clock.instant())) {
                 repriced++;
                 bookedIn(seats, r.time()).forEach(s -> told.add(s.clientId()));
             } else {
-                batches.skip(ctx, keys, r.time().startsAtUtc().isAfter(clock.instant()) ? "BOOKING_GONE" : "LESSON_PASSED");
+                failed++;
+                batches.skip(ctx, keys, r.time().startsAtUtc().isAfter(clock.instant())
+                        ? ChangeBatchRepository.BOOKING_GONE : ChangeBatchRepository.LESSON_PASSED);
             }
         }
         batches.finish(ctx, batch.executed(cancelled + repriced, told.size()));
-        return new int[] {cancelled, repriced, told.size()};
+        return new int[] {cancelled, repriced, told.size(), failed};
     }
 
     // ---------------------------------------------------------------------- preview
@@ -261,8 +349,15 @@ public final class ScheduleChangeService {
         Map<String, List<Seat>> seats = seatsByTime(schedules.seats(ctx, today, until));
         List<Impact> cancel = new ArrayList<>(), reprice = new ArrayList<>(), kept = new ArrayList<>();
         Set<String> families = new LinkedHashSet<>();
+        List<Impact> checkedIn = new ArrayList<>();
         for (ScheduleChange.Cancel c : plan.cancel()) {
-            if (onlyDates.test(c.time().lessonDate())) {
+            if (!onlyDates.test(c.time().lessonDate())) {
+                continue;
+            }
+            // A lesson someone is checked in to won't be cancelled (the save keeps it), so it isn't shown as cancelled.
+            if (seats.getOrDefault(c.time().key(), List.of()).stream().anyMatch(ScheduleChangeService::started)) {
+                checkedIn.add(impact(c.time(), null, seats, null));
+            } else {
                 cancel.add(impact(c.time(), null, seats, families));
             }
         }
@@ -276,7 +371,7 @@ public final class ScheduleChangeService {
                 kept.add(impact(r.time(), r.newPriceMinor(), seats, null));
             }
         }
-        return new Preview(cancel, reprice, kept, families.size(), big);
+        return new Preview(cancel, reprice, kept, checkedIn, families.size(), big);
     }
 
     /**
@@ -330,16 +425,18 @@ public final class ScheduleChangeService {
     /** The newest schedule-change batch, for the save status. */
     public Optional<Status> status(AccessContext ctx) {
         Optional<Status> out = buildStatus(ctx);
-        out.filter(st -> !st.passed().isEmpty()).ifPresent(st -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
-                .addAll("studentId", st.passed().stream().map(CancellationLine::studentId).toList())
-                .addAll("clientId", st.passed().stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
+        out.map(st -> java.util.stream.Stream.concat(st.passed().stream(), st.checkedIn().stream()).toList())
+                .filter(shown -> !shown.isEmpty()).ifPresent(shown -> AccessLog.coachRead(ctx, "schedule-status", new AccessLog.Ids()
+                .addAll("studentId", shown.stream().map(CancellationLine::studentId).toList())
+                .addAll("clientId", shown.stream().map(CancellationLine::clientId).toList()), List.of("studentName")));
         return out;
     }
 
     private Optional<Status> buildStatus(AccessContext ctx) {
         Instant now = clock.instant();
         return batches.latest(ctx).map(l -> new Status(l.batch(),
-                l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed()));
+                l.batch().executionStatus() != ChangeBatch.Execution.EXECUTED && l.batch().createdAt().plus(STUCK).isBefore(now), l.passed(),
+                l.checkedIn()));
     }
 
     // ---------------------------------------------------------------------- helpers
@@ -363,6 +460,29 @@ public final class ScheduleChangeService {
 
     private static List<Seat> bookedIn(Map<String, List<Seat>> seats, LessonTime t) {
         return seats.getOrDefault(t.key(), List.of()).stream().filter(s -> s.seatStatus() == Seat.Status.BOOKED).toList();
+    }
+
+    /** Every skater in the lesson, booked, checked in or a no-show; not an invited one. */
+    private static List<Seat> joinedIn(Map<String, List<Seat>> seats, LessonTime t) {
+        return seats.getOrDefault(t.key(), List.of()).stream().filter(s -> s.seatStatus() != Seat.Status.INVITED).toList();
+    }
+
+    /**
+     * Why a planned cancel was refused: the lesson started, someone was checked in (or marked a no-show) after the plan
+     * read it, or its booking changed.
+     */
+    private String whyNotCancelled(AccessContext ctx, LessonTime t) {
+        if (!t.startsAtUtc().isAfter(clock.instant())) {
+            return ChangeBatchRepository.LESSON_PASSED;
+        }
+        boolean checkedIn = schedules.seats(ctx, t.lessonDate(), t.lessonDate()).stream()
+                .anyMatch(s -> s.startTime().equals(t.startTime()) && started(s));
+        return checkedIn ? ChangeBatchRepository.CHECKED_IN : ChangeBatchRepository.BOOKING_GONE;
+    }
+
+    /** Checked in or marked a no-show: check-in opens an hour before the start ({@code Attendance.EARLY}). */
+    private static boolean started(Seat s) {
+        return s.seatStatus() == Seat.Status.CHECKED_IN || s.seatStatus() == Seat.Status.NO_SHOW;
     }
 
     private CoachProfile coach(AccessContext ctx) {

@@ -37,6 +37,14 @@ class CoachProfileTest {
     }
 
     @Test
+    void noticeIsNeverShorterThan24Hours() {
+        // Owner, 2026-11-23: 24 hours is the minimum; a coach may raise it (Phase 2) but never go below it.
+        assertThat(dana().requiredNoticeHours(48).build().requiredNoticeHours()).isEqualTo(48);
+        assertThatThrownBy(() -> dana().requiredNoticeHours(23).build()).hasMessage("Notice must be at least 24 hours.");
+        assertThatThrownBy(() -> dana().requiredNoticeHours(0).build()).hasMessage("Notice must be at least 24 hours.");
+    }
+
+    @Test
     void defaultsMatchTheAdr() {
         CoachProfile p = dana().businessEmail("dana@gmail.com").build();
         assertThat(p.requiredNoticeHours()).isEqualTo(24);

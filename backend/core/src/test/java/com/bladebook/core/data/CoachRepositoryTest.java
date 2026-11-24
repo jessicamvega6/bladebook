@@ -154,6 +154,20 @@ class CoachRepositoryTest {
     }
 
     @Test
+    void clearingAShownPhoneStopsShowingIt() {
+        CoachProfile p = profile("7K2Q-M9XT").businessEmail("dana@gmail.com").phone("205-555-0142").build();
+        repo.create(ctx, p);
+        repo.updateVisibility(ctx, true, false);
+        repo.updateDetails(ctx, p.toBuilder().phone(null).build());
+
+        assertThat(repo.find(ctx).orElseThrow().displayPhoneToClients()).isFalse();
+        // Shown only while there is a phone: a switch from a page that still had one is refused.
+        assertThatThrownBy(() -> repo.updateVisibility(ctx, true, false)).isInstanceOf(DomainException.class)
+                .hasMessage("Add your phone number under Details first.");
+        assertThat(repo.find(ctx).orElseThrow().displayPhoneToClients()).isFalse();
+    }
+
+    @Test
     void updatingDetailsWithNoProfileIsNotFound() {
         CoachProfile p = profile("7K2Q-M9XT").businessEmail("dana@gmail.com").build();
         assertThatThrownBy(() -> repo.updateDetails(ctx, p))

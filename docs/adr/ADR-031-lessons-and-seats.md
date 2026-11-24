@@ -356,8 +356,10 @@ week.
   cleared; the lesson time reopens (`OPEN`) when its last
   seat goes. The same is true whenever the last seat goes — a family's cancel, or a coach's
   cancel with **release**. A coach's **hold** sets it to `HELD` instead.
-- **No answer by `answerBy`** → cancelled with no charge by the hourly sweep. (Which emails the
-  family gets: `FeatureDecriptions/cancelation.md`.)
+- ~~**No answer by `answerBy`** → cancelled with no charge by the hourly sweep.~~ (Which emails the
+  family gets: `FeatureDecriptions/cancelation.md`.) *Amended 2026-11-23 (owner, I36): the in-time
+  leave makes the staying skater's lesson private at the full price at once, and no answer keeps it;
+  the sweep cancels nothing (ADR-MASTER §8).*
 
 ### 9. Changing a shared series
 

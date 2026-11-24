@@ -144,6 +144,9 @@ A skater calls out (either family; the booking family is not a special case):
     *Changed 2026-10-13 (ADR-031 decision 8): they answer by whichever comes first, the start of the notice period or
     7 days after the other skater left. Nothing waits for more than a week. No answer by then cancels it with no
     charge; this is checked every hour. Their share stays as it was until they answer.*
+    *Changed by the owner 2026-11-23 (I36): the staying skater's lesson is private at the full price as soon as the
+    other skater leaves in time; the family can keep it or cancel with no charge by the answer-by time, and no
+    answer keeps it at the full price. The freed place can take a new skater straight away.*
     *Revised 2026-10-13 (ADR-031 revision, decision 8): the question is recorded on the lesson, not on the staying
     family's booking. Their booking isn't changed until they answer.*
     *Open:* whether the 7 days in the answer-by rule should be a question for Kim. *(Put to Kim as §8 Q7.)*

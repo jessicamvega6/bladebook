@@ -30,6 +30,8 @@ Shared lesson — the other skater can't make it — to the family who stays, wh
 Shared lesson cancelled, no answer — to the family who stays, when they didn't answer by ~~the start of the notice
   period~~ *the answer-by time*: the lesson is cancelled with no charge. Always sent. (ADR-026, amended 2026-10-13)
   *Changed 2026-10-13 (ADR-031 decisions 8 and 12): sent at once by the hourly check.*
+  *Removed 2026-11-23 (owner, I36): no answer keeps the lesson at the full price, so this email is gone. "The other
+  skater can't make it" now says the lesson is private at the full price, and that no answer keeps it.*
 Shared lesson dates cancelled — to the family who stays, when they choose "Cancel all remaining dates": one email
   listing every cancelled date, with no charge. The coach isn't emailed, because none of these cancellations is late.
   *Added 2026-10-13 (ADR-031 decision 9).*

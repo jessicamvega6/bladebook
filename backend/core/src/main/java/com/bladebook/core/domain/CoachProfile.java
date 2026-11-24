@@ -19,6 +19,11 @@ public final class CoachProfile {
     public enum Currency { USD, CAD }
 
     public static final int DEFAULT_NOTICE_HOURS = 24;
+    /**
+     * The shortest notice a coach may have (owner, 2026-11-23): editable from Phase 2, up but never below this. It keeps a
+     * shared lesson's answer-by time a day before the lesson, well before check-in opens.
+     */
+    public static final int MIN_NOTICE_HOURS = 24;
 
     private final String coachId;
     private final String firstName;
@@ -51,6 +56,9 @@ public final class CoachProfile {
         this.phone = b.phone;
         this.coachTimezone = Objects.requireNonNull(b.coachTimezone, "coachTimezone");
         this.currency = Objects.requireNonNull(b.currency, "currency");
+        if (b.requiredNoticeHours < MIN_NOTICE_HOURS) {
+            throw DomainException.invalid("requiredNoticeHours", "Notice must be at least 24 hours.");
+        }
         this.requiredNoticeHours = b.requiredNoticeHours;
         this.coachCode = Objects.requireNonNull(b.coachCode, "coachCode");
         this.paymentInstructions = b.paymentInstructions;

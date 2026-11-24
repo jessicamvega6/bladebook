@@ -2,9 +2,11 @@ package com.bladebook.api.coach.controller;
 
 import com.bladebook.api.coach.dto.PaymentDtos.RowDto;
 import com.bladebook.api.coach.dto.PaymentDtos.SeatBody;
+import com.bladebook.api.coach.dto.PaymentDtos.Seen;
 import com.bladebook.api.coach.dto.PaymentDtos.ViewDto;
 import com.bladebook.api.coach.security.CurrentCoach;
 import com.bladebook.core.domain.DomainException;
+import com.bladebook.core.domain.Payment;
 import com.bladebook.core.service.PaymentService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -38,18 +41,29 @@ public class PaymentController {
     /** Marks paid, or changes how a paid lesson was paid. */
     @PostMapping("/paid")
     public RowDto paid(@AuthenticationPrincipal Jwt jwt, @RequestBody SeatBody b) {
-        return RowDto.of(payments.markPaid(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), b.paidVia()));
+        return RowDto.of(payments.markPaid(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), b.paidVia(), seen(b)));
     }
 
     /** Final (R7). */
     @PostMapping("/waive")
     public RowDto waive(@AuthenticationPrincipal Jwt jwt, @RequestBody SeatBody b) {
-        return RowDto.of(payments.waive(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId()));
+        return RowDto.of(payments.waive(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), seen(b)));
     }
 
     @PostMapping("/undo")
     public RowDto undo(@AuthenticationPrincipal Jwt jwt, @RequestBody SeatBody b) {
-        return RowDto.of(payments.undo(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId()));
+        return RowDto.of(payments.undo(CurrentCoach.of(jwt), date(b.date()), time(b.startTime()), b.studentId(), seen(b)));
+    }
+
+    /** What the page showed: every write is made only while the lesson is still as shown. */
+    private static PaymentService.Seen seen(SeatBody b) {
+        try {
+            Seen s = b.seen();
+            return new PaymentService.Seen(Payment.Status.valueOf(s.status()), s.paidAt() == null ? null : Instant.parse(s.paidAt()),
+                    s.paidVia() == null ? null : Payment.Via.valueOf(s.paidVia()));
+        } catch (IllegalArgumentException | DateTimeParseException | NullPointerException e) {
+            throw DomainException.invalid("status", "Reload the page and try again.");
+        }
     }
 
     private static LocalDate date(String s) {

@@ -226,3 +226,29 @@ test('a series already every 4 weeks says it is at the limit offered (owner, 202
   expect(await screen.findByRole('button', { name: /Make it less frequent/ })).toHaveTextContent('Already at the limit offered: every 4 weeks');
   expect(screen.queryByText(/the least often/)).not.toBeInTheDocument();
 });
+
+test('a series every 2 weeks only offers every 4, since every 3 would really run every 6 (owner, 2026-11-23)', async () => {
+  at('2026-11-22T13:00:00Z');
+  const dates = ['2026-11-23', '2026-12-07', '2026-12-21', '2027-01-04', '2027-01-18'];
+  const series = (date: string): MyLesson => lesson({ date, startsAtUtc: `${date}T13:00:00Z`, recurrenceId: 'r1', intervalWeeks: 2 });
+  const data: MyBookings = { upcoming: dates.map(series), recent: [], series: [{ coachId: 'dana',
+    recurrenceId: 'r1', studentId: 'ava', studentName: 'Ava Park', coachFirstName: 'Dana', weekday: 'MONDAY', startTime: '07:00', intervalWeeks: 2,
+    endDate: '2027-01-18', lessonsLeft: 5, lastLesson: '2027-01-18' }] };
+  render(<SeriesChange api={fakeApi(data)} coachId="dana" recurrenceId="r1" onError={vi.fn()} />);
+  await userEvent.click(await screen.findByRole('button', { name: /Make it less frequent/ }));
+  const options = screen.getAllByRole('option').map((o) => o.textContent);
+  expect(options).toEqual(['Every 4 weeks']);
+  const what = screen.getByRole('heading', { name: 'What this will do' }).closest('section')!;
+  expect(what).toHaveTextContent('2 lessons cancelled · 3 lessons kept');
+});
+
+test('a series every 3 weeks can’t be spaced out further (owner, 2026-11-23)', async () => {
+  at('2026-11-22T13:00:00Z');
+  const series = (date: string): MyLesson => lesson({ date, startsAtUtc: `${date}T13:00:00Z`, recurrenceId: 'r1', intervalWeeks: 3 });
+  const data: MyBookings = { upcoming: ['2026-11-23', '2026-12-14'].map(series), recent: [], series: [{ coachId: 'dana',
+    recurrenceId: 'r1', studentId: 'ava', studentName: 'Ava Park', coachFirstName: 'Dana', weekday: 'MONDAY', startTime: '07:00', intervalWeeks: 3,
+    endDate: '2026-12-14', lessonsLeft: 2, lastLesson: '2026-12-14' }] };
+  render(<SeriesChange api={fakeApi(data)} coachId="dana" recurrenceId="r1" onError={vi.fn()} />);
+  expect(await screen.findByRole('button', { name: /Make it less frequent/ })).toHaveTextContent('Can’t be spaced out further');
+  expect(screen.queryByRole('option')).not.toBeInTheDocument();
+});

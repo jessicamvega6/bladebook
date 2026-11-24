@@ -244,7 +244,7 @@ gate question reopens immediately, because the account stops being inert.
 | `displayEmailToClients` | Boolean, off by default — shows `businessEmail` to families. *Added 2026-09-30*, decision 7a |
 | `coachTimezone` | IANA, required — see decision 6. *Named `timezone` until 2026-09-30, a DynamoDB reserved word* |
 | `currency` | `USD` \| `CAD`, default `USD` |
-| `requiredNoticeHours` | The late-fee threshold (ADR-015 decision 3). **Defaults to 24**, matching the MVP cancel wording in ADR-009 decision 2; not on the signup form, and editable on the profile from Phase 2. *Added 2026-09-29* |
+| `requiredNoticeHours` | The late-fee threshold (ADR-015 decision 3). **Defaults to 24**, matching the MVP cancel wording in ADR-009 decision 2; not on the signup form, and editable on the profile from Phase 2. *Added 2026-09-29* *Amended 2026-11-23 (owner): **24 is also the minimum**; a coach may raise it but never go below 24, so a shared lesson's answer-by time stays a day before the lesson.* |
 | `coachCode` | **System-generated**, not a form field — ADR-002 decision 2a |
 | `profilePhotoKey` | Optional S3 key — see decision 5 |
 | `paymentInstructions` | Free text, as ADR-003 |

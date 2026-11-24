@@ -11,7 +11,7 @@
  * Batch 9: the Repeating lessons card with Change (SeriesChange below), and each lesson's "Repeats weekly" badge.
  * Batch 11: shared lessons. Each row says who it's shared with; the inviting family can withdraw an unanswered invitation;
  * the staying family answers on its card (WaitingCards); a kept lesson takes a one-lesson invitation (a freed place); a
- * date past its answer-by time shows "Cancelled, no answer" from the clock (B8); a shared series can only be cancelled (B4).
+ * date past its answer-by time is simply booked at the full price (owner, 2026-11-23); a shared series can only be cancelled (B4).
  */
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
@@ -19,7 +19,7 @@ import { Badge, Banner, Button, Card, Dialog, Icon, Row, Seg } from '../../share
 import { everyLabel, plural, repeatsBadge } from '../../shared/logic/booking';
 import { firstName } from '../../shared/logic/names';
 import { DAYS, DAYS_LONG, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate, todayIn } from '../../shared/logic/schedule';
-import { noAnswer } from '../../shared/logic/sharing';
+import { answerPassed } from '../../shared/logic/sharing';
 import type { Family, FamilyApi, MyBookings, MyLesson, MySeries, Weekday } from '../api';
 import { ShareBox, WaitingCards, type ShareAnswer } from './Sharing';
 import { Loading } from '../../shared/components/Loading';
@@ -30,7 +30,7 @@ const WEEKDAYS: Weekday[] = ['SUNDAY' as Weekday, 'MONDAY', 'TUESDAY', 'WEDNESDA
 const SHOWN = 10;
 const dDow = (date: string) => `${DAYS[dayOfWeek(date)]}, ${shortDate(date)}`;
 const keyOf = (l: MyLesson) => `${l.coachId}/${l.studentId}/${l.date}/${l.startTime}`;
-const money = (l: MyLesson) => (noAnswer(l.share?.answerBy, Date.now()) ? ' · No charge' : l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`);
+const money = (l: MyLesson) => (l.priceMinor == null ? '' : ` · ${formatMoney(l.priceMinor)}`);
 
 /** Someone else is in the lesson, joined or invited (B4: a series with one still to come is shared). */
 const sharedNow = (l: MyLesson) => ['INVITED', 'BOOKED', 'CHECKED_IN', 'NO_SHOW'].includes(l.share?.partnerStatus ?? '');
@@ -108,7 +108,7 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
       const r = await api.cancel(l);
       const told = r.outcome === 'CANCELLED' && r.late ? ` Coach ${r.coachFirstName} has been told, because it’s a late cancellation.` : '';
       const other = l.share?.partnerName;
-      const shared = r.leave === 'IN_TIME' && other ? ` ${other}’s family is asked whether to keep it at the full price.`
+      const shared = r.leave === 'IN_TIME' && other ? ` ${other}’s lesson becomes private at the full price, and their family is told.`
         : r.leave === 'WITHDRAW' && other ? ` The invitation to ${other} is withdrawn.` : '';
       setFlash(`${firstName(l.studentName)}’s lesson on ${dDow(l.date)} at ${formatTime(l.startTime)} is cancelled.${shared}${told}`);
       setAsking(null);
@@ -160,16 +160,15 @@ export function Bookings({ family, api, onError }: { family: Family; api: Family
       <Card title="Upcoming" sub={up.length ? `${plural(upAll.length, 'lesson')}. Cancelling one doesn’t change the rest of its series.` : undefined} flush>
         {up.length ? <>
           {up.map((l) => {
-            const gone = noAnswer(l.share?.answerBy, Date.now()), share = shareLine(l);
-            const waitingNow = l.share?.partnerStatus === 'LEFT' && !gone;
+            const share = shareLine(l);
+            const waitingNow = l.share?.partnerStatus === 'LEFT' && !!l.share.answerBy && !answerPassed(l.share.answerBy, Date.now());
             return (
               <Row key={keyOf(l)} lead={<DateBlock date={l.date} />}
                 title={<>{DAYS[dayOfWeek(l.date)]} · {formatTime(l.startTime)}{l.date === todayIn(l.coachTz) && <> <Badge tone="primary">Today</Badge></>}</>}
                 sub={<>{`${firstName(l.studentName)}${coachTag(l)} · ${l.durationMinutes} min${money(l)}`}
                   {waitingNow && <> <Badge tone="warning" icon="alert">Needs your answer</Badge></>}
                   {share && <span className="bk-shared"><Icon name="users" size={12} />{share}</span>}</>}
-                side={gone ? <Badge tone="neutral" icon="x">Cancelled, no answer</Badge>
-                  : l.share?.joined ? <><Badge tone="neutral" icon="users">Shared lesson</Badge>
+                side={l.share?.joined ? <><Badge tone="neutral" icon="users">Shared lesson</Badge>
                       <Button variant="ghost" sm onClick={() => { setFailed(''); setAsking(l); }}>Cancel</Button></>
                   : <>{l.recurrenceId && l.intervalWeeks ? <Badge tone="neutral" icon="repeat">{repeatsBadge(l.intervalWeeks)}</Badge> : null}
                       {l.share?.partnerStatus === 'INVITED' && l.share.inviteId && <Button variant="ghost" sm onClick={() => { setFailed(''); setWithdrawing(l); }}>Withdraw invitation</Button>}
@@ -308,7 +307,7 @@ function CancelDialog({ l, multiCoach, sending, failed, onKeep, onCancel }: {
         : <p className="fine">Cancelling within {h} hours of a lesson may incur a late cancellation fee.</p>}
       {joined
         ? <p className="fine">{late ? `${other} keeps the lesson at their share, ${formatMoney(l.priceMinor ?? 0)}.`
-            : `${other}’s family is asked whether to keep it as a private lesson at the full ${formatMoney(l.share?.fullPriceMinor ?? l.priceMinor ?? 0)}, or cancel it with no charge.`}</p>
+            : `${other}’s lesson becomes private at the full ${formatMoney(l.share?.fullPriceMinor ?? l.priceMinor ?? 0)}. Their family is told and can cancel it with no charge.`}</p>
         : <p className="fine">The time goes back on {cf}’s calendar{late ? ` and ${cf} will be told, because it’s a late cancellation` : ''}.{l.share?.partnerStatus === 'INVITED' ? ` The invitation to ${other} is withdrawn too.` : ''}{l.recurrenceId ? ' Other lessons in this series aren’t affected.' : ''}</p>}
       {failed && <Banner tone="danger">{failed}</Banner>}
       <div className="dialog__actions">
@@ -343,11 +342,15 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
   // B4: while any lesson still to come has another skater, joined or invited, only "Cancel all future lessons" is offered.
   const shared = lessons.some(sharedNow);
   const mode = shared ? 2 : chosen;
-  const next = interval || Math.min(a.intervalWeeks + 1, 4);
+  // Only a multiple of the current interval keeps an even rhythm: every 2 weeks to every 3 would really run every 6
+  // (owner, 2026-11-23). Every 3 weeks has none left within the limit of every 4.
+  const spacings = [2, 3, 4].filter((n) => n > a.intervalWeeks && n % a.intervalWeeks === 0);
+  const noSpacing = a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks' : spacings.length ? '' : 'Can’t be spaced out further. To change the rhythm, cancel the series and book again';
+  const next = interval || spacings[0] || a.intervalWeeks;
   const weeks = (x: string, y: string) => Math.round((Date.parse(`${y}T00:00:00Z`) - Date.parse(`${x}T00:00:00Z`)) / (7 * 864e5));
   const plan = future.map((l) => ({ l, cut: mode === 2 ? true : mode === 0 ? !!end && l.date > end : weeks(future[0]!.date, l.date) % next !== 0 }));
   const err = mode === 0 ? (!end ? 'Pick a new last date.' : end >= a.endDate ? `Pick a date before ${shortDate(a.endDate)}. To add lessons, book again.` : end < today ? 'Pick a date from today on.' : '')
-    : mode === 1 ? (a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks.' : '') : '';
+    : mode === 1 ? (noSpacing ? `${noSpacing}.` : '') : '';
   const cut = err ? [] : plan.filter((p) => p.cut);
   const lateLs = cut.filter((p) => insideNotice(p.l)).map((p) => p.l);
   const h = lateLs[0]?.requiredNoticeHours ?? 24;
@@ -398,10 +401,10 @@ export function SeriesChange({ api, coachId, recurrenceId, onError }: { api: Fam
             <div className="bk-optfield"><div className={`field${mode === 0 && err && end ? ' field--error' : ''}`}><label className="label" htmlFor="bk-rec-end">New last date</label>
               <input id="bk-rec-end" type="date" className="ctl" value={end} onChange={(e) => setEnd(e.target.value)} />
               {err && end && <div className="hint hint--error"><Icon name="alert" size={14} />{err}</div>}</div></div>)}
-          {!shared && opt(1, 'repeat', 'Make it less frequent', a.intervalWeeks >= 4 ? 'Already at the limit offered: every 4 weeks' : `Now ${every}`,
-            a.intervalWeeks >= 4 ? undefined : <div className="bk-optfield"><div className="field"><label className="label" htmlFor="bk-rec-int">Repeats</label>
+          {!shared && opt(1, 'repeat', 'Make it less frequent', noSpacing || `Now ${every}`,
+            noSpacing ? undefined : <div className="bk-optfield"><div className="field"><label className="label" htmlFor="bk-rec-int">Repeats</label>
               <select id="bk-rec-int" className="ctl" value={next} onChange={(e) => setIntervalWeeks(Number(e.target.value))}>
-                {[2, 3, 4].filter((n) => n > a.intervalWeeks).map((n) => <option key={n} value={n}>Every {n} weeks</option>)}
+                {spacings.map((n) => <option key={n} value={n}>Every {n} weeks</option>)}
               </select></div></div>)}
           {opt(2, 'calOff', 'Cancel all future lessons', lessons.some((l) => l.date === today) ? 'Today’s lesson is kept' : `${plural(plan.length, 'lesson')} from tomorrow on`)}
         </Card>

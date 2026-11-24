@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { Match } from 'aws-cdk-lib/assertions';
 import { CONSUMERS, EVENT_PATTERNS, INVITE_ATTRIBUTES, PIPE_DETAIL_TYPE, PIPE_FILTER, PIPE_SOURCE } from '../lib/consumers.ts';
 import { DATA_BUCKETS, dataBucketPattern, dataDenyStatements, LOG_READS, OBJECT_READS, TABLE_READS } from '../lib/data-deny.ts';
+import { EMAIL_REFUSED_LINE } from '../lib/alarms.ts';
 import { templateFiles } from '../lib/email.ts';
 import { JOBS } from '../lib/jobs.ts';
 import { testAccounts } from '../lib/test-accounts.ts';
@@ -651,13 +653,14 @@ describe('email (ADR-MASTER §13; §2, I9)', () => {
       assert.ok(!JSON.stringify(r.Properties.Policies ?? []).includes('ses:'));
     }
   });
-  test('api-coach is told the sending addresses; production has none until its email domain is chosen', () => {
-    const coach = Object.values(dev.app.findResources('AWS::Lambda::Function'))
-      .find((f) => String(f.Properties.FunctionName).endsWith('-api-coach'))!;
-    assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_FROM, 'lessons@dev.bladebook.org');
-    assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_NOREPLY, 'no-reply@dev.bladebook.org');
-    prod.app.resourceCountIs('AWS::SES::Template', 0);
-    assert.deepEqual(ses(policies(prod.app, /ApiCoachRole/)), []);
+  test('api-coach is told the sending addresses, in each environment its own', () => {
+    // Production can't be built without an email domain (2026-11-21); the tests stand one in until Batch 29.
+    for (const [t, domain] of [[dev.app, 'dev.bladebook.org'], [prod.app, 'bladebook.org']] as const) {
+      const coach = Object.values(t.findResources('AWS::Lambda::Function'))
+        .find((f) => String(f.Properties.FunctionName).endsWith('-api-coach'))!;
+      assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_FROM, `lessons@${domain}`);
+      assert.equal(coach.Properties.Environment.Variables.BLADEBOOK_MAIL_NOREPLY, `no-reply@${domain}`);
+    }
   });
 });
 
@@ -953,7 +956,7 @@ describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
   test('production pages on what §19 lists, each through the one paging topic', () => {
     assert.deepEqual(alarmNames(prod.app), [
       'archiver-behind', 'change-notifier-queue', 'day-reminder-missed', 'drift-check-missed', 'drift-finish-failed',
-      'drift-missed-cancellation', 'never-linked-a-day', 'never-linked-one-family', 'pipe-failing', 'pipe-queue',
+      'drift-missed-cancellation', 'email-refused', 'never-linked-a-day', 'never-linked-one-family', 'pipe-failing', 'pipe-queue',
       'post-confirmation-errors',
       'roller-missed', 'schedule-change-queue', 'ses-bounces', 'ses-complaints', 'sweep-missed', 'unpaid-reminder-missed',
       'up-api-down', 'up-site-down',
@@ -962,6 +965,22 @@ describe('the alarms (ADR-MASTER §16, §19; I25, I26)', () => {
     for (const a of Object.values(prod.app.findResources('AWS::CloudWatch::Alarm'))) {
       assert.deepEqual(a.Properties.AlarmActions, [{ Ref: topicId }], a.Properties.AlarmName);
     }
+  });
+  test('a refused email pages at once: every consumer\'s and job\'s log is watched for core\'s refusal line', () => {
+    const filters = Object.values(prod.app.findResources('AWS::Logs::MetricFilter'))
+      .filter((f) => f.Properties.MetricTransformations[0].MetricName === 'EmailsRefused');
+    const fns = prod.stacks.app.consumers.functions.size + prod.stacks.app.jobs.functions.size;
+    assert.equal(filters.length, fns);
+    for (const f of filters) assert.equal(f.Properties.FilterPattern, `"${EMAIL_REFUSED_LINE}"`);
+    const a = Object.values(prod.app.findResources('AWS::CloudWatch::Alarm')).find((x) => x.Properties.AlarmName === 'bladebook-prod-email-refused')!;
+    assert.equal(a.Properties.Threshold, 1);
+    assert.equal(a.Properties.MetricName, 'EmailsRefused');
+    // The line the filters look for is the one core logs.
+    const sending = readFileSync(new URL('../../backend/core/src/main/java/com/bladebook/core/service/Sending.java', import.meta.url), 'utf8');
+    assert.ok(sending.includes(`"${EMAIL_REFUSED_LINE}: "`), 'Sending.java no longer logs the line the alarm watches');
+  });
+  test('production can\'t be built without an email domain', () => {
+    assert.throws(() => build({ ...testProd, emailDomain: undefined }), /needs emailDomain/);
   });
   test('CloudWatch may publish to the topic, for this account\'s own alarms only', () => {
     // The topic's policy replaces SNS's default, so without this every page fails (found in dev, 2026-11-18).

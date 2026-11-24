@@ -5,8 +5,8 @@
  *
  * The share box asks the share-check as soon as a whole code is in, and the booking can't be sent while the box holds
  * anything that hasn't checked out (ADR-033 2a). Invitations, and the staying family's question, are worked out from the
- * clock (B8): an invitation whose lessons have all started is no longer available, and a date past its answer-by time is
- * "Cancelled, no answer", without waiting for the hourly sweep.
+ * clock (B8): an invitation whose lessons have all started is no longer available. A date past its answer-by time
+ * has no card: no answer keeps the lesson at the full price, which the leave already set (owner, 2026-11-23).
  */
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
@@ -14,7 +14,7 @@ import { Avatar, Badge, Banner, Button, Card, Dialog, Field, Help, Icon, Row } f
 import { plural } from '../../shared/logic/booking';
 import { firstName } from '../../shared/logic/names';
 import { DAYS, DAYS_LONG, MONTHS, dayOfWeek, formatMoney, formatTime, shortDate } from '../../shared/logic/schedule';
-import { codeState, noAnswer, normaliseShareCode, splitLine } from '../../shared/logic/sharing';
+import { answerPassed, codeState, normaliseShareCode, splitLine } from '../../shared/logic/sharing';
 import type { Family, FamilyApi, Invitation, MyLesson } from '../api';
 import { Loading } from '../../shared/components/Loading';
 
@@ -263,11 +263,12 @@ export function InvitePage({ api, inviteId, onError }: { api: FamilyApi; inviteI
 
 /** Lessons waiting for this family's answer: the other skater left in time, not started, answer-by not passed. */
 export const waiting = (lessons: MyLesson[], nowMs = Date.now()) => lessons.filter((l) => l.share?.partnerStatus === 'LEFT'
-  && !!l.share.answerBy && !noAnswer(l.share.answerBy, nowMs) && Date.parse(l.startsAtUtc) > nowMs);
+  && !!l.share.answerBy && !answerPassed(l.share.answerBy, nowMs) && Date.parse(l.startsAtUtc) > nowMs);
 
 /**
  * The staying family's cards on Home and My bookings (design: bkAskFullCards): one card per series (a one-off date is its
- * own), keep it private at the full price or cancel with no charge; for a series, Keep all / Cancel all remaining dates
+ * own). The lesson is already private at the full price; the family keeps it or cancels with no charge, and no answer
+ * keeps it (owner, 2026-11-23). For a series, Keep all / Cancel all remaining dates
  * (which confirms) and a choice per date (B3).
  */
 export function WaitingCards({ lessons, api, onChanged, onError }: {
@@ -313,7 +314,7 @@ export function WaitingCards({ lessons, api, onChanged, onError }: {
           return (
             <section key={k} className="card card--attn"><div className="card__body"><div className="decide">
               <div><div className="row__title">{who} can’t make {kf}’s shared lesson on {dDow(l0.date)} at {formatTime(l0.startTime)}</div>
-                <div className="row__sub">Keep it as a private lesson for {kf} at the full {full(l0)} ({kf}’s share was {formatMoney(l0.priceMinor ?? 0)}), or cancel it with no charge. If you don’t answer by {by(l0)}, it’s cancelled with no charge.</div></div>
+                <div className="row__sub">{kf}’s lesson is now private at the full {full(l0)}. Keep it, or cancel it with no charge by {by(l0)}. If you don’t answer, {kf} keeps the lesson at {full(l0)}.</div></div>
               <div className="decide__btns"><Button variant="secondary" disabled={busy} onClick={() => run(ls, false)}>Cancel, no charge</Button>
                 <Button disabled={busy} onClick={() => run(ls, true)}>{`Keep at ${full(l0)}`}</Button></div>
             </div></div></section>
@@ -323,7 +324,7 @@ export function WaitingCards({ lessons, api, onChanged, onError }: {
         return (
           <section key={k} className="card card--attn"><div className="card__body"><div className="stack">
             <div><div className="row__title">{who} can’t make {kf}’s shared {DAYS_LONG[dayOfWeek(l0.date)]} lessons at {formatTime(l0.startTime)}</div>
-              <div className="row__sub">{plural(ls.length, 'date')} waiting for your answer. Keep them as private lessons for {kf} at the full {full(l0)} each ({kf}’s share was {formatMoney(l0.priceMinor ?? 0)}), or cancel them with no charge. A date not answered by its time is cancelled with no charge.</div></div>
+              <div className="row__sub">{plural(ls.length, 'date')} {ls.length === 1 ? 'is' : 'are'} now private for {kf} at the full {full(l0)} each. Keep them, or cancel them with no charge, each by its time. A date you don’t answer stays booked at {full(l0)}.</div></div>
             <div className="listbox">{ls.map((l) => (
               <Row key={l.date} lead={dateBlock(l.date)} title={`${dDow(l.date)} · ${formatTime(l.startTime)}`} sub={`Answer by ${by(l)}`}
                 side={<div className="decide__btns"><Button variant="secondary" sm disabled={busy} onClick={() => run([l], false)}>Cancel</Button>

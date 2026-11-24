@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codeState, noAnswer, normaliseShareCode, shareOf, splitLine } from './sharing';
+import { answerPassed, codeState, normaliseShareCode, shareOf, splitLine } from './sharing';
 
 describe('share codes (ADR-MASTER section 3)', () => {
   it('ignores case, spaces and the dash', () => {
@@ -36,10 +36,10 @@ describe('price shares (B10)', () => {
 });
 
 describe('worked out from the clock (B8)', () => {
-  it('is cancelled with no answer from the answer-by time on', () => {
+  it('closes the staying family’s question from the answer-by time on', () => {
     const by = '2026-11-15T12:00:00Z';
-    expect(noAnswer(by, Date.parse('2026-11-15T11:59:59Z'))).toBe(false);
-    expect(noAnswer(by, Date.parse(by))).toBe(true);
-    expect(noAnswer(null, Date.parse(by))).toBe(false);
+    expect(answerPassed(by, Date.parse('2026-11-15T11:59:59Z'))).toBe(false);
+    expect(answerPassed(by, Date.parse(by))).toBe(true);
+    expect(answerPassed(null, Date.parse(by))).toBe(false);
   });
 });

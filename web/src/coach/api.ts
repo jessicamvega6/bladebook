@@ -168,7 +168,9 @@ export interface ImpactDto {
 
 /** The review page: what saving would cancel and re-price, what an increase won't reach, and big price changes. */
 export interface PreviewDto {
-  cancel: ImpactDto[]; reprice: ImpactDto[]; kept: ImpactDto[]; families: number;
+  cancel: ImpactDto[]; reprice: ImpactDto[]; kept: ImpactDto[];
+  /** Booked lessons the change drops but someone is checked in to: kept, never cancelled (2026-11-21). */
+  checkedIn: ImpactDto[]; families: number;
   big: Array<{ seq: number; label: string; fromMinor: number; toMinor: number; percent: number; cut: boolean }>;
 }
 
@@ -176,6 +178,8 @@ export interface PreviewDto {
 export interface ChangeStatusDto {
   exists: boolean; createdAt: string | null; executionStatus: 'PLANNED' | 'EXECUTED' | 'SKIPPED' | null;
   lessonCount: number; clientCount: number; stuck: boolean; passed: ImpactDto[];
+  /** Lessons the change kept because someone is checked in or marked a no-show (owner, 2026-11-21: shown, not emailed). */
+  checkedIn: ImpactDto[];
 }
 
 export function scheduleApi(token: TokenSource) {
@@ -275,6 +279,8 @@ export interface PaymentRowDto {
   closedYear: number | null;
   /** Dated before January 1 of last year: only Waive is offered, on an unpaid one (G-39, Batch 27). */
   viewOnly: boolean;
+  /** When it was marked paid; null unless paid. Sent back with a write, so one from a stale page is refused. */
+  paidAt: string | null;
 }
 
 /** Totals per currency, never across. */
@@ -290,7 +296,9 @@ export interface PaymentsDto {
 }
 
 export function paymentsApi(token: TokenSource) {
-  const seat = (r: PaymentRowDto, paidVia?: PaidVia | null) => ({ date: r.date, startTime: r.startTime, studentId: r.studentId, paidVia: paidVia ?? null });
+  // `seen`: the lesson as the page showed it. If it has changed since (another window), the server refuses (409).
+  const seat = (r: PaymentRowDto, paidVia?: PaidVia | null) => ({ date: r.date, startTime: r.startTime, studentId: r.studentId,
+    paidVia: paidVia ?? null, seen: { status: r.status, paidAt: r.paidAt, paidVia: r.paidVia } });
   const post = (path: string, body: unknown) => apiFetch<PaymentRowDto>(`/api/coach/payments/${path}`, { method: 'POST', body, token, idempotent: true });
   return {
     list: (from: string, to: string) => apiFetch<PaymentsDto>(`/api/coach/payments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),

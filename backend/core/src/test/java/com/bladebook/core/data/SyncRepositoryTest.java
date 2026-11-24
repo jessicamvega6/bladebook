@@ -45,17 +45,63 @@ class SyncRepositoryTest {
 
     @Test
     void aMissingLinkIsLeftMissing() {
-        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId());
+        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), students.list(dana).get(0).signedUpAt());
         sync.setLinkStatus(family.clientId(), dana.coachId(), ava.studentId(), StudentStatus.ACTIVE);
         assertThat(families.account(family).orElseThrow().links()).isEmpty();
     }
 
     @Test
-    void theLinkFollowsADecline() {
-        sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId());
+    void theLinkFollowsADeclineOnce() {
+        java.time.Instant signedUpAt = students.list(dana).get(0).signedUpAt();
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), signedUpAt)).isTrue();
         FamilyAccount a = families.account(family).orElseThrow();
         assertThat(a.links()).isEmpty();
         assertThat(a.skaters()).containsExactly(ava); // the account and the skater stay
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), signedUpAt)).isFalse(); // a repeat
+    }
+
+    @Test
+    void theDeclineEmailIsClaimedOnceOnTheLinkAndCanBeGivenBack() {
+        java.time.Instant signedUpAt = students.list(dana).get(0).signedUpAt();
+        java.time.Instant now = java.time.Instant.parse("2026-11-23T12:00:00Z");
+        String c = family.clientId(), coach = dana.coachId(), s = ava.studentId();
+
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now)).isEqualTo(SyncRepository.DeclineStep.SEND);
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now.plusSeconds(30))).isEqualTo(SyncRepository.DeclineStep.WAIT);
+        sync.releaseDeclineEmail(c, coach, s, signedUpAt); // SES didn't take it
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now.plusSeconds(60))).isEqualTo(SyncRepository.DeclineStep.SEND);
+        assertThat(families.account(family).orElseThrow().links()).hasSize(1); // the link stays until the email has gone
+    }
+
+    @Test
+    void aClaimOlderThanAnyRunIsAbandonedAndOnlyTheLinkGoes() {
+        java.time.Instant signedUpAt = students.list(dana).get(0).signedUpAt();
+        java.time.Instant now = java.time.Instant.parse("2026-11-23T12:00:00Z");
+        String c = family.clientId(), coach = dana.coachId(), s = ava.studentId();
+        sync.claimDeclineEmail(c, coach, s, signedUpAt, now);
+
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now.plus(SyncRepository.DECLINE_EMAIL_ABANDONED).minusSeconds(1)))
+                .isEqualTo(SyncRepository.DeclineStep.WAIT);
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now.plus(SyncRepository.DECLINE_EMAIL_ABANDONED)))
+                .isEqualTo(SyncRepository.DeclineStep.DELETE);
+    }
+
+    @Test
+    void noClaimOnALinkThatIsGoneOrALaterSignUps() {
+        java.time.Instant signedUpAt = students.list(dana).get(0).signedUpAt();
+        java.time.Instant now = java.time.Instant.parse("2026-11-23T12:00:00Z");
+        String c = family.clientId(), coach = dana.coachId(), s = ava.studentId();
+
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt.minusSeconds(60), now)).isEqualTo(SyncRepository.DeclineStep.NOTHING);
+        sync.deleteLink(c, coach, s, signedUpAt);
+        assertThat(sync.claimDeclineEmail(c, coach, s, signedUpAt, now)).isEqualTo(SyncRepository.DeclineStep.NOTHING);
+    }
+
+    @Test
+    void aDeclineLeavesTheLinkOfALaterSignUp() {
+        java.time.Instant earlier = students.list(dana).get(0).signedUpAt().minusSeconds(60);
+        assertThat(sync.deleteLink(family.clientId(), dana.coachId(), ava.studentId(), earlier)).isFalse();
+        assertThat(families.account(family).orElseThrow().links()).hasSize(1);
     }
 
     @Test

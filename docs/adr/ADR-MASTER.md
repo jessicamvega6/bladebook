@@ -158,9 +158,9 @@ what its single-item actions allow.
 | `consumer-payment-reminder` | `GetItem`, `Query` on the coach's and family's partitions; `UpdateItem` on the coach's. *Query added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I22)* | none | `ses:SendEmail` (SNS from Phase 2) |
 | `consumer-change-notifier` | `GetItem`, `Query`, `UpdateItem`, `TransactWriteItems` | none | `ses:SendEmail`, `sns:Publish`, `sns:CheckIfPhoneNumberIsOptedOut` |
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `TransactWriteItems` | none | none |
-| `consumer-student-link` | `UpdateItem`, `DeleteItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
+| `consumer-student-link` | `UpdateItem`, `DeleteItem` and `GetItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
 | `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
-| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
+| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent`, `joinedHostEmailSent` (2026-11-23) and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `Query` on GSI2; `GetItem` on the coach's and family's profiles; `UpdateItem` on the coach's partition (its guards). *Family profile added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I23)* | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3; `GetItem`, `Query` and `UpdateItem` in the coach's partition (the `Query` lists a lesson's seats, for a shared lesson's split, (owner, 2026-11-18, I23)). Reads its threshold with `ssm:GetParameter` on that one parameter | **GSI3** (scanned) | `ses:SendEmail` |
@@ -217,19 +217,20 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `days` (weekday → blocks), `scheduleName`, `scheduleVersion` |
 | Temporary schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName`, `startDate`, `endDate` |
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId` |
+| Schedule-change lease | `COACH#<coachId>` | `SCHEDULE#APPLYING` | `holder`, `leasedAt`, `rerun`: one run of the schedule change at a time (§9, "Execution"; 2026-11-23). Present only while a run holds it |
 | Coach's skater record | `COACH#<coachId>` | `STUDENT#<studentId>` | `clientId`, `studentStatus`, `studentName`, contact copies (`clientName`, `clientEmail`, `clientPhone`), `skatingOrg`, `registrationNumber` |
 | Lesson time | `COACH#<coachId>` | `LESSON#<date>#<startTime>` | `lessonStatus`, `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `missedLessonFeeMinor`, `requiredNoticeHours`, `maxSkaters`, `seatsTaken`, `shareCount`, `joinOrder`, `blockSeq`, `iceType`, `scheduleVersion`, `pendingLeave`, `dueAt`/`dueKind` |
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
 | Ended invitation | `COACH#<coachId>` | `SEATEND#<date>#<startTime>#<studentId>#<isoTs>` | `seatOutcome`, `endedAt`, `endedBy` (the family or `SWEEP`; the coach from Phase 2), `studentId`, `studentName`, `clientId`, `inviteId` |
 | Change batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource`, `cancelledBy`, acting identity, `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount`, `planStatus`, `executionStatus` |
-| Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
+| Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason`, `claimedAt` (while `PENDING`, 2026-11-23) |
 | Re-price line | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<seatKey>` | seat, skater, family, date and time, old and new price and fee, `direction`, `executionStatus`, `notificationStatus` |
 | Closed year's figures | `COACH#<coachId>` | `CLOSEDYEAR#<year>` | `year`, `months` (each `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`, `earlierGross`, `undoneLessons`, `undoneGross`; amounts per currency), `savedAt`, `savedBy` (`JOB` \| `READ` \| `UNDO`). Written once (§12; 2026-11-16) |
 | Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
 | Family profile | `CLIENT#<sub>` | `PROFILE` | `clientName`, `clientEmail`, `clientPhone`, `smsOptIn` (Phase 2) |
 | Skater | `CLIENT#<sub>` | `SKATER#<studentId>` | `studentName`, `isMinor`, `clientRelationship`, `shareCode`, `skatingOrg`, `registrationNumber` |
-| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name |
-| Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus` |
+| Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name, `signedUpAt` (the coach's record's, so a decline deletes only the link it belonged to; 2026-11-21), `declineEmailAt` (the decline email's claim: the link goes only after the email, so a send SES doesn't accept is retried; 2026-11-23) |
+| Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus`, `changingId` and `changingSince` (a change in progress: claimed before any lesson is cancelled, so a second window's change is refused; counts as abandoned after 5 minutes; 2026-11-21) |
 | Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
 
 The family profile is the **source of truth** for contact details, and the `SKATER#` item for who
@@ -261,13 +262,13 @@ GSI1 keys only from `consumer-invite` (§8).
 | `seatOutcome` | `DECLINED` \| `WITHDRAWN` \| `EXPIRED` |
 | `paymentStatus` | `UNPAID` \| `PAID` \| `WAIVED` |
 | `paidVia` | `CASH` \| `CASHAPP` \| `VENMO` \| `PAYPAL` \| `OTHER` |
-| `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` |
+| `cancelledBy` | `CLIENT` \| `COACH` \| `SCHEDULE_CHANGE` \| `NO_ANSWER` (older records only; no longer written, 2026-11-23, I36) |
 | `batchSource` | `DEFAULT` \| `DATE_OVERRIDE` \| `LESSON` \| `DAY` \| `WEEK` \| `RECURRENCE` \| `RECONCILE` |
 | `planStatus` | `WRITING` \| `COMPLETE` |
 | `executionStatus` | `PLANNED` \| `EXECUTED` \| `SKIPPED` |
-| `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` |
+| `skippedReason` | `BOOKING_GONE` \| `NO_LONGER_NEEDED` \| `LESSON_PASSED` \| `CHECKED_IN` (2026-11-21) |
 | `notificationStatus` | `PENDING` \| `SENT` \| `FAILED` \| `SUPPRESSED` |
-| `dueKind` | `EXPIRE` \| `ANSWER` |
+| `dueKind` | `EXPIRE` (`ANSWER` only on records before 2026-11-23, I36; the sweep clears it) |
 | `recurrenceStatus` | `ACTIVE` \| `ENDED` |
 | `skatingOrg` | `USFS` \| `USA_HOCKEY` \| `LEARN_TO_SKATE_USA` |
 
@@ -413,7 +414,13 @@ product: see `FeatureDecriptions/Client Sign Up`, `FeatureDecriptions/ClientHome
 - **Declining deletes the skater record** (`STUDENT#` immediately; the link follows through
   `consumer-student-link`). Not archived. `consumer-student-link` emails the family from the
   removed item, so the removal's `StudentChanged` event must carry `clientEmail`. The family's
-  account stays. (The decline message: `FeatureDecriptions/Coach Dashboard on website.md`.)
+  account stays. *2026-11-23 (owner; `docs/tla/StudentLink.tla`):* the email goes **before** the
+  link is deleted. The consumer claims it on the link (`declineEmailAt`), sends, and then deletes
+  the link; if SES doesn't accept it, the claim is given back and the event fails with the link
+  still there, so the retry sends it. A run that finds another's claim fails and is retried; a
+  claim older than 2 minutes (the consumer times out after 1) is abandoned, and the run only
+  deletes the link. Before this the link went first, so a retry found nothing and the email was
+  lost. (The decline message: `FeatureDecriptions/Coach Dashboard on website.md`.)
 - `api-coach` writes only the `STUDENT#` item; the link item follows about a second later.
 
 ### What a waiting family sees
@@ -744,6 +751,10 @@ product: see `FeatureDecriptions/Schedule lesson split`, `FeatureDecriptions/can
   hasn't started, and `shareCount` goes up. A skater no longer `ACTIVE` with the coach gets the
   ordinary "no longer available".
 - **Declining** (same condition as accepting) moves the seat to `SEATEND#` as `DECLINED`.
+- **Answering twice** (a second window, after the first already accepted) changes nothing and says
+  "This invitation was already answered. Reload to see where it stands." Any other answer that
+  finds nothing to change (withdrawn, expired, cancelled, or declined in the other window) gets
+  "no longer available". *Owner, 2026-11-23.*
 - **A series joins lesson by lesson**; each date succeeds or fails alone.
 
 ### Ending an invitation
@@ -767,7 +778,8 @@ reopens if no seat is left.
 - `partnerName` and `partnerStatus` on each seat — the other skater's display name and status;
 - `invitedClientId` and GSI1 keys on an invited seat;
 - `choiceAnswerBy` on the staying seat while a pending leave waits, with `partnerStatus = LEFT`;
-  cleared once answered.
+  cleared once answered;
+- `freedPlace = true` on the staying seat as soon as a pending leave names it (2026-11-23, I36).
 
 Each family reads only its own seats. The lesson time's pending leave is the authority.
 
@@ -778,34 +790,42 @@ Each family reads only its own seats. The lesson time's pending leave is the aut
   payment reminder, the coach's Payments page and unpaid list, the weekly unpaid reminder, the
   financial page.
 - **`shareCount`** counts skaters splitting the price. It goes up when a skater joins or fills a
-  freed place; is set to the remaining skaters when the staying family keeps after an in-time
-  leave; **doesn't change on a late leave**. `INVITED` seats don't count.
+  freed place; is set to the remaining skaters **by an in-time leave itself** *(2026-11-23, I36;
+  until then, when the staying family chose Keep)*; **doesn't change on a late leave**. `INVITED`
+  seats don't count.
 - **`joinOrder`** appends a joiner. After an in-time leave the leaver stays in it until the staying
-  family answers; Keep sets it to the remaining skaters. A late leaver stays in it.
+  family answers or fills the place (so the email can say what the share was); Keep, or filling the
+  freed place, sets it to the remaining skaters. A late leaver stays in it.
 
 ### Leaving
 
 Either family, the same rules. One transaction per date.
 
 - **In time** (outside the notice period): the leaver's seat → `CANCELLED#` line; `seatsTaken`
-  drops; the **lesson time** records a **`pendingLeave`** (`leaveId`, `leftStudentId`, `leftAt`,
-  `stayingStudentId`, `answerBy`). The staying seat isn't touched; their share stands.
+  drops; **`shareCount = 1`, so the staying skater's lesson is private at the full price at once**;
+  the **lesson time** records a **`pendingLeave`** (`leaveId`, `leftStudentId`, `leftAt`,
+  `stayingStudentId`, `answerBy`) for the staying family's question. *Amended 2026-11-23 (owner,
+  I36): until then the staying share stood until they answered, and no answer cancelled.*
 - **Late** (inside the notice period, or a no-show): the leaver's line records their share of the
   missed-lesson fee (charge is Phase 2). The staying skater keeps their share and isn't asked.
 
 **`answerBy`** is whichever comes first: the start of that lesson's notice period, or **7 days
 after the leave**.
 
-**The staying family answers:**
+**The staying family is told, and answers:** the lesson is already private at the full price.
 
-- **Keep it private at the full price** — their own write to the lesson time, conditional on the
-  pending leave naming their skater as staying: clears it, `shareCount = 1`. The lesson becomes a
-  **freed place**.
+- **Keep it** — their own write to the lesson time, conditional on the pending leave naming their
+  skater as staying and `answerBy` not passed: clears it.
 - **Cancel with no charge** — their seat → `CANCELLED#`, pending leave cleared.
-- **No answer by `answerBy`** — the hourly sweep cancels it with no charge (`cancelledBy =
-  NO_ANSWER`).
+- **No answer by `answerBy`** — **the lesson stays booked at the full price**. Nothing is due for
+  the sweep; the card stops showing at `answerBy`, worked out from the clock, and the family's later
+  cancels follow the ordinary rules. *Amended 2026-11-23 (owner, I36): until then the hourly sweep
+  cancelled it with no charge (`cancelledBy = NO_ANSWER`). Why: a sweep that runs late could meet a
+  lesson already started, and the price that applied then was undefined; and since `answerBy` is
+  never later than the start of the notice period, an ordinary cancel is free until then anyway.*
 
-Both emails — *keep at full price or cancel*, and *cancelled, no answer* — are always sent.
+The *"now private: keep or cancel"* email is always sent. *(The "cancelled, no answer" email is
+gone, 2026-11-23.)*
 
 ### The staying family's card
 
@@ -821,8 +841,10 @@ Both emails — *keep at full price or cancel*, and *cancelled, no answer* — a
 
 ### Freed places
 
-After a Keep, the staying family can invite a skater to **that one lesson only**, the same way as a
-booking-time invitation (where: `FeatureDecriptions/Schedule lesson split`, "A freed place").
+As soon as the other skater leaves in time *(2026-11-23, I36; until then, after a Keep)*, the
+staying family can invite a skater to **that one lesson only**, the same way as a booking-time
+invitation (where: `FeatureDecriptions/Schedule lesson split`, "A freed place"). Doing so ends their
+question.
 
 ### Changing a shared series
 
@@ -836,26 +858,28 @@ frequency are not allowed until no future lesson is shared (product —
 | `dueKind` | On | When |
 |---|---|---|
 | `EXPIRE` | Invited seat still `INVITED` | The lesson's start |
-| `ANSWER` | Lesson time | The pending leave's `answerBy` |
+| ~~`ANSWER`~~ | ~~Lesson time~~ | ~~The pending leave's `answerBy`~~ *Removed 2026-11-23 (I36): no answer keeps the lesson, so nothing is due; one left on an older record is cleared.* |
 
 An invitation still unanswered at the lesson's start expires with the ordinary "no longer
 available" email.
 
-Screens work out *expired* and *cancelled, no answer* from the time itself, never waiting for the
-sweep.
+Screens work out *expired* ~~and *cancelled, no answer*~~ from the time itself, never waiting for the
+sweep. *(2026-11-23, I36: past `answerBy` the staying family's card just stops showing.)*
 
 ### Who sends what
 
 - `consumer-invite`: the invitation, and every outcome email — joined, declined, withdrawn,
   expired ("no longer available")~~, and "the other skater can't make it — keep or cancel"~~.
-- `consumer-change-notifier`: every cancellation email, including *cancel all* and *no answer*,
-  *and (2026-11-13) "the other skater can't make it — keep or cancel", from the leaving family's
+- `consumer-change-notifier`: every cancellation email, including *cancel all* ~~and *no answer*~~ *(gone 2026-11-23)*,
+  *and (2026-11-13) "the other skater can't make it — keep or cancel" (2026-11-23: "now private — keep or cancel"), from the leaving family's
   `CLIENT` batch, so a series stopped in one go is one email.*
 - **One email per invitation or answer, not per date** (owner, 2026-11-13, G-38). The invitation,
   joined, declined, withdrawn and no-longer-available emails each list every date of the
   invitation they cover, found by its `inviteId`; "keep or cancel" lists every date of one batch,
   each with its own answer-by time. Each date keeps its own guard, claimed before sending, so a
-  date is never in two emails; dates that reach the consumer later (the stream may split a
+  date is never in two emails. "Joined" has one guard per family, `joinedEmailSent` for the family
+  who joined and `joinedHostEmailSent` for the family whose lesson it is, so one that isn't
+  accepted is retried without the other being sent again (2026-11-23); dates that reach the consumer later (the stream may split a
   request) go in an email of their own.
 
 ### Coaches see every skater
@@ -926,20 +950,31 @@ during the review".)
    re-runs the evaluator and writes only missing lines.
 4. **Re-checks each line** against the current schedule and the current lesson time and seats
    before acting; if no longer needed, marks it `SKIPPED` with `BOOKING_GONE`,
-   `NO_LONGER_NEEDED` or `LESSON_PASSED`.
+   `NO_LONGER_NEEDED` or `LESSON_PASSED`; a lesson someone is checked in to or marked a no-show
+   is kept and marked `CHECKED_IN` (a bulk action never cancels it, §10 "General"; 2026-11-21).
 5. **Carries out each line in its own transaction**, marking it `EXECUTED` in the same
    transaction.
 6. **Marks the header `EXECUTED` last.**
 7. The header reaching `EXECUTED` raises `LessonsChanged`; the notifier sends **one message per
    family** covering everything in the batch.
 
+*2026-11-23 (owner, after a code review; `docs/tla/ScheduleApply.tla`):* **one run at a time per
+coach.** One save sets off a run for every date it writes, and runs at once could split a
+family's lessons across two batches, so two emails. Each run first takes the coach's lease
+(`SCHEDULE#APPLYING`: `holder`, `leasedAt`, `rerun`): free, its own (a retry of the same event, by
+the EventBridge event's id), or left over 6 minutes (the consumer times out after 5). A run that
+finds it held sets `rerun` and stops; the holder, before letting go, makes another pass from a
+fresh read, which covers a save made meanwhile. A pass that fails lets the lease go, and its
+retry reads afresh.
+
 **`LESSON_PASSED`** lines are reported to the coach in the batch notification (wording:
-`FeatureDecriptions/Email templates Needed:`).
+`FeatureDecriptions/Email templates Needed:`). **`CHECKED_IN`** lines are shown on the save
+status only, never emailed, and the review before saving lists them as kept (owner, 2026-11-21).
 
 ### The coach sees whether it finished
 
 The schedule page reads the latest batch's header, refreshing while it applies, and shows whether
-it is applying, emailing families, done, stuck for over an hour, or has `LESSON_PASSED` lines. The
+it is applying, emailing families, done, stuck for over an hour, or has `LESSON_PASSED` or `CHECKED_IN` lines. The
 states' wording: `FeatureDecriptions/C_Coach Schedule Save Status.md` (moved 2026-11-08).
 
 ### Change-batch records
@@ -1000,8 +1035,16 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   leave the booking page, as for any time off. The coach can rename or delete it like any time off.
   - **Inside a special schedule**, those dates in it become *no lessons* and the rest of it stays;
     dates already in a time off are already empty. A cancel never shows an overlap error.
-  - **Families get the *cancelled by the coach* email**, not the schedule-change one: the batch
-    records `cancelledBy = COACH` with `batchSource` `DAY` or `WEEK`.
+  - ~~**Families get the *cancelled by the coach* email**, not the schedule-change one: the batch
+    records `cancelledBy = COACH` with `batchSource` `DAY` or `WEEK`.~~ *Since 2026-11-21 (owner,
+    I35): families get the **schedule-change email**, which reads like the cancel email ("Cancelled:
+    Mia's lesson on …", "Coach Dana can't teach …", "Book another time") whenever it carries only
+    cancellations. The batch records `cancelledBy = SCHEDULE_CHANGE` with `batchSource` `DAY` or
+    `WEEK`. The time off's write also sets off `consumer-schedule-change`; whichever run cancels a
+    lesson first, its family gets one email, and the coach is told the count read before saving.*
+    *2026-11-23: the request's run and the consumer's take the coach's lease in turn (§9,
+    "Execution"), so the first applies the whole cancel, one batch and one email per family; usually
+    that's the request's, so the coach's page shows the lessons cancelled when it reloads.*
   - **Rest of the week starts now:** lessons that have started or finished keep their attendance and
     payment; the time off covers only what hasn't started.
 - **Only *this lesson* asks release or hold** (seats move to `CANCELLED#`, and the lesson time
@@ -1032,7 +1075,7 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
   - **A cancel from the check-in list always confirms, even for one lesson.** The dialog names the
     lesson (skater, date, time), puts its confirm button away from where the original tap landed,
     keeps the lesson if dismissed, and holds the release-or-hold choice.
-- Both surfaces write the same records with `cancelledBy = COACH`.
+- Both surfaces write the same records: `cancelledBy = COACH` for one lesson, `SCHEDULE_CHANGE` for a day or the week (I35).
 
 ---
 
@@ -1240,12 +1283,30 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 | Business-email confirmation link | Coach | New business email | |
 
 **Routing by actor:** `COACH` and `SCHEDULE_CHANGE` batches go to each affected family; `CLIENT`
-batches go to the coach (late ones only); `NO_ANSWER` batches go to the staying family.
+batches go to the coach (late ones only)~~; `NO_ANSWER` batches go to the staying family~~ *(no longer written, 2026-11-23, I36)*.
 
 **Notification state** on each line: `notificationStatus`, `notifiedAt`, `channels`,
 `failureReason`. The notifier reads the batch's `EXECUTED` lines, groups by family, sends, stamps
 that family's lines; families already `SENT` are skipped on a retry; `SKIPPED` lines aren't
-notified.
+notified. *2026-11-21 (state-machine review, `docs/tla/ChangeNotifier.tla`):* before sending, the
+notifier claims the family's first line (`PENDING`, only if it has no status), so two deliveries
+of the same event can't both send; a family whose first line has any status is skipped. `FAILED`
+now means SES refused the message (`MessageRejected`), which is final; any other failure gives the
+claim back and fails the event, so it is retried and, after that, replayed from the dead-letter
+queue. The same rule holds for every email guard (`docs/tla/EmailGuard.tla`). *2026-11-23 (owner,
+after a code review):* the claim carries `claimedAt`. A run that finds a claim under 2 minutes old
+fails, so it is retried, since that run may still be sending; a claim older than that (the
+notifier times out after 1) belongs to a run that stopped mid-send and is taken again. So a family
+is never left untold, but a run that stopped after SES took the email can mean a second copy.
+*Also 2026-11-23 (`docs/tla/EmailGuard.tla`):* **every other email guard works the same way.** The
+seat guards (`confirmationSent`, `paymentReminderSent`, `inviteEmailSent`, `joinedEmailSent`,
+`joinedHostEmailSent`), the dated ones (`remindedOn`, `settleReminderSentOn`, `morningEmailSentOn`),
+an ended invitation's `emailSent` and `pendingLeave.emailSent` are claimed as
+`PENDING@<scope>@<claimed at>` and take their sent value only once SES has taken the email. A fresh
+`PENDING` claim fails the run so it's retried; one older than the claiming function's timeout (2
+minutes for the consumers, 6 for the reminder jobs, which time out after 5) is taken again. Before
+this, a run that stopped between its claim and SES's answer left the guard set and the email was
+never sent.
 
 ### The coach's late-cancellation SMS (the only SMS in MVP)
 
@@ -1276,7 +1337,7 @@ notified.
 | `sched-unpaid-reminder` | Weekly, Monday morning | §12. Threshold 7 days; lists every Monday until settled. |
 | `sched-drift-check` | Nightly | §19. Reads only; finishes a stuck batch through `consumer-schedule-change`. |
 | `sched-lesson-roller` | Nightly | Creates missing lesson times up to the end of the booking window plus 12 months. |
-| `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`. |
+| `sched-deadline-sweep` | **Hourly** | Queries GSI4 for what's due, **re-checks each record**, acts, sets the next deadline or removes it. ~~Its cancellations go through a change batch with `cancelledBy = NO_ANSWER`.~~ *Since 2026-11-23 (I36) it only expires invitations and cancels nothing.* |
 | `sched-year-close` | **January 1–7**, 8:00am in the launch time zone (after midnight everywhere a coach can be) | §12, 2026-11-16. For every coach whose year has closed, saves last year's figures (`CLOSEDYEAR#<year>`) unless already saved. Safe to run twice. *Runs in `sched-lesson-roller`'s function, as a second Scheduler rule, so there are still sixteen functions (Batch 26; owner, 2026-11-16).* |
 
 - **The end-of-day report is Phase 2** (owner, 2026-11-11; §24). In MVP a lesson with no
@@ -1520,6 +1581,10 @@ same coach (held by `LinkedSkater` and the ownership condition).
   `x-bladebook-viewer-ip`, and writes them before any response body. A line is JSON: time,
   request ID, source, role, actor, `relationship` when known, operation, the IDs by kind, and the
   field names. Security events (a family's never-linked ask) are lines too, `security:<what>`.
+  *2026-11-23 (owner, after a code review):* a consumer or job run that fails part-way still writes
+  its line, with the operation ending `:failed` (`StudentChanged:failed`): it may have read the
+  fields it names before failing, or none of them. If the line itself can't be written, the run's
+  own error is the one reported, carrying the logging error with it.
 - **A family line carries `clientRelationship` when the request already read the family's
   account**, and leaves it out otherwise: no extra read to fill it (owner, 2026-11-17, I21).
 - **Scheduled jobs log one aggregate line per run** (job, date, counts by type, field names once).
@@ -1569,10 +1634,11 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | Consumer | Guard | When its queue fills |
 |---|---|---|
 | `consumer-change-notifier` | `notificationStatus` | Replay at once (pages) |
-| `consumer-schedule-change` | Event-derived keys and the plan | **Reconcile, never replay** (pages) |
+| `consumer-schedule-change` | Event-derived keys and the plan; the coach's lease (`SCHEDULE#APPLYING`, 2026-11-23) | **Reconcile, never replay** (pages) |
 | `consumer-booking-confirmation` | `confirmationSent` | Replay |
 | `consumer-payment-reminder` | `paymentReminderSent` | Replay |
-| `consumer-student-link`, `consumer-family-sync`, `consumer-invite` | Idempotent by construction | Replay |
+| `consumer-student-link` | `declineEmailAt` on the family's link, which goes after the email (2026-11-23) | Replay |
+| `consumer-family-sync`, `consumer-invite` | Idempotent by construction | Replay |
 | `sched-day-reminder` | `remindedOn`, `morningEmailSentOn` | **Discard** once the date has passed |
 | `sched-unpaid-reminder` | `settleReminderSentOn` | Discard |
 | `sched-drift-check` | Read-only | Discard |
@@ -1613,7 +1679,7 @@ times and seats in that window.
   morning's run catches up, since it's safe to run twice). ~~It pages if no run has completed by
   **January 7**, its last day.~~ *It doesn't page: the dashboard shows each January morning's run, and a
   missed year close is run by hand, since it's safe to repeat (owner, 2026-11-18, I28).*
-- **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; the
+- **What pages:** SES bounce rate approaching 5% or complaint rate approaching 0.1%; *the first email SES refuses, or any email with no sending address (2026-11-21: either usually means every email is refused, and neither is a bounce)*; the
   notifier's and the schedule-change consumer's queue depth above 0; a batch the drift check
   couldn't finish (§19); a lesson that should have been cancelled and wasn't; the 7am reminder not firing; the
   sweep or roller as above; **an `auth-post-confirmation` error** (an account left with no group, I27); **DynamoDB Streams iterator age climbing** on the archiver, and

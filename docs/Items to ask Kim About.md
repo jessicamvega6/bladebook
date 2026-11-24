@@ -235,7 +235,9 @@ You decide, for each block of your schedule, how many skaters a lesson can have.
    charge (no answer by ~~the start of the notice period~~ *the start of the notice period or 7
    days after the other skater left, whichever comes first (ADR-031, 2026-10-13)* cancels it); late, the one who drops out
    may be charged their share of the late-cancellation fee (half, for two skaters) and the other
-   keeps their share of the price.
+   keeps their share of the price. *Changed by the owner 2026-11-23: in time, the staying skater's
+   lesson goes to the full price at once and their family is told; they can cancel with no charge
+   by the answer-by time, and no answer keeps it at the full price (§16 asks Kim about this).*
 4. ~~Should you have to know and approve a skater before another family can invite them into a
    lesson with you?~~ **Answered by the owner, 2026-10-07:** a skater can be invited before you've
    accepted them, but no lesson is booked for them until you do. If you don't, the lesson goes
@@ -482,6 +484,55 @@ schedule and deletes it, families could get an email for a mistake.
 - Whether Phase 2 stops emailing families automatically after a schedule change, and lets the
   coach review and send instead (`FeatureDecriptions/C_Coach Schedule Hub.md`, "Deleting time off
   or a special schedule").
+
+---
+
+## 15. Switching a repeating lesson to a different rhythm
+
+*Added 2026-11-23.*
+
+**The scenario.** A family can make a repeating lesson less frequent, but BladeBook only cancels
+lessons to do it; it never books new dates. So a lesson every 2 weeks can become every 4 weeks
+(keep every other one), but not every 3 weeks: weeks 3 and 9 were never booked, so it would
+really end up every 6 weeks. For now, a family on every 2 weeks is only offered every 4, and a
+family on every 3 weeks can't space it out further without cancelling the series and booking
+again.
+
+**Questions:**
+
+1. Do families ever ask to go from every 2 weeks to every 3, or from every 3 weeks to every 4?
+2. If they did, would you be happy for them to cancel the series and book a new one, or should
+   BladeBook move their lessons onto the new rhythm for them (which needs those new times to be
+   free)?
+
+**What the answers decide:**
+
+- Whether "Make it less frequent" learns to re-space a series onto new dates, or keeps offering
+  only the rhythms the booked dates already fit (ADR-009 §4a, amended 2026-11-23;
+  `FeatureDecriptions/cancelation.md`).
+
+---
+
+## 16. When the other skater leaves a shared lesson
+
+*Added 2026-11-23.*
+
+**The scenario.** Two skaters share a lesson and split the price. One family cancels more than 24
+hours ahead. The other skater's lesson now becomes a private lesson at the full price straight
+away, and their family gets an email and a card on BladeBook: *"Mia can't make it, so Ava's lesson
+is now private at $90. Keep it, or cancel it with no charge by Wed 5:00pm. If you don't answer,
+Ava keeps the lesson at $90."* Until now, a family that didn't answer had the lesson cancelled.
+
+**Questions:**
+
+1. Is it fine for the price to go up to the full private price automatically, with a warning, or
+   would families expect to be asked before paying more?
+2. When this happens today, do families usually keep the lesson, or cancel it?
+
+**What the answers decide:**
+
+- Whether no answer keeps the lesson at the full price (as now, owner 2026-11-23) or goes back to
+  cancelling it (ADR-MASTER §8, "Leaving"; `FeatureDecriptions/cancelation.md`).
 
 ---
 

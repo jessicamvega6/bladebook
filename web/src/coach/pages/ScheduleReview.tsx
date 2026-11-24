@@ -16,6 +16,9 @@ import { Loading } from '../../shared/components/Loading';
 const whenOf = (i: ImpactDto) => `${DAYS[dayOfWeek(i.date)]}, ${shortDate(i.date)} · ${formatTime(i.startTime)}`;
 const who = (i: ImpactDto) => i.skaters.map((s) => s.name).join(' & ') || 'Booked';
 
+/** Lessons a change kept because someone is checked in or marked a no-show (owner, 2026-11-21). */
+const KEPT_CHECKED_IN = 'Kept: someone is already checked in';
+
 function LessonRow({ i, side }: { i: ImpactDto; side: React.ReactNode }) {
   return <Row lead={<Avatar name={who(i)} size="sm" />} title={who(i)} sub={whenOf(i)} side={side} />;
 }
@@ -92,7 +95,12 @@ export function ChangeReview({ what, preview, timeOff, noticeHours, errors, busy
           <div className="card__note"><Icon name="info" size={14} />A price increase never reaches a lesson inside your {noticeHours}-hour notice period.</div>
         </Card>
       )}
-      {!p.cancel.length && !p.reprice.length && !p.kept.length && <Banner tone="success" title="No booked lessons are affected">Families won’t be emailed.</Banner>}
+      {p.checkedIn.length > 0 && (
+        <Card title={KEPT_CHECKED_IN} flush sub="A change never cancels a lesson that’s under way, so these stay booked.">
+          {p.checkedIn.map((i) => <LessonRow key={i.date + i.startTime} i={i} side={<span className="muted">Checked in</span>} />)}
+        </Card>
+      )}
+      {!p.cancel.length && !p.reprice.length && !p.kept.length && !p.checkedIn.length && <Banner tone="success" title="No booked lessons are affected">Families won’t be emailed.</Banner>}
       <div className="stickybar">
         <Button variant="secondary" onClick={onBack}>Back</Button>
         <span className="stickybar__note">Nothing changes until you accept.</span>
@@ -154,6 +162,11 @@ export function SaveStatus({ api, lessons, families, since, onError }: {
           {step(2, 'Done', 'Your schedule is live')}
         </ol>
       </Card>
+      {mine && mine.checkedIn.length > 0 && (
+        <Card title={KEPT_CHECKED_IN} flush>
+          {mine.checkedIn.map((i) => <LessonRow key={i.date + i.startTime} i={i} side={<span className="muted">Checked in</span>} />)}
+        </Card>
+      )}
       {mine && mine.passed.length > 0 && (
         <Card title="These lessons had already started" flush>
           {mine.passed.map((i) => <LessonRow key={i.date + i.startTime} i={i} side={<span className="muted">Waive it and contact the family</span>} />)}

@@ -11,6 +11,7 @@ import com.bladebook.core.domain.TempSchedule;
 import com.bladebook.core.domain.WeeklySchedule;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
@@ -22,6 +23,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -162,9 +164,10 @@ public final class ScheduleRepository {
     }
 
     /**
-     * Saves time off or a special schedule: on an edit, the old version's date items go first (only those still
-     * carrying its {@code tempId}); then one date item per date, up to 99 per transaction, each written only where no
-     * other one already has the date; then the header, last (ADR-MASTER section 6).
+     * Saves time off or a special schedule: on an edit, the old version's date items the new one no longer has go first
+     * (only those still carrying its {@code tempId}); then one date item per date, up to 99 per transaction, each written
+     * only where no other one already has the date or it's this one's (an edited date is overwritten in place, never
+     * missing part-way); then the header, last (ADR-MASTER section 6).
      *
      * @param previous the version opened for editing, or {@code null} for a new one
      * @throws DomainException CONFLICT if another time off or special schedule took one of the dates meanwhile
@@ -172,6 +175,9 @@ public final class ScheduleRepository {
     public void saveTemp(AccessContext ctx, TempSchedule t, TempSchedule previous) {
         if (previous != null) {
             for (LocalDate d : previous.dates()) {
+                if (t.dateBlocks().containsKey(d)) {
+                    continue; // rewritten in place below
+                }
                 try {
                     db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, DATE + d))
                             .conditionExpression("tempId = :id").expressionAttributeValues(Map.of(":id", s(previous.tempId()))).build());
@@ -324,6 +330,65 @@ public final class ScheduleRepository {
     private record Write(int kind, TransactWriteItem item) {
     }
 
+    /** What {@link #roll} did: times added, and whether some date's schedule changed since it was read (none put on it). */
+    public record Rolled(int added, boolean stale) {
+    }
+
+    /**
+     * The lesson roller's adds (ADR-MASTER section 14), one date at a time, each in a transaction with a check that the
+     * schedule it was planned from is still as read: the date's {@code SCHEDULE#DATE#} item with the same blocks, or no
+     * such item and {@code SCHEDULE#DEFAULT} at {@code defaultVersion} ({@code null}: none). So a time a schedule change
+     * has just removed is never put back from an older read. A date whose check or put fails gets nothing; it's reported
+     * {@code stale}.
+     */
+    public Rolled roll(AccessContext ctx, List<LessonTime> add, Long defaultVersion, Map<LocalDate, List<ScheduleBlock>> overrides) {
+        Map<LocalDate, List<LessonTime>> byDate = new java.util.TreeMap<>();
+        add.forEach(t -> byDate.computeIfAbsent(t.lessonDate(), d -> new ArrayList<>()).add(t));
+        int added = 0;
+        boolean stale = false;
+        for (Map.Entry<LocalDate, List<LessonTime>> e : byDate.entrySet()) {
+            List<TransactWriteItem> checks = plannedFrom(ctx, e.getKey(), defaultVersion, overrides.get(e.getKey()));
+            List<LessonTime> times = e.getValue();
+            int chunk = CHUNK - checks.size();
+            for (int i = 0; i < times.size(); i += chunk) {
+                List<TransactWriteItem> items = new ArrayList<>(checks);
+                times.subList(i, Math.min(times.size(), i + chunk)).forEach(t -> items.add(TransactWriteItem.builder()
+                        .put(Put.builder().tableName(table).item(lessonItem(ctx, t)).conditionExpression("attribute_not_exists(SK)").build()).build()));
+                try {
+                    db(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(items).build());
+                    added += items.size() - checks.size();
+                } catch (TransactionCanceledException ex) {
+                    if (!ex.hasCancellationReasons() || ex.cancellationReasons().stream().noneMatch(r -> "ConditionalCheckFailed".equals(r.code()))) {
+                        throw ex;
+                    }
+                    stale = true;
+                    break;
+                }
+            }
+        }
+        return new Rolled(added, stale);
+    }
+
+    /** The checks that a date's schedule is still the one read. */
+    private List<TransactWriteItem> plannedFrom(AccessContext ctx, LocalDate date, Long defaultVersion, List<ScheduleBlock> override) {
+        List<TransactWriteItem> out = new ArrayList<>();
+        if (override != null) {
+            out.add(TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table).key(key(ctx, DATE + date))
+                    .conditionExpression("blocks = :b").expressionAttributeValues(Map.of(":b", blocksAttr(override))).build()).build());
+            return out;
+        }
+        out.add(TransactWriteItem.builder().conditionCheck(ConditionCheck.builder().tableName(table).key(key(ctx, DATE + date))
+                .conditionExpression("attribute_not_exists(SK)").build()).build());
+        ConditionCheck.Builder weekly = ConditionCheck.builder().tableName(table).key(key(ctx, DEFAULT));
+        if (defaultVersion == null) {
+            weekly.conditionExpression("attribute_not_exists(SK)");
+        } else {
+            weekly.conditionExpression("scheduleVersion = :v").expressionAttributeValues(Map.of(":v", n(defaultVersion)));
+        }
+        out.add(TransactWriteItem.builder().conditionCheck(weekly.build()).build());
+        return out;
+    }
+
     /** One conditional write. False if its condition failed. */
     private boolean one(AccessContext ctx, TransactWriteItem w) {
         try {
@@ -421,6 +486,83 @@ public final class ScheduleRepository {
             start = r.hasLastEvaluatedKey() && !r.lastEvaluatedKey().isEmpty() ? r.lastEvaluatedKey() : null;
         } while (start != null);
         return out;
+    }
+
+    // ------------------------------------------------------------------ the schedule-change lease
+
+    /**
+     * The coach's schedule-change lease: one run of the schedule change at a time, so one save's lessons all go in one
+     * batch and each family gets one email (owner, 2026-11-23; {@code docs/tla/ScheduleApply.tla}).
+     */
+    static final String LEASE = "SCHEDULE#APPLYING";
+
+    /**
+     * A lease older than this was left by a run that stopped: {@code consumer-schedule-change} times out after 5 minutes
+     * (infra/lib/consumers.ts), and the holder renews it on each pass.
+     */
+    public static final java.time.Duration LEASE_ABANDONED = java.time.Duration.ofMinutes(6);
+
+    /**
+     * Takes the lease for {@code runId} if it's free, already this run's (a retry of the same event), or abandoned.
+     * Otherwise asks the holder to run again, which it does before letting go, and returns {@code false}: the holder's
+     * next pass reads the schedule afresh, so this run's change is applied there.
+     */
+    public boolean takeLease(AccessContext ctx, String runId, Instant now) {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(key(ctx, LEASE))
+                        .conditionExpression("attribute_not_exists(holder) OR holder = :me OR leasedAt <= :stale")
+                        .updateExpression("SET holder = :me, leasedAt = :now REMOVE rerun")
+                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(NotifyRepository.sortable(now)),
+                                ":stale", s(NotifyRepository.sortable(now.minus(LEASE_ABANDONED))))).build());
+                return true;
+            } catch (ConditionalCheckFailedException held) {
+                try {
+                    db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(key(ctx, LEASE))
+                            .conditionExpression("attribute_exists(holder) AND holder <> :me AND leasedAt > :stale")
+                            .updateExpression("SET rerun = :t")
+                            .expressionAttributeValues(Map.of(":me", s(runId), ":t", AttributeValue.fromBool(true),
+                                    ":stale", s(NotifyRepository.sortable(now.minus(LEASE_ABANDONED))))).build());
+                    return false;
+                } catch (ConditionalCheckFailedException letGo) {
+                    // released or abandoned meanwhile: try to take it again
+                }
+            }
+        }
+        throw new IllegalStateException("the schedule-change lease kept changing hands");
+    }
+
+    /**
+     * After a pass: lets the lease go, unless another run asked for a rerun, in which case the request is cleared, the
+     * lease renewed, and {@code true} returned so the caller makes another pass.
+     */
+    public boolean releaseOrRerun(AccessContext ctx, String runId, Instant now) {
+        try {
+            db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, LEASE))
+                    .conditionExpression("holder = :me AND attribute_not_exists(rerun)")
+                    .expressionAttributeValues(Map.of(":me", s(runId))).build());
+            return false;
+        } catch (ConditionalCheckFailedException rerunOrTaken) {
+            try {
+                db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(key(ctx, LEASE))
+                        .conditionExpression("holder = :me AND attribute_exists(rerun)")
+                        .updateExpression("SET leasedAt = :now REMOVE rerun")
+                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(NotifyRepository.sortable(now)))).build());
+                return true;
+            } catch (ConditionalCheckFailedException taken) {
+                return false; // abandoned and taken by another run, which reads afresh
+            }
+        }
+    }
+
+    /** Lets the lease go after a pass failed; the failed event's retry takes it again and reads afresh. */
+    public void releaseLease(AccessContext ctx, String runId) {
+        try {
+            db(ctx).deleteItem(DeleteItemRequest.builder().tableName(table).key(key(ctx, LEASE))
+                    .conditionExpression("holder = :me").expressionAttributeValues(Map.of(":me", s(runId))).build());
+        } catch (ConditionalCheckFailedException notOurs) {
+            // taken over meanwhile
+        }
     }
 
     private DynamoDbClient db(AccessContext ctx) {

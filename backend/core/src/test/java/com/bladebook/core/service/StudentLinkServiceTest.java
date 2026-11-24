@@ -37,7 +37,7 @@ class StudentLinkServiceTest {
 
     @Test
     void aDeclineRemovesTheLinkButKeepsTheAccount() {
-        t.links.declined(t.studentRepo.decline(dana, ava.studentId()));
+        assertThat(t.links.declined(t.studentRepo.decline(dana, ava.studentId()), giveBack -> true)).isTrue();
 
         assertThat(t.families.account(family).orElseThrow().links()).isEmpty();
         assertThat(t.families.account(family).orElseThrow().skaters()).hasSize(1);

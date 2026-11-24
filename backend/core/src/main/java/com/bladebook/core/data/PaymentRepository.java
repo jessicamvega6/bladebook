@@ -24,7 +24,9 @@ import java.util.Optional;
 
 /**
  * Payment on seats, in the coach's partition (ADR-MASTER section 12). Each write is conditional on the status the
- * coach saw, so two windows can't, say, pay a lesson the other just waived. {@code paidVia} is stored on the seat, so
+ * coach saw, and on a paid lesson when it was marked paid and how, so two windows can't, say, pay a lesson the other
+ * just waived, undo a payment the other made again after undoing the one this window showed, or put back how they paid
+ * after the other changed it. {@code paidVia} is stored on the seat, so
  * a payment type switched off later doesn't change past records.
  */
 public final class PaymentRepository {
@@ -74,8 +76,12 @@ public final class PaymentRepository {
         return r.items().stream().findFirst().map(m -> LocalDate.parse(m.get("GSI3SK").s().split("#")[1]));
     }
 
-    /** Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy} and {@code paidVia}. */
-    public boolean markPaid(AccessContext ctx, String seatKey, Payment.Status was, Payment.Via via, Instant now) {
+    /**
+     * Marks paid (from unpaid, or paid again to change how): {@code paidAt}, {@code markedPaidBy} and {@code paidVia}.
+     * {@code wasPaidAt} and {@code wasVia}: when the payment the coach saw was made and how; null when unpaid or not given.
+     */
+    public boolean markPaid(AccessContext ctx, String seatKey, Payment.Status was, Instant wasPaidAt, Payment.Via wasVia,
+                            Payment.Via via, Instant now) {
         Map<String, AttributeValue> v = new HashMap<>(Map.of(":paid", FamilyItems.s("PAID"), ":by", FamilyItems.s(ctx.coachId())));
         String set = "SET paymentStatus = :paid, markedPaidBy = :by";
         if (was != Payment.Status.PAID) {
@@ -86,31 +92,31 @@ public final class PaymentRepository {
         if (via != null) {
             v.put(":via", FamilyItems.s(via.name()));
         }
-        return update(ctx, seatKey, was, update, v);
+        return update(ctx, seatKey, was, wasPaidAt, wasVia, update, v);
     }
 
     /** Waives an unpaid lesson: final, with no amount. */
     public boolean waive(AccessContext ctx, String seatKey, Instant now) {
-        return update(ctx, seatKey, Payment.Status.UNPAID, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia, GSI3PK, GSI3SK",
+        return update(ctx, seatKey, Payment.Status.UNPAID, null, null, "SET paymentStatus = :w, waivedAt = :at, waivedBy = :by REMOVE paidVia, GSI3PK, GSI3SK",
                 new HashMap<>(Map.of(":w", FamilyItems.s("WAIVED"), ":at", FamilyItems.s(now.toString()), ":by", FamilyItems.s(ctx.coachId()))));
     }
 
-    /** A paid lesson back to unpaid. */
-    public boolean undo(AccessContext ctx, String seatKey) {
-        return update(ctx, seatKey, Payment.Status.PAID, UNDO, undoValues(ctx, seatKey));
+    /** A paid lesson back to unpaid. {@code paidAt} and {@code paidVia}: the payment the coach saw. */
+    public boolean undo(AccessContext ctx, String seatKey, Instant paidAt, Payment.Via paidVia) {
+        return update(ctx, seatKey, Payment.Status.PAID, paidAt, paidVia, UNDO, undoValues(ctx, seatKey));
     }
 
     /**
      * A paid lesson back to unpaid when the year its payment counted in has closed (Batch 26): the seat and its
-     * correction ({@code PAYCORRECTION#}) are written in one transaction, or neither is.
+     * correction ({@code PAYCORRECTION#}) are written in one transaction, or neither is. Conditional on the payment the
+     * coach saw, whose {@code paidAt} the correction's year was worked out from.
      */
-    public boolean undo(AccessContext ctx, String seatKey, FinancialRepository.Undone correction) {
+    public boolean undo(AccessContext ctx, String seatKey, Instant paidAt, Payment.Via paidVia, FinancialRepository.Undone correction) {
         Map<String, AttributeValue> v = undoValues(ctx, seatKey);
-        v.put(":was", FamilyItems.s(Payment.Status.PAID.name()));
         try {
             db(ctx).transactWriteItems(TransactWriteItemsRequest.builder().transactItems(
                     TransactWriteItem.builder().update(Update.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), seatKey))
-                            .conditionExpression("attribute_exists(SK) AND paymentStatus = :was").updateExpression(UNDO)
+                            .conditionExpression(condition(Payment.Status.PAID, paidAt, paidVia, v)).updateExpression(UNDO)
                             .expressionAttributeValues(v).build()).build(),
                     TransactWriteItem.builder().put(Put.builder().tableName(table).item(FinancialRepository.correctionItem(ctx, correction))
                             .conditionExpression("attribute_not_exists(SK)").build()).build()).build());
@@ -129,11 +135,10 @@ public final class PaymentRepository {
         return v;
     }
 
-    /** One conditional update: the seat must exist and still have the status the coach saw. */
-    private boolean update(AccessContext ctx, String seatKey, Payment.Status was, String update, Map<String, AttributeValue> values) {
-        String cond = "attribute_exists(SK) AND " + (was == Payment.Status.UNPAID
-                ? "(attribute_not_exists(paymentStatus) OR paymentStatus = :was)" : "paymentStatus = :was");
-        values.put(":was", FamilyItems.s(was.name()));
+    /** One conditional update: the seat must exist and still have the status (and payment) the coach saw. */
+    private boolean update(AccessContext ctx, String seatKey, Payment.Status was, Instant wasPaidAt, Payment.Via wasVia,
+                           String update, Map<String, AttributeValue> values) {
+        String cond = condition(was, wasPaidAt, wasVia, values);
         try {
             db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), seatKey))
                     .conditionExpression(cond).updateExpression(update).expressionAttributeValues(values).build());
@@ -141,6 +146,24 @@ public final class PaymentRepository {
         } catch (ConditionalCheckFailedException e) {
             return false;
         }
+    }
+
+    /**
+     * The seat exists, with the status the coach saw and the payment they saw: {@code paidAt} and {@code paidVia} as they
+     * were, or none.
+     */
+    private static String condition(Payment.Status was, Instant wasPaidAt, Payment.Via wasVia, Map<String, AttributeValue> values) {
+        values.put(":was", FamilyItems.s(was.name()));
+        String paid = wasPaidAt == null ? "attribute_not_exists(paidAt)" : "paidAt = :wasAt";
+        if (wasPaidAt != null) {
+            values.put(":wasAt", FamilyItems.s(wasPaidAt.toString()));
+        }
+        paid += wasVia == null ? " AND attribute_not_exists(paidVia)" : " AND paidVia = :wasVia";
+        if (wasVia != null) {
+            values.put(":wasVia", FamilyItems.s(wasVia.name()));
+        }
+        return "attribute_exists(SK) AND " + (was == Payment.Status.UNPAID
+                ? "(attribute_not_exists(paymentStatus) OR paymentStatus = :was)" : "paymentStatus = :was") + " AND " + paid;
     }
 
     private DynamoDbClient db(AccessContext ctx) {

@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError } from '../../shared/api/client';
-import { AuthFailure, coachAuth } from '../../shared/auth';
+import { AuthFailure, addWrongPassword, clearWrongPasswords, coachAuth } from '../../shared/auth';
 import { Badge, Banner, Button, Card, Dialog, Field, Icon } from '../../shared/components/harbor';
 import {
   DAYS, LESSON_LENGTHS, MAX_NAME, MAX_SKATERS, MAX_SPECIAL_DAYS, QUARTER_HOURS, addDays, dateRange, datesBetween, dayOfWeek, forDate,
@@ -298,8 +298,8 @@ export function useGuardedSave(profile: Profile, onToken: (t: string) => void, o
   const [password, setPassword] = useState('');
   const [reauthError, setReauthError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
-  // Wrong passwords in a row, counted while this page is open; a right one starts again.
-  const [wrong, setWrong] = useState(0);
+  // Wrong passwords in a row are counted in the tab's sign-in storage, shared by every editor and kept across a reload;
+  // a right one starts again.
   const closeReauth = () => { setReauth(null); setPassword(''); setReauthError(''); };
   /** The password again (Cognito, from the browser; ADR-023 d11), then the same save with the new sign-in. */
   const signInAndSave = async (e: FormEvent) => {
@@ -313,21 +313,20 @@ export function useGuardedSave(profile: Profile, onToken: (t: string) => void, o
       await coachAuth().confirmPassword(profile.loginEmail, password);
     } catch (err) {
       setPassword('');
-      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' && wrong + 1 >= WRONG_PASSWORDS_ALLOWED) {
+      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD' && addWrongPassword() >= WRONG_PASSWORDS_ALLOWED) {
         closeReauth();
-        setWrong(0);
+        clearWrongPasswords();
         await coachAuth().signOut();
         onError(new ApiError(401, SIGNED_OUT_WRONG_PASSWORDS,
           'You were signed out after too many wrong passwords. Your changes weren’t saved.'));
         return;
       }
-      if (err instanceof AuthFailure && err.code === 'WRONG_PASSWORD') setWrong(wrong + 1);
       setReauthError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
       return;
     } finally {
       setSigningIn(false);
     }
-    setWrong(0);
+    clearWrongPasswords();
     closeReauth();
     const token = await coachAuth().idToken();
     if (token) onToken(token);
