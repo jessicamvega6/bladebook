@@ -19,7 +19,10 @@ prefer if you know.
 - [ ] **New feature:** Schedule: let the coach delete their normal (weekly) schedule. Doing so
   removes every lesson time from the calendar except the dates covered by a special schedule.
   Special schedules and time off can already be deleted one by one; the weekly schedule
-  can't (`web/src/coach/pages/Schedule.tsx:128`).
+  can't (`web/src/coach/pages/Schedule.tsx:128`). Booked lessons in the removed times: treat
+  it like any other schedule change and reuse what exists today, i.e. the same review
+  (`ChangeReview`, from `previewWeekly` with no blocks), cancellations, schedule-change emails
+  and save status as editing the weekly schedule (owner, 2026-11-23).
 
 ## Family app
 
