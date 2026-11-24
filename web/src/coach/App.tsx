@@ -81,11 +81,6 @@ export function App() {
       .catch(() => { if (live) setToken(null); });
     return () => { live = false; };
   }, []);
-  // Log in shows once the tab's sign-in is gone, so a page opened next can't find it.
-  const signOut = useCallback(async () => {
-    await auth.signOut();
-    setToken(null);
-  }, []);
   const signedIn = useCallback(async () => {
     setNotice('');
     setToken(await auth.idToken());
@@ -109,6 +104,16 @@ export function App() {
   const studentsApi = useMemo(() => (token ? studentApi(auth.idToken) : null), [token]);
   const [students, setStudents] = useState<StudentsDto | null>(null);
   const [studentsError, setStudentsError] = useState('');
+  // Log in shows once the tab's sign-in is gone, so a page opened next can't find it. The last coach's profile and
+  // students go with it: the next sign-in (another coach, or a family's account turned away) starts from Loading,
+  // never from the page the last coach left.
+  const signOut = useCallback(async () => {
+    await auth.signOut();
+    setToken(null);
+    setLoad({ state: 'loading' });
+    setStudents(null);
+    setStudentsError('');
+  }, []);
   // A note set as the page changes to Today (sign-up step 3, below) is kept for it.
   const keepNote = useRef(false);
   useEffect(() => { if (route !== '#/schedule') setFlash(''); if (keepNote.current) keepNote.current = false; else setNote(''); }, [route]);
@@ -271,15 +276,15 @@ export function App() {
     } else if (route === '#/lessons') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Lessons" wide><Lessons api={lessons} onError={handleError} /></CoachShell>;
     } else if (route === '#/profile') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileDetails key={profile.coachCode} api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/email') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileBusinessEmail api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/visibility') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileVisibility api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/account') {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfileAccount profile={profile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else if (route === '#/profile/payments') {
-      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} /></CoachShell>;
+      page = <CoachShell profile={profile} waiting={students?.pending.length} section="Profile"><ProfilePayments api={api} profile={profile} onChange={setProfile} onLogOut={() => { void signOut().then(() => go('#/login')); }} /></CoachShell>;
     } else {
       page = <CoachShell profile={profile} waiting={students?.pending.length} section="Today" wide><Today profile={profile} api={todays} onUseLogin={useLogin} onResend={resend} onError={handleError} note={note} busy={busy} pending={students?.pending} /></CoachShell>;
     }

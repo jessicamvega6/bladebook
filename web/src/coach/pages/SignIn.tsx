@@ -236,7 +236,7 @@ export function SignupAccount({ onCreated }: { onCreated: (email: string) => voi
           <div className="hint">Shown on your booking page and in every email families get.</div>
           <Field label="Login email" type="email" value={email} onChange={setEmail} autoComplete="username"
             hint="You’ll log in with this. Your morning email comes here." error={show(problems.email)} />
-          <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
+          <Field label="Password" type="password" reveal value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
           <PasswordRules password={pw} />
           <Button type="submit" block lg disabled={busy}>Create account</Button>
         </form>
