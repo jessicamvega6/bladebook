@@ -1,6 +1,6 @@
 # BladeBook — Implementation Plan
 
-**Last checked:** 2026-11-16, against `main` after PR #54.
+**Last checked:** 2026-11-23, against `main` after PR #68.
 **Sources:** `docs/adr/ADR-MASTER.md` (current through ADR-033) and the ADRs it cites, the Harbor screen designs in
 `design/harbor/`, `docs/architecture.md` §10 (MVP features 1–16), `docs/Blockers-Before-Coding.md`, and the feature
 notes in `FeatureDecriptions/`.
@@ -58,55 +58,54 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [26](batch-logs/batch-26.md) | Saving a closed year's figures | #52 |
 | [17a](../infra/README.md) | Infrastructure, part 1: `infra/` in CDK (no batch log; its record is `infra/README.md`) | #54 |
 | [27](batch-logs/batch-27.md) | Lessons from before last year are view only (an unpaid one can still be waived) | #57 |
+| [17b](../infra/README.md) | Infrastructure, part 2: the table from the seed import, the API and its functions, SES, the event backbone and the seven consumers, the scheduled jobs, the access log, the firewall and alarms, `auth-post-confirmation`, and the deploy workflow (I1–I20, I29). No batch log; its record is `infra/README.md` | #61 |
+| [17c](../infra/README.md) | Infrastructure, part 3: the family read allowlist, the gate tests against dev's real table and roles (76 of 76), each website at its host's root and uploaded by the stack, Figtree from BladeBook's own files, and the Content Security Policy (I11, I14, I17, I30, I31). No batch log; its record is `infra/README.md` | #63 |
+| 18 | Real sign-in on both websites and the rinkside page, with every stand-in removed (I31, I32), and three wrong passwords before a schedule save signing the coach out (I33). No batch log | #64 |
 
-**Under way:** Batch 17b, being built on `feature/batch-17b-build` (owner's go, 2026-11-17). Its conflicts (I1–I20)
-are all ruled (2026-11-17, `AI/plan-history.md`). AWS verified dev's account for CloudFront by 2026-11-17. Built so far:
-the table, the seed bucket, the test accounts, the seed generator, the import check, the tenant roles,
-`TenantClients`' AWS mode, and the API (both functions, API Gateway, CloudFront's `/api/*`, the origin secret and
-the US-only check), SES (every template, and `api-coach`'s confirmation email), the access log's writes from both APIs, the event backbone (the Pipe, the bus, a rule per event and the seven consumers with their dead-letter queues), the scheduled jobs on EventBridge Scheduler, including the drift check and `consumer-schedule-change`'s reconcile, and the TTL archiver. The firewall's rules and the alarms (with the never-linked Contributor Insights rule and production's up-check) are built too. So is `auth-post-confirmation`, and the deploy workflow with ADR-032's security setup: tagged versions from `main`, a hand-started deploy, the bootstrap's data denies and GitHub's role (I13, I29). Batch 17 is split into 17b and
-17c (owner, 2026-11-17).
+**Under way:** no batch. Not a batch: PR #72, the state-machine fixes found by modelling them in TLA+ (`docs/tla/`).
+
+**Left over from Batch 18:** dev's Content Security Policy is still report-only (`infra/lib/config.ts`, `csp`).
+Click through every signed-in page in dev, then set it to `enforce` (17c, I17). Production already enforces it.
 
 **What that means for the code:**
 
-- `backend/` is a Maven multi-module build (`core`, `api-coach`, `api-client`, `consumers`). Everything above runs
-  locally against DynamoDB Local. Events and scheduled jobs run in-process or on a local timer (Question 4).
+- `backend/` is a Maven multi-module build (`core`, `api-coach`, `api-client`, `consumers`). Locally it runs against
+  DynamoDB Local, with events and scheduled jobs run in-process or on a local timer (Question 4); in dev they run on
+  AWS.
 - `web/` has three Vite entry points (coach, rinkside and family) and the rinkside page's service worker.
   `web/src/shared/auth` is the sign-in (Batch 18): BladeBook's own forms call Cognito through Amplify's Auth module.
-- `infra/` holds the CDK (TypeScript) app from Batches 17a and 17b. In dev, `bladebook-dev-identity` (the user pool,
-  its groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox) and
-  `bladebook-dev-app` (both websites behind CloudFront, uploaded by the stack since 17c, the table built from the seed file and the tenant
-  roles) are
-  deployed, and so is `bladebook-dev-deploy-access` (GitHub's deploy role, 2026-11-19); dev is bootstrapped with the
-  data denies (I13). Both websites load in dev since 17c, but signing in needs Batch 18, so the app itself still runs locally only.
+  Local development signs in against dev's real user pool (I31).
+- `infra/` holds the CDK (TypeScript) app from Batches 17a–17c. In dev, `bladebook-dev-identity` (the user pool, its
+  groups and app clients, the test accounts, the seed bucket and SES for the owner's test mailbox),
+  `bladebook-dev-app` (both websites behind CloudFront, the table, the API, the events and jobs, and the tenant roles)
+  and `bladebook-dev-deploy-access` (GitHub's deploy role) are deployed, and dev is bootstrapped with the data denies
+  (I13). The app runs in dev. Production's account doesn't exist yet.
 
 ## 3. Blocked outside this work
 
 | Blocker | Effect on this plan |
 |---|---|
-| Batches 17b and 17c (the table, API, functions, events and the website upload) aren't built; the AWS accounts and `dev.bladebook.org` exist (Blockers 2, 22 done) | The app isn't deployed. "End to end" means **running locally**. |
-| Dev's AWS account can't create CloudFront distributions until AWS Support verifies it (asked 2026-11-16, case 179485860000682; `infra/README.md`) | `bladebook-dev-app` (both websites) can't deploy. Production's account needs the same step as soon as it exists. |
-| The Amazon Cognito user pool is deployed in dev, but nothing signs in through it until Batch 18 | Signing in locally uses a stand-in (Question 3). The sign-in library is chosen: AWS Amplify's Auth module with Secure Remote Password (SRP) (ADR-023, 2026-11-12). The real sign-in forms are Batch 18. |
-| Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | Called in-process or on a local timer, each a listed shortcut (Question 4). |
+| The production AWS account doesn't exist yet | Batch 29 can't start. The account needs CloudFront verification by AWS Support as soon as it exists, as dev's did (`infra/README.md`). |
+| The product's final name (`docs/Blockers-Before-Coding.md` §5) | Needed before SES leaves the sandbox (Batch 29). |
+| Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | Locally they're called in-process or on a local timer (Question 4); in dev they run on AWS. |
 | Rink-fee calculation undecided (`docs/Q_Rink-Fees.md`) | **Phase 2** (owner, 2026-11-12). The financial page shows gross only and says rink fee calculation is coming. |
-| The family read allowlist and the gate-test rows for `LESSON#`, `SEAT#`, `SEATEND#` and GSI4 (Blockers 23, 24) | DynamoDB Local ignores Identity and Access Management (IAM) rules, so the per-tenant credential rules are a listed shortcut until the gate tests pass on real AWS (Batch 17). |
 | Which function sends the coach's SMS opt-in confirmation (ADR-007 d8) | The coach's late-cancellation text, and the *Text me on late cancellations* switch, aren't built. |
 | Coach who is also a parent: no screen, no ADR-MASTER section, questions 2–9 still open | Not built. |
 
 ## 4. What's left to build, in order
 
 Batch numbers are names, not order. The rows below are the build order (owner, 2026-11-12, 2026-11-13 and 2026-11-16).
+**Ready now:** 19 and 20. The rest wait on a design, a decision or the production account (owner, 2026-11-23: unblock
+them next).
 
 | # | Batch | Waits on |
 |---|---|---|
-| 17b | **Infrastructure, part 2:** the table built from the seed import, the seed script and test accounts, `auth-post-confirmation`, the REST API and its functions, the event backbone (Streams → Pipe → EventBridge, Scheduler) with dead-letter queues, the scheduled jobs (with Batch 26's January job) and their roles (Blocker 24), the tenant roles, the access-log writes and alarms, the API's firewall, the drift check and TTL archiver, and the deploy workflow with ADR-032's security setup (Blocker 3). Closes SC-4, SC-5, SC-8, SC-12, SC-14, SC-15, SC-16, SC-17, SC-19, SC-20, SC-21, SC-22 and SC-27. | Most of it deploys into `bladebook-dev-app` (SES, the access log, the data buckets), so it needs that stack's CloudFront verification (§3; done by 2026-11-17). Every conflict is ruled (2026-11-17) |
-| 17c | **Infrastructure, part 3:** the family read allowlist written and the gate tests re-run on AWS against dev's real roles (Blocker 23, G-26), the Vite builds moved to each host's root, the website upload, the Figtree font served from BladeBook's own files, and the Content Security Policy. With 17a and 17b, it closes every shortcut and gap the root `README.md` gives to Batch 17: adds SC-3 and G-26. | Batch 17b |
-| 18 | **Real sign-in** with BladeBook's own forms and Amplify's Auth module (ADR-023 d11 and its 2026-11-12 amendment): coach sign-up steps 1–2, the family's email code, log-in, forgot password (on the family website worded "Forgot/change password", I32), the coach's change password, log out, and signing in again before a save. *I32: a coach's multi-factor authentication (MFA) moves to Batch 28; a family's login email stays read-only.* Tokens in tab storage, behind `web/src/shared/auth`. Closes SC-1, SC-7, SC-10, G-4, G-5, G-14 and G-15. *Owner, 2026-11-20 (I31): right after 17c; every stand-in removed from the web and from the APIs' shipped code; local development signs in against dev's real user pool.* *Also (17c, I17): click through every signed-in page in dev with the Content Security Policy report-only, then set dev's `csp` to `enforce`.* | Batch 17's user pool |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
-| 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in. | Batch 18 |
+| 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in. | — (Batch 18 merged) |
 | 21 | **Editing time off** (G-30): *Edit* on each time off in the schedule hub's list, like a special schedule's. Change the dates, review only the dates added or removed, save. Families hear only about lessons that actually change. | The Harbor design needs the *Edit* button and the time-off form opened with its saved dates (owner, 2026-11-12) |
 | 24 | **The rest of repeating bookings** (G-20): refuse a key seen again with a different request, and ask about a series an earlier attempt booked that a resubmission drops (ADR-MASTER §7; ADR-006 d4b); show the series' current interval on the coach's day view after a *Make it less frequent*. | The dropped-series question needs a Harbor screen; the day-view interval needs the coach to read the family's series header (or a copy on the seat), an ADR question |
-| 25 | **The rest of the rinkside page offline** (G-32): a notice when Safari has cleared the page's offline copy (ADR-014 amendment of 2026-10-13), and a check on a real iPhone at a rink. | The notice needs a Harbor screen and a way to tell a cleared copy from a first visit; the iPhone check needs Batch 17's deployed site |
-| 28 | **A coach's multi-factor authentication (MFA)** (I32): turning it on in Profile → Account with an authenticator app, its code at log-in and when signing in again before a save, and turning it off. | A Harbor design for these screens (owner, 2026-11-20); Batch 18 |
+| 25 | **The rest of the rinkside page offline** (G-32): a notice when Safari has cleared the page's offline copy (ADR-014 amendment of 2026-10-13), and a check on a real iPhone at a rink. | The notice needs a Harbor screen and a way to tell a cleared copy from a first visit. The iPhone check can be done now: the site runs in dev |
+| 28 | **A coach's multi-factor authentication (MFA)** (I32): turning it on in Profile → Account with an authenticator app, its code at log-in and when signing in again before a save, and turning it off. | A Harbor design for these screens (owner, 2026-11-20). Batch 18 has merged |
 | 29 | **Production email** (ADR-MASTER §13, §19; ADR-010 d4; Open-Pending §9 and the owner's 2026-10-12 bounce ruling; I34). Sets prod's `emailDomain` to `bladebook.org`, so the deploy verifies the sending domain and writes its DomainKeys Identified Mail (DKIM) records. Turns SES's account-level suppression list on for bounces and complaints (in the stack if CDK supports it, otherwise a runbook step). Moves production's Cognito codes from Cognito's own sender to SES, **from `no-reply@bladebook.org`** (I34), still one generic message (no custom message trigger). Writes the SES production-access request: what is sent, why every address is already verified by a code, the suppression list, and the bounce and complaint alarms that already exist (`infra/lib/alarms.ts`). Then, once the Domain-based Message Authentication, Reporting and Conformance (DMARC) reports show only SES sending as `bladebook.org`, moves the DMARC policy from `p=none` to `p=quarantine`, and later `p=reject` (I34). No custom MAIL FROM domain (I34). Checked by sending each template to a real Gmail and a real Yahoo address: it arrives in the inbox, DKIM and DMARC pass, and the From and Reply-To are right. *Not in it:* Phase 2's per-address bounce flag and the SES event destinations it needs; the other launch items (the firewall's block mode, the restore runbook, the production canary and its mailbox, the legal review). | The production AWS account and its CloudFront verification (§3); the product's final name (`docs/Blockers-Before-Coding.md` §5: before SES leaves the sandbox). The DMARC record itself is added by hand beforehand (I34). |
 | — | The coach's late-cancellation SMS and its switch (G-3); a coach who is also a parent | Blocked (§3) |
 
