@@ -1,6 +1,7 @@
 # spec            config              expected ("ok", or the invariant the bug breaks)
 EmailGuard        current-duplicate   AtMostOnce
 EmailGuard        current-lost        NeverLost
+EmailGuard        first-fix-stopped   NeverLost
 EmailGuard        fixed               ok
 ChangeNotifier    current             OneEmailPerFamily
 ChangeNotifier    fixed               ok

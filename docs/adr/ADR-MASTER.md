@@ -1298,6 +1298,15 @@ after a code review):* the claim carries `claimedAt`. A run that finds a claim u
 fails, so it is retried, since that run may still be sending; a claim older than that (the
 notifier times out after 1) belongs to a run that stopped mid-send and is taken again. So a family
 is never left untold, but a run that stopped after SES took the email can mean a second copy.
+*Also 2026-11-23 (`docs/tla/EmailGuard.tla`):* **every other email guard works the same way.** The
+seat guards (`confirmationSent`, `paymentReminderSent`, `inviteEmailSent`, `joinedEmailSent`,
+`joinedHostEmailSent`), the dated ones (`remindedOn`, `settleReminderSentOn`, `morningEmailSentOn`),
+an ended invitation's `emailSent` and `pendingLeave.emailSent` are claimed as
+`PENDING@<scope>@<claimed at>` and take their sent value only once SES has taken the email. A fresh
+`PENDING` claim fails the run so it's retried; one older than the claiming function's timeout (2
+minutes for the consumers, 6 for the reminder jobs, which time out after 5) is taken again. Before
+this, a run that stopped between its claim and SES's answer left the guard set and the email was
+never sent.
 
 ### The coach's late-cancellation SMS (the only SMS in MVP)
 

@@ -461,6 +461,41 @@ class NotificationServiceTest {
     }
 
     @Test
+    void aConfirmationLeftPendingByARunThatStoppedIsSentOnceAbandoned() {
+        refuse.set(true);
+        book(park, ava, null, SIX, MON);
+        stream.drain(); // the event, handed to the consumer below instead
+        refuse.set(false);
+        String seat = com.bladebook.core.domain.Seat.key(MON, SIX, ava);
+        // A run claimed it, then timed out before SES answered (2026-11-23; docs/tla/EmailGuard.tla).
+        notify.claim(NotifyRepository.once("COACH#" + dana.coachId(), seat, NotifyRepository.CONFIRMATION_SENT, now.get()), now.get(),
+                NotifyRepository.CONSUMER_CLAIM_ABANDONED);
+
+        assertThatThrownBy(() -> notifications.confirmBookings(dana.coachId(), List.of(seat))).isInstanceOf(EmailNotAccepted.class);
+        assertThat(outbox.list()).isEmpty();
+
+        now.set(now.get().plus(NotifyRepository.CONSUMER_CLAIM_ABANDONED));
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(seat))).isEqualTo(1);
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(seat))).isZero(); // sent: nothing more
+        assertThat(outbox.list()).hasSize(1);
+    }
+
+    @Test
+    void aReminderLeftPendingByAJobThatStoppedIsSentOnceAbandoned() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        notify.claim(NotifyRepository.dated("COACH#" + dana.coachId(), com.bladebook.core.domain.Seat.key(MON, SIX, ava),
+                NotifyRepository.REMINDED_ON, MON.toString(), now.get()), now.get(), NotifyRepository.JOB_CLAIM_ABANDONED);
+
+        assertThatThrownBy(() -> jobs.dayOf(MON)).hasMessageContaining("1 email"); // the coach's morning email still goes
+        assertThat(drain()).extracting(Email::template).containsExactly("coach-morning");
+
+        now.set(now.get().plus(NotifyRepository.JOB_CLAIM_ABANDONED));
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(1, 0));
+        assertThat(only(drain(), "day-of-reminder").to()).isEqualTo("sarah@example.com");
+    }
+
+    @Test
     void oneFamilysReminderNotAcceptedFailsTheRunOnlyAfterTheOthersAreSent() {
         book(park, ava, null, SIX, MON);
         book(chen, mia, null, HALF_SIX, MON);

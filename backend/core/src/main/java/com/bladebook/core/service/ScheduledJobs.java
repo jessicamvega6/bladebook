@@ -100,20 +100,28 @@ public final class ScheduledJobs {
         return new DayOf(reminders, mornings);
     }
 
+    /** A job's claims for one email: abandoned after {@link NotifyRepository#JOB_CLAIM_ABANDONED}. */
+    private Claims claims() {
+        // The claim's own time, not the date the run is for: a claim's age is real time.
+        return new Claims(repo, notifications.now(), NotifyRepository.JOB_CLAIM_ABANDONED);
+    }
+
     private boolean reminder(CoachProfile coach, List<SeatRow> mine, List<SeatRow> sameDay, LocalDate date) {
         FamilyProfile family = repo.family(mine.get(0).seat().clientId()).orElse(null);
         if (family == null) {
             return false;
         }
         String pk = "COACH#" + coach.coachId();
+        Claims claims = claims();
         List<Seat> claimed = new ArrayList<>();
         for (SeatRow r : mine) {
             if (!date.toString().equals(r.guard(NotifyRepository.REMINDED_ON))
-                    && repo.claim(pk, r.seat().key(), NotifyRepository.REMINDED_ON, date.toString())) {
+                    && claims.dated(pk, r.seat().key(), NotifyRepository.REMINDED_ON, date.toString())) {
                 claimed.add(r.seat());
             }
         }
         if (claimed.isEmpty()) {
+            claims.throwIfInProgress("day-of-reminder");
             return false;
         }
         List<Map<String, Object>> lessons = new ArrayList<>();
@@ -137,13 +145,16 @@ public final class ScheduledJobs {
         d.put("lessons", lessons);
         repo.lesson(coach.coachId(), first.lessonDate(), first.startTime())
                 .ifPresent(t -> d.put("noticeHours", Integer.toString(t.requiredNoticeHours())));
-        return send(Email.toFamily("day-of-reminder", family.email(), coach, d),
-                () -> claimed.forEach(s -> repo.release(pk, s.key(), NotifyRepository.REMINDED_ON, date.toString())));
+        boolean sent = claims.send(mailer, Email.toFamily("day-of-reminder", family.email(), coach, d));
+        claims.throwIfInProgress("day-of-reminder");
+        return sent;
     }
 
     private boolean morning(CoachProfile coach, List<SeatRow> seats, LocalDate date) {
         String pk = "COACH#" + coach.coachId();
-        if (!repo.claim(pk, "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, date.toString())) {
+        Claims claims = claims();
+        if (!claims.dated(pk, "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, date.toString())) {
+            claims.throwIfInProgress("coach-morning");
             return false;
         }
         Map<LocalTime, List<Seat>> byTime = new TreeMap<>();
@@ -163,8 +174,7 @@ public final class ScheduledJobs {
         d.put("lessonCount", Integer.toString(lessons.size()));
         d.put("firstTime", lessons.get(0).get("time"));
         d.put("lessons", lessons);
-        return send(Email.toCoach("coach-morning", coach, d),
-                () -> repo.release(pk, "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, date.toString()));
+        return claims.send(mailer, Email.toCoach("coach-morning", coach, d));
     }
 
     // --------------------------------------------------------- sched-unpaid-reminder
@@ -195,9 +205,14 @@ public final class ScheduledJobs {
                 continue;
             }
             String pk = "COACH#" + coach.coachId();
+            Claims claims = claims();
             List<SeatRow> mine = e.getValue().stream()
-                    .filter(r -> repo.claim(pk, r.seat().key(), NotifyRepository.SETTLE_REMINDER_SENT_ON, monday.toString())).toList();
+                    .filter(r -> claims.dated(pk, r.seat().key(), NotifyRepository.SETTLE_REMINDER_SENT_ON, monday.toString())).toList();
             if (mine.isEmpty()) {
+                unsent.of(() -> {
+                    claims.throwIfInProgress("coach-unpaid-weekly");
+                    return 0;
+                });
                 continue;
             }
             long total = 0;
@@ -232,8 +247,11 @@ public final class ScheduledJobs {
             d.put("total", EmailFormat.money(total, currency));
             d.put("threshold", unpaidThresholdDays + (unpaidThresholdDays == 1 ? " day" : " days"));
             d.put("lessons", rows);
-            if (unsent.of(() -> send(Email.toCoach("coach-unpaid-weekly", coach, d),
-                    () -> mine.forEach(r -> repo.release(pk, r.seat().key(), NotifyRepository.SETTLE_REMINDER_SENT_ON, monday.toString()))) ? 1 : 0) == 1) {
+            if (unsent.of(() -> {
+                int one = claims.send(mailer, Email.toCoach("coach-unpaid-weekly", coach, d)) ? 1 : 0;
+                claims.throwIfInProgress("coach-unpaid-weekly");
+                return one;
+            }) == 1) {
                 emails++;
                 lessons += rows.size();
             }
@@ -260,10 +278,5 @@ public final class ScheduledJobs {
             }
         }
         return new Rolled(coaches, added);
-    }
-
-    /** {@link Sending#send}: SES's refusal gives the guard back and carries on; any other failure throws. */
-    private boolean send(Email email, Runnable undo) {
-        return Sending.send(mailer, email, undo);
     }
 }

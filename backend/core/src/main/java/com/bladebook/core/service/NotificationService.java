@@ -92,6 +92,16 @@ public final class NotificationService {
         this.clock = clock;
     }
 
+    /** The time now, for the jobs' claims ({@link ScheduledJobs}), which otherwise work from the date they're given. */
+    java.time.Instant now() {
+        return clock.instant();
+    }
+
+    /** A consumer's claims for one email: abandoned after {@link NotifyRepository#CONSUMER_CLAIM_ABANDONED}. */
+    private Claims claims() {
+        return new Claims(repo, clock.instant(), NotifyRepository.CONSUMER_CLAIM_ABANDONED);
+    }
+
     // ------------------------------------------------------------ booking confirmation
 
     /**
@@ -116,28 +126,29 @@ public final class NotificationService {
             return 0;
         }
         int sent = 0;
-        String stamp = clock.instant().toString();
         Sending.Unsent unsent = new Sending.Unsent();
         for (Map.Entry<String, List<SeatRow>> e : byFamily.entrySet()) {
-            sent += unsent.of(() -> confirmation(coachId, coach, e.getKey(), e.getValue(), stamp));
+            sent += unsent.of(() -> confirmation(coachId, coach, e.getKey(), e.getValue()));
         }
         unsent.throwIfAny();
         return sent;
     }
 
     /** One family's confirmation, every seat of it in the event; 1 if sent. */
-    private int confirmation(String coachId, CoachProfile coach, String clientId, List<SeatRow> rows, String stamp) {
+    private int confirmation(String coachId, CoachProfile coach, String clientId, List<SeatRow> rows) {
         Optional<FamilyProfile> family = repo.family(clientId);
         if (family.isEmpty()) {
             return 0;
         }
+        Claims claims = claims();
         List<SeatRow> mine = new ArrayList<>();
         for (SeatRow r : rows) {
-            if (repo.claimOnce("COACH#" + coachId, r.seat().key(), NotifyRepository.CONFIRMATION_SENT, stamp)) {
+            if (claims.once("COACH#" + coachId, r.seat().key(), NotifyRepository.CONFIRMATION_SENT)) {
                 mine.add(r);
             }
         }
         if (mine.isEmpty()) {
+            claims.throwIfInProgress("booking-confirmation");
             return 0;
         }
         mine.sort(Comparator.comparing((SeatRow r) -> r.seat().lessonDate()).thenComparing(r -> r.seat().startTime()));
@@ -170,8 +181,9 @@ public final class NotificationService {
         }
         d.put("noticeHours", Integer.toString(notice));
         d.put("lessons", lessons);
-        return send(Email.toFamily("booking-confirmation", family.get().email(), coach, d),
-                () -> mine.forEach(r -> repo.release("COACH#" + coachId, r.seat().key(), NotifyRepository.CONFIRMATION_SENT, stamp))) ? 1 : 0;
+        int sent = claims.send(mailer, Email.toFamily("booking-confirmation", family.get().email(), coach, d)) ? 1 : 0;
+        claims.throwIfInProgress("booking-confirmation");
+        return sent;
     }
 
     // --------------------------------------------------------------- payment reminder
@@ -193,8 +205,9 @@ public final class NotificationService {
         if (coach == null || family == null || t.isEmpty()) {
             return false;
         }
-        String stamp = clock.instant().toString();
-        if (!repo.claimOnce("COACH#" + coachId, seatKey, NotifyRepository.PAYMENT_REMINDER_SENT, stamp)) {
+        Claims claims = claims();
+        if (!claims.once("COACH#" + coachId, seatKey, NotifyRepository.PAYMENT_REMINDER_SENT)) {
+            claims.throwIfInProgress("payment-reminder");
             return false;
         }
         List<SeatRow> in = repo.seatsAt(coachId, s.lessonDate(), s.startTime());
@@ -212,8 +225,7 @@ public final class NotificationService {
             }
         }
         d.put("methods", methods);
-        return send(Email.toFamily("payment-reminder", family.email(), coach, d),
-                () -> repo.release("COACH#" + coachId, seatKey, NotifyRepository.PAYMENT_REMINDER_SENT, stamp));
+        return claims.send(mailer, Email.toFamily("payment-reminder", family.email(), coach, d));
     }
 
     // --------------------------------------------------------------- change notifier
@@ -534,12 +546,12 @@ public final class NotificationService {
     }
 
     /** Claims {@code guard} on each seat whose lesson time is still there; what was claimed, with its lesson. */
-    private List<Dated> claimEach(CoachProfile coach, List<SeatRow> rows, String guard, String stamp, java.util.function.Predicate<LessonTime> ok) {
+    private List<Dated> claimEach(CoachProfile coach, List<SeatRow> rows, String guard, Claims claims, java.util.function.Predicate<LessonTime> ok) {
         List<Dated> claimed = new ArrayList<>();
         for (SeatRow r : rows) {
             Seat s = r.seat();
             Optional<LessonTime> t = repo.lesson(coach.coachId(), s.lessonDate(), s.startTime());
-            if (t.isPresent() && ok.test(t.get()) && repo.claimOnce("COACH#" + coach.coachId(), s.key(), guard, stamp)) {
+            if (t.isPresent() && ok.test(t.get()) && claims.once("COACH#" + coach.coachId(), s.key(), guard)) {
                 claimed.add(new Dated(s, t.get(), repo.seatsAt(coach.coachId(), s.lessonDate(), s.startTime())));
             }
         }
@@ -552,11 +564,12 @@ public final class NotificationService {
         if (family == null) {
             return false;
         }
-        String stamp = clock.instant().toString();
+        Claims claims = claims();
         List<SeatRow> rows = sameInvitation(trigger, invitedClient, r -> r.seat().seatStatus() == Seat.Status.INVITED
                 && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
-        List<Dated> claimed = claimEach(coach, rows, NotifyRepository.INVITE_EMAIL_SENT, stamp, t -> t.startsAtUtc().isAfter(clock.instant()));
+        List<Dated> claimed = claimEach(coach, rows, NotifyRepository.INVITE_EMAIL_SENT, claims, t -> t.startsAtUtc().isAfter(clock.instant()));
         if (claimed.isEmpty()) {
+            claims.throwIfInProgress("share-invitation");
             return false;
         }
         Dated first = claimed.get(0);
@@ -577,8 +590,9 @@ public final class NotificationService {
         d.put("share", lessons.get(0).get("share"));
         d.put("fullPrice", EmailFormat.money(first.time().priceMinor(), first.time().currency()));
         d.put("invitationUrl", links.invite(first.seat().share().inviteId()));
-        return send(Email.toFamily("share-invitation", family.email(), coach, d),
-                () -> claimed.forEach(x -> repo.release("COACH#" + coach.coachId(), x.seat().key(), NotifyRepository.INVITE_EMAIL_SENT, stamp)));
+        boolean sent = claims.send(mailer, Email.toFamily("share-invitation", family.email(), coach, d));
+        claims.throwIfInProgress("share-invitation");
+        return sent;
     }
 
     /** The invited skater's share if they join: the price split with the skaters already in, in the order they joined. */
@@ -595,35 +609,38 @@ public final class NotificationService {
      * guard, and the retry sends only that one. Both are tried before the event fails.
      */
     private int joinedEmails(CoachProfile coach, SeatRow trigger) {
-        String stamp = clock.instant().toString();
         List<SeatRow> rows = sameInvitation(trigger, trigger.seat().clientId(), NotificationService::joined);
         Sending.Unsent unsent = new Sending.Unsent();
-        int sent = unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, stamp, false))
-                + unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_HOST_EMAIL_SENT, stamp, true));
+        int sent = unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, false))
+                + unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_HOST_EMAIL_SENT, true));
         unsent.throwIfAny();
         return sent;
     }
 
     /** One family's "joined" email under its own guard; the guard is given back if there's no family to tell or SES didn't take it. */
-    private int joinedEmail(CoachProfile coach, List<SeatRow> rows, String guard, String stamp, boolean toHost) {
-        List<Dated> claimed = claimEach(coach, rows.stream().filter(r -> !r.has(guard)).toList(), guard, stamp, t -> true);
+    private int joinedEmail(CoachProfile coach, List<SeatRow> rows, String guard, boolean toHost) {
+        Claims claims = claims();
+        List<Dated> claimed = claimEach(coach, rows.stream().filter(r -> !r.has(guard)).toList(), guard, claims, t -> true);
         if (claimed.isEmpty()) {
+            claims.throwIfInProgress("share-joined");
             return 0;
         }
-        Runnable giveBack = () -> claimed.forEach(x -> repo.release("COACH#" + coach.coachId(), x.seat().key(), guard, stamp));
         Dated first = claimed.get(0);
         Seat host = claimed.stream().map(x -> host(x.seat(), x.seats())).filter(Objects::nonNull).findFirst().orElse(null);
         FamilyProfile joinerFamily = repo.family(first.seat().clientId()).orElse(null);
         FamilyProfile hostFamily = host == null || host.clientId() == null ? null : repo.family(host.clientId()).orElse(null);
         FamilyProfile to = host == null ? null : toHost ? hostFamily : joinerFamily;
         if (to == null) {
-            giveBack.run();
+            claims.release();
+            claims.throwIfInProgress("share-joined");
             return 0;
         }
         Email email = toHost
                 ? Email.toFamily("share-joined", to.email(), coach, joinedData(coach, to, claimed, host, first.seat(), true, joinerFamily))
                 : Email.toFamily("share-joined", to.email(), coach, joinedData(coach, to, claimed, first.seat(), host, false, hostFamily));
-        return Sending.send(mailer, email, () -> { }, giveBack) ? 1 : 0;
+        int sent = claims.send(mailer, email, true) ? 1 : 0;
+        claims.throwIfInProgress("share-joined");
+        return sent;
     }
 
     private Map<String, Object> joinedData(CoachProfile coach, FamilyProfile to, List<Dated> dates, Seat mine, Seat other, boolean isInviter,
@@ -669,13 +686,17 @@ public final class NotificationService {
             case WITHDRAWN, EXPIRED -> invited;
         };
         String pk = "COACH#" + coach.coachId();
-        List<EndRow> claimed = group.stream().filter(e -> repo.claim(pk, e.sk(), "emailSent", "true")).toList();
+        Claims claims = claims();
+        List<EndRow> claimed = group.stream().filter(e -> claims.dated(pk, e.sk(), "emailSent", "true")).toList();
         if (claimed.isEmpty()) {
+            claims.throwIfInProgress("share-ended");
             return false;
         }
         FamilyProfile family = to == null ? null : repo.family(to).orElse(null);
         if (family == null) {
-            return false; // nobody to tell: the invited family never saw it, or the inviter is gone
+            claims.confirm(); // nobody to tell: the invited family never saw it, or the inviter is gone
+            claims.throwIfInProgress("share-ended");
+            return false;
         }
         EndRow first = claimed.get(0);
         LocalDate date = endedDate(first);
@@ -702,7 +723,9 @@ public final class NotificationService {
                     : repo.family(trigger.invitedByClientId()).map(FamilyProfile::fullName).orElse("The other family"));
             d.put("skater", EmailFormat.first(trigger.studentName()));
         }
-        return send(Email.toFamily(template, family.email(), coach, d), () -> claimed.forEach(e -> repo.release(pk, e.sk(), "emailSent", "true")));
+        boolean sent = claims.send(mailer, Email.toFamily(template, family.email(), coach, d));
+        claims.throwIfInProgress(template);
+        return sent;
     }
 
     /** {@code SEATEND#<date>#<startTime>#…} */
@@ -745,9 +768,14 @@ public final class NotificationService {
             if (family == null) {
                 continue;
             }
-            List<Ask> claimed = e.getValue().stream().filter(a -> repo.claimLeaveEmail(coachId, a.line().lessonDate(), a.line().startTime(),
-                    a.leave().leaveId(), true)).toList();
+            Claims claims = claims();
+            List<Ask> claimed = e.getValue().stream().filter(a -> claims.take(NotifyRepository.leaveEmail(coachId, a.line().lessonDate(),
+                    a.line().startTime(), a.leave().leaveId(), clock.instant()))).toList();
             if (claimed.isEmpty()) {
+                unsent.of(() -> {
+                    claims.throwIfInProgress("share-other-cant-make-it");
+                    return 0;
+                });
                 continue;
             }
             List<Map<String, Object>> lessons = new ArrayList<>();
@@ -768,8 +796,11 @@ public final class NotificationService {
             d.put("fullPrice", lessons.get(0).get("fullPrice"));
             d.put("share", lessons.get(0).get("share"));
             d.put("answerBy", EmailFormat.dateTime(soonest, coach.coachTimezone()));
-            sent += unsent.of(() -> send(Email.toFamily("share-other-cant-make-it", family.email(), coach, d), () -> claimed.forEach(a ->
-                    repo.claimLeaveEmail(coachId, a.line().lessonDate(), a.line().startTime(), a.leave().leaveId(), false))) ? 1 : 0);
+            sent += unsent.of(() -> {
+                int one = claims.send(mailer, Email.toFamily("share-other-cant-make-it", family.email(), coach, d)) ? 1 : 0;
+                claims.throwIfInProgress("share-other-cant-make-it");
+                return one;
+            });
         }
         return sent;
     }
@@ -884,13 +915,5 @@ public final class NotificationService {
                 .orElse(seats.stream().map(SeatRow::seat).filter(s -> !s.studentId().equals(invited.studentId())
                         && s.seatStatus() != Seat.Status.INVITED && invited.share().invitedByClientId() != null
                         && invited.share().invitedByClientId().equals(s.clientId())).findFirst().orElse(null));
-    }
-
-    /**
-     * Sends. If SES refuses the message, runs {@code undo} (gives the guard back) and reports {@code false}; any other
-     * failure runs {@code undo} and throws {@link EmailNotAccepted}.
-     */
-    private boolean send(Email email, Runnable undo) {
-        return Sending.send(mailer, email, undo);
     }
 }

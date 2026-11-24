@@ -513,8 +513,8 @@ public final class ScheduleRepository {
                 db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(key(ctx, LEASE))
                         .conditionExpression("attribute_not_exists(holder) OR holder = :me OR leasedAt <= :stale")
                         .updateExpression("SET holder = :me, leasedAt = :now REMOVE rerun")
-                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(now.toString()),
-                                ":stale", s(now.minus(LEASE_ABANDONED).toString()))).build());
+                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(NotifyRepository.sortable(now)),
+                                ":stale", s(NotifyRepository.sortable(now.minus(LEASE_ABANDONED))))).build());
                 return true;
             } catch (ConditionalCheckFailedException held) {
                 try {
@@ -522,7 +522,7 @@ public final class ScheduleRepository {
                             .conditionExpression("attribute_exists(holder) AND holder <> :me AND leasedAt > :stale")
                             .updateExpression("SET rerun = :t")
                             .expressionAttributeValues(Map.of(":me", s(runId), ":t", AttributeValue.fromBool(true),
-                                    ":stale", s(now.minus(LEASE_ABANDONED).toString()))).build());
+                                    ":stale", s(NotifyRepository.sortable(now.minus(LEASE_ABANDONED))))).build());
                     return false;
                 } catch (ConditionalCheckFailedException letGo) {
                     // released or abandoned meanwhile: try to take it again
@@ -547,7 +547,7 @@ public final class ScheduleRepository {
                 db(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(key(ctx, LEASE))
                         .conditionExpression("holder = :me AND attribute_exists(rerun)")
                         .updateExpression("SET leasedAt = :now REMOVE rerun")
-                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(now.toString()))).build());
+                        .expressionAttributeValues(Map.of(":me", s(runId), ":now", s(NotifyRepository.sortable(now)))).build());
                 return true;
             } catch (ConditionalCheckFailedException taken) {
                 return false; // abandoned and taken by another run, which reads afresh

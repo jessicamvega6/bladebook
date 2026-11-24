@@ -19,40 +19,67 @@ class NotifyRepositoryTest {
         f.clients.forSetup().putItem(b -> b.tableName(f.table).item(Map.of("PK", AttributeValue.fromS(pk), "SK", AttributeValue.fromS(sk))));
     }
 
+    private static final java.time.Instant T0 = java.time.Instant.parse("2026-11-16T15:00:00Z");
+    private static final java.time.Duration TWO = NotifyRepository.CONSUMER_CLAIM_ABANDONED;
+
+    private NotifyRepository.GuardClaim once(String sk, java.time.Instant at) {
+        return repo.claim(NotifyRepository.once("COACH#c1", sk, NotifyRepository.CONFIRMATION_SENT, at), at, TWO);
+    }
+
     @Test
-    void aGuardIsClaimedOncePerValue() {
+    void aDatedGuardIsClaimedOncePerValueAndTheNextValueClaimsItAgain() {
         put("COACH#c1", "PROFILE");
-        assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16")).isTrue();
-        assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16")).isFalse();
-        assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17")).isTrue(); // the next day
+        NotifyRepository.Guard mon = NotifyRepository.dated("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16", T0);
+        assertThat(repo.claim(mon, T0, TWO)).isEqualTo(NotifyRepository.GuardClaim.CLAIMED);
+        repo.confirm(mon);
+        NotifyRepository.Guard again = NotifyRepository.dated("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16", T0.plusSeconds(5));
+        assertThat(repo.claim(again, T0.plusSeconds(5), TWO)).isEqualTo(NotifyRepository.GuardClaim.DONE);
+        NotifyRepository.Guard tue = NotifyRepository.dated("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17", T0.plusSeconds(10));
+        assertThat(repo.claim(tue, T0.plusSeconds(10), TWO)).isEqualTo(NotifyRepository.GuardClaim.CLAIMED); // the next day
     }
 
     @Test
     void aOnceOnlyGuardIsClaimedOnceWhateverTheStamp() {
-        // Two runs at once each stamp their own time: the second must still find it taken.
+        // Two runs at once each stamp their own time: the second finds the first's claim in progress.
         put("COACH#c1", "SEAT#2026-11-16#06:00#s1");
-        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:00Z")).isTrue();
-        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:01Z")).isFalse();
-        repo.release("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:01Z"); // not its claim
-        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:02Z")).isFalse();
-        repo.release("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:00Z");
-        assertThat(repo.claimOnce("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "2026-11-16T15:00:03Z")).isTrue();
+        NotifyRepository.Guard first = NotifyRepository.once("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, T0);
+        assertThat(repo.claim(first, T0, TWO)).isEqualTo(NotifyRepository.GuardClaim.CLAIMED);
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plusSeconds(1))).isEqualTo(NotifyRepository.GuardClaim.IN_PROGRESS);
+        repo.confirm(first); // sent
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plus(TWO).plusSeconds(1))).isEqualTo(NotifyRepository.GuardClaim.DONE);
     }
 
     @Test
-    void aReleasedGuardCanBeClaimedAgain() {
-        put("COACH#c1", "PROFILE");
-        repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16");
-        repo.release("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16");
-        assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16")).isTrue();
+    void aReleasedGuardCanBeClaimedAgainAndSomeoneElsesClaimIsLeft() {
+        put("COACH#c1", "SEAT#2026-11-16#06:00#s1");
+        NotifyRepository.Guard first = NotifyRepository.once("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, T0);
+        repo.claim(first, T0, TWO);
+        repo.release(NotifyRepository.once("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, T0.plusSeconds(1)));
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plusSeconds(2))).isEqualTo(NotifyRepository.GuardClaim.IN_PROGRESS); // not its to give back
+        repo.release(first);
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plusSeconds(3))).isEqualTo(NotifyRepository.GuardClaim.CLAIMED);
     }
 
     @Test
-    void releasingSomeoneElsesClaimLeavesIt() {
-        put("COACH#c1", "PROFILE");
-        repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17");
-        repo.release("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16");
-        assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17")).isFalse();
+    void aClaimLeftByARunThatStoppedIsTakenAgainOnceAbandoned() {
+        put("COACH#c1", "SEAT#2026-11-16#06:00#s1");
+        repo.claim(NotifyRepository.once("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, T0), T0, TWO);
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plus(TWO).minusMillis(1))).isEqualTo(NotifyRepository.GuardClaim.IN_PROGRESS);
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0.plus(TWO))).isEqualTo(NotifyRepository.GuardClaim.CLAIMED);
+    }
+
+    @Test
+    void nothingToClaimOnAnItemThatsGone() {
+        assertThat(once("SEAT#2026-11-16#06:00#s1", T0)).isEqualTo(NotifyRepository.GuardClaim.DONE);
+    }
+
+    @Test
+    void aPendingClaimDoesntCountAsSent() {
+        String pending = NotifyRepository.once("COACH#c1", "SEAT#x", NotifyRepository.CONFIRMATION_SENT, T0).pending();
+        assertThat(new NotifyRepository.SeatRow(null, null, Map.of(NotifyRepository.CONFIRMATION_SENT, pending))
+                .has(NotifyRepository.CONFIRMATION_SENT)).isFalse();
+        assertThat(new NotifyRepository.SeatRow(null, null, Map.of(NotifyRepository.CONFIRMATION_SENT, T0.toString()))
+                .has(NotifyRepository.CONFIRMATION_SENT)).isTrue();
     }
 
     @Test
@@ -70,10 +97,6 @@ class NotifyRepositoryTest {
         assertThat(repo.claimLine("c1", "CANCELLED#gone", t0)).isEqualTo(NotifyRepository.LineClaim.DONE);
     }
 
-    @Test
-    void nothingToClaimOnAnItemThatsGone() {
-        assertThat(repo.claim("COACH#c1", "SEAT#2026-11-16#06:00#s1", NotifyRepository.CONFIRMATION_SENT, "x")).isFalse();
-    }
 
     @Test
     void emptyReadsAreEmpty() {

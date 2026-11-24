@@ -12,7 +12,7 @@ Each model has a `Version` constant:
 - **`fixed`**: the fix made on branch `fix/state-machines-tla`. TLC checks every interleaving and finds
   no error.
 
-Some fixes changed while being modelled: TLC found a gap in the first fix for `LessonTime`,
+Some fixes changed while being modelled: TLC found a gap in the first fix for `EmailGuard`, `LessonTime`,
 `Payment`, `Series` and `StudentLink`. Each model's header comment says what the simpler fix missed.
 
 ## Running them
@@ -32,7 +32,7 @@ invariant broken for a `current` model, no error for a `fixed` one.
 
 | Model | What it covers | Code | The bug (`current`) | The rule (`fixed` holds it) |
 |---|---|---|---|---|
-| `EmailGuard` | The once-only guard on a seat or invitation email, claimed before sending | `NotifyRepository.claim`, `NotificationService` | The claim's condition `g <> :v` with a fresh timestamp lets a second run claim too, so two copies of an event both send. A failed send gives the guard back but the event succeeds, so nothing sends it again | `AtMostOnce`, `NeverLost` (unless SES refused the address for good) |
+| `EmailGuard` | The once-only guard on a seat or invitation email, claimed before sending | `NotifyRepository.claim`, `NotificationService` | The claim's condition `g <> :v` with a fresh timestamp lets a second run claim too, so two copies of an event both send. A failed send gives the guard back but the event succeeds, so nothing sends it again. The first fix (`first-fix`) lost the email when a run stopped between its claim and SES's answer | `AtMostOnce` (unless a run stopped after SES took it), `NeverLost` (unless SES refused the address for good) |
 | `ChangeNotifier` | One email per family per change batch | `NotificationService.stamped`, `NotifyRepository.markLines` | Sends before marking, with no claim: two runs both send, and a retry after a part-marked family resends | `OneEmailPerFamily`, `EmailSent` |
 | `LessonTime` | A lesson time and its seat during a schedule change | `ScheduleChangeService`, `ChangeBatchRepository.cancel` | Deletes a checked-in seat with no record; leaves an OPEN time the schedule no longer makes when the family cancels mid-change; leaves another family booked on a dropped block, never told, when they book the freed time mid-change | `AttendanceKept`, `NoOrphanOpen`, `NoOrphanBooked` |
 | `Invitation` | Answering a shared-lesson invitation from two tabs | `ShareService.answer`, `ShareRepository.decline` | Says "declined" when the other tab joined; declines after the start | `TruthfulAnswer`, `NoDeclineAfterStart` |
