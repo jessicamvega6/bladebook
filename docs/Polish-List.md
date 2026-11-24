@@ -16,6 +16,13 @@ prefer if you know.
 
 - [ ] Schedule, **Your teaching week**: remove "no dates, just the shape of your week" from the
   line under the heading, leaving "Repeats every week." (`web/src/coach/pages/Schedule.tsx:501`).
+- [ ] **New feature:** Schedule: let the coach delete their normal (weekly) schedule. Doing so
+  removes every lesson time from the calendar except the dates covered by a special schedule.
+  Special schedules and time off can already be deleted one by one; the weekly schedule
+  can't (`web/src/coach/pages/Schedule.tsx:128`). Booked lessons in the removed times: treat
+  it like any other schedule change and reuse what exists today, i.e. the same review
+  (`ChangeReview`, from `previewWeekly` with no blocks), cancellations, schedule-change emails
+  and save status as editing the weekly schedule (owner, 2026-11-23).
 
 ## Family app
 
@@ -32,6 +39,15 @@ prefer if you know.
   today; upcoming lessons belong in **Coming up** (`web/src/family/pages/Home.tsx:144`).
 - [ ] Profile, **Your coaches**: the dashed border around **Add a coach** is wonky. The dots
   are missing from the bottom-left and bottom-right corners (`web/src/family/pages/Profile.tsx`).
+- [ ] Profile, **Add a coach**: if the code entered belongs to a coach this family is already
+  with, say so plainly (a duplicate message, e.g. "You're already with Coach Kim"). Today it
+  only shows "Already Coach Kim's student" beside each skater, which is easy to miss
+  (`web/src/family/pages/Profile.tsx:275`).
+- [ ] Profile: make the **Add a skater** and **Add a coach** buttons more distinct. Right now
+  they're plain dashed add-rows that blend into the cards (`Profile.tsx:162`, `Profile.tsx:237`).
+- [ ] Profile: move the **Save** button for the family's details (name, email, mobile) up to
+  that part of the form. It currently sits at the very bottom beside **Log out**, far from the
+  fields it saves (`Profile.tsx:135`).
 
 ## Rinkside app
 
@@ -55,3 +71,7 @@ prefer if you know.
   `s(String)` helper (wraps a string as a DynamoDB string value). Every repository written
   since Batch 3 uses the shared `FamilyItems.s(...)` instead. Switch these two over and delete
   their copies (`CoachRepository.java:254`, `ScheduleRepository.java:432`).
+- [ ] Emails: check the logic that builds each email. It may have drifted, with emails added
+  later each getting their own way of doing things (wording, formatting, who gets it) instead of
+  sharing the common logic. For each difference, decide whether it's warranted; fold back the
+  ones that aren't (`NotificationService.java`, `BusinessEmails.java`, `EmailFormat.java`).
