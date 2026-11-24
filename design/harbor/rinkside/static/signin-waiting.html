@@ -764,6 +764,9 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .bb .rk-seat .rk-namebtn { align-self: flex-start; }
 .bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
+/* The notice after the page saves its offline copy again (G-32, Batch 25). */
+.bb .pbanner--info { background: var(--info-soft); border: 1px solid var(--info-border); } .bb .pbanner--info .ic { color: var(--primary); }
+.bb .rk-fresh .btn { align-self: flex-start; margin-top: 8px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -778,7 +781,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in with check-ins waiting</b><span class="sp-bar__note">New 2026-11-09 (owner, R2). Two check-ins saved before the coach logged out. They send after this coach logs in; another coach’s login leaves them waiting.</span><nav class="sp-bar__nav"><a href="signin.html">← Log in</a><a href="index.html">All pages</a><a href="today.html">Today’s lessons →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · Sign in</span><b>Log in with check-ins waiting</b><span class="sp-bar__note">New 2026-11-09 (owner, R2). Two check-ins saved before the coach logged out. They send after this coach logs in; another coach’s login leaves them waiting.</span><nav class="sp-bar__nav"><a href="signin.html">← Log in</a><a href="index.html">All pages</a><a href="signin-code.html">Log in — two-step sign-in code →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">8:40</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     
