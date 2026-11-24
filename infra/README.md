@@ -109,7 +109,18 @@ After the first deploy with it set:
 
 - the accounts' shared password is in Secrets Manager (output `TestAccountsPasswordSecret`);
 - add the three DKIM CNAME records printed as `TestMailboxDkim1`–`3` on the mailbox's domain, by
-  hand, so dev's SES can send to the tagged addresses.
+  hand, so dev's SES can send to the tagged addresses. Add them **within 72 hours** of that deploy:
+  SES looks for them for 72 hours and then marks the domain's DKIM `FAILED`. If that happens, add
+  the records, then restart the check without changing the keys (the key length must be passed, or
+  the call is refused; give the current one):
+
+  ```sh
+  aws sesv2 put-email-identity-dkim-signing-attributes --email-identity <the mailbox's domain> \
+    --signing-attributes-origin AWS_SES --signing-attributes NextSigningKeyLength=RSA_2048_BIT
+  ```
+
+  The tokens stay the same, so the records already added still hold. `aws sesv2 get-email-identity`
+  shows the status reach `SUCCESS`, usually within a few minutes.
 
 **Build order (ADR-028 d4):** the identity stack, then the seed script writes `seed/current/` in the
 seed bucket, then the app stack, whose table is created from that file. Deploying the app stack
