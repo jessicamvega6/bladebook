@@ -71,3 +71,7 @@ prefer if you know.
   `s(String)` helper (wraps a string as a DynamoDB string value). Every repository written
   since Batch 3 uses the shared `FamilyItems.s(...)` instead. Switch these two over and delete
   their copies (`CoachRepository.java:254`, `ScheduleRepository.java:432`).
+- [ ] Emails: check the logic that builds each email. It may have drifted, with emails added
+  later each getting their own way of doing things (wording, formatting, who gets it) instead of
+  sharing the common logic. For each difference, decide whether it's warranted; fold back the
+  ones that aren't (`NotificationService.java`, `BusinessEmails.java`, `EmailFormat.java`).
