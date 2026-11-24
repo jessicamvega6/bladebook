@@ -308,12 +308,16 @@ public final class NotificationService {
         return sks.stream().min(Comparator.naturalOrder()).orElseThrow();
     }
 
-    /** Whether the recipient's email is already claimed, sent or refused: its lead line has a status. */
+    /**
+     * Whether the recipient's email is already sent or refused: its lead line has a status other than {@code PENDING}. A
+     * {@code PENDING} one goes on to the claim, which tells a run still sending from one that stopped.
+     */
     private static boolean notified(List<LineRow> lines, List<RepriceRow> reprices) {
         Map<String, String> status = new HashMap<>();
         lines.forEach(l -> status.put(l.sk(), l.notificationStatus()));
         reprices.forEach(r -> status.put(r.sk(), r.notificationStatus()));
-        return status.get(lead(new ArrayList<>(status.keySet()))) != null;
+        String lead = status.get(lead(new ArrayList<>(status.keySet())));
+        return lead != null && !lead.equals("PENDING");
     }
 
     private int perFamily(String coachId, CoachProfile coach, String clientId, List<LineRow> lines, List<RepriceRow> reprices,
@@ -342,12 +346,18 @@ public final class NotificationService {
     /**
      * Claims the lead line {@code PENDING} (ADR-MASTER section 13, "Notification state"), sends, then stamps every line
      * {@code SENT}; if SES refused the message, {@code FAILED} with the reason, final. Any other failure gives the claim
-     * back and throws {@link EmailNotAccepted}. {@code false} if another delivery holds the claim.
+     * back and throws {@link EmailNotAccepted}. {@code false} if it was already sent or refused. If another run claimed it
+     * moments ago, this throws too, so the event is retried: by then that run has sent it, or has stopped and its claim
+     * is abandoned and taken again ({@code NotifyRepository#LINE_CLAIM_ABANDONED}, 2026-11-23).
      */
     private boolean stamped(String coachId, List<String> sks, Email email) {
         String lead = lead(sks);
-        if (!repo.claimLine(coachId, lead)) {
+        NotifyRepository.LineClaim claim = repo.claimLine(coachId, lead, clock.instant());
+        if (claim == NotifyRepository.LineClaim.DONE) {
             return false;
+        }
+        if (claim == NotifyRepository.LineClaim.IN_PROGRESS) {
+            throw new EmailNotAccepted(email.template(), new IllegalStateException("another run is sending it"));
         }
         if (!Sending.send(mailer, email, () -> repo.markLines(coachId, sks, "FAILED", "MessageRejectedException", clock.instant()),
                 () -> repo.releaseLine(coachId, lead))) {
@@ -468,7 +478,7 @@ public final class NotificationService {
         List<SeatRow> seats = repo.seatsAt(coachId, date, start);
         List<EndRow> endings = repo.endings(coachId, date, start).stream().filter(e -> !e.emailed()).toList();
         boolean invites = seats.stream().anyMatch(r -> r.seat().seatStatus() == Seat.Status.INVITED && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
-        boolean joins = seats.stream().anyMatch(r -> joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT));
+        boolean joins = seats.stream().anyMatch(NotificationService::joinedUntold);
         if (!invites && !joins && endings.isEmpty()) {
             return 0;
         }
@@ -483,7 +493,7 @@ public final class NotificationService {
                     && !r.has(NotifyRepository.INVITE_EMAIL_SENT)) {
                 sent += unsent.of(() -> invitation(coach, r) ? 1 : 0);
             }
-            if (joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT)) {
+            if (joinedUntold(r)) {
                 sent += unsent.of(() -> joinedEmails(coach, r));
             }
         }
@@ -497,6 +507,11 @@ public final class NotificationService {
     /** A seat that came from an invitation and has since joined. */
     private static boolean joined(SeatRow r) {
         return r.seat().seatStatus() != Seat.Status.INVITED && r.seat().share().invitedByClientId() != null;
+    }
+
+    /** A joined seat with either family's "joined" email still to go. */
+    private static boolean joinedUntold(SeatRow r) {
+        return joined(r) && !(r.has(NotifyRepository.JOINED_EMAIL_SENT) && r.has(NotifyRepository.JOINED_HOST_EMAIL_SENT));
     }
 
     /** One date of an invitation, with what its email says about it. */
@@ -574,38 +589,41 @@ public final class NotificationService {
     }
 
     /**
-     * "Joined": one email to each family per answer, every date joined in it, worded by {@code isInviter}. Both go under
-     * one guard per seat, given back unless one of them was sent: when neither could be (no family to tell), or the first
-     * wasn't accepted. Once one is sent the guard stays, so a retry can't send it twice; the other, if it then fails,
-     * still fails the event, but its retry sends nothing more.
+     * "Joined": one email to each family per answer, every date joined in it, worded by {@code isInviter}. Each family's
+     * email has its own guard on the joiner's seats ({@code joinedEmailSent} for the family who joined,
+     * {@code joinedHostEmailSent} for the family whose lesson it is), so one that isn't accepted gives back only its own
+     * guard, and the retry sends only that one. Both are tried before the event fails.
      */
     private int joinedEmails(CoachProfile coach, SeatRow trigger) {
         String stamp = clock.instant().toString();
-        List<SeatRow> rows = sameInvitation(trigger, trigger.seat().clientId(), r -> joined(r) && !r.has(NotifyRepository.JOINED_EMAIL_SENT));
-        List<Dated> claimed = claimEach(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, stamp, t -> true);
+        List<SeatRow> rows = sameInvitation(trigger, trigger.seat().clientId(), NotificationService::joined);
+        Sending.Unsent unsent = new Sending.Unsent();
+        int sent = unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, stamp, false))
+                + unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_HOST_EMAIL_SENT, stamp, true));
+        unsent.throwIfAny();
+        return sent;
+    }
+
+    /** One family's "joined" email under its own guard; the guard is given back if there's no family to tell or SES didn't take it. */
+    private int joinedEmail(CoachProfile coach, List<SeatRow> rows, String guard, String stamp, boolean toHost) {
+        List<Dated> claimed = claimEach(coach, rows.stream().filter(r -> !r.has(guard)).toList(), guard, stamp, t -> true);
         if (claimed.isEmpty()) {
             return 0;
         }
+        Runnable giveBack = () -> claimed.forEach(x -> repo.release("COACH#" + coach.coachId(), x.seat().key(), guard, stamp));
         Dated first = claimed.get(0);
         Seat host = claimed.stream().map(x -> host(x.seat(), x.seats())).filter(Objects::nonNull).findFirst().orElse(null);
         FamilyProfile joinerFamily = repo.family(first.seat().clientId()).orElse(null);
         FamilyProfile hostFamily = host == null || host.clientId() == null ? null : repo.family(host.clientId()).orElse(null);
-        int sent = 0;
-        try {
-            if (joinerFamily != null && host != null) {
-                sent += send(Email.toFamily("share-joined", joinerFamily.email(), coach,
-                        joinedData(coach, joinerFamily, claimed, first.seat(), host, false, hostFamily)), () -> { }) ? 1 : 0;
-            }
-            if (hostFamily != null) {
-                sent += send(Email.toFamily("share-joined", hostFamily.email(), coach,
-                        joinedData(coach, hostFamily, claimed, host, first.seat(), true, joinerFamily)), () -> { }) ? 1 : 0;
-            }
-        } finally {
-            if (sent == 0) {
-                claimed.forEach(x -> repo.release("COACH#" + coach.coachId(), x.seat().key(), NotifyRepository.JOINED_EMAIL_SENT, stamp));
-            }
+        FamilyProfile to = host == null ? null : toHost ? hostFamily : joinerFamily;
+        if (to == null) {
+            giveBack.run();
+            return 0;
         }
-        return sent;
+        Email email = toHost
+                ? Email.toFamily("share-joined", to.email(), coach, joinedData(coach, to, claimed, host, first.seat(), true, joinerFamily))
+                : Email.toFamily("share-joined", to.email(), coach, joinedData(coach, to, claimed, first.seat(), host, false, hostFamily));
+        return Sending.send(mailer, email, () -> { }, giveBack) ? 1 : 0;
     }
 
     private Map<String, Object> joinedData(CoachProfile coach, FamilyProfile to, List<Dated> dates, Seat mine, Seat other, boolean isInviter,

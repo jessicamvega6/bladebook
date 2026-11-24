@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.Select;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -76,12 +77,14 @@ public final class NotifyRepository {
     public static final String REMINDED_ON = "remindedOn";
     public static final String SETTLE_REMINDER_SENT_ON = "settleReminderSentOn";
     public static final String INVITE_EMAIL_SENT = "inviteEmailSent";
+    /** "Joined" to the family who joined; {@link #JOINED_HOST_EMAIL_SENT} to the family whose lesson it is (2026-11-23). */
     public static final String JOINED_EMAIL_SENT = "joinedEmailSent";
+    public static final String JOINED_HOST_EMAIL_SENT = "joinedHostEmailSent";
     /** On the coach's profile. */
     public static final String MORNING_EMAIL_SENT_ON = "morningEmailSentOn";
 
     private static final List<String> SEAT_GUARDS = List.of(CONFIRMATION_SENT, PAYMENT_REMINDER_SENT, REMINDED_ON,
-            SETTLE_REMINDER_SENT_ON, INVITE_EMAIL_SENT, JOINED_EMAIL_SENT);
+            SETTLE_REMINDER_SENT_ON, INVITE_EMAIL_SENT, JOINED_EMAIL_SENT, JOINED_HOST_EMAIL_SENT);
 
     private final TenantClients clients;
     private final String table;
@@ -222,18 +225,41 @@ public final class NotifyRepository {
     }
 
     /**
-     * Claims one recipient's email of a batch: its lead line becomes {@code PENDING} (ADR-MASTER section 13, "Notification
-     * state"), only if it has no state yet. {@code false}: another delivery claimed, sent or gave it up first.
+     * A {@code PENDING} claim older than this belongs to a run that stopped mid-send: {@code consumer-change-notifier} times
+     * out after a minute (infra/lib/consumers.ts), so no live run holds one this old (2026-11-23).
      */
-    public boolean claimLine(String coachId, String sk) {
+    public static final Duration LINE_CLAIM_ABANDONED = Duration.ofMinutes(2);
+
+    /** What became of a claim on a recipient's lead line. */
+    public enum LineClaim {
+        /** This run holds it: send. */
+        CLAIMED,
+        /** Another run claimed it under {@link #LINE_CLAIM_ABANDONED} ago and may still be sending: fail, so the event is retried. */
+        IN_PROGRESS,
+        /** Sent or refused already, or the line is gone: nothing to do. */
+        DONE
+    }
+
+    /**
+     * Claims one recipient's email of a batch: its lead line becomes {@code PENDING} with {@code claimedAt} (ADR-MASTER
+     * section 13, "Notification state"), if it has no state yet or its claim was abandoned by a run that stopped. A run
+     * that stopped mid-send may have sent it, so the retry can send it a second time; never not at all.
+     */
+    public LineClaim claimLine(String coachId, String sk, Instant now) {
+        Map<String, AttributeValue> key = FamilyItems.key("COACH#" + coachId, sk);
         try {
-            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
-                    .conditionExpression("attribute_exists(SK) AND attribute_not_exists(notificationStatus)")
-                    .updateExpression("SET notificationStatus = :p").expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING")))
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(key)
+                    .conditionExpression("attribute_exists(SK) AND (attribute_not_exists(notificationStatus) OR "
+                            + "(notificationStatus = :p AND (attribute_not_exists(claimedAt) OR claimedAt <= :stale)))")
+                    .updateExpression("SET notificationStatus = :p, claimedAt = :now")
+                    .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"), ":now", FamilyItems.s(now.toString()),
+                            ":stale", FamilyItems.s(now.minus(LINE_CLAIM_ABANDONED).toString())))
                     .build());
-            return true;
+            return LineClaim.CLAIMED;
         } catch (ConditionalCheckFailedException e) {
-            return false;
+            Map<String, AttributeValue> line = db().getItem(GetItemRequest.builder().tableName(table).key(key).consistentRead(true).build()).item();
+            boolean pending = line != null && "PENDING".equals(FamilyItems.str(line, "notificationStatus"));
+            return pending ? LineClaim.IN_PROGRESS : LineClaim.DONE;
         }
     }
 
@@ -241,7 +267,7 @@ public final class NotifyRepository {
     public void releaseLine(String coachId, String sk) {
         try {
             db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
-                    .conditionExpression("notificationStatus = :p").updateExpression("REMOVE notificationStatus")
+                    .conditionExpression("notificationStatus = :p").updateExpression("REMOVE notificationStatus, claimedAt")
                     .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"))).build());
         } catch (ConditionalCheckFailedException e) {
             // not ours to give back
@@ -261,7 +287,8 @@ public final class NotifyRepository {
                 set += ", failureReason = :r";
             }
             db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
-                    .conditionExpression("attribute_exists(SK)").updateExpression(failureReason == null ? set + " REMOVE failureReason" : set)
+                    .conditionExpression("attribute_exists(SK)")
+                    .updateExpression(set + (failureReason == null ? " REMOVE claimedAt, failureReason" : " REMOVE claimedAt"))
                     .expressionAttributeValues(v).build());
         }
     }

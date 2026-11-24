@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +53,21 @@ class NotifyRepositoryTest {
         repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17");
         repo.release("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-16");
         assertThat(repo.claim("COACH#c1", "PROFILE", NotifyRepository.MORNING_EMAIL_SENT_ON, "2026-11-17")).isFalse();
+    }
+
+    @Test
+    void aLinesClaimWaitsWhileFreshAndIsTakenAgainOnceAbandoned() {
+        String line = "CANCELLED#2026-11-16T00:00:00.000Z#b1#s1";
+        put("COACH#c1", line);
+        java.time.Instant t0 = java.time.Instant.parse("2026-11-23T12:00:00Z");
+        assertThat(repo.claimLine("c1", line, t0)).isEqualTo(NotifyRepository.LineClaim.CLAIMED);
+        assertThat(repo.claimLine("c1", line, t0.plus(NotifyRepository.LINE_CLAIM_ABANDONED).minusSeconds(1)))
+                .isEqualTo(NotifyRepository.LineClaim.IN_PROGRESS);
+        assertThat(repo.claimLine("c1", line, t0.plus(NotifyRepository.LINE_CLAIM_ABANDONED)))
+                .isEqualTo(NotifyRepository.LineClaim.CLAIMED);
+        repo.markLines("c1", List.of(line), "SENT", null, t0);
+        assertThat(repo.claimLine("c1", line, t0.plusSeconds(3600))).isEqualTo(NotifyRepository.LineClaim.DONE);
+        assertThat(repo.claimLine("c1", "CANCELLED#gone", t0)).isEqualTo(NotifyRepository.LineClaim.DONE);
     }
 
     @Test

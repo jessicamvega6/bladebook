@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Batch 13 end to end on DynamoDB Local: each write the APIs make, handed to the consumers as the local stand-in for the
@@ -329,8 +330,34 @@ class NotificationServiceTest {
         drain();
         coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
         ChangeBatch b = cancelRepo.batches(dana).get(0);
-        meanwhile.set(() -> notifications.changeBatch(dana.coachId(), b.key()));
+        // The second finds the first's claim moments old: it fails, so it's retried, and sends nothing meanwhile.
+        AtomicReference<Throwable> second = new AtomicReference<>();
+        meanwhile.set(() -> second.set(catchThrowable(() -> notifications.changeBatch(dana.coachId(), b.key()))));
         assertThat(drain()).extracting(Email::template).containsExactly("lesson-cancelled-by-coach");
+        assertThat(second.get()).isInstanceOf(EmailNotAccepted.class);
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero(); // its retry: already sent
+        assertThat(outbox.list()).isEmpty();
+    }
+
+    @Test
+    void aClaimLeftByARunThatStoppedMidSendIsTakenAgainOnceAbandoned() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        refuse.set(true);
+        coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
+        stream.drain();
+        refuse.set(false);
+        ChangeBatch b = cancelRepo.batches(dana).get(0);
+        String lead = notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).sk();
+        // A run claimed it and then timed out before SES answered: the claim is left PENDING.
+        assertThat(notify.claimLine(dana.coachId(), lead, now.get())).isEqualTo(NotifyRepository.LineClaim.CLAIMED);
+
+        assertThatThrownBy(() -> notifications.changeBatch(dana.coachId(), b.key())).isInstanceOf(EmailNotAccepted.class);
+        assertThat(outbox.list()).isEmpty();
+
+        now.set(now.get().plus(NotifyRepository.LINE_CLAIM_ABANDONED));
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isEqualTo(1);
+        assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isEqualTo("SENT");
     }
 
     @Test
@@ -523,6 +550,21 @@ class NotificationServiceTest {
         refuse.set(false);
         assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(2);
         assertThat(drain()).extracting(Email::template).containsOnly("share-joined");
+    }
+
+    @Test
+    void whenOnlyTheHostsJoinedEmailIsNotAcceptedTheRetrySendsJustThatOne() {
+        book(park, ava, miaCode, SIX, MON);
+        drain();
+        refuseTo.set("sarah@example.com"); // the host family; the family who joined is grace@example.com
+        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        assertThat(drain()).extracting(Email::to).containsExactly("grace@example.com");
+        refuseTo.set(null);
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(1);
+        Email retried = only(drain(), "share-joined");
+        assertThat(retried.to()).isEqualTo("sarah@example.com");
+        assertThat(retried.data()).containsEntry("isInviter", true);
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero(); // both sent: nothing more
     }
 
     @Test

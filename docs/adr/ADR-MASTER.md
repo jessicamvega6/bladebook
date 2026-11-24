@@ -160,7 +160,7 @@ what its single-item actions allow.
 | `consumer-schedule-change` | `GetItem`, `Query`, `PutItem`, `UpdateItem`, `DeleteItem`, `TransactWriteItems` | none | none |
 | `consumer-student-link` | `UpdateItem`, `DeleteItem` and `GetItem` on the family's link; `GetItem` on the coach profile and the family's profile (the decline email's address, (owner, 2026-11-18, I22)) | none | `ses:SendEmail` |
 | `consumer-family-sync` | `Query` on the family's partition; `UpdateItem` on it and the coaches' partitions; `PutItem` and `DeleteItem` on `SKATERCODE#` items only (issuing share codes, (owner, 2026-11-18, I22)) | none | none |
-| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent` and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
+| `consumer-invite` | Reads; `UpdateItem` limited by `dynamodb:Attributes` to the key fields, `partnerName`, `partnerStatus`, `invitedClientId`, `GSI1PK`, `GSI1SK`, `choiceAnswerBy`, and its own email guards `inviteEmailSent`, `joinedEmailSent`, `joinedHostEmailSent` (2026-11-23) and (on ended invitations) `emailSent` (owner, 2026-11-18, I22). **No `PutItem` or `DeleteItem.`** | **GSI1** (`Query`, the family's seats) | `ses:SendEmail`, `sns:Publish` |
 | `consumer-ttl-archiver` | **None** — reads the stream only | none | `s3:PutObject`, `s3:PutObjectTagging` on the archive bucket |
 | `sched-day-reminder` | `Query` on GSI2; `GetItem` on the coach's and family's profiles; `UpdateItem` on the coach's partition (its guards). *Family profile added, `TransactWriteItems` dropped (unused) (owner, 2026-11-18, I23)* | **GSI2** | `ses:SendEmail` (SNS from Phase 2) |
 | `sched-unpaid-reminder` | `Scan` on GSI3; `GetItem`, `Query` and `UpdateItem` in the coach's partition (the `Query` lists a lesson's seats, for a shared lesson's split, (owner, 2026-11-18, I23)). Reads its threshold with `ssm:GetParameter` on that one parameter | **GSI3** (scanned) | `ses:SendEmail` |
@@ -222,7 +222,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
 | Ended invitation | `COACH#<coachId>` | `SEATEND#<date>#<startTime>#<studentId>#<isoTs>` | `seatOutcome`, `endedAt`, `endedBy` (the family or `SWEEP`; the coach from Phase 2), `studentId`, `studentName`, `clientId`, `inviteId` |
 | Change batch | `COACH#<coachId>` | `CHANGEBATCH#<isoTs>#<batchId>` | `batchSource`, `cancelledBy`, acting identity, `affectedFrom`, `affectedTo`, `lessonCount`, `clientCount`, `planStatus`, `executionStatus` |
-| Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason` |
+| Cancellation line | `COACH#<coachId>` | `CANCELLED#<isoTs>#<batchId>#<seatKey>` | `lessonDate`, `startTime`, `durationMinutes`, `priceMinor`, `studentId`, `studentName`, `clientId`, `recurrenceId`, `cancelledAt`, `noticeHours`, `executionStatus`, `skippedReason`, `notificationStatus`, `notifiedAt`, `channels`, `failureReason`, `claimedAt` (while `PENDING`, 2026-11-23) |
 | Re-price line | `COACH#<coachId>` | `REPRICED#<isoTs>#<batchId>#<seatKey>` | seat, skater, family, date and time, old and new price and fee, `direction`, `executionStatus`, `notificationStatus` |
 | Closed year's figures | `COACH#<coachId>` | `CLOSEDYEAR#<year>` | `year`, `months` (each `month`, `hasLessons`, `paidLessons`, `gross`, `earlierLessons`, `earlierGross`, `undoneLessons`, `undoneGross`; amounts per currency), `savedAt`, `savedBy` (`JOB` \| `READ` \| `UNDO`). Written once (§12; 2026-11-16) |
 | Payment correction | `COACH#<coachId>` | `PAYCORRECTION#<isoTs>#<seatKey>` | `undoneAt`, `lessonDate`, `startTime`, `studentId`, `amountMinor`, `currency`, `forYear`, `undoneBy` (§12; 2026-11-16) |
@@ -876,7 +876,9 @@ sweep. *(2026-11-23, I36: past `answerBy` the staying family's card just stops s
   joined, declined, withdrawn and no-longer-available emails each list every date of the
   invitation they cover, found by its `inviteId`; "keep or cancel" lists every date of one batch,
   each with its own answer-by time. Each date keeps its own guard, claimed before sending, so a
-  date is never in two emails; dates that reach the consumer later (the stream may split a
+  date is never in two emails. "Joined" has one guard per family, `joinedEmailSent` for the family
+  who joined and `joinedHostEmailSent` for the family whose lesson it is, so one that isn't
+  accepted is retried without the other being sent again (2026-11-23); dates that reach the consumer later (the stream may split a
   request) go in an email of their own.
 
 ### Coaches see every skater
@@ -1278,7 +1280,11 @@ notifier claims the family's first line (`PENDING`, only if it has no status), s
 of the same event can't both send; a family whose first line has any status is skipped. `FAILED`
 now means SES refused the message (`MessageRejected`), which is final; any other failure gives the
 claim back and fails the event, so it is retried and, after that, replayed from the dead-letter
-queue. The same rule holds for every email guard (`docs/tla/EmailGuard.tla`).
+queue. The same rule holds for every email guard (`docs/tla/EmailGuard.tla`). *2026-11-23 (owner,
+after a code review):* the claim carries `claimedAt`. A run that finds a claim under 2 minutes old
+fails, so it is retried, since that run may still be sending; a claim older than that (the
+notifier times out after 1) belongs to a run that stopped mid-send and is taken again. So a family
+is never left untold, but a run that stopped after SES took the email can mean a second copy.
 
 ### The coach's late-cancellation SMS (the only SMS in MVP)
 
