@@ -114,31 +114,52 @@ public final class RecurrenceService {
         int done = 0;
         boolean late = false;
         List<Seat> stillBooked = new ArrayList<>();
-        if (!going.isEmpty()) {
-            ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, ChangeBatch.Source.RECURRENCE, ChangeBatch.By.CLIENT,
-                    ctx.clientId(), going.get(0).lessonDate(), going.get(going.size() - 1).lessonDate(), going.size(), 1,
-                    ChangeBatch.Execution.PLANNED);
-            cancels.startForFamily(ctx, skater, batch);
-            for (Seat s : going) {
-                // Each date follows the shared-lesson rules on its own: a withdrawn invitation, or a leave in time or late.
-                // One retry, read again, as for one lesson: a booking or cancel by someone else on a shared time can change it.
-                FamilyCancels.Done d = cancelOne(ctx, skater, s, times.get(LessonTime.key(s.lessonDate(), s.startTime())), batch, now);
-                if (d == null) {
-                    Optional<Seat> fresh = cancels.ownSeat(ctx, skater, s.lessonDate(), s.startTime());
-                    if (fresh.isEmpty() || fresh.get().seatStatus() != Seat.Status.BOOKED || fresh.get().hasStarted(now)) {
-                        continue; // cancelled, checked in or started meanwhile: no longer a booked lesson to come
-                    }
-                    String k = LessonTime.key(s.lessonDate(), s.startTime());
-                    d = cancelOne(ctx, skater, fresh.get(), bookings.timesAt(ctx, skater.coach(), List.of(k)).get(k), batch, now);
+        ChangeBatch batch = null;
+        boolean finished = false;
+        try {
+            if (!going.isEmpty()) {
+                batch = new ChangeBatch(UUID.randomUUID().toString(), now, ChangeBatch.Source.RECURRENCE, ChangeBatch.By.CLIENT,
+                        ctx.clientId(), going.get(0).lessonDate(), going.get(going.size() - 1).lessonDate(), going.size(), 1,
+                        ChangeBatch.Execution.PLANNED);
+                cancels.startForFamily(ctx, skater, batch);
+                for (Seat s : going) {
+                    // Each date follows the shared-lesson rules on its own: a withdrawn invitation, or a leave in time or late.
+                    // One retry, read again, as for one lesson: a booking or cancel by someone else on a shared time can change it.
+                    FamilyCancels.Done d = cancelOne(ctx, skater, s, times.get(LessonTime.key(s.lessonDate(), s.startTime())), batch, now);
                     if (d == null) {
-                        stillBooked.add(s);
-                        continue;
+                        Optional<Seat> fresh = cancels.ownSeat(ctx, skater, s.lessonDate(), s.startTime());
+                        if (fresh.isEmpty() || fresh.get().seatStatus() != Seat.Status.BOOKED || fresh.get().hasStarted(now)) {
+                            continue; // cancelled, checked in or started meanwhile: no longer a booked lesson to come
+                        }
+                        String k = LessonTime.key(s.lessonDate(), s.startTime());
+                        d = cancelOne(ctx, skater, fresh.get(), bookings.timesAt(ctx, skater.coach(), List.of(k)).get(k), batch, now);
+                        if (d == null) {
+                            stillBooked.add(s);
+                            continue;
+                        }
                     }
+                    done++;
+                    late |= d.late();
                 }
-                done++;
-                late |= d.late();
+                cancels.finishForFamily(ctx, skater, batch.executed(done, done > 0 ? 1 : 0));
+                finished = true;
             }
-            cancels.finishForFamily(ctx, skater, batch.executed(done, done > 0 ? 1 : 0));
+        } catch (RuntimeException e) {
+            // A failure part-way (a throttled read or write, say): the dates already cancelled are reported and emailed as
+            // usual, and the series is let go at once rather than staying claimed for ABANDONED, so trying again works.
+            if (batch != null && !finished) {
+                try {
+                    cancels.finishForFamily(ctx, skater, batch.executed(done, done > 0 ? 1 : 0));
+                } catch (RuntimeException f) {
+                    e.addSuppressed(f);
+                }
+            }
+            try {
+                bookings.recurrences().release(ctx, r, changeId);
+            } catch (RuntimeException f) {
+                e.addSuppressed(f);
+            }
+            throw e;
         }
         // The new end or ENDED is saved only once no lesson it takes away is still booked; otherwise the series stays as
         // it was, and the family is told to try again.

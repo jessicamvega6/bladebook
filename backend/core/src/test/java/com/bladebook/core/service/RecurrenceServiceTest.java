@@ -162,6 +162,28 @@ class RecurrenceServiceTest {
     }
 
     @Test
+    void aFailurePartWayLetsTheSeriesGoAtOnceSoTryingAgainWorks() {
+        // A write throttled once two of the five dates are cancelled (2026-11-23).
+        java.util.concurrent.atomic.AtomicBoolean thrown = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable throttled = () -> {
+            if (left().size() == 3 && thrown.compareAndSet(false, true)) {
+                throw new IllegalStateException("throttled");
+            }
+        };
+        WriteRaces.beforeNextWrites(java.util.Collections.nCopies(30, throttled).toArray(Runnable[]::new));
+        assertThatThrownBy(() -> service.change(park, dana.coachId(), rid, "STOP", null, null)).hasMessageContaining("throttled");
+        WriteRaces.clear();
+        assertThat(left()).hasSize(3);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ACTIVE);
+
+        // Straight away, not after ABANDONED: the claim was let go.
+        RecurrenceService.Changed c = service.change(park, dana.coachId(), rid, "STOP", null, null);
+        assertThat(c.cancelled()).isEqualTo(3);
+        assertThat(header().status()).isEqualTo(Recurrence.Status.ENDED);
+        assertThat(left()).isEmpty();
+    }
+
+    @Test
     void aChangeInProgressElsewhereRefusesThisOneUntilItsMarkerIsAbandoned() {
         // Another window has claimed the series and not finished: as it would look mid-change.
         t.f.clients.forSetup().updateItem(b -> b.tableName(t.f.table)
