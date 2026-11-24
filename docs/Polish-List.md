@@ -16,6 +16,10 @@ prefer if you know.
 
 - [ ] Schedule, **Your teaching week**: remove "no dates, just the shape of your week" from the
   line under the heading, leaving "Repeats every week." (`web/src/coach/pages/Schedule.tsx:501`).
+- [ ] **New feature:** Schedule: let the coach delete their normal (weekly) schedule. Doing so
+  removes every lesson time from the calendar except the dates covered by a special schedule.
+  Special schedules and time off can already be deleted one by one; the weekly schedule
+  can't (`web/src/coach/pages/Schedule.tsx:128`).
 
 ## Family app
 
