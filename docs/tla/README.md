@@ -40,6 +40,7 @@ invariant broken for a `current` model, no error for a `fixed` one.
 | `StudentLink` | The coach's skater record and the family's link, after a decline | `StudentLinkService.declined`, `SyncRepository` | A redelivered decline sends the email twice and deletes the family's newer link. The first fix (`first-fix`) lost the email when SES didn't accept it, because the link, its guard, was already gone | `OneEmailPerDecline`, `LinkFollowsRecord`, `NeverLost` |
 | `Payment` | A seat's UNPAID / PAID / WAIVED status from two tabs | `PaymentService`, `PaymentRepository.update` | The write checks a status the server read, not the one the tab showed, so a stale tab overwrites | `NoBlindWrite` |
 | `RinksideQueue` | The rinkside page's offline capture queue | `web/src/rinkside/App.tsx`, `offline.ts` | A server error leaves the page "offline" for good; an old tap's answer deletes a newer re-tap | `NoTapLost`, `NotStuckOffline` |
+| `ScheduleApply` | One save's runs of the schedule change, a second save meanwhile, a run that stops | `ScheduleChangeService.apply`, `ScheduleRepository.takeLease` | Runs at once split a family's lessons across two batches, so two emails | `OneEmailPerSave`, `AllCancelled` |
 | `WrongPasswords` | Ruling I33's three wrong passwords before a save | `web/src/coach/pages/Schedule.tsx` | A reload or another editor resets the count | `ThirdWrongSignsOut` |
 
 **Retired:** `SharedLeave` modelled the hourly sweep cancelling a shared lesson whose staying family

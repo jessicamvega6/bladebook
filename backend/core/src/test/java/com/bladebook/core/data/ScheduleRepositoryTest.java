@@ -252,4 +252,41 @@ class ScheduleRepositoryTest {
                 .isInstanceOf(com.bladebook.core.domain.DomainException.class);
         assertThat(repo.temps(ctx)).containsExactly(a);
     }
+
+    // ------------------------------------------------------------------ the schedule-change lease
+
+    private static final Instant T0 = Instant.parse("2026-11-23T12:00:00Z");
+
+    @Test
+    void oneRunAtATimeAndARunThatFindsItHeldAsksForAnotherPass() {
+        assertThat(repo.takeLease(ctx, "event-a", T0)).isTrue();
+        assertThat(repo.takeLease(ctx, "event-b", T0.plusSeconds(1))).isFalse(); // held: asks a for another pass
+        assertThat(repo.releaseOrRerun(ctx, "event-a", T0.plusSeconds(2))).isTrue();
+        assertThat(repo.releaseOrRerun(ctx, "event-a", T0.plusSeconds(3))).isFalse(); // let go
+        assertThat(repo.takeLease(ctx, "event-b", T0.plusSeconds(4))).isTrue();
+    }
+
+    @Test
+    void aRetryOfTheSameEventTakesItsOwnLeaseBack() {
+        assertThat(repo.takeLease(ctx, "event-a", T0)).isTrue();
+        assertThat(repo.takeLease(ctx, "event-a", T0.plusSeconds(60))).isTrue(); // the run stopped; its event is retried
+    }
+
+    @Test
+    void aLeaseLeftByARunThatStoppedIsTakenOnceAbandoned() {
+        assertThat(repo.takeLease(ctx, "event-a", T0)).isTrue();
+        assertThat(repo.takeLease(ctx, "event-b", T0.plus(ScheduleRepository.LEASE_ABANDONED).minusSeconds(1))).isFalse();
+        assertThat(repo.takeLease(ctx, "event-b", T0.plus(ScheduleRepository.LEASE_ABANDONED))).isTrue();
+        assertThat(repo.releaseOrRerun(ctx, "event-a", T0.plus(ScheduleRepository.LEASE_ABANDONED))).isFalse(); // no longer a's
+        assertThat(repo.takeLease(ctx, "event-c", T0.plus(ScheduleRepository.LEASE_ABANDONED))).isFalse(); // b holds it
+    }
+
+    @Test
+    void aFailedPassLetsTheLeaseGo() {
+        assertThat(repo.takeLease(ctx, "event-a", T0)).isTrue();
+        repo.releaseLease(ctx, "event-b"); // not b's to let go
+        assertThat(repo.takeLease(ctx, "event-c", T0)).isFalse();
+        repo.releaseLease(ctx, "event-a");
+        assertThat(repo.takeLease(ctx, "event-c", T0)).isTrue();
+    }
 }

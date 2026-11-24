@@ -98,8 +98,9 @@ public final class CoachCancelService {
             throw DomainException.conflict(NOTHING);
         }
         // What the days' time off cancels, read before it's saved: booked lessons not started, nobody checked in. The time
-        // off's write also sets off consumer-schedule-change, which may cancel them before the apply below does; either
-        // way it's the same schedule change and the same one email per family (owner, 2026-11-21, I35), so the coach is
+        // off's write also sets off consumer-schedule-change. The apply below and those runs take the coach's lease in
+        // turn, so the first applies the whole save, one batch and one email per family; usually that's this request, so
+        // the coach's page shows the lessons cancelled when it reloads (owner, 2026-11-21, I35; 2026-11-23). The coach is
         // told this count, not whichever run got there.
         Instant now = clock.instant();
         Map<String, List<Seat>> seats = schedules.seats(ctx, first, request.last()).stream()

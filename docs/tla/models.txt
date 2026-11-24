@@ -25,3 +25,5 @@ Invitation        current-start       NoDeclineAfterStart
 Invitation        fixed               ok
 WrongPasswords    current             ThirdWrongSignsOut
 WrongPasswords    fixed               ok
+ScheduleApply     current             OneEmailPerSave
+ScheduleApply     fixed               ok

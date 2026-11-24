@@ -217,6 +217,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Default schedule | `COACH#<coachId>` | `SCHEDULE#DEFAULT` | `days` (weekday → blocks), `scheduleName`, `scheduleVersion` |
 | Temporary schedule header | `COACH#<coachId>` | `SCHEDULE#TEMP#<tempId>` | `scheduleName`, `startDate`, `endDate` |
 | Date override | `COACH#<coachId>` | `SCHEDULE#DATE#<yyyy-mm-dd>` | `blocks`, `tempId` |
+| Schedule-change lease | `COACH#<coachId>` | `SCHEDULE#APPLYING` | `holder`, `leasedAt`, `rerun`: one run of the schedule change at a time (§9, "Execution"; 2026-11-23). Present only while a run holds it |
 | Coach's skater record | `COACH#<coachId>` | `STUDENT#<studentId>` | `clientId`, `studentStatus`, `studentName`, contact copies (`clientName`, `clientEmail`, `clientPhone`), `skatingOrg`, `registrationNumber` |
 | Lesson time | `COACH#<coachId>` | `LESSON#<date>#<startTime>` | `lessonStatus`, `lessonDate`, `startTime`, `startsAtUtc`, `coachTz`, `durationMinutes`, `priceMinor`, `currency`, `missedLessonFeeMinor`, `requiredNoticeHours`, `maxSkaters`, `seatsTaken`, `shareCount`, `joinOrder`, `blockSeq`, `iceType`, `scheduleVersion`, `pendingLeave`, `dueAt`/`dueKind` |
 | Seat | `COACH#<coachId>` | `SEAT#<date>#<startTime>#<studentId>` | See §7 |
@@ -957,6 +958,15 @@ during the review".)
 7. The header reaching `EXECUTED` raises `LessonsChanged`; the notifier sends **one message per
    family** covering everything in the batch.
 
+*2026-11-23 (owner, after a code review; `docs/tla/ScheduleApply.tla`):* **one run at a time per
+coach.** One save sets off a run for every date it writes, and runs at once could split a
+family's lessons across two batches, so two emails. Each run first takes the coach's lease
+(`SCHEDULE#APPLYING`: `holder`, `leasedAt`, `rerun`): free, its own (a retry of the same event, by
+the EventBridge event's id), or left over 6 minutes (the consumer times out after 5). A run that
+finds it held sets `rerun` and stops; the holder, before letting go, makes another pass from a
+fresh read, which covers a save made meanwhile. A pass that fails lets the lease go, and its
+retry reads afresh.
+
 **`LESSON_PASSED`** lines are reported to the coach in the batch notification (wording:
 `FeatureDecriptions/Email templates Needed:`). **`CHECKED_IN`** lines are shown on the save
 status only, never emailed, and the review before saving lists them as kept (owner, 2026-11-21).
@@ -1032,6 +1042,9 @@ product: see `FeatureDecriptions/cancelation.md`, `FeatureDecriptions/C_Client M
     cancellations. The batch records `cancelledBy = SCHEDULE_CHANGE` with `batchSource` `DAY` or
     `WEEK`. The time off's write also sets off `consumer-schedule-change`; whichever run cancels a
     lesson first, its family gets one email, and the coach is told the count read before saving.*
+    *2026-11-23: the request's run and the consumer's take the coach's lease in turn (§9,
+    "Execution"), so the first applies the whole cancel, one batch and one email per family; usually
+    that's the request's, so the coach's page shows the lessons cancelled when it reloads.*
   - **Rest of the week starts now:** lessons that have started or finished keep their attendance and
     payment; the time off covers only what hasn't started.
 - **Only *this lesson* asks release or hold** (seats move to `CANCELLED#`, and the lesson time
@@ -1608,7 +1621,7 @@ same coach (held by `LinkedSkater` and the ownership condition).
 | Consumer | Guard | When its queue fills |
 |---|---|---|
 | `consumer-change-notifier` | `notificationStatus` | Replay at once (pages) |
-| `consumer-schedule-change` | Event-derived keys and the plan | **Reconcile, never replay** (pages) |
+| `consumer-schedule-change` | Event-derived keys and the plan; the coach's lease (`SCHEDULE#APPLYING`, 2026-11-23) | **Reconcile, never replay** (pages) |
 | `consumer-booking-confirmation` | `confirmationSent` | Replay |
 | `consumer-payment-reminder` | `paymentReminderSent` | Replay |
 | `consumer-student-link` | `declineEmailAt` on the family's link, which goes after the email (2026-11-23) | Replay |

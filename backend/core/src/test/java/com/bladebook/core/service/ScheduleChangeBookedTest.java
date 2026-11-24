@@ -230,6 +230,24 @@ class ScheduleChangeBookedTest {
     }
 
     @Test
+    void aSecondRunWhileOneIsApplyingDoesNothingAndEveryLessonGoesInOneBatch() {
+        temps.save(dana, timeOff(null, MONDAY, MONDAY));
+        AtomicReference<ScheduleChangeService.Result> second = new AtomicReference<>();
+        // Another date's event arrives while the first run is cancelling (owner, 2026-11-23; docs/tla/ScheduleApply.tla).
+        beforeTheFirstBatchWrite(() -> second.set(change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE, ChangeBatch.By.SCHEDULE_CHANGE, "event-b")));
+
+        ScheduleChangeService.Result first = change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE, ChangeBatch.By.SCHEDULE_CHANGE, "event-a");
+
+        assertThat(second.get().cancelled()).isZero();
+        assertThat(first.cancelled()).isEqualTo(2);
+        assertThat(cancels.batches(dana)).hasSize(1);
+        assertThat(repo.lessonTimes(dana, MONDAY, MONDAY)).isEmpty();
+        // The first run made the pass the second asked for, found nothing more, and let the lease go.
+        assertThat(change.apply(dana, ChangeBatch.Source.DATE_OVERRIDE, ChangeBatch.By.SCHEDULE_CHANGE, "event-c").cancelled()).isZero();
+        assertThat(cancels.batches(dana)).hasSize(1);
+    }
+
+    @Test
     void anOverlappingOneIsRefusedWithTheMessage() {
         temps.save(dana, timeOff(null, MONDAY, MONDAY.plusDays(2)));
         assertThatThrownBy(() -> temps.preview(dana, timeOff(null, MONDAY.plusDays(2), MONDAY.plusDays(3))))

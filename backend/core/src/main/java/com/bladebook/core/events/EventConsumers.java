@@ -212,7 +212,10 @@ public final class EventConsumers {
         } else {
             return skipped(Event.ScheduleChanged);
         }
-        ScheduleChangeService.Result res = scheduleChange.apply(new AccessContext(r.partitionId()), source);
+        // The event's id, so a retry of a run that stopped takes its own lease back (ScheduleChangeService#apply).
+        AccessContext ctx = new AccessContext(r.partitionId());
+        ScheduleChangeService.Result res = r.eventId() == null ? scheduleChange.apply(ctx, source)
+                : scheduleChange.apply(ctx, source, ChangeBatch.By.SCHEDULE_CHANGE, r.eventId());
         return new Outcome(Event.ScheduleChanged, "lessons cancelled or re-priced", res.cancelled() + res.repriced());
     }
 

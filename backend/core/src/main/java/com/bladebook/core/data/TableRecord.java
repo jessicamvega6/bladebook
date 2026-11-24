@@ -33,9 +33,11 @@ public final class TableRecord {
     private final String sk;
     private final Map<String, AttributeValue> newImage;
     private final Map<String, AttributeValue> oldImage;
+    private final String eventId;
 
     private TableRecord(Change change, String pk, String sk, Map<String, AttributeValue> newImage,
-                        Map<String, AttributeValue> oldImage) {
+                        Map<String, AttributeValue> oldImage, String eventId) {
+        this.eventId = eventId;
         this.change = change;
         this.pk = pk;
         this.sk = sk;
@@ -57,7 +59,12 @@ public final class TableRecord {
             throw new IllegalArgumentException("stream record without PK and SK");
         }
         return new TableRecord(change, keys.get("PK").s(), keys.get("SK").s(), image(ddb.get("NewImage")),
-                image(ddb.get("OldImage")));
+                image(ddb.get("OldImage")), root.has("id") ? root.get("id").asString() : null);
+    }
+
+    /** The EventBridge event's id, the same on every retry of it; null for a bare stream record. */
+    public String eventId() {
+        return eventId;
     }
 
     public Change change() {

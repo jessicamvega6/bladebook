@@ -99,6 +99,38 @@ public final class ScheduleChangeService {
      * week, which is time off (owner, 2026-11-18, I24): families get the "cancelled by the coach" email.
      */
     public Result apply(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by) {
+        return apply(ctx, source, by, UUID.randomUUID().toString());
+    }
+
+    /**
+     * The change, one run at a time for each coach (owner, 2026-11-23; {@code docs/tla/ScheduleApply.tla}). One save sets
+     * off a run per date it writes; the first to take the coach's lease applies the whole save, so each family's lessons
+     * go in one batch and one email. A run that finds the lease held asks the holder to run again and does nothing
+     * itself: the holder's next pass reads the schedule afresh, which covers a save made meanwhile. {@code runId} is the
+     * event's id, so a retry of a run that stopped takes its own lease back; a lease left longer than
+     * {@link ScheduleRepository#LEASE_ABANDONED} is taken by anyone.
+     */
+    public Result apply(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by, String runId) {
+        if (!schedules.takeLease(ctx, runId, clock.instant())) {
+            return new Result(0, 0, 0, 0, 0, 0, 0);
+        }
+        Result total = new Result(0, 0, 0, 0, 0, 0, 0);
+        try {
+            do {
+                Result r = pass(ctx, source, by);
+                total = new Result(total.added() + r.added(), total.removed() + r.removed(), total.replaced() + r.replaced(),
+                        total.skipped() + r.skipped(), total.cancelled() + r.cancelled(), total.repriced() + r.repriced(),
+                        total.families() + r.families());
+            } while (schedules.releaseOrRerun(ctx, runId, clock.instant()));
+        } catch (RuntimeException e) {
+            schedules.releaseLease(ctx, runId);
+            throw e;
+        }
+        return total;
+    }
+
+    /** One pass of the change, from a fresh read, under the lease. */
+    private Result pass(AccessContext ctx, ChangeBatch.Source source, ChangeBatch.By by) {
         CoachProfile coach = coach(ctx);
         ZoneId zone = ZoneId.of(coach.coachTimezone());
         Instant now = clock.instant();
