@@ -223,7 +223,9 @@ public final class ShareRepository {
     /**
      * Invite a skater to a freed place, that one lesson only (ADR-MASTER section 8, "Freed places"): the same as a
      * booking-time invitation, or a sibling added directly. The lesson must still hold only this family's skater, at the
-     * full price, with no pending leave.
+     * full price, and not have started. If the other skater left in time and the staying family hasn't answered yet,
+     * filling the place answers for them: the pending leave ends, so their keep-or-cancel choice, with its free cancel,
+     * goes too (owner, 2026-11-23).
      */
     public boolean fillFreedPlace(ClientContext ctx, LinkedSkater host, Seat hostSeat, BookingRepository.Partner partner, Instant now) {
         boolean sibling = partner.sibling() != null;
