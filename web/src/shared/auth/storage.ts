@@ -28,16 +28,43 @@ function tab(): Storage | null {
  * Wrong passwords in a row in the "Confirm it's you" box (owner, I33: the third signs the coach out). Kept in this tab
  * next to the sign-in, so a reload or another editor doesn't start it again; it goes with the sign-in (`clear`) and on
  * a right password. Read and written in one step, so two quick submits both count.
+ *
+ * Also counted in memory, so where the browser won't let the page use the tab's storage (blocked, or full) the third
+ * wrong password still signs the coach out; only a reload then starts the count again.
  */
 const WRONG_PASSWORDS = 'bb.wrongPasswords';
-export const wrongPasswords = (): number => Number(tab()?.getItem(WRONG_PASSWORDS) ?? 0) || 0;
+let wrongInMemory = 0;
+
+function stored(): number | null {
+  try {
+    const t = tab();
+    return t ? Number(t.getItem(WRONG_PASSWORDS) ?? 0) || 0 : null;
+  } catch {
+    return null;
+  }
+}
+
+function store(n: number | null) {
+  try {
+    if (n === null) tab()?.removeItem(WRONG_PASSWORDS);
+    else tab()?.setItem(WRONG_PASSWORDS, String(n));
+  } catch {
+    // the tab's storage refused it: the count in memory still holds
+  }
+}
+
+export const wrongPasswords = (): number => Math.max(stored() ?? 0, wrongInMemory);
 /** Counts one more and returns the count. */
 export function addWrongPassword(): number {
   const n = wrongPasswords() + 1;
-  tab()?.setItem(WRONG_PASSWORDS, String(n));
+  wrongInMemory = n;
+  store(n);
   return n;
 }
-export const clearWrongPasswords = () => tab()?.removeItem(WRONG_PASSWORDS);
+export function clearWrongPasswords() {
+  wrongInMemory = 0;
+  store(null);
+}
 
 export class TabStorage implements KeyValueStorage {
   private staged: Map<string, string | null> | null = null;
@@ -62,10 +89,10 @@ export class TabStorage implements KeyValueStorage {
       this.staged.clear();
       return;
     }
+    clearWrongPasswords();
     const t = tab();
     if (!t) return;
     for (const k of Object.keys(t)) if (k.startsWith(KEY_PREFIX)) t.removeItem(k);
-    t.removeItem(WRONG_PASSWORDS);
   }
 
   /** From now until `commit` or `discard`, nothing touches the tab's tokens; the sign-in sees no one signed in. */

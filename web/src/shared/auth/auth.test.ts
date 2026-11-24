@@ -156,6 +156,25 @@ test('wrong passwords in a row are counted in this tab, next to the sign-in, and
   expect(wrongPasswords()).toBe(0);
 });
 
+test('where the tab\'s storage refuses the count, the third wrong password still counts as the third (I33)', async () => {
+  clearWrongPasswords();
+  const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+  const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+  try {
+    expect(addWrongPassword()).toBe(1);
+    expect(addWrongPassword()).toBe(2);
+    expect(addWrongPassword()).toBe(3);
+    clearWrongPasswords();
+    expect(wrongPasswords()).toBe(0);
+    addWrongPassword();
+    await new TabStorage().clear();                                // signing out
+    expect(wrongPasswords()).toBe(0);
+  } finally {
+    set.mockRestore();
+    get.mockRestore();
+  }
+});
+
 test('logging out clears this tab\'s sign-in even when Cognito never answers the revoke', async () => {
   signInWrites('tok-1');
   const a = await auth();
