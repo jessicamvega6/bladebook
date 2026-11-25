@@ -59,7 +59,7 @@ export function Login({ onSignedIn, onVerify, notice, noticeTone = 'info' }: {
           {notice && <Banner tone={noticeTone}>{notice}</Banner>}
           {error && <Banner tone="danger">{error}</Banner>}
           <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="username" />
-          <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="current-password" placeholder="••••••••" />
+          <Field label="Password" type="password" reveal value={pw} onChange={setPw} autoComplete="current-password" placeholder="••••••••" />
           <div className="fine"><a className="link" href="#/forgot">Forgot/change password</a></div>
           <Button type="submit" block lg disabled={busy}>Log in</Button>
         </form>
@@ -125,7 +125,7 @@ export function Forgot({ onDone }: { onDone: (notice: string) => void }) {
             {flash && <Banner tone="success">{flash}</Banner>}
             {error && <Banner tone="danger">{error}</Banner>}
             <CodeInput value={code} onChange={setCode} />
-            <Field label="New password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" />
+            <Field label="New password" type="password" reveal value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" />
             <PasswordRules password={pw} />
             <Button type="submit" block lg disabled={busy}>Set new password</Button>
             <p className="fine center">

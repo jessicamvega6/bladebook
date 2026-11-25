@@ -38,7 +38,7 @@ if (artifactDir) {
   // The rinkside demo is a separate Artifact, so its link points there and opens in a new tab (claude.ai won't load in a frame).
   const RINK_LOCAL = "href: '../../rinkside/demo/index.html'";
   if (!demoBody.includes(RINK_LOCAL)) throw new Error('rinkside link not found in app.js');
-  const artifactBody = demoBody.replace(RINK_LOCAL, "href: 'https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH', newTab: true");
+  const artifactBody = demoBody.replace(RINK_LOCAL, "href: 'https://claude.ai/artifact/LWjhoxEcXQ5eCGiU2Bi74p', newTab: true");
   fs.writeFileSync(path.join(artifactDir, 'index.html'), `${demoHead}\n<style>html, body { background: #F7F3EC; }</style>\n${artifactBody}\n`);
   fs.writeFileSync(path.join(artifactDir, 'schedule.html'), scheduleSrc);
 }
@@ -76,6 +76,13 @@ const SCHED = [
   ['schedule-review', 'Schedule', 'Review — cancellations, re-pricing, big price change', 'Redesigned from CoachScheduleReview. Morning ice cut to $5 and switched off on Wednesdays.', "freshState(); openWeekly(); state.def.blocks[0].cost = 5; state.def.blocks[0].days[3] = 0; go('review');"],
   ['schedule-review-skaters', 'Schedule', 'Review — skaters per lesson lowered', 'New state. Morning ice goes from up to 2 skaters to 1; lessons already booked keep their setting.', "freshState(); openWeekly(); state.def.blocks[0].maxSkaters = 1; go('review');"],
   ['schedule-review-time-off', 'Schedule', 'Review — time off', 'New state. The same review screen for time off.', 'freshState(); openAway(); reviewAway();'],
+  ['schedule-edit-time-off', 'Schedule', 'Edit time off', 'New (G-30, owner 2026-11-12; Batch 21). Edit on a time off in the hub opens the same form with its saved name and dates. Review stays off until something changes.', "freshState(); editAway('tg');"],
+  ['schedule-edit-time-off-changed', 'Schedule', 'Edit time off — dates moved', 'New (G-30). Thanksgiving break moved to Nov 20 – 26: only the lesson on the added Nov 20 counts; Nov 27 – 28 go back to the weekly schedule, and nobody is emailed about them.', "freshState(); editAway('tg'); state.away.sd = '2026-11-20'; state.away.ed = '2026-11-26'; render();"],
+  ['schedule-edit-time-off-started', 'Schedule', 'Edit time off — already started', 'New (G-30). Time off that began on Oct 12 keeps its first day (those days are past); the last day can move, but not to before today.', "freshState(); state.temps.unshift({ id: 'fb', kind: 'timeoff', name: 'Fall break', sd: '2026-10-12', ed: '2026-10-16' }); editAway('fb'); state.away.ed = '2026-10-15'; render();"],
+  ['schedule-review-edit-time-off', 'Schedule', 'Review — edited time off', 'New (G-30). The review lists only the lesson on the added date, and the dates given back.', "freshState(); editAway('tg'); state.away.sd = '2026-11-20'; state.away.ed = '2026-11-26'; reviewAway();"],
+  ['schedule-reauth', 'Schedule', 'Confirm it’s you — before a save', 'Drawn from the built box (Batch 18, I33): a save more than 15 minutes after signing in asks for the password again. Your changes are kept; several wrong passwords sign you out.', "freshState(); openWeekly(); state.def.blocks[0].cost = 55; go('review'); state.reauth = { mfa: false, wrong: '' }; render();"],
+  ['schedule-reauth-mfa', 'Schedule', 'Confirm it’s you — with two-step sign-in on', 'New (Batch 28, I32). With MFA (multi-factor authentication) on, the same box also asks for the authenticator code: both in one box, so saving is one step.', "freshState(); openWeekly(); state.def.blocks[0].cost = 55; go('review'); state.reauth = { mfa: true, wrong: '' }; render();"],
+  ['schedule-reauth-mfa-wrong', 'Schedule', 'Confirm it’s you — wrong code', 'New (Batch 28). The password was right and the code wasn’t: the password stays filled, the code is asked again.', "freshState(); openWeekly(); state.def.blocks[0].cost = 55; go('review'); state.reauth = { mfa: true, wrong: 'code' }; render();"],
   ['schedule-status', 'Schedule', 'After saving — applying', 'Redesigned from CoachChangeStatus. Progress while the change is applied and families are emailed.', 'freshState(); openWeekly(); state.def.blocks[0].cost = 55; state.ack = true; accept();'],
   ['schedule-status-done', 'Schedule', 'After saving — done', 'Redesigned from CoachChangeStatus.', "freshState(); openWeekly(); state.def.blocks[0].cost = 55; state.ack = true; accept(); state.apply.stage = 'done'; render();"],
 ];

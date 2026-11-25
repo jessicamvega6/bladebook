@@ -764,6 +764,9 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .bb .rk-seat .rk-namebtn { align-self: flex-start; }
 .bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
+/* The notice after the page saves its offline copy again (G-32, Batch 25). */
+.bb .pbanner--info { background: var(--info-soft); border: 1px solid var(--info-border); } .bb .pbanner--info .ic { color: var(--primary); }
+.bb .rk-fresh .btn { align-self: flex-start; margin-top: 8px; }
 
 
 :root { --sp-bg: #E9E3D8; --sp-text: #1E292D; --sp-text-2: #46524F; --sp-line: #D2C7B5; --sp-link: #0E6C68; }
@@ -778,7 +781,7 @@ html, body { margin: 0; background: var(--sp-bg); }
 </style>
 </head>
 <body>
-<header class="sp-bar"><span>BladeBook rinkside app · Harbor · No signal</span><b>Couldn’t be sent</b><span class="sp-bar__note">Redesigned from Forest RinkCouldntSend; reworked 2026-11-09 to ADR-014 d4a. The phone’s clock was wrong, so a check-in tapped for Mia’s 6:30 lesson carries a time that doesn’t fit it, and the server refused it. Record on the website, then Done; removed after 7 days. A family’s cancellation is never listed here (see RinkFamilyCancelled).</span><nav class="sp-bar__nav"><a href="not-loaded.html">← Today’s lessons haven’t loaded</a><a href="index.html">All pages</a><a href="family-cancelled.html">Back online — the family had cancelled →</a></nav></header>
+<header class="sp-bar"><span>BladeBook rinkside app · Harbor · No signal</span><b>Couldn’t be sent</b><span class="sp-bar__note">Redesigned from Forest RinkCouldntSend; reworked 2026-11-09 to ADR-014 d4a. The phone’s clock was wrong, so a check-in tapped for Mia’s 6:30 lesson carries a time that doesn’t fit it, and the server refused it. Record on the website, then Done; removed after 7 days. A family’s cancellation is never listed here (see RinkFamilyCancelled).</span><nav class="sp-bar__nav"><a href="cleared.html">← Saved for no signal — after Safari cleared it</a><a href="index.html">All pages</a><a href="family-cancelled.html">Back online — the family had cancelled →</a></nav></header>
 <div class="sp-page"><div class="bb" data-layout="top"><div class="rk-stage"><div class="phone rk-phone">
     <div class="phone__status"><span class="num">6:35</span><span class="phone__status-r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
     <header class="phone__head"><div><a class="rk-home" href="../../coach/demo/index.html#today"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Your dashboard</span></a><div class="phone__title">Not sent</div><div class="phone__sub">Check-ins the server turned down</div></div><span class="rk-pill rk-pill--danger"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>1 not sent</span></header>

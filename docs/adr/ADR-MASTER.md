@@ -1361,7 +1361,7 @@ never sent.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4 (amended 2026-11-06 and 2026-11-09), ADR-023 d2, d4–7, d9–11.*
+*Sources: ADR-016 d3–4 (amended 2026-11-06 and 2026-11-09), ADR-023 d2, d4–7, d9–11 (amended 2026-11-25: revocation).*
 
 - **BladeBook's own sign-in forms, talking to Cognito directly** (ADR-023 d11, 2026-11-09). Every
   page that asks for an email, password or code is BladeBook's own: creating the account,
@@ -1387,6 +1387,12 @@ never sent.
 - **`api-client` requires the `Client` group** on every route, in the same kind of shared check,
   and refuses a token without it with 403 (ADR-023 d7). A coach's token can't use the family
   website's routes.
+- **A signed-out session stops working at once** (owner, 2026-11-25; ADR-023). The websites send the access token in
+  `X-BladeBook-Access` beside the ID token. After the checks above, each API verifies it (signature, `token_use =
+  access`, its own app client's `client_id`, the same `sub` as the ID token) and calls Cognito's `GetUser` with it: a
+  revoked, missing or mismatched one gets **401**; Cognito unreachable or throttled gets **503**, never a pass. *Log
+  out*, the three-wrong-passwords sign-out (I33) and Cognito's own global sign-outs all count. A *Log out* with no
+  signal can't reach Cognito; that token lives until it expires.
 - **These checks cover every route that needs a sign-in.** `api-client`'s coach-code lookup
   before sign-up and `/health` take no token (ADR-023 d7, amended 2026-10-24).
 - **A new account gets its group when its email is confirmed** (ADR-023 d10): a Cognito
@@ -1906,6 +1912,10 @@ database-gate tests; reproducing an incident (masked build).
   written by hand**.
 - **Playwright, two flows only:** (1) book a lesson end to end; (2) save a schedule change that
   cancels bookings. Flow 2 is also the post-deploy check (§19).
+- **Each API's OpenAPI document is generated and checked** (owner, 2026-11-25; ADR-013): springdoc-openapi 3.1.1 as
+  a test dependency only (never in a Lambda package; CI checks), one committed file per API in `docs/api/`, keys
+  sorted and local-profile routes left out. A test per API generates it and **fails the build if it differs from the
+  committed file**; `-Dopenapi.update=true` rewrites it. Public, like the repository. ZAP reads it (§23).
 - **Database-gate tests run against real AWS (dev)**, never DynamoDB Local (which ignores IAM),
   from `docs/runbooks/database-gate-tests.md`, **against dev's real table and tenant roles**
   (read from the stack's outputs), with the test records in the seed file and, in dev only, a
@@ -1927,7 +1937,7 @@ database-gate tests; reproducing an incident (masked build).
   money arithmetic; `requireActive` outcomes, the ownership condition, the `LinkedSkater`
   ArchUnit rule, the security event's content; each session limit and that a refreshed token
   keeps `auth_time`; every `api-coach` route, rinkside included, refuses no token and a `Client`
-  token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); the rinkside queue (survives reload, duplicate dropped, failed stays
+  token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); a revoked access token gets 401 on every route, and Cognito unavailable gets 503, never a pass (ADR-023, 2026-11-25); the rinkside queue (survives reload, duplicate dropped, failed stays
   visible, future time rejected, both outcomes); no recorded outcome is never a no-show (Payments, the lesson list and the
   unpaid reminder); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's
@@ -1978,6 +1988,16 @@ database-gate tests; reproducing an incident (masked build).
      (owner, 2026-11-17, I13; ADR-032).
 - **Building dev by hand** with `build-dev` and the owner's Identity Center sign-in is allowed
   before that setup exists.
+- **Security scanning** (owner, 2026-11-25; ADR-032; Batch 30):
+  1. **secret scanning with push protection** on the repository;
+  2. **Dependabot alerts and security updates** for Maven, both npm projects and the pinned actions; its pull
+     requests pass the usual checks and the owner merges them;
+  3. **CodeQL (SAST)** in its default setup on every pull request and merge into `main`; `main`'s ruleset blocks a
+     merge on a high or critical finding;
+  4. **ZAP (DAST) against dev only, never production**: seed data only, never a masked build; signed in as the test
+     coach and family and signed out; firewall off, then on once. Before launch and before any release that changes
+     sign-in, the database gate, the firewall or a route's access checks. Run from the owner's machine; reports
+     never committed or put in a public run log. High and critical findings are fixed before that release.
 
 ---
 

@@ -54,6 +54,32 @@ on all of `core/`; not on pull requests or pushes to `main`)*, failing below 85%
 in `backend/core/pom.xml`, raised as tests improve). If runs get too slow, the next step is
 in-memory fakes for service tests, keeping DynamoDB Local for the repository tests.
 
+**Amended — 2026-11-25.** *Decided by the owner.* **Each API's OpenAPI document is generated from its code, committed,
+and kept current by a test.** The two APIs had no written description of their routes. One is wanted for documentation,
+and ZAP needs one to find every endpoint ([ADR-032](ADR-032-ci-on-github-actions.md), amended 2026-11-25): crawling
+the websites finds only the sign-in page.
+- **Generated, never hand-written.** **springdoc-openapi** (`springdoc-openapi-starter-webmvc-api`, no Swagger UI)
+  reads the Spring controllers (routes, parameters, request and response records, status codes) and writes the
+  document. Version **3.1.1**, the line built for Spring Boot 4.1 (springdoc 3.2 is for Boot 4.2): it moves when
+  Spring Boot's minor version does.
+- **A test dependency only**, in `api-coach` and `api-client`. It never reaches a Lambda package, so no deployed API
+  serves `/v3/api-docs` or any documentation page. CI checks the packages for it, as it already checks for the
+  test-only sign-in code (I31).
+- **One file per API, committed:** `docs/api/api-coach.openapi.yaml` and `docs/api/api-client.openapi.yaml`.
+  Deterministic, so a diff shows only real changes: keys sorted, a fixed server URL, and the local-profile routes
+  (`/api/*/local/**`) left out.
+- **A test per API keeps it current.** It starts the API's Spring context, as the controller tests do, generates the
+  document and compares it with the committed file. **If they differ, the build fails** and says how to update it: the
+  same test run with `-Dopenapi.update=true` rewrites the file, which is committed in the pull request that changed the
+  route. CI doesn't commit it: workflows have a read-only token (ADR-032 d2.6).
+- **Public, deliberately.** The repository is public, so the documents are too. They reveal little that the websites'
+  JavaScript doesn't already, and no access check depends on a route being unknown: the database enforces who reads
+  what ([ADR-021](ADR-021-tenant-isolation-at-the-database.md), [ADR-022](ADR-022-client-isolation-at-the-database.md)).
+- **Turned down:** *serving the document from the deployed APIs*, which adds a public route and startup work for no
+  user; *springdoc's Maven plugin*, which starts the whole application against a running database during the build;
+  *a hand-written document*, which drifts; *generating it in CI without committing it*, which gives no diff to review.
+- **Not decided:** a rendered page of the documents (Redoc or Swagger UI, as static files). Not needed for MVP.
+
 ---
 
 ## Decision
