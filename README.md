@@ -28,6 +28,9 @@ Batch 27 — on Payments, lessons from before January 1 of last year are view on
 they paid and no *Undo*, though an unpaid one can still be waived.
 Batch 17a — the AWS infrastructure's first part in CDK, written and tested; in dev only `bladebook-dev-identity` is
 deployed so far (see `infra/README.md`). The app itself still runs on this computer only.
+Batch 30a — the repository's security scanning: secret scanning with push protection, Dependabot alerts and
+security updates, CodeQL on every pull request, and `main`'s ruleset blocking a merge on a high or critical finding
+(`docs/runbooks/security-scanning.md`).
 
 ## Running it locally
 
