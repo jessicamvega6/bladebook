@@ -764,13 +764,16 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .bb .rk-seat .rk-namebtn { align-self: flex-start; }
 .bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
+/* The notice after the page saves its offline copy again (G-32, Batch 25). */
+.bb .pbanner--info { background: var(--info-soft); border: 1px solid var(--info-border); } .bb .pbanner--info .ic { color: var(--primary); }
+.bb .rk-fresh .btn { align-self: flex-start; margin-top: 8px; }
 
 html, body { margin: 0; background: #F7F3EC; }
 .demo-bar a { color: inherit; font-weight: 700; }
 </style>
 </head>
 <body>
-<div class="demo-bar"><span><b>Interactive demo</b> · sample data · Wed, Oct 14 at Pelham Civic Center</span><span>Signal: <a href="#today" data-act="rkSignal" data-arg='[true]'>on</a> · <a href="#today" data-act="rkSignal" data-arg='[false]'>off</a> (no signal since 6:15 AM; meanwhile one family cancels)</span><span>Clock: <a href="#today" data-act="rkClock" data-arg='[2]'>5:45 AM</a> · <a href="#today" data-act="rkClock" data-arg='[0]'>6:35 AM</a> · <a href="#today" data-act="rkClock" data-arg='[1]'>8:40 AM</a></span><span><a href="#today" data-act="rkNotLoaded">Open with nothing loaded</a> · <a href="#signin">Log in page</a></span><button type="button" onclick="resetDemo()">Reset demo</button></div>
+<div class="demo-bar"><span><b>Interactive demo</b> · sample data · Wed, Oct 14 at Pelham Civic Center</span><span>Signal: <a href="#today" data-act="rkSignal" data-arg='[true]'>on</a> · <a href="#today" data-act="rkSignal" data-arg='[false]'>off</a> (no signal since 6:15 AM; meanwhile one family cancels)</span><span>Clock: <a href="#today" data-act="rkClock" data-arg='[2]'>5:45 AM</a> · <a href="#today" data-act="rkClock" data-arg='[0]'>6:35 AM</a> · <a href="#today" data-act="rkClock" data-arg='[1]'>8:40 AM</a></span><span><a href="#today" data-act="rkNotLoaded">Open with nothing loaded</a> · <a href="#signin" data-act="rkCleared">Open after Safari cleared it</a> · <a href="#signin">Log in page</a></span><button type="button" onclick="resetDemo()">Reset demo</button></div>
 <div class="bb" data-layout="top"><div id="app"></div></div>
 <script>
 /* BladeBook screen library — extracted unchanged from design/redesign/option-5-harbor.html
@@ -1866,11 +1869,32 @@ SCREENS.signin = () => phoneShell(`
     ${B('Log in', 'primary', 'rkSignIn', { block: true, lg: true })}
     <p class="fine">This app shows today’s lessons, records attendance and cancels lessons. Your schedule, students and payments stay on the website.</p>
   </div>`, { bare: true });
+/* The code after the password, for a coach with two-step sign-in on (Batch 28, I32). The authenticator app is usually on
+   this same phone, so the screen says how to fetch the code and come back. */
+SCREENS['signin-code'] = () => phoneShell(`
+  <div class="rk-signin">
+    <span class="brand__mark rk-mark">${ic('logo', 26)}</span>
+    <h1 class="h1">Enter your sign-in code</h1>
+    <p class="lede">Open your authenticator app, copy the 6-digit code for <b>BladeBook</b>, then come back here.</p>
+    ${state.ui.rkCodeWrong ? `<div class="pbanner pbanner--danger">${ic('alert', 18)}<div><b>That code didn’t work</b><span>Type the code the app shows now. Each one lasts 30 seconds.</span></div></div>` : ''}
+    <div class="label">Code</div>${codeBoxes(state.ui.rkCodeWrong ? ['', '', '', '', '', ''] : ['4', '8', '2', '', '', ''])}
+    ${B('Log in', 'primary', 'rkSignInCode', { block: true, lg: true })}
+    <p class="fine center"><a class="link" href="${href('signin')}">Back to log in</a></p>
+    <p class="fine">Lost your phone? Contact BladeBook support. Once they’ve checked it’s you, they turn two-step sign-in off so you can log in.</p>
+  </div>`, { bare: true });
 Object.assign(ACTIONS, {
+  rkSignInCode() { state.ui.rkCodeWrong = false; ACTIONS.rkSignIn(true); },
+  /** Demo bar: open the page after Safari has cleared its stored data (a week without a visit). The sign-in went with it,
+      so the coach logs in first; with signal, the page saves its offline copy again and says so (G-32). */
+  rkCleared() { state = freshState(); state.authed = false; state.screen = 'signin'; state.ui.rkClearedNext = true; },
+  rkFreshOk() { rk().freshCopy = false; },
   /** Check-ins queued before a log-out send now, but only for the coach who recorded them (owner, 2026-11-09, R2).
-      Each entry carries that coach's ID; another coach signing in on this phone leaves them waiting. */
-  rkSignIn() {
+      Each entry carries that coach's ID; another coach signing in on this phone leaves them waiting.
+      codeDone: the two-step sign-in code has been typed (Batch 28). */
+  rkSignIn(codeDone) {
+    if (state.profile.mfa && codeDone !== true) { fresh(); go('signin-code'); return; }
     fresh(); state.authed = true; state.sheet = null; go('today');
+    if (state.ui.rkClearedNext) { state.ui.rkClearedNext = false; rk().freshCopy = true; }
     const r = rk(), n = r.queue.filter(q => q.coach === state.auth.email).length;
     if (n && r.online) { r.queue = r.queue.filter(q => q.coach !== state.auth.email); r.syncedAt = fmtT(NOW_MIN); r.toast = `${plural(n, 'check-in')} from before you logged out sent.`; }
   },
@@ -1918,6 +1942,7 @@ SCREENS.today = () => {
   const each = recordable().flatMap(seats), done = each.filter(isRecorded).length, nx = nextLesson();   // counts each skater
   const banners = [
     !r.online ? `<div class="pbanner pbanner--warn">${ic('wifiOff', 18)}<div><b>No signal since ${NO_SIGNAL_SINCE}</b><span>${r.queue.length ? `${plural(r.queue.length, 'check-in')} saved on this phone. They’ll send when signal comes back.` : 'Keep recording. Check-ins are saved on this phone and send when signal comes back.'}</span></div></div>` : '',
+    r.freshCopy ? `<div class="pbanner pbanner--info rk-fresh">${ic('check', 18)}<div><b>Saved for use without signal</b><span>It’s saved on this phone now, so it works at the rink with no signal. Safari clears it after a week without a visit, which also logs you out, so open it with signal before you leave for the rink.</span><button type="button" class="btn btn--secondary btn--sm"${actAttr('rkFreshOk')}>Got it</button></div></div>` : '',
     r.unsent.length ? `<a class="pbanner pbanner--danger rk-bannerlink" href="${href('unsent')}">${ic('alert', 18)}<div><b>${plural(r.unsent.length, 'check-in')} couldn’t be sent</b><span>See why ${ic('arrowR', 13)}</span></div></a>` : '',
   ].join('');
   return phoneShell(`${banners}${todays().map(lessonCard).join('')}
@@ -2094,6 +2119,8 @@ const leoNotYet = () => { const p = seatOf(lessonById(SHARED()), 's5'); p.status
 PRESETS.push(
   { id: 'RinkSignIn', file: 'signin', group: 'Sign in', title: 'Log in', note: 'New. Same email and password as the website, through the coach website’s sign-in; only a coach’s account gets in (ADR-023 d2, d7). Says what this page can and can’t do. BladeBook’s own form: the browser sends what’s typed straight to Cognito, never to BladeBook’s servers (ADR-023 d11, owner 2026-11-09).', setup: st => { st.authed = false; st.screen = 'signin'; } },
   { id: 'RinkSignInWaiting', file: 'signin-waiting', group: 'Sign in', title: 'Log in with check-ins waiting', note: 'New 2026-11-09 (owner, R2). Two check-ins saved before the coach logged out. They send after this coach logs in; another coach’s login leaves them waiting.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); st.rk.online = true; st.authed = false; st.screen = 'signin'; } },
+  { id: 'RinkSignInCode', file: 'signin-code', group: 'Sign in', title: 'Log in — two-step sign-in code', note: 'New (Batch 28, I32). After the password, a coach with two-step sign-in on types the code from the authenticator app, usually on this same phone. Same Cognito challenge as the website’s log-in.', setup: st => { st.authed = false; st.profile.mfa = true; st.screen = 'signin-code'; } },
+  { id: 'RinkSignInCodeWrong', file: 'signin-code-wrong', group: 'Sign in', title: 'Log in — wrong code', note: 'New (Batch 28). A wrong or out-of-date code: the boxes clear.', setup: st => { st.authed = false; st.profile.mfa = true; st.screen = 'signin-code'; st.ui.rkCodeWrong = true; } },
   { id: 'RinkToday', file: 'today', group: 'Today', title: 'Today’s lessons', note: 'Redesigned from Forest RinkToday. 6:35 AM: the shared 6:00 recorded for both skaters, Mia under way, later lessons show their start time instead of buttons, the held slot in place.', setup: st => { st.screen = 'today'; } },
   { id: 'RinkShared', file: 'today-shared', group: 'Today', title: 'Shared lesson — two skaters', note: 'New. Sam and Leo share the 6:00 (ADR-026 d6): one card, a row per skater, each with their own Present and No-show. Sam is recorded, Leo isn’t yet. The count counts each skater.', setup: st => { st.screen = 'today'; leoNotYet(); } },
   { id: 'RinkSharedContact', file: 'today-shared-contact', group: 'Today', title: 'Contact details — shared lesson', note: 'New. Each name in a shared lesson opens that skater’s own family: here Leo’s mother, Kate Martin. Fetched for this tap only, never stored (ADR-014 d9b).', setup: st => { st.screen = 'today'; leoNotYet(); st.sheet = { kind: 'contact', on: 'today', lid: SHARED(), sid: 's5' }; } },
@@ -2104,6 +2131,7 @@ PRESETS.push(
   { id: 'RinkSharedCancel', file: 'today-shared-cancel', group: 'Today', title: 'Cancel a shared lesson', note: 'New. 5:45 AM, before the shared 6:00 starts. Cancelling it cancels both skaters, and both families are emailed (ADR-026 d6, ADR-009 d5a).', setup: st => { st.screen = 'today'; ACTIONS.rkClock(2); st.sheet = { kind: 'cancel', on: 'today', lid: SHARED(), hold: 0 }; } },
   { id: 'RinkOffline', file: 'offline', group: 'No signal', title: 'No signal — saved on the phone', note: 'Redesigned from Forest RinkOffline. 8:40 AM with no signal: two check-ins saved on the phone with their device times, waiting to send.', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); NOW_MIN = CLOCK_LATE; ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkRecord(lid('s7', 510), 'CHECKED_IN'); } },
   { id: 'RinkNotLoaded', file: 'not-loaded', group: 'No signal', title: 'Today’s lessons haven’t loaded', note: 'Redesigned from Forest RinkNotLoaded. Opened with no signal before today was ever loaded.', setup: st => { st.screen = 'today'; st.rk.online = false; st.rk.loaded = false; } },
+  { id: 'RinkCleared', file: 'cleared', group: 'No signal', title: 'Saved for no signal — after Safari cleared it', note: 'New (G-32; ADR-014 amendment of 2026-10-13; Batch 25). Safari cleared the page’s stored data after a week without a visit, and the sign-in with it, so the coach logged in again. With signal, the page saved its offline copy again and says so at the top of Today until Got it. The wording is also true on a first visit, so the page never has to tell the two apart.', setup: () => { ACTIONS.rkCleared(); ACTIONS.rkSignIn(); } },
   { id: 'RinkCouldntSend', file: 'unsent', group: 'No signal', title: 'Couldn’t be sent', note: 'Redesigned from Forest RinkCouldntSend; reworked 2026-11-09 to ADR-014 d4a. The phone’s clock was wrong, so a check-in tapped for Mia’s 6:30 lesson carries a time that doesn’t fit it, and the server refused it. Record on the website, then Done; removed after 7 days. A family’s cancellation is never listed here (see RinkFamilyCancelled).', setup: st => { const l = lessonById(lid('s1', 390)), k = student(l.sid); st.screen = 'unsent'; st.rk.toast = ''; st.rk.unsent = [{ lid: l.id, name: k.name, when: `${dDow(l.iso)} · ${fmtT(l.t)}`, outcome: 'CHECKED_IN', at: '9:12 PM', reason: 'The phone’s time didn’t match the lesson, so it couldn’t be recorded.', days: 0 }]; } },
   { id: 'RinkFamilyCancelled', file: 'family-cancelled', group: 'No signal', title: 'Back online — the family had cancelled', note: 'Redesigned from Forest RinkFamilyCancelled. After the replay the cancelled lesson stays in place, struck through. The no-show is cleared, not listed as not sent (ADR-014 d4; owner, 2026-11-09).', setup: st => { st.screen = 'today'; ACTIONS.rkSignal(false); ACTIONS.rkRecord(lid('s1', 390), 'NO_SHOW'); ACTIONS.rkSignal(true); } },
   { id: 'RinkWeek', file: 'week', group: 'Cancel', title: 'This week — cancel lessons', note: 'New; reworked 2026-11-16 (owner): only three cancels — one lesson, a whole day, or the rest of the week. Each lesson has its own Cancel; a day with two or more lessons has Cancel whole day. Lessons on different days are cancelled one by one. Started lessons aren’t listed (ADR-009 d5a). Cancel rest of week, at the top, holds everything left with no question (2026-11-08).', setup: st => { st.screen = 'week'; } },

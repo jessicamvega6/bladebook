@@ -301,7 +301,8 @@ SCREENS['profile-account'] = () => {
     ${card(`
       <div class="fieldset"><div class="label">Login email</div><div class="input input--readonly"><span class="input__val">${esc(p.loginEmail)}</span>${badge('Verified', 'success', 'check')}</div>
         <div class="hint">You sign in with this and your morning email comes here. It can’t be changed from this page; families never see it unless it’s also your business email.</div></div>
-      ${row(`<span class="roundicon">${ic('lock', 16)}</span>${rowTitle('Password', 'Sign-in is handled by Amazon Cognito.')}`, B('Change password', 'secondary', 'mpPwOpen', { sm: true }), { cls: 'row--boxed' })}`,
+      ${row(`<span class="roundicon">${ic('lock', 16)}</span>${rowTitle('Password', 'Sign-in is handled by Amazon Cognito.')}`, B('Change password', 'secondary', 'mpPwOpen', { sm: true }), { cls: 'row--boxed' })}
+      ${mfaRow()}`,
       { title: 'Signing in' })}
     ${card(`
       ${row(`<span class="roundicon">${ic('phone', 16)}</span>${rowTitle('BladeBook rinkside page', 'Check skaters in from your phone. It uses the same email and password, and shows today’s lessons, attendance and cancelling.')}`, '')}`,
