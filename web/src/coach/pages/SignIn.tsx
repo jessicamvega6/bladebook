@@ -95,7 +95,7 @@ export function Login({ notice, noticeTone = 'info', onSignedIn, onVerify }: {
           {notice && <Banner tone={noticeTone}>{notice}</Banner>}
           {error && <Banner tone="danger">{error}</Banner>}
           <Field label="Login email" type="email" value={email} onChange={setEmail} autoComplete="username" />
-          <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="current-password" placeholder="••••••••" />
+          <Field label="Password" type="password" reveal value={pw} onChange={setPw} autoComplete="current-password" placeholder="••••••••" />
           <div className="fine"><a className="link" href="#/forgot">Forgot your password?</a></div>
           <Button type="submit" block lg disabled={busy}>Log in</Button>
           <p className="fine center">Sign-in is handled by Amazon Cognito. After five wrong passwords, wait a few minutes before trying again.</p>
@@ -164,7 +164,7 @@ export function Forgot({ onDone }: { onDone: (notice: string) => void }) {
             {flash && <Banner tone="success">{flash}</Banner>}
             {error && <Banner tone="danger">{error}</Banner>}
             <CodeInput value={code} onChange={setCode} />
-            <Field label="New password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" />
+            <Field label="New password" type="password" reveal value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" />
             <PasswordRules password={pw} />
             <Button type="submit" block lg disabled={busy}>Set new password</Button>
             <p className="fine center">
