@@ -82,6 +82,52 @@ built before production exists:**
   `main` only, production waiting for the owner's approval; and `main`'s ruleset with no bypass, so the owner too
   merges only by pull request.
 
+**Amended — 2026-11-25.** *Decided by the owner.* **Security scanning of the code, its dependencies and the running
+app.** Until now the pipeline checked the infrastructure (`cdk-nag`) and the planned structure (ArchUnit), but not the
+application code for security flaws, not the dependencies for known vulnerabilities, not the commits for leaked
+secrets, and not the running app under attack. The repository is public, so a committed secret is exposed the moment
+it is pushed. Built in Batch 30 (`AI/implementation-plan.md` §4).
+- **Secret scanning with push protection is on.** GitHub refuses a push holding a recognised credential, such as an
+  AWS access key, before it reaches the public repository; anything that gets through raises an alert. A repository
+  setting, set with `gh` like decision 2's. Free on a public repository.
+- **Dependabot alerts and Dependabot security updates are on**, for the Maven build (`backend/`), both npm projects
+  (`web/`, `infra/`) and the workflows' pinned actions. A dependency with a published vulnerability raises an alert,
+  and Dependabot opens a pull request moving it to the fixed version. Those pull requests pass the same checks as any
+  other and are merged by the owner. *This doesn't settle Open's question on version updates for pinned actions:
+  security updates move a pin only when the action has a published advisory.*
+- **Static application security testing (SAST) runs on every pull request and every merge into `main`**, with
+  GitHub's **CodeQL** in its default setup (no workflow file to pin; GitHub runs it). It covers the Java, TypeScript
+  and the workflows. `main`'s ruleset blocks a merge on a **high or critical** finding; lower ones are fixed or
+  dismissed with a written reason. Free on a public repository.
+- **Dynamic application security testing (DAST) runs against dev only, never production.** The tool is the Open
+  Worldwide Application Security Project (OWASP) **Zed Attack Proxy (ZAP)**, its container image pinned by digest
+  (decision 2, item 1's rule applied to images). It scans both websites and both APIs, signed in as dev's test coach
+  and test family, and also signed out.
+  - **When:** before launch, and before any release that changes sign-in, the database gate's roles or policies
+    (ADR-021, ADR-022), the firewall (ADR-019), or a route's access checks. Not on a schedule and not on every pull
+    request: dev exists only while there is work for it (ADR-027).
+  - **On what data:** dev on **seed data only**, never a masked build (ADR-028). The scanner fills in every form, so
+    it must never see anyone's data, even masked. Emails go to the test mailbox; dev has no SMS number (ADR-011).
+  - **With the firewall off, then on** (ADR-019 d4a). Off, so the firewall doesn't hide the app's own flaws; on, once,
+    to check its rules still let the app work.
+  - **Run from the owner's machine, not a workflow.** The repository is public, so its run logs, job summaries and
+    uploaded files are public too, and a scan report is a map of what's weak. Reports stay on the owner's machine,
+    out of the repository. The scan's settings and its recorded false positives are committed; its findings are not.
+  - **What a finding means:** high and critical are fixed before launch or before that release ships. Medium are fixed
+    or recorded with a reason in the root `README.md`'s gaps. False positives go in the committed rules file with the
+    reason.
+- **Why never production:** the scanner sends thousands of hostile and malformed requests and submits every form. In
+  production that would book and cancel real lessons, send real emails and texts to real families, put children's
+  data into a scan report, set off the firewall and the alarms (ADR-010), spend SMS money, harm SES's sending
+  reputation, and fill the personal-data access log (ADR-012) with noise.
+- **Turned down:** *a separate dependency audit step (`npm audit`, OWASP Dependency-Check)*, which repeats Dependabot's
+  alerts; *SpotBugs with FindSecBugs*, which repeats CodeQL's Java checks with another tool to maintain;
+  *third-party scanners (Snyk, Semgrep's cloud service)*, which need another account and send the code elsewhere;
+  *DAST in a workflow*, which publishes its findings (above); *a scheduled DAST*, which needs dev running all the time.
+- **Cost:** none. Secret scanning, Dependabot and CodeQL are free on a public repository, and ZAP is free software.
+  The scans add minutes to CI, which a public repository doesn't pay for. *If the repository is ever made private,
+  secret scanning and CodeQL need GitHub Advanced Security, which is paid: revisit then.*
+
 ---
 
 ## Context
@@ -189,6 +235,8 @@ runs in this pipeline as a build gate once ADR-001 A4 is settled. *A4 settled 20
 
 - **Keeping pinned actions current:** Dependabot can raise pull requests that move a pinned
   hash to a newer release. Decide whether to turn it on, or to check by hand on a schedule.
+  *2026-11-25: Dependabot security updates are on (amendment above), so a pin with a published advisory is
+  moved; version updates for the rest are still this question.*
 - **How long to keep run logs**, and whether to copy them anywhere.
 - **Keeping deploy roles away from personal data.** A deploy role is a new kind of AWS access
   ([ADR-012](ADR-012-pii-access-logging.md) lets only the owner's operator role read the
@@ -213,3 +261,5 @@ runs in this pipeline as a build gate once ADR-001 A4 is settled. *A4 settled 20
   favour CodePipeline.
 - Coaches grow in number, or someone else merges: bring back a gate so the browser flows pass
   before production, not just after.
+- The repository is made private: secret scanning and CodeQL then need paid GitHub Advanced
+  Security (amendment of 2026-11-25).

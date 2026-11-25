@@ -156,6 +156,7 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **HTTP** | Hypertext Transfer Protocol | — |
 | **REST** | Representational State Transfer | A style of web API built on resources and HTTP methods. Here it also names API Gateway's **REST API** flavour, chosen because only it can take a Web Application Firewall (ADR-001 A7, ADR-019). |
 | **JSON** | JavaScript Object Notation | Wire format for the API and for `report.json`. |
+| **OpenAPI** | *(not an acronym)* | *Added 2026-11-25 (ADR-013).* The standard format for describing an HTTP API's routes, parameters and responses. Each BladeBook API's document is generated from its Spring controllers by **springdoc-openapi** in a test, committed in `docs/api/`, and the build fails if it falls out of date. ZAP reads it to find every endpoint. |
 | **JWT** | JSON Web Token | Cognito's signed token. Critically: `coachId`/`clientId` is read from the **verified JWT claim**, never from the request body — that's what makes tenant isolation structural rather than a code convention. |
 | **Token stub** | *(not an acronym)* | *Added 2026-11-08 (Batch 1); test code only since 2026-11-20 (Batch 18, I31, I32).* `TestTokenStub`, in each API's test code: it signs ID tokens with the claims Cognito's carry (`sub`, `email`, `cognito:groups`, `aud`, `token_use`, `auth_time`), so the real group, app-client and sign-in-time checks run against them. Used by the API tests and by the seed generator, which starts the APIs from their test classpath (`stub-tokens` profile). Never in a Lambda package. |
 | **Tenant role** | — | An IAM role an API function assumes **per request**, tagged with the caller's identity (`coachId`, or `clientId` + `coachId` + `linkStatus`), whose policy uses `dynamodb:LeadingKeys` so DynamoDB itself refuses any other coach's or client's partition. The database half of the two-gate isolation in ADR-021 (`coach-tenant`; `checkin-tenant` withdrawn by ADR-023) and ADR-022 (`client-tenant`). |
@@ -251,6 +252,10 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **SQLi** | SQL injection | A WAF-blocked attack class. Largely inapplicable to DynamoDB, but the managed rule set covers it anyway. |
 | **SQL** | Structured Query Language | Relational query language. Not used — DynamoDB isn't relational. |
 | **XSS** | Cross-Site Scripting | Injecting script into a page another user views. Covered by WAF managed rules. |
+| **SAST** | Static Application Security Testing | *Added 2026-11-25 (ADR-032).* Scanning the source code for security flaws without running it. BladeBook's is GitHub's **CodeQL**, on every pull request and merge into `main`; a high or critical finding blocks the merge. |
+| **DAST** | Dynamic Application Security Testing | *Added 2026-11-25 (ADR-032).* Attacking the running app from outside, as an attacker would, to find flaws the code alone doesn't show. BladeBook runs it **against dev only, never production**, on seed data, from the owner's machine (ZAP). |
+| **OWASP** | Open Worldwide Application Security Project | A non-profit that publishes web-security guidance and free tools, ZAP among them. |
+| **ZAP** | Zed Attack Proxy | *Added 2026-11-25 (ADR-032).* OWASP's free DAST scanner. BladeBook runs its container image, pinned by digest, against dev before launch and before security-relevant releases. |
 
 ---
 

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/sites.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "zap-sign-in": "node scripts/zap-sign-in.ts"
   },
   "dependencies": {
     "@fontsource/figtree": "5.3.0",

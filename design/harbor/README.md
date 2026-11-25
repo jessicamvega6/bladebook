@@ -15,9 +15,9 @@ moments, warm sand neutrals, pill buttons and a centred pill navigation. Light-o
 | `shared.js` | What the three apps share: sample data (Coach Dana Whitfield; today is Wed, Oct 14, 2026), date and money helpers, controls bound to state, the modal overlay and the browser runtime. |
 | `build-app.mjs` | Builds the client website or the rinkside app: `node design/harbor/build-app.mjs client` (or `rinkside`). |
 | `library.js` | The component vocabulary (`card`, `row`, `badge`, `banner`, `stat`, `monthGrid`, …) and the 41 redesigned screens, extracted unchanged from `redesign/option-5-harbor.html`. |
-| `coach/` | The coach website: 57 pages, as an interactive demo and as static designs. |
+| `coach/` | The coach website: 73 pages, as an interactive demo and as static designs. |
 | `client/` | The family website: 69 pages. |
-| `rinkside/` | The rinkside check-in app: 20 phone screens. |
+| `rinkside/` | The rinkside check-in app: 24 phone screens. |
 
 ## Coach website — `coach/`
 
@@ -34,26 +34,27 @@ node design/harbor/coach/build.mjs
 | `screens-calendar.*` | Month, week and day views, and the cancel preview (release or hold per lesson) |
 | `screens-students.*` | Student list (each skater's organization and number from sign-up, ADR-029; contact details read-only, families edit their own; remove is Phase 2) and the pending list (each skater's number; approve, decline). Approving changes only the skater’s record; no shared lesson waits on it (ADR-033) |
 | `screens-money-profile.*` | Lessons (attendance corrections), Payments, Profile (five tabs) and Email templates (Phase 2) |
-| `schedule.html` | The schedule section: weekly editor, time off, special schedules, review and save status. A copy of `redesign/harbor-schedule-creator-demo.html` with the shared navigation and October sample dates |
+| `screens-profile-mfa.*` | Two-step sign-in, a coach's multi-factor authentication (MFA) with an authenticator app (Batch 28): turning it on and off in Profile → Account, and the code at log-in |
+| `schedule.html` | The schedule section: weekly editor, time off (new or edited), special schedules, review, the *Confirm it's you* box before a save (with the authenticator code when two-step sign-in is on) and save status. A copy of `redesign/harbor-schedule-creator-demo.html` with the shared navigation and October sample dates |
 | `build.mjs` | Writes `demo/` and `static/`. Static pages are rendered from each screen file's `PRESETS` and from fixed states of `schedule.html` |
 
 Navigation: **Today · Calendar · Schedule · Students · Lessons · Payments · Profile**.
 
 ### Pages
 
-57 static pages. New means no design existed before; redesigned means a Forest screen existed.
+73 static pages. New means no design existed before; redesigned means a Forest screen existed.
 
 | Group | Pages |
 |---|---|
-| Sign in | Log in, forgot password (email a code; code and new password) — new |
+| Sign in | Log in, forgot password (email a code; code and new password) — new; the two-step sign-in code and a wrong code — new 2026-11-23 (Batch 28) |
 | Sign up | Account, verify login email, business details (different / same email), confirm business email, all set — redesigned |
 | Dashboard | Today — new (the Forest "dashboard" was the schedule hub); Today with the coach code not working yet — new |
 | Calendar | Month — new; week — redesigned; day — new; cancel preview (release or hold per lesson) — redesigned; cancel preview for the rest of the week (everything held, no question; 2026-11-08) — new; cancelling a shared lesson — new; week after cancelling — new |
-| Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new** |
+| Schedule | Hub, weekly editor (with skaters per lesson, rink and ice type on each block; a block with no ice type blocks review), editor with no ice type — new, editor with overlapping blocks, time off or special?, time off, time off overlap, review (schedule and time off), save status (applying, done) — redesigned; **special schedule dated form — new**; edit time off (opened with its saved dates; dates moved; already started) and its review listing only the lesson on an added date and the dates given back — new 2026-11-23 (G-30, Batch 21); *Confirm it's you* before a save, password only (as built in Batch 18), with the authenticator code, and with a wrong code — new 2026-11-23 (Batch 28) |
 | Students | Student list, pending list, decline, nobody waiting — new |
 | Lessons | Pick a range, attendance corrections — redesigned |
 | Payments | Pick a range, unpaid, all — redesigned; mark paid with how they paid, waive, lessons from before last year (view only), financial summary — new |
-| Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new |
+| Profile | Details and coach code, details with the coach code not working yet (new, ADR-016 amended 2026-11-06), business email, visibility and texts — redesigned; payments, account — new; two-step sign-in on, turning it on (check it's you, add to the app, type a code, wrong code, done) and turning it off — new 2026-11-23 (Batch 28) |
 | Phase 2 | The coach's daily report (2026-11-11; tagged Phase 2 on Email templates). Email templates, with the shared-lesson invitation and its “no longer available” email — new; personal price and remove a student (moved to Phase 2, 2026-10-13). The consent-link invitation, the shared-lesson warning and the other emails ADR-033 moved to Phase 2 aren’t drawn |
 
 ### What the demo does not do
@@ -106,6 +107,9 @@ wide screens and full-screen on a phone. Now is 6:35 AM at Pelham Civic Center. 
 turns signal off and on, moves the clock to 5:45 or 8:40 AM, and opens the app with nothing loaded.
 Today's 6:00 lesson is shared by Sam and Leo: one card, each skater with their own check-in, and cancelling it
 cancels both (ADR-026 d6).
+The demo bar's *Open after Safari cleared it* logs the coach out, as Safari's clearing does, and after log-in Today says the
+page is saved for no signal again (G-32, Batch 25). The wording is true on a first visit too, so the page never has to tell
+the two apart. A coach with two-step sign-in on types the authenticator code after the password (`signin-code`, Batch 28).
 Entries made with no signal are saved on the phone and sent when signal returns; one is
 cleared because the family cancelled meanwhile, and the lesson shows as cancelled on Today
 (ADR-014 d4). Entries still waiting survive a log-out and send after the same coach logs in
