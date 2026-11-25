@@ -129,7 +129,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 | `consumer-change-notifier` | `LessonsChanged` | One message per family (or to the coach) per change batch; the coach's late-cancellation SMS. |
 | `consumer-student-link` | `StudentChanged` | Keeps the family's link item in step with the coach's `STUDENT#` item; sends the decline email. |
 | `consumer-family-sync` | `FamilyChanged` | Copies family and skater details to every coach's `STUDENT#` record and upcoming seats; issues share codes. |
-| `consumer-invite` | Seat changes, lesson-time `pendingLeave` changes, booking markers and joined markers | Writes read-only copies on seats; sends shared-lesson emails (§8). A booking's invitation and an answer's "joined" emails are sent from their markers, once every date is written (owner, 2026-11-25). |
+| `consumer-invite` | Seat changes, lesson-time `pendingLeave` changes, and booking, joined and ended markers | Writes read-only copies on seats; sends shared-lesson emails (§8). A booking's invitation, an answer's "joined" emails, and "declined" and "withdrawn" are sent from their markers, once every date is written (owner, 2026-11-25). |
 | `consumer-ttl-archiver` | DynamoDB Stream, Time to Live (TTL) removals only | Copies expired items to the archive bucket. |
 | `sched-day-reminder` | Scheduler, ~7:00am | Day-of emails to families; the coach's morning email. |
 | `sched-unpaid-reminder` | Scheduler, weekly | Long-unpaid lessons, to the coach. |
@@ -234,6 +234,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
 | Booking marker | `COACH#<coachId>` | `BOOKED#<clientId>#<idempotencyKey>` | `clientId`, `seatKeys` (the seats the request booked), `bookedAt`, `expiresAt` (30 days). Written by `api-client` after a booking request's seats and series headers; it is what `LessonBooked` matches, so a request gets one confirmation, and `SharedLessonChanged` too, so a booking that invites another skater sends one invitation (owner, 2026-11-25) |
 | Joined marker | `COACH#<coachId>` | `JOINED#<clientId>#<inviteId>` | As the booking marker: `clientId`, `seatKeys` (the dates the answer joined), `bookedAt`, `expiresAt` (30 days). Written by `api-client` after an accepted invitation's dates; `SharedLessonChanged` matches it, so each family gets one "joined" email per answer (owner, 2026-11-25) |
+| Ended marker | `COACH#<coachId>` | `ENDED#<clientId>#<inviteId>#<DECLINED\|WITHDRAWN>` | `clientId`, `bookedAt`, `expiresAt` (30 days). Written by `api-client` after one family's decline, withdrawal, or cancel or series change that withdrew an invitation; `SharedLessonChanged` matches it, so that email goes once for every date (owner, 2026-11-25) |
 
 The family profile is the **source of truth** for contact details, and the `SKATER#` item for who
 the skater is. The coach's `STUDENT#` record holds copies.
@@ -288,7 +289,7 @@ number had opted out, so no SMS was attempted.
 | `NoShowRecorded` | Attendance write, `NO_SHOW` | Payment reminder — Phase 2 |
 | `StudentChanged` | `STUDENT#` modified (`studentStatus`, `studentName`) or removed | `consumer-student-link` |
 | `FamilyChanged` | `CLIENT#` `PROFILE` or `SKATER#` created or modified (a new skater needs its share code, §5) | `consumer-family-sync` |
-| `SharedLessonChanged` | A shared-lesson seat change, a lesson time's `pendingLeave` written or cleared, or a booking or joined marker written (the booking's invitation, the answer's "joined" emails; 2026-11-25) | `consumer-invite` |
+| `SharedLessonChanged` | A shared-lesson seat change, a lesson time's `pendingLeave` written or cleared, or a booking, joined or ended marker written (the booking's invitation, the answer's "joined" emails, "declined" or "withdrawn"; 2026-11-25) | `consumer-invite` |
 
 **How a change becomes a named event** (owner, 2026-11-17, I6). **One Pipe** reads the stream and puts each
 record on the bus **unchanged**: no enrichment function, no renaming. **Each event above is an EventBridge
@@ -886,7 +887,9 @@ sweep. *(2026-11-23, I36: past `answerBy` the staying family's card just stops s
   the request's booking marker sends it once every date is written, after copying the invited family onto each date, and a
   series is one line with its start, how often and its end date (owner, 2026-11-25). A freed place's one-date invitation is
   still sent from its seat's event. Likewise "joined": accepting writes a `JOINED#` marker after its dates, and both
-  families' "joined" emails go from it, a series as one line (owner, 2026-11-25).*
+  families' "joined" emails go from it, a series as one line (owner, 2026-11-25). "Declined" and "withdrawn" too: a decline, a
+  withdrawal, or a cancel or series change that withdraws an invitation writes an `ENDED#` marker after its dates, and the
+  email goes from it. "No longer available" (an expiry) still goes from each date, at that lesson's start (2026-11-25).*
 
 ### Coaches see every skater
 
