@@ -1900,6 +1900,10 @@ database-gate tests; reproducing an incident (masked build).
   written by hand**.
 - **Playwright, two flows only:** (1) book a lesson end to end; (2) save a schedule change that
   cancels bookings. Flow 2 is also the post-deploy check (§19).
+- **Each API's OpenAPI document is generated and checked** (owner, 2026-11-25; ADR-013): springdoc-openapi 3.1.1 as
+  a test dependency only (never in a Lambda package; CI checks), one committed file per API in `docs/api/`, keys
+  sorted and local-profile routes left out. A test per API generates it and **fails the build if it differs from the
+  committed file**; `-Dopenapi.update=true` rewrites it. Public, like the repository. ZAP reads it (§23).
 - **Database-gate tests run against real AWS (dev)**, never DynamoDB Local (which ignores IAM),
   from `docs/runbooks/database-gate-tests.md`, **against dev's real table and tenant roles**
   (read from the stack's outputs), with the test records in the seed file and, in dev only, a
