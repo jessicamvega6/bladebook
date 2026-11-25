@@ -27,6 +27,11 @@ prefer if you know.
   a full-page error with no way back. Handle it on the page instead (an inline message on the
   date field, like the existing range error) so the coach can just pick another date
   (`web/src/coach/pages/Lessons.tsx:87`, `web/src/coach/pages/Payments.tsx:92`).
+- [ ] **Lessons** and **Payments**: when the "The end date is before the start date." error shows
+  under **To**, the **From** field drops down out of line with it. The two date fields should
+  stay level with each other whether or not an error is showing (line them up by their tops, and
+  let the error sit below without pushing **From** around) (`web/src/coach/pages/Lessons.tsx:84`,
+  `web/src/coach/pages/Payments.tsx:89`).
 
 ## Family app
 
