@@ -212,12 +212,16 @@ public final class FinancialSummary {
      * The summary download: one row per month with the paid lessons and gross received (net of undos), then the
      * year's totals. No skater names or personal data. Amounts in {@code currency}, as decimals. The fourth column is
      * what was paid this month for lessons in earlier years (owner, 2026-11-13); the fifth, what was taken off for
-     * earlier years' lessons marked unpaid this month (owner, 2026-11-16). Both are positive.
+     * earlier years' lessons marked unpaid this month (owner, 2026-11-16). Both are positive. Their headers name the
+     * years ("Paid in 2026 for 2025 lessons"; owner, 2026-11-25): only last year's lessons can be paid late or
+     * undone (Batch 27).
      */
     public static String csv(Summary s, String currency) {
         StringBuilder out = new StringBuilder();
-        line(out, "Month", "Paid lessons", "Gross received (" + currency + ")", "Of which for lessons in earlier years (" + currency + ")",
-                "Taken off for earlier years' lessons marked unpaid (" + currency + ")");
+        int y = s.year();
+        line(out, "Month", "Paid lessons", "Gross received (" + currency + ")",
+                "Paid in " + y + " for " + (y - 1) + " lessons (" + currency + ")",
+                "Taken off in " + y + " for " + (y - 1) + " lessons marked unpaid (" + currency + ")");
         for (Month m : s.months()) {
             String label = m.month().getMonth().getDisplayName(TextStyle.FULL, Locale.US) + " " + s.year();
             if (!s.closed() && m.month().equals(YearMonth.from(s.today()))) {

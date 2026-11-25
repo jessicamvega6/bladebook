@@ -19,7 +19,8 @@ paid later counts in the year, and month, it was marked paid, flagged as for an 
 Until then it counted in no year. The closed year itself is unchanged by a late payment (decision
 4). Every other paid lesson still counts by its lesson date (decision 2). The page labels the
 amount (*"Includes $30 for 2025 lessons"*), and the summary download gives it a column of its own
-(*"Of which for lessons in earlier years"*), so a tax preparer can see it. The page reads this
+(*~~"Of which for lessons in earlier years"~~ "Paid in 2026 for 2025 lessons"*, renamed
+2026-11-25), so a tax preparer can see it. The page reads this
 year's lessons and last year's; a lesson from further back marked paid now isn't counted
 (implementation plan, Batch 12).
 
@@ -49,6 +50,13 @@ not changed."*) and marks each row view only; the page shows *View only* in plac
 hides *Change* on how they paid. **An unpaid one can still be waived** (it asks first, as always):
 a waive never touches these figures, and it settles the lesson so the weekly unpaid reminder
 (ADR-018) stops listing it and its record can expire (ADR-017).
+
+**Amended — 2026-11-25.** *Ruled by the owner.* **The download's two earlier-years columns name
+the years.** In the 2026 download: *"Paid in 2026 for 2025 lessons"* (was *"Of which for lessons
+in earlier years"*) and *"Taken off in 2026 for 2025 lessons marked unpaid"* (was *"Taken off for
+earlier years' lessons marked unpaid"*). One year is always right, because only last year's lessons
+can be paid late or undone (the 2026-11-16 amendment above). What the columns hold is unchanged
+(decision 7).
 
 **Defines** MVP feature 16 (`architecture.md` §10), which so far had no ADR.
 
@@ -172,9 +180,10 @@ What the export holds, and what is MVP or Phase 2, is product content — see
   2026-11-16 (Batch 26), a closed year's download comes from its saved figures (decision 4).*
   *Amended 2026-11-16 by the owner:* **five columns**, one row per month and a totals row:
   *Month*, *Paid lessons* (net of undos, never below zero in a month), *Gross received* (net of
-  undos), *Of which for lessons in earlier years* (late payments only, never net of undos, so
-  never negative) and *Taken off for earlier years' lessons marked unpaid* (the undone amounts,
-  as a positive figure). Amounts are in the coach's currency.
+  undos), *Paid in 2026 for 2025 lessons* (late payments only, never net of undos, so never
+  negative) and *Taken off in 2026 for 2025 lessons marked unpaid* (the undone amounts, as a
+  positive figure). *(Headers as in the 2026 download; renamed 2026-11-25 from "Of which for
+  lessons in earlier years" and "Taken off for earlier years' lessons marked unpaid".)* Amounts are in the coach's currency.
 - **Phase 2: a detailed export** with skater names. It is mostly children's data leaving
   BladeBook in a file, so it is decided with the privacy rules; every such export would be a
   logged PII read (ADR-012).
