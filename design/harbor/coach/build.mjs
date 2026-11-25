@@ -117,11 +117,14 @@ html, body { margin: 0; background: var(--sp-bg); }
 @media (max-width: 760px) { .sp-bar { padding: 10px 16px; } }`;
 fs.mkdirSync(path.join(HERE, 'static'), { recursive: true });
 for (const f of fs.readdirSync(path.join(HERE, 'static'))) if (f.endsWith('.html')) fs.unlinkSync(path.join(HERE, 'static', f));
+/* Strip tags until none are left, so a nested one like <<b>script> can't survive one pass (CodeQL
+   js/incomplete-multi-character-sanitization; Batch 30b). */
+const stripTags = s => { let prev; do { prev = s; s = s.replace(/<[^>]+>/g, ''); } while (s !== prev); return s; };
 order.forEach((p, i) => {
   const prev = order[(i - 1 + order.length) % order.length], next = order[(i + 1) % order.length];
   const css = p.source === 'schedule' ? schedCss : CSS;
   const bar = `<header class="sp-bar"><span>BladeBook coach website · Harbor · ${p.group}</span><b>${p.title}</b><span class="sp-bar__note">${p.note || ''}</span><nav class="sp-bar__nav"><a href="${prev.file}.html">← ${prev.title}</a><a href="index.html">All pages</a><a href="${next.file}.html">${next.title} →</a></nav></header>`;
-  const head = `<title>${p.title.replace(/<[^>]+>/g, '')} · BladeBook coach (Harbor)</title>\n${FONTS}\n<style>\n${css}\n${STATIC_CSS}\n</style>`;
+  const head = `<title>${stripTags(p.title)} · BladeBook coach (Harbor)</title>\n${FONTS}\n<style>\n${css}\n${STATIC_CSS}\n</style>`;
   fs.writeFileSync(path.join(HERE, 'static', p.file + '.html'), doc(head, `${bar}\n<div class="sp-page"><div class="bb" data-layout="top">${fixLinks(p.html)}</div></div>`));
 });
 

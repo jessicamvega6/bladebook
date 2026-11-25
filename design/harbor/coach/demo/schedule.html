@@ -767,7 +767,7 @@ const fmt = m => { const h24 = Math.floor(m / 60), mm = m % 60, h = h24 % 12 ===
 const hm = m => { const h24 = Math.floor(m / 60), mm = m % 60, h = h24 % 12 === 0 ? 12 : h24 % 12; return `${h}:${String(mm).padStart(2, '0')}`; };
 const short = m => fmt(m).replace(':00', '').replace(' ', '').toLowerCase();
 const money = n => '$' + n.toLocaleString('en-US');
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const slotsOf = b => { const o = []; for (let t = b.sod; t + b.len <= b.eod; t += b.len) o.push(t); return o; };
 const label = b => esc(b.name).trim() || `Block ${blks().indexOf(b) + 1}`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
