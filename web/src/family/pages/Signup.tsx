@@ -106,6 +106,8 @@ export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
   const [skaters, setSkaters] = useState<Array<SkaterDraft & { coaches: string[] }>>([]);
   const [draft, setDraft] = useState<SkaterDraft>({ name: '', org: 0, number: '', coaches: null });
   const [done, setDone] = useState<Family | null>(null);
+  /** Signed up, but a coach's request couldn't be sent (a 409 from the registration): said on the last step. */
+  const [doneNote, setDoneNote] = useState('');
   const [error, setError] = useState('');
   const [existing, setExisting] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -255,9 +257,9 @@ export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
           </div>
           {!token && (
             <>
-              <Field label="Password" type="password" value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
+              <Field label="Password" type="password" reveal value={pw} onChange={setPw} autoComplete="new-password" placeholder="At least 8 characters" error={show(problems.pw)} />
               <PasswordRules password={pw} />
-              <Field label="Confirm password" type="password" value={pw2} onChange={setPw2} autoComplete="new-password" placeholder="Type it again" noPaste
+              <Field label="Confirm password" type="password" reveal value={pw2} onChange={setPw2} autoComplete="new-password" placeholder="Type it again" noPaste
                 error={show(problems.pw2)} hint="Type it again rather than pasting. Pasting is turned off here." />
             </>
           )}
@@ -331,12 +333,23 @@ export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
       if (!token) { onSignInAgain(); return; }
       setBusy(true);
       setError('');
+      const api = familyApi(() => familyAuth().idToken());
       try {
-        setDone(await familyApi(() => familyAuth().idToken()).register(body));
+        setDone(await api.register(body));
         setStep(4);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) onSignInAgain();
-        else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+        else if (e instanceof ApiError && e.status === 409) {
+          // The account exists: signed up with some coaches but not all (said on the last step), or "already signed up"
+          // after a send whose answer was lost. Either way that's done, so move on with the account as it is.
+          try {
+            setDone(await api.me());
+            setDoneNote(/already signed up/i.test(e.message) ? '' : e.message);
+            setStep(4);
+          } catch {
+            setError(e.message);
+          }
+        } else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
       } finally {
         setBusy(false);
       }
@@ -439,6 +452,7 @@ export function Signup({ token, verifyEmail, onToken, onDone, onSignInAgain }: {
           <span className="hero__icon"><Icon name="check" size={26} /></span>
           <div><h1 className="h1">You’re in</h1><p className="lede">Signed in as {fam.contact.email}. One thing left: {doneWho}.</p></div>
         </div>
+        {doneNote && <Banner tone="warning">{doneNote}</Banner>}
         <div className="listbox">
           {fam.skaters.map((k) => (
             <Row key={k.name} lead={<Avatar name={k.name} size="sm" />} title={k.name}

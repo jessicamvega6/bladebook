@@ -9,6 +9,7 @@
 import { cognitoAuth } from './cognito';
 
 export { AuthFailure } from './errors';
+export { addWrongPassword, clearWrongPasswords } from './storage';
 export type { AuthFailureCode } from './errors';
 
 /** What a log-in needs next: nothing, or the email's code (an account that never verified its email). */

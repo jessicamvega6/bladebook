@@ -8,6 +8,7 @@
   "homeUrl": "https://family.bladebook.org/#/home",
   "familyFirst": "Grace",
   "noticeHours": "24",
+  "onlyCancelled": false,
   "cancelled": [
     {
       "date": "Mon, Nov 2",

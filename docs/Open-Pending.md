@@ -124,7 +124,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   action writes another family's records. The total price is stored only on the lesson time;
   each share is worked out as `priceMinor ÷ shareCount`, and a re-price changes only the lesson
   time's price. A leave in time is recorded as a pending leave on the lesson time; the staying
-  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.*
+  family's seat isn't touched. So ADR-024 needs no shared-lesson exception.* *Amended 2026-11-23
+  (owner, I36): the leave makes the staying skater's lesson private at the full price at once, and
+  no answer keeps it.*
   *Changed 2026-10-20 (ADR-033): only a skater ACTIVE with the coach can be invited or added as a
   sibling; inviting a skater new to the coach is Phase 2.*
 - **Open question — needs Kim (§8 Q7): Is 7 days the right limit** for the staying family to
@@ -306,8 +308,12 @@ change each season. Recorded in ADR-029 (2026-10-12); the research and Kim's ans
   `missedLessonFeeMinor` ≠ `priceMinor`** — client-facing wording on the outstanding view and
   the reminder. For MVP a no-show shows ~~its full lesson price~~ its share worked out from the lesson time (the
   full price, unless shared) *(Revised 2026-10-13 (ADR-031))*. (ADR-015)
-- **Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
-  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)
+- ~~**Open question: Bounds on `requiredNoticeHours`** for when coaches can edit it in Phase
+  2 — may a coach set 0? 168? A fixed list? MVP defaults to 24. (ADR-015, ADR-016)~~
+  **Settled 2026-11-23 by the owner: at least 24 hours.** A coach may raise it (Phase 2) but
+  never set it below 24; `CoachProfile` refuses less. This keeps a shared lesson's answer-by
+  time a day before the lesson. The upper bound and the control's shape are for the Phase 2
+  form. (ADR-016)
 - **Open question (Phase 2): Does any cancel confirmation become a definite "will incur" with
   an amount?** MVP says "may incur" everywhere. (ADR-015 decision 6)
 - **Open question (Phase 2): Is unpaid history shown to the client, or only the coach?**
@@ -668,9 +674,12 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
   email, skaters' names, and each skater's organization and number (US Figure Skating, USA Hockey or Learn to Skate USA).
   (Harbor design, ADR-002) *2026-10-20: the design shows organization and number (ADR-029); check
   the rest when building.*
-- **To-do: Configure SES event destinations** for bounce, complaint and delivery. The pages
-  on bounce and complaint rate are already decided (ADR-010 decision 4); they need this data
-  to fire. (monitoring-questions §3)
+- **To-do (Phase 2): Configure SES event destinations** for bounce, complaint and delivery.
+  *Corrected 2026-11-20:* the pages on bounce and complaint rate (ADR-010 decision 4) don't need
+  them. They read SES's account-level `Reputation.BounceRate` and `Reputation.ComplaintRate`
+  metrics, which SES reports on its own (`infra/lib/alarms.ts`). Event destinations are needed
+  only for Phase 2's per-address bounce flag below, and for real delivery confirmation.
+  (monitoring-questions §3)
 - ~~**Open question: What happens to a hard-bounced address?**~~ Nothing marks it invalid, so the
   next message goes to it again and pushes the bounce rate up. **Settled 2026-10-12 by the
   owner.** Typos can't reach the system: sign-up and every email change are verified with a
@@ -683,7 +692,7 @@ delivery confirmation" is about email (SES), not SMS, so it stays open.
     an "email not working" marker on the roster. It clears when the email changes.
   (monitoring-questions §3)
 - **To-do: Confirm the SES account-level suppression list is on** (bounces and complaints) in
-  the production account. (monitoring-questions §3)
+  the production account. *Planned in Batch 29 (2026-11-20).* (monitoring-questions §3)
 - **To-do: Turn on Cognito's "keep original attribute value active until verified"** for
   email, so a family who changes email but never enters the code keeps their old, verified
   login. (`FeatureDecriptions/ClientProfileView`)
@@ -858,6 +867,8 @@ environment, and dev is built on demand and destroyed when done (ADR-027).*
 
 - **To-do: Write the two shared-lesson emails to the family who stays** — "the other skater can't
   make it: keep at full price or cancel" and "cancelled, no answer". Both always sent.
+  *Amended 2026-11-23 (I36): one email, "now private — keep or cancel"; "cancelled, no answer" is
+  gone, since no answer keeps the lesson.*
   *Added by the owner 2026-10-13.* (ADR-026, amended 2026-10-13; `FeatureDecriptions/Email templates Needed:`)
   *Changed 2026-10-13 (ADR-031 decision 8): the answer-by time in both is whichever comes
   first, the start of the notice period or 7 days after the leave.*

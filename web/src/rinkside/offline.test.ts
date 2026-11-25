@@ -12,9 +12,17 @@ test('the queue keeps one entry per skater and lesson, labelled with its coach, 
   enqueue(q({ coach: 'ben@gmail.com' }));
   expect(queue()).toHaveLength(2);
   expect(queuedFor('dana@gmail.com')).toEqual([q({ outcome: 'CHECKED_IN' })]);
-  dequeue(q());
+  dequeue(q({ outcome: 'CHECKED_IN' }));
   expect(queuedFor('dana@gmail.com')).toEqual([]);
   expect(queuedFor('ben@gmail.com')).toHaveLength(1);
+});
+
+test('removing a sent entry leaves a newer tap of the same skater that was queued meanwhile', () => {
+  enqueue(q());
+  const sent = queue()[0]!;
+  enqueue(q({ outcome: 'CHECKED_IN', outcomeAt: '2026-11-16T12:46:00Z' }));   // re-tapped while the first was on its way
+  dequeue(sent);
+  expect(queue()).toEqual([q({ outcome: 'CHECKED_IN', outcomeAt: '2026-11-16T12:46:00Z' })]);
 });
 
 test('a refused entry is kept seven days, marked the day before it goes, and Done removes it', () => {

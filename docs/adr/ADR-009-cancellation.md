@@ -108,6 +108,14 @@ the 2026-11-17 amendment above.* That amendment had no place to plan a lesson no
 - **Only *this lesson* asks release or hold** (decision 5), and it is one transaction, so it can't stop
   part-way.
 
+**Amended — 2026-11-21.** *Decided by the owner (ruling I35 in `AI/plan-history.md`).* A day or the
+rest of the week is recorded as **a schedule change** (`cancelledBy = SCHEDULE_CHANGE`), not the
+coach's, so families get the **schedule-change email**. That email now reads like the
+*cancelled by the coach* one whenever it carries only cancellations: the subject "Cancelled: Mia's
+lesson on …", "Coach Dana can't teach …", "You won't be charged", "Book another time". The *cancelled
+by the coach* email stays for a single lesson. Why: both said the lesson was gone, and keeping them
+apart needed a special case so the stream's own run of the time off couldn't send the other email.
+
 So the 2026-11-08 and 2026-11-16 amendments' "the rest of the week holds everything" and "a whole day
 still asks release-or-hold for each lesson", and decisions 5 and 5a where they apply to a day or a
 week, no longer describe what happens.
@@ -217,6 +225,14 @@ vary is the number of weeks between occurrences. `intervalWeeks` is an integer, 
 - **An integer supplies the ordering for free.** "Less frequent, never more frequent" is
   `newInterval > currentInterval`. A named enum needs an explicit ordering that has to be
   maintained as values are added.
+
+**Amended 2026-11-23 (owner): the new interval must also be a multiple of the current one.**
+The change only cancels, so the lessons kept have to be ones already booked. From every 2
+weeks to every 3, the kept dates are weeks 0, 6, 12, which is really every 6 weeks while the
+header says every 3. So from weekly any of 2, 3 or 4 is offered, from every 2 weeks only 4,
+and from every 3 weeks nothing (the page says it can't be spaced out further). Re-spacing the
+series onto new dates was set aside until Kim says families ask for it (`Items to ask Kim
+About.md` §15).
 
 The cap of 4 is where a standing arrangement stops being one. It also interacts with
 ADR-006 decision 4's twelve-month ceiling: at interval 1 that is up to 52 lessons, at

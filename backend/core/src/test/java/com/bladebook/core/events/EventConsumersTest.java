@@ -12,6 +12,7 @@ import com.bladebook.core.service.LocalOutbox;
 import com.bladebook.core.service.NotificationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -66,9 +67,105 @@ class EventConsumersTest {
                         oldImage == null ? "" : ",\"OldImage\":" + oldImage);
     }
 
+    /** The family's link to the coach, as signing up writes it, with the sign-up time of the coach's record it goes with. */
+    private void link(String coachId, String signedUpAt) {
+        f.clients.forSetup().putItem(b -> b.tableName(f.table).item(Map.of("PK", AttributeValue.fromS("CLIENT#f1"),
+                "SK", AttributeValue.fromS("STUDENT#" + coachId + "#s1"), "coachId", AttributeValue.fromS(coachId),
+                "studentId", AttributeValue.fromS("s1"), "studentName", AttributeValue.fromS("Sam Lee"),
+                "studentStatus", AttributeValue.fromS("PENDING"), "signedUpAt", AttributeValue.fromS(signedUpAt))));
+    }
+
+    private boolean linked(String coachId) {
+        return f.clients.forSetup().getItem(b -> b.tableName(f.table).consistentRead(true).key(Map.of("PK", AttributeValue.fromS("CLIENT#f1"),
+                "SK", AttributeValue.fromS("STUDENT#" + coachId + "#s1")))).hasItem();
+    }
+
+    @Test
+    void aDeclineDeliveredTwiceSendsOneEmail() {
+        String coachId = coach();
+        link(coachId, "2026-11-09T15:00:00Z");
+        String declined = record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING"));
+        assertThat(consumers.run(EventConsumers.Event.StudentChanged, declined, "req-1").count()).isEqualTo(1);
+        assertThat(consumers.run(EventConsumers.Event.StudentChanged, declined, "req-1b").count()).isZero();
+        assertThat(outbox.list()).hasSize(1);
+        assertThat(linked(coachId)).isFalse();
+    }
+
+    @Test
+    void aDeclineRetriedAfterTheFamilyAddedTheCoachAgainLeavesTheNewLink() {
+        String coachId = coach();
+        link(coachId, "2026-11-10T09:00:00Z"); // the declined record was signed up on the 9th; this is the family's new one
+        assertThat(consumers.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-1").count()).isZero();
+        assertThat(linked(coachId)).isTrue();
+        assertThat(outbox.list()).isEmpty();
+    }
+
+    @Test
+    void anEmailNotAcceptedFailsTheEventSoItIsRetriedAndStillLogsTheRead() {
+        String coachId = coach();
+        EventConsumers failing = new EventConsumers("bladebook-dev-consumer-student-link", f.clients, f.table, e -> {
+            throw new IllegalStateException("SES is unavailable");
+        }, new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.fixed(NOW, ZoneOffset.UTC));
+        link(coachId, "2026-11-09T15:00:00Z");
+        assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-9"))
+                .hasMessageContaining("not accepted");
+        // Marked failed: it may have read these fields before failing, or none of them (2026-11-23).
+        assertThat(log.only("StudentChanged:failed").requestId()).isEqualTo("req-9");
+    }
+
+    @Test
+    void whenTheAccessLogCantBeWrittenEitherTheRunsOwnFailureIsTheOneThrown() {
+        String coachId = coach();
+        EventConsumers failing = new EventConsumers("bladebook-dev-consumer-student-link", f.clients, f.table, e -> {
+            throw new IllegalStateException("SES is unavailable");
+        }, new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.fixed(NOW, ZoneOffset.UTC));
+        link(coachId, "2026-11-09T15:00:00Z");
+        AccessLog.install(lines -> { throw new IllegalStateException("CloudWatch is unavailable"); }, Clock.systemUTC());
+
+        assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-10"))
+                .hasMessageContaining("not accepted")
+                .satisfies(e -> assertThat(e.getSuppressed()).extracting(Throwable::getMessage).containsExactly("CloudWatch is unavailable"));
+    }
+
+    @Test
+    void aDeclineEmailNotAcceptedIsSentByTheRetryAndOnlyThenTheLinkGoes() {
+        String coachId = coach();
+        EventConsumers failing = new EventConsumers("bladebook-dev-consumer-student-link", f.clients, f.table, e -> {
+            throw new IllegalStateException("SES is unavailable");
+        }, new NotificationService.Links("https://app.bladebook.test", "https://family.bladebook.test"), Clock.fixed(NOW, ZoneOffset.UTC));
+        link(coachId, "2026-11-09T15:00:00Z");
+        String declined = record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING"));
+
+        assertThatThrownBy(() -> failing.run(EventConsumers.Event.StudentChanged, declined, "req-1")).hasMessageContaining("not accepted");
+        assertThat(linked(coachId)).isTrue(); // kept, with the claim given back
+
+        assertThat(consumers.run(EventConsumers.Event.StudentChanged, declined, "req-1-retry").count()).isEqualTo(1);
+        assertThat(outbox.list()).hasSize(1);
+        assertThat(linked(coachId)).isFalse();
+    }
+
+    @Test
+    void aCopyThatFindsTheEmailBeingSentFailsSoItIsRetriedAndLeavesTheLink() {
+        String coachId = coach();
+        link(coachId, "2026-11-09T15:00:00Z");
+        // another run claimed the email just now and is sending it
+        new com.bladebook.core.data.SyncRepository(f.clients, f.table).claimDeclineEmail("f1", coachId, "s1",
+                Instant.parse("2026-11-09T15:00:00Z"), NOW.minusSeconds(10));
+
+        assertThatThrownBy(() -> consumers.run(EventConsumers.Event.StudentChanged,
+                record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-2"))
+                .isInstanceOf(com.bladebook.core.service.StudentLinkService.DeclineEmailInProgress.class);
+        assertThat(linked(coachId)).isTrue();
+        assertThat(outbox.list()).isEmpty();
+    }
+
     @Test
     void aDeclinedSignUpIsEmailedAndLoggedAsOneLineForTheEvent() {
         String coachId = coach();
+        link(coachId, "2026-11-09T15:00:00Z");
         EventConsumers.Outcome o = consumers.run(EventConsumers.Event.StudentChanged,
                 record("REMOVE", "COACH#" + coachId, "STUDENT#s1", null, student(coachId, "PENDING")), "req-1");
 

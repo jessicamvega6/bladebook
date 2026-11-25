@@ -80,8 +80,9 @@ export const JOBS: readonly JobSpec[] = [
           StringEquals: { 'dynamodb:Select': 'SPECIFIC_ATTRIBUTES' },
         },
       }),
-      // Only adds: lesson times and CLOSEDYEAR# items, each under attribute_not_exists (held by the code).
-      keys(['GetItem', 'Query', 'PutItem'], t, [COACH]),
+      // Only adds: lesson times and CLOSEDYEAR# items, each under attribute_not_exists (held by the code). A lesson time
+      // is added only while the schedule it was planned from is unchanged, checked in the same transaction (2026-11-21).
+      keys(['GetItem', 'Query', 'PutItem', 'ConditionCheckItem'], t, [COACH]),
     ],
     schedules: [
       { rule: 'sched-lesson-roller', cron: 'cron(30 2 * * ? *)' },

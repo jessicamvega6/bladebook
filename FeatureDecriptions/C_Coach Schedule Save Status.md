@@ -28,6 +28,7 @@ States, from ADR-010 5l:
   | `EXECUTED`, every line notified | *"Saved"* — "6 families emailed." (or "No families needed telling.") |
   | Not `EXECUTED`, **over an hour old** — the same threshold the drift check pages on | *"We're having trouble applying this change. We've been alerted, and your families haven't been notified yet."* |
   | Any line `SKIPPED` as `LESSON_PASSED` | The lessons listed, with a prompt to waive them and contact the families — the same information the coach is emailed (5i) |
+  | Any line `SKIPPED` as `CHECKED_IN` | *"Kept: someone is already checked in"*, the lessons listed, no prompt and no email (owner, 2026-11-21). The review before saving lists them under the same title. |
 
   *Wording settled 2026-11-09 (owner asked Claude to pick):* the design's wording, with the ADR's states and counts
   shown as the design's steps. The over-an-hour message is the same in both.

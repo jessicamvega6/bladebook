@@ -148,7 +148,7 @@ pre.code { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px
           <dt>Reply-To</dt><dd>${domain(e.replyTo).replace('{{coachBusinessEmail}}', 'dana@whitfieldskating.com')}</dd>
           <dt>To</dt><dd>${esc(e.to)}</dd>
           <dt>Sent by</dt><dd>${esc(e.sender)}</dd>
-          <dt>${e.group === 'cognito' ? 'File' : 'Template'}</dt><dd class="mono">${e.group === 'cognito' ? 'cognito/' + e.name + '.html' : 'ses/' + e.name + '.json'}</dd>
+          <dt>${e.group === 'cognito' ? 'File' : 'Template'}</dt><dd class="mono">${e.group === 'cognito' ? 'cognito/' + e.name + '.html' : 'ses/' + (e.template || e.name) + '.json'}</dd>
         </dl>
       </section>
       <div class="controls">

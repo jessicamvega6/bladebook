@@ -63,4 +63,14 @@ class RecurrenceTest {
         assertThatThrownBy(() -> WEEKLY.cancels(Recurrence.Change.LESS_OFTEN, null, 5, FUTURE, TODAY)).hasMessage("Pick a less frequent option.");
         assertThat(WEEKLY.cancels(Recurrence.Change.LESS_OFTEN, null, 4, List.of(), TODAY)).isEmpty();
     }
+
+    @Test
+    void lessOftenOnlyOffersAMultipleOfTheCurrentInterval() {
+        // Every 2 weeks to every 3 would keep weeks 0, 6, 12: really every 6. Only a multiple keeps an even rhythm.
+        Recurrence biweekly = WEEKLY.after(Recurrence.Change.LESS_OFTEN, null, 2);
+        assertThatThrownBy(() -> biweekly.cancels(Recurrence.Change.LESS_OFTEN, null, 3, List.of(), TODAY)).hasMessage("Pick a less frequent option.");
+        assertThat(biweekly.cancels(Recurrence.Change.LESS_OFTEN, null, 4, List.of(), TODAY)).isEmpty();
+        Recurrence every3 = WEEKLY.after(Recurrence.Change.LESS_OFTEN, null, 3);
+        assertThatThrownBy(() -> every3.cancels(Recurrence.Change.LESS_OFTEN, null, 4, List.of(), TODAY)).hasMessage("Pick a less frequent option.");
+    }
 }

@@ -34,6 +34,12 @@ There will be a note that says bookings canceled within ~~24 hours~~ *the coach'
       the lesson as "Cancelled, no answer" with no charge, and the card is gone. An invitation still unanswered when its
       lesson starts shows "This lesson is no longer available" at once.
     Both emails ("keep at full price or cancel", "cancelled, no answer") are always sent.*
+    *Changed by the owner 2026-11-23 (I36): when the other skater leaves in time, the staying skater's lesson is
+    private at the full price straight away, and the family is told. Their card and email say: the other skater left,
+    the lesson is now private at the full price; keep it, or cancel with no charge by the answer-by time; no answer
+    keeps the lesson at the new price. Nothing is cancelled for no answer, there's no "Cancelled, no answer" and no
+    "cancelled, no answer" email. They can invite another skater to the freed place straight away, which ends the
+    question.*
   Late: the one cancelling may be charged their share of the late-cancellation fee (half, for two skaters); the other skater keeps their share of the price.
   *Added 2026-10-13 (ADR-031):*
   The time goes back on the coach's calendar only when the last skater in it has gone.
@@ -64,7 +70,7 @@ This will allow the client to change the end date of the reoccuring lessons to a
 There will also be a button the change the reoccuring frequency, you can change it to less frequenct but never more frequent. 
 *Design:* one page per series ("Change", from My bookings) with three choices:
   End it earlier: a new last date, which must be before the current last date and not before today.
-  Make it less frequent: only the less frequent options are listed (every 2, 3 or 4 weeks). Already every 4 weeks: nothing to pick.
+  Make it less frequent: only the less frequent options that are a multiple of the current one are listed, so the lessons kept stay evenly spaced (weekly: every 2, 3 or 4 weeks; every 2 weeks: every 4 weeks). Every 3 weeks: "Can’t be spaced out further. To change the rhythm, cancel the series and book again." Already every 4 weeks: nothing to pick. (Owner, 2026-11-23: every 2 weeks to every 3 would really have run every 6.)
   Cancel all future lessons: from tomorrow on; today's lesson is kept.
   Beside the choices, "What this will do" previews every affected date as Kept or Cancelled, with the totals.
   Warnings: if a cancelled lesson is inside the notice period, a late fee may be charged; cancelled times are released
@@ -170,7 +176,9 @@ In week view there will be multiple ways to cancel.
     cancelled.
   - Inside a special schedule, that schedule's times are switched off on those dates and the rest of it stays. A cancel
     never shows an overlap error.
-  - Families get the "cancelled by the coach" email, as before.
+  - ~~Families get the "cancelled by the coach" email, as before.~~ *Since 2026-11-21 (owner, I35):* families get the
+    schedule-change email, which reads as a cancel ("Cancelled: Mia's lesson on …", "Book another time") when it only
+    cancels. The "cancelled by the coach" email is for a single lesson.
   - The weekly schedule doesn't change, so the next week is untouched. Lessons that have started are kept.
   - Only a single lesson asks release or hold.
 

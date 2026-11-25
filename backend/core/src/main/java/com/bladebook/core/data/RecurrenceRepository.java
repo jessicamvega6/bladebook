@@ -5,8 +5,10 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -37,9 +39,48 @@ public final class RecurrenceRepository {
         }
     }
 
-    /** A change: the new end date, interval or status. */
-    public void save(ClientContext ctx, Recurrence r) {
-        clients.clientFor(ctx).putItem(b -> b.tableName(table).item(item(ctx, r)));
+    /**
+     * Claims the header for one change (end earlier, less often, stop) before anything is cancelled: only if it's still as
+     * read and no other change is in progress, or the one in progress started before {@code abandonedBefore} (its request
+     * died). Sets {@code changingId} and {@code changingSince}. False if another window got there first.
+     */
+    public boolean claim(ClientContext ctx, Recurrence asRead, String changeId, Instant now, Instant abandonedBefore) {
+        try {
+            clients.clientFor(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), asRead.key()))
+                    .conditionExpression("recurrenceStatus = :st AND endDate = :end AND intervalWeeks = :iw"
+                            + " AND (attribute_not_exists(changingId) OR changingSince < :stale)")
+                    .updateExpression("SET changingId = :id, changingSince = :now")
+                    .expressionAttributeValues(Map.of(":st", FamilyItems.s(asRead.status().name()),
+                            ":end", FamilyItems.s(asRead.endDate().toString()),
+                            ":iw", AttributeValue.fromN(Integer.toString(asRead.intervalWeeks())),
+                            ":stale", FamilyItems.s(abandonedBefore.toString()), ":id", FamilyItems.s(changeId),
+                            ":now", FamilyItems.s(now.toString()))).build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    /** The change's result (the new end date, interval or status), with the claim removed: only while it's still this change's. */
+    public boolean save(ClientContext ctx, Recurrence r, String changeId) {
+        try {
+            clients.clientFor(ctx).putItem(b -> b.tableName(table).item(item(ctx, r)).conditionExpression("changingId = :id")
+                    .expressionAttributeValues(Map.of(":id", FamilyItems.s(changeId))));
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    /** A change that couldn't finish lets go of the header, as it was. */
+    public void release(ClientContext ctx, Recurrence r, String changeId) {
+        try {
+            clients.clientFor(ctx).updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(ctx.partitionKey(), r.key()))
+                    .conditionExpression("changingId = :id").updateExpression("REMOVE changingId, changingSince")
+                    .expressionAttributeValues(Map.of(":id", FamilyItems.s(changeId))).build());
+        } catch (ConditionalCheckFailedException gone) {
+            // no longer ours
+        }
     }
 
     public List<Recurrence> list(ClientContext ctx) {

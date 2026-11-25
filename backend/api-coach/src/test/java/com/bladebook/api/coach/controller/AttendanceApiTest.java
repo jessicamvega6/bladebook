@@ -240,17 +240,24 @@ class AttendanceApiTest {
         assertThat(row.get("viewOnly").isBoolean()).isTrue();
         assertThat(row.get("viewOnly").asBoolean()).isFalse();                // today's lesson: editable (Batch 27)
 
-        String seat = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"}";
-        Res paid = call("POST", "/api/coach/payments/paid", token, seat);
+        String lesson = "{\"date\":\"" + today + "\",\"startTime\":\"" + started + "\",\"studentId\":\"" + ava + "\",\"paidVia\":\"OTHER\"";
+        String unpaid = lesson + ",\"seen\":{\"status\":\"UNPAID\",\"paidAt\":null,\"paidVia\":null}}";
+        Res paid = call("POST", "/api/coach/payments/paid", token, unpaid);
         assertThat(paid.s("status")).isEqualTo("PAID");
         assertThat(paid.s("paidVia")).isEqualTo("OTHER");
         assertThat(paid.body().path("closedYear").isNumber()).isFalse();     // paid this year
-        assertThat(call("POST", "/api/coach/payments/waive", token, seat).status()).isEqualTo(409);
-        assertThat(call("POST", "/api/coach/payments/undo", token, seat).s("status")).isEqualTo("UNPAID");
-        assertThat(call("POST", "/api/coach/payments/waive", token, seat).s("status")).isEqualTo("WAIVED");
-        Res again = call("POST", "/api/coach/payments/undo", token, seat);
+        String paidSeen = lesson + ",\"seen\":{\"status\":\"PAID\",\"paidAt\":\"" + paid.s("paidAt") + "\",\"paidVia\":\"OTHER\"}}";
+        // A second window that still shows it unpaid: refused, so its page reloads (no silent overwrite).
+        Res stale = call("POST", "/api/coach/payments/paid", token, unpaid);
+        assertThat(stale.status()).isEqualTo(409);
+        assertThat(stale.s("message")).isEqualTo("This lesson changed in another window. Reload the page and try again.");
+        assertThat(call("POST", "/api/coach/payments/waive", token, paidSeen).status()).isEqualTo(409);
+        assertThat(call("POST", "/api/coach/payments/undo", token, paidSeen).s("status")).isEqualTo("UNPAID");
+        assertThat(call("POST", "/api/coach/payments/waive", token, unpaid).s("status")).isEqualTo("WAIVED");
+        Res again = call("POST", "/api/coach/payments/undo", token, lesson + ",\"seen\":{\"status\":\"WAIVED\"}}");
         assertThat(again.status()).isEqualTo(409);
         assertThat(again.s("message")).isEqualTo("A waived lesson can’t be changed.");
+        assertThat(call("POST", "/api/coach/payments/undo", token, lesson + "}").status()).isEqualTo(400);   // no status shown
     }
 
     // ------------------------------------------- the Week tab (Batch 23)

@@ -19,11 +19,13 @@ const TABS: Array<[label: string, route: string | null]> = [
   ['Details', '#/profile'], ['Business email', '#/profile/email'], ['Visibility & texts', '#/profile/visibility'], ['Payments', '#/profile/payments'], ['Account', '#/profile/account'],
 ];
 
-function ProfileHead({ tab }: { tab: string }) {
+function ProfileHead({ tab, onLogOut }: { tab: string; onLogOut?: () => void }) {
   return (
     <>
       <div className="phead"><div className="phead__text"><h1 className="h1">Profile</h1>
-        <p className="lede">How families see and reach you, and how you sign in.</p></div></div>
+        <p className="lede">How families see and reach you, and how you sign in.</p></div>
+        {onLogOut && <div className="phead__actions"><Button variant="secondary" icon="arrowL" onClick={onLogOut}>Log out</Button></div>}
+      </div>
       <nav className="tabs mp-tabs" aria-label="Profile sections">
         {TABS.map(([label, route]) => route
           ? <a key={label} className={`tabs__t${label === tab ? ' is-on' : ''}`} href={route} aria-current={label === tab ? 'page' : undefined}>{label}</a>
@@ -42,9 +44,9 @@ function SaveBar({ busy, saved }: { busy: boolean; saved: boolean }) {
   );
 }
 
-interface PageProps { api: CoachApi; profile: Profile; onChange: (p: Profile) => void }
+interface PageProps { api: CoachApi; profile: Profile; onChange: (p: Profile) => void; onLogOut?: () => void }
 
-export function ProfileDetails({ api, profile, onChange }: PageProps) {
+export function ProfileDetails({ api, profile, onChange, onLogOut }: PageProps) {
   const [firstName, setFirst] = useState(profile.firstName);
   const [lastName, setLast] = useState(profile.lastName);
   const [phone, setPhone] = useState(profile.phone ?? '');
@@ -84,7 +86,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
 
   return (
     <>
-      <ProfileHead tab="Details" />
+      <ProfileHead tab="Details" onLogOut={onLogOut} />
       {error && <Banner tone="danger">{error}</Banner>}
       {rotated && <Banner tone="success">Your new code is {rotated}. The old one stopped working.</Banner>}
       {resent && <Banner tone="success">We sent a new link to {resent}. The one sent before no longer works.</Banner>}
@@ -144,7 +146,7 @@ export function ProfileDetails({ api, profile, onChange }: PageProps) {
  * "Use a new address" emails a confirmation link at once. In the design a waiting row has "I’ve clicked the link", the
  * demo's stand-in for the email; here it's Resend link, and the link itself confirms (the confirm page, #/confirm-email/…).
  */
-export function ProfileBusinessEmail({ api, profile, onChange }: PageProps) {
+export function ProfileBusinessEmail({ api, profile, onChange, onLogOut }: PageProps) {
   const [chosen, setChosen] = useState(profile.businessEmail);
   const [adding, setAdding] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -220,7 +222,7 @@ export function ProfileBusinessEmail({ api, profile, onChange }: PageProps) {
 
   return (
     <>
-      <ProfileHead tab="Business email" />
+      <ProfileHead tab="Business email" onLogOut={onLogOut} />
       {error && <Banner tone="danger">{error}</Banner>}
       {flash && <Banner tone="success">{flash}</Banner>}
       <form onSubmit={save} noValidate>
@@ -249,7 +251,7 @@ export function ProfileBusinessEmail({ api, profile, onChange }: PageProps) {
   );
 }
 
-export function ProfilePayments({ api, profile, onChange }: PageProps) {
+export function ProfilePayments({ api, profile, onChange, onLogOut }: PageProps) {
   const [instructions, setInstructions] = useState(profile.paymentInstructions ?? '');
   const [types, setTypes] = useState<PaymentType[]>(allTypes(profile.paymentTypes));
   // A handle saved while its type is off is "kept": switching it back on asks the coach to check it.
@@ -283,7 +285,7 @@ export function ProfilePayments({ api, profile, onChange }: PageProps) {
 
   return (
     <>
-      <ProfileHead tab="Payments" />
+      <ProfileHead tab="Payments" onLogOut={onLogOut} />
       {error && <Banner tone="danger">{error}</Banner>}
       <form onSubmit={save} noValidate>
         <Card title="Getting paid">
@@ -309,7 +311,7 @@ export function ProfilePayments({ api, profile, onChange }: PageProps) {
  * Profile → Visibility & texts (design: profile-visibility; ADR-MASTER section 4, "What families see"; A3). Families see
  * the phone or email only once the coach has approved one of their skaters; the server enforces that, not this page.
  */
-export function ProfileVisibility({ api, profile, onChange }: PageProps) {
+export function ProfileVisibility({ api, profile, onChange, onLogOut }: PageProps) {
   const [showPhone, setShowPhone] = useState(profile.showPhone);
   const [showEmail, setShowEmail] = useState(profile.showEmail);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -341,7 +343,7 @@ export function ProfileVisibility({ api, profile, onChange }: PageProps) {
 
   return (
     <>
-      <ProfileHead tab="Visibility & texts" />
+      <ProfileHead tab="Visibility & texts" onLogOut={onLogOut} />
       {error && <Banner tone="danger">{error}</Banner>}
       <form onSubmit={save} noValidate>
         <Card title="What families can see" sub="Only families you’ve approved. Never someone who has only entered your coach code." flush>
@@ -380,7 +382,7 @@ export function ProfileAccount({ profile, onLogOut }: { profile: Profile; onLogO
   const [flash, setFlash] = useState('');
   return (
     <>
-      <ProfileHead tab="Account" />
+      <ProfileHead tab="Account" onLogOut={onLogOut} />
       {flash && <Banner tone="success">{flash}</Banner>}
       <Card title="Signing in">
         <div className="fieldset"><div className="label">Login email</div>
@@ -400,7 +402,6 @@ export function ProfileAccount({ profile, onLogOut }: { profile: Profile; onLogO
               <div className="row__sub">Check skaters in from your phone. It uses the same email and password, and shows today’s lessons, attendance and cancelling.</div></div></div>
         </div>
       </Card>
-      <div className="actions"><div></div><div className="actions__r"><Button variant="secondary" icon="arrowL" onClick={onLogOut}>Log out</Button></div></div>
       {changing && <ChangePassword onClose={() => setChanging(false)} onChanged={() => { setChanging(false); setFlash('Password changed.'); }} />}
     </>
   );

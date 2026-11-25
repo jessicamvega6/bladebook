@@ -17,6 +17,6 @@ class DeadlineSweepServiceTest {
     void nothingDueDoesNothing() {
         FamilyTestSupport t = new FamilyTestSupport();
         DeadlineSweepService sweep = new DeadlineSweepService(new ShareRepository(t.f.clients, t.f.table), SeatEvents.NONE);
-        assertThat(sweep.sweep(Instant.parse("2026-11-16T12:00:00Z"))).isEqualTo(new DeadlineSweepService.Swept(0, 0, 0));
+        assertThat(sweep.sweep(Instant.parse("2026-11-16T12:00:00Z"))).isEqualTo(new DeadlineSweepService.Swept(0, 0));
     }
 }

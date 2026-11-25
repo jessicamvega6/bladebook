@@ -166,7 +166,7 @@ public class CoreConfig {
 
     /** What consumer-student-link will run on AWS; locally {@code LocalEventDispatcher} calls it. */
     @Bean
-    StudentLinkService studentLinkService(TenantClients clients, @Value("${bladebook.table}") String table) {
-        return new StudentLinkService(new SyncRepository(clients, table));
+    StudentLinkService studentLinkService(TenantClients clients, @Value("${bladebook.table}") String table, Clock clock) {
+        return new StudentLinkService(new SyncRepository(clients, table), clock);
     }
 }

@@ -83,7 +83,6 @@ final class SeatItems {
     static final String DUE_SK = "GSI4SK";
     static final String DUE = "DUE";
     static final String EXPIRE = "EXPIRE";
-    static final String ANSWER = "ANSWER";
 
     private static void putIf(Map<String, AttributeValue> m, String k, String v) {
         if (v != null) {

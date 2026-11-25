@@ -21,6 +21,8 @@ import com.bladebook.core.domain.RegistrationRequest;
 import com.bladebook.core.domain.StudentRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.sesv2.model.MessageRejectedException;
 
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -40,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Batch 13 end to end on DynamoDB Local: each write the APIs make, handed to the consumers as the local stand-in for the
@@ -57,6 +61,12 @@ class NotificationServiceTest {
 
     private final AtomicReference<Instant> now = new AtomicReference<>(START);
     private final AtomicBoolean refuse = new AtomicBoolean(false);
+    /** SES's own refusal of a message, final (owner, 2026-11-17), as opposed to {@code refuse}'s failure, which is retried. */
+    private final AtomicBoolean reject = new AtomicBoolean(false);
+    /** Refuses only emails to this address. */
+    private final AtomicReference<String> refuseTo = new AtomicReference<>();
+    /** Run once, while the next email is being sent: a second delivery of the same event arriving at the same time. */
+    private final AtomicReference<Runnable> meanwhile = new AtomicReference<>();
     private FamilyTestSupport t;
     private Clock clock;
     private LocalOutbox outbox;
@@ -94,8 +104,15 @@ class NotificationServiceTest {
         };
         outbox = new LocalOutbox(clock);
         Mailer mailer = e -> {
-            if (refuse.get()) {
+            Runnable other = meanwhile.getAndSet(null);
+            if (other != null) {
+                other.run();
+            }
+            if (refuse.get() || e.to().equals(refuseTo.get())) {
                 throw new IllegalStateException("SES refused it");
+            }
+            if (reject.get()) {
+                throw MessageRejectedException.builder().message("Email address is not verified.").build();
             }
             outbox.send(e);
         };
@@ -211,6 +228,26 @@ class NotificationServiceTest {
         assertThat(outbox.list()).hasSize(1);
     }
 
+    @Test
+    void aConfirmationNotAcceptedFailsTheEventAndItsRetrySendsIt() {
+        refuse.set(true);
+        book(park, ava, null, SIX, MON);
+        stream.drain(); // the event, handed to the consumer below instead
+        String seat = com.bladebook.core.domain.Seat.key(MON, SIX, ava);
+        assertThatThrownBy(() -> notifications.confirmBookings(dana.coachId(), List.of(seat))).hasMessageContaining("not accepted");
+        refuse.set(false);
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(seat))).isEqualTo(1);
+    }
+
+    @Test
+    void aConfirmationSesRejectsDoesNotFailTheEvent() {
+        reject.set(true);
+        book(park, ava, null, SIX, MON);
+        stream.drain();
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(com.bladebook.core.domain.Seat.key(MON, SIX, ava)))).isZero();
+        assertThat(outbox.list()).isEmpty();
+    }
+
     // --------------------------------------------------------------- cancelling
 
     @Test
@@ -239,33 +276,106 @@ class NotificationServiceTest {
     }
 
     @Test
-    void theCoachsCancelEmailsEachFamilyOnceAndStampsTheLines() {
+    void aCancelledDayEmailsEachFamilyOnceInTheScheduleChangeEmailWordedAsACancelAndStampsTheLines() {
         book(park, ava, null, SIX, MON);
         book(chen, mia, null, HALF_SIX, MON);
         drain();
         coachCancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD"),
                 new CoachCancelRequest.PickInput(MON.toString(), "06:30", "RELEASE")), null));
         List<Email> sent = drain();
-        assertThat(sent).extracting(Email::template).containsOnly("lesson-cancelled-by-coach");
+        // One email for a schedule change, worded as a cancel when it only cancels (owner, 2026-11-21, I35).
+        assertThat(sent).extracting(Email::template).containsOnly("schedule-change");
         assertThat(sent).extracting(Email::to).containsExactlyInAnyOrder("sarah@example.com", "grace@example.com");
-        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.COACH).findFirst().orElseThrow();
+        Email ava = sent.stream().filter(e -> e.to().equals("sarah@example.com")).findFirst().orElseThrow();
+        assertThat(ava.data()).containsEntry("onlyCancelled", true).containsEntry("oneLesson", true).containsEntry("skaterNames", "Ava")
+                .containsEntry("firstDate", "Mon, Nov 16").containsEntry("lessonCount", "1").containsKey("bookUrl");
+        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.SCHEDULE_CHANGE).findFirst().orElseThrow();
         assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines()).extracting(NotifyRepository.LineRow::notificationStatus)
                 .containsOnly("SENT");
         assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero(); // a replay
     }
 
     @Test
-    void aFailedChangeEmailIsMarkedAndSentOnTheRetry() {
+    void aChangeEmailNotAcceptedFailsTheEventAndItsRetrySendsIt() {
         book(park, ava, null, SIX, MON);
         drain();
         refuse.set(true);
         coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
-        assertThat(drain()).isEmpty();
+        stream.drain(); // the event, handed to the consumer below instead
         ChangeBatch b = cancelRepo.batches(dana).get(0);
-        assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isEqualTo("FAILED");
+        assertThatThrownBy(() -> notifications.changeBatch(dana.coachId(), b.key())).hasMessageContaining("not accepted");
+        assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isNull(); // given back
         refuse.set(false);
         assertThat(notifications.changeBatch(dana.coachId(), b.key())).isEqualTo(1);
         assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isEqualTo("SENT");
+    }
+
+    @Test
+    void aChangeEmailSesRejectsIsMarkedFailedAndNotRetried() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        reject.set(true);
+        coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
+        assertThat(drain()).isEmpty();
+        ChangeBatch b = cancelRepo.batches(dana).get(0);
+        assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isEqualTo("FAILED");
+        reject.set(false);
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero();
+        assertThat(outbox.list()).isEmpty();
+    }
+
+    @Test
+    void twoDeliveriesOfABatchAtOnceSendEachFamilyOneEmail() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
+        ChangeBatch b = cancelRepo.batches(dana).get(0);
+        // The second finds the first's claim moments old: it fails, so it's retried, and sends nothing meanwhile.
+        AtomicReference<Throwable> second = new AtomicReference<>();
+        meanwhile.set(() -> second.set(catchThrowable(() -> notifications.changeBatch(dana.coachId(), b.key()))));
+        assertThat(drain()).extracting(Email::template).containsExactly("lesson-cancelled-by-coach");
+        assertThat(second.get()).isInstanceOf(EmailNotAccepted.class);
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero(); // its retry: already sent
+        assertThat(outbox.list()).isEmpty();
+    }
+
+    @Test
+    void aClaimLeftByARunThatStoppedMidSendIsTakenAgainOnceAbandoned() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        refuse.set(true);
+        coachCancels.cancel(dana, CoachCancelRequest.parse("LESSON", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD")), null));
+        stream.drain();
+        refuse.set(false);
+        ChangeBatch b = cancelRepo.batches(dana).get(0);
+        String lead = notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).sk();
+        // A run claimed it and then timed out before SES answered: the claim is left PENDING.
+        assertThat(notify.claimLine(dana.coachId(), lead, now.get())).isEqualTo(NotifyRepository.LineClaim.CLAIMED);
+
+        assertThatThrownBy(() -> notifications.changeBatch(dana.coachId(), b.key())).isInstanceOf(EmailNotAccepted.class);
+        assertThat(outbox.list()).isEmpty();
+
+        now.set(now.get().plus(NotifyRepository.LINE_CLAIM_ABANDONED));
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isEqualTo(1);
+        assertThat(notify.batch(dana.coachId(), b.key()).orElseThrow().lines().get(0).notificationStatus()).isEqualTo("SENT");
+    }
+
+    @Test
+    void aRetryAfterSomeOfAFamilysLinesWereMarkedSendsNothingMore() {
+        book(park, ava, null, SIX, MON);
+        book(park, jack, null, HALF_SIX, MON);
+        drain();
+        coachCancels.cancel(dana, CoachCancelRequest.parse("DAY", List.of(new CoachCancelRequest.PickInput(MON.toString(), "06:00", "HOLD"),
+                new CoachCancelRequest.PickInput(MON.toString(), "06:30", "HOLD")), null));
+        assertThat(drain()).extracting(Email::template).containsExactly("schedule-change");
+        ChangeBatch b = cancelRepo.batches(dana).stream().filter(x -> x.cancelledBy() == ChangeBatch.By.SCHEDULE_CHANGE).findFirst().orElseThrow();
+        List<NotifyRepository.LineRow> lines = notify.batch(dana.coachId(), b.key()).orElseThrow().lines();
+        assertThat(lines).hasSize(2);
+        // The run stopped after marking the first line: the second is as it was before the email.
+        t.f.clients.forSetup().updateItem(u -> u.tableName(t.f.table).key(Map.of("PK", AttributeValue.fromS("COACH#" + dana.coachId()),
+                "SK", AttributeValue.fromS(lines.get(1).sk()))).updateExpression("REMOVE notificationStatus"));
+        assertThat(notifications.changeBatch(dana.coachId(), b.key())).isZero();
+        assertThat(outbox.list()).isEmpty();
     }
 
     @Test
@@ -281,6 +391,7 @@ class NotificationServiceTest {
             assertThat(l).containsEntry("oldPrice", "$50").containsEntry("newPrice", "$40").containsEntry("skater", "Ava");
         });
         assertThat(e.data()).containsEntry("priceDownSummary", "a lesson costs less");
+        assertThat(e.data()).containsEntry("onlyCancelled", false); // a price change keeps the schedule-change wording
     }
 
     // --------------------------------------------------------------- attendance
@@ -337,16 +448,72 @@ class NotificationServiceTest {
     }
 
     @Test
-    void aRefusedReminderIsSentWholeOnTheNextRun() {
+    void aReminderNotAcceptedFailsTheRunAndIsSentWholeOnItsRetry() {
         book(park, ava, null, SIX, MON);
         book(park, jack, null, HALF_SIX, MON);
         drain();
         refuse.set(true);
-        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0));
+        assertThatThrownBy(() -> jobs.dayOf(MON)).hasMessageContaining("not accepted");
         refuse.set(false);
         assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(1, 1));
         Email e = only(drain(), "day-of-reminder");
         assertThat(list(e, "lessons")).hasSize(2);
+    }
+
+    @Test
+    void aConfirmationLeftPendingByARunThatStoppedIsSentOnceAbandoned() {
+        refuse.set(true);
+        book(park, ava, null, SIX, MON);
+        stream.drain(); // the event, handed to the consumer below instead
+        refuse.set(false);
+        String seat = com.bladebook.core.domain.Seat.key(MON, SIX, ava);
+        // A run claimed it, then timed out before SES answered (2026-11-23; docs/tla/EmailGuard.tla).
+        notify.claim(NotifyRepository.once("COACH#" + dana.coachId(), seat, NotifyRepository.CONFIRMATION_SENT, now.get()), now.get(),
+                NotifyRepository.CONSUMER_CLAIM_ABANDONED);
+
+        assertThatThrownBy(() -> notifications.confirmBookings(dana.coachId(), List.of(seat))).isInstanceOf(EmailNotAccepted.class);
+        assertThat(outbox.list()).isEmpty();
+
+        now.set(now.get().plus(NotifyRepository.CONSUMER_CLAIM_ABANDONED));
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(seat))).isEqualTo(1);
+        assertThat(notifications.confirmBookings(dana.coachId(), List.of(seat))).isZero(); // sent: nothing more
+        assertThat(outbox.list()).hasSize(1);
+    }
+
+    @Test
+    void aReminderLeftPendingByAJobThatStoppedIsSentOnceAbandoned() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        notify.claim(NotifyRepository.dated("COACH#" + dana.coachId(), com.bladebook.core.domain.Seat.key(MON, SIX, ava),
+                NotifyRepository.REMINDED_ON, MON.toString(), now.get()), now.get(), NotifyRepository.JOB_CLAIM_ABANDONED);
+
+        assertThatThrownBy(() -> jobs.dayOf(MON)).hasMessageContaining("1 email"); // the coach's morning email still goes
+        assertThat(drain()).extracting(Email::template).containsExactly("coach-morning");
+
+        now.set(now.get().plus(NotifyRepository.JOB_CLAIM_ABANDONED));
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(1, 0));
+        assertThat(only(drain(), "day-of-reminder").to()).isEqualTo("sarah@example.com");
+    }
+
+    @Test
+    void oneFamilysReminderNotAcceptedFailsTheRunOnlyAfterTheOthersAreSent() {
+        book(park, ava, null, SIX, MON);
+        book(chen, mia, null, HALF_SIX, MON);
+        drain();
+        refuseTo.set("sarah@example.com");
+        assertThatThrownBy(() -> jobs.dayOf(MON)).hasMessageContaining("1 email");
+        assertThat(drain()).extracting(Email::to).containsExactlyInAnyOrder("grace@example.com", "dana@gmail.com");
+        refuseTo.set(null);
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(1, 0)); // the Scheduler's retry: only what wasn't sent
+        assertThat(drain()).extracting(Email::to).containsExactly("sarah@example.com");
+    }
+
+    @Test
+    void aReminderSesRejectsDoesNotFailTheRun() {
+        book(park, ava, null, SIX, MON);
+        drain();
+        reject.set(true);
+        assertThat(jobs.dayOf(MON)).isEqualTo(new ScheduledJobs.DayOf(0, 0));
     }
 
     @Test
@@ -406,6 +573,33 @@ class NotificationServiceTest {
         assertThat(toGrace.data()).containsEntry("isInviter", false).containsEntry("skater", "Mia").containsEntry("otherSkater", "Ava")
                 .containsEntry("share", "$25");
         assertThat(toSarah.data()).containsEntry("isInviter", true).containsEntry("otherFamily", "Grace Chen").containsEntry("share", "$25");
+    }
+
+    @Test
+    void aJoinedEmailNotAcceptedIsSentOnTheRetry() {
+        book(park, ava, miaCode, SIX, MON);
+        drain();
+        refuse.set(true);
+        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        assertThat(drain()).isEmpty();
+        refuse.set(false);
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(2);
+        assertThat(drain()).extracting(Email::template).containsOnly("share-joined");
+    }
+
+    @Test
+    void whenOnlyTheHostsJoinedEmailIsNotAcceptedTheRetrySendsJustThatOne() {
+        book(park, ava, miaCode, SIX, MON);
+        drain();
+        refuseTo.set("sarah@example.com"); // the host family; the family who joined is grace@example.com
+        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        assertThat(drain()).extracting(Email::to).containsExactly("grace@example.com");
+        refuseTo.set(null);
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(1);
+        Email retried = only(drain(), "share-joined");
+        assertThat(retried.to()).isEqualTo("sarah@example.com");
+        assertThat(retried.data()).containsEntry("isInviter", true);
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero(); // both sent: nothing more
     }
 
     @Test
@@ -499,7 +693,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    void aLeaveInTimeAsksTheStayingFamilyThenTheSweepCancels() {
+    void aLeaveInTimeTellsTheStayingFamilyTheNewPriceAndSilenceKeepsIt() {
         book(park, ava, miaCode, SIX, MON);
         shares.accept(chen, shares.invitations(chen).get(0).inviteId());
         drain();
@@ -513,11 +707,9 @@ class NotificationServiceTest {
         assertThat(list(ask, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM"));
         assertThat(drain()).isEmpty();
 
-        now.set(Instant.parse("2026-11-15T13:00:00Z")); // past the answer-by time
+        now.set(Instant.parse("2026-11-15T13:00:00Z")); // past the answer-by time: no answer keeps it (owner, 2026-11-23)
         sweep.sweep(now.get());
-        Email gone = only(drain(), "share-cancelled-no-answer");
-        assertThat(gone.to()).isEqualTo("sarah@example.com");
-        assertThat(gone.data()).containsEntry("otherSkater", "Mia C.").containsEntry("answerBy", "Sun, Nov 15 at 6:00 AM");
+        assertThat(drain()).isEmpty();
     }
 
     @Test
@@ -543,7 +735,7 @@ class NotificationServiceTest {
         t.registration.register(lee, "lee@example.com", new RegistrationRequest("Kim", "Lee", "(205) 555-0122", "GUARDIAN", List.of(DANA),
                 List.of(FamilyTestSupport.kid("Sam Lee", DANA))));
         StudentRecord before = t.studentRepo.list(dana).stream().filter(r -> r.studentName().equals("Sam Lee")).findFirst().orElseThrow();
-        assertThat(notifications.declined(before)).isTrue();
+        assertThat(notifications.declined(before, () -> { })).isTrue();
         Email e = outbox.list().get(0).email();
         assertThat(e.template()).isEqualTo("signup-declined");
         assertThat(e.to()).isEqualTo("lee@example.com");

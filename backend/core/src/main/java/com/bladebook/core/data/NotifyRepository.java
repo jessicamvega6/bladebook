@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.Select;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -40,8 +41,10 @@ public final class NotifyRepository {
     /** A seat with its payment status and the guard attributes the emails set on it. */
     public record SeatRow(Seat seat, String paymentStatus, Map<String, String> guards) {
 
+        /** Whether that guard's email has gone: set, and not a claim still {@code PENDING}. */
         public boolean has(String guard) {
-            return guards.containsKey(guard);
+            String v = guards.get(guard);
+            return v != null && !v.startsWith(PENDING);
         }
 
         public String guard(String name) {
@@ -76,12 +79,14 @@ public final class NotifyRepository {
     public static final String REMINDED_ON = "remindedOn";
     public static final String SETTLE_REMINDER_SENT_ON = "settleReminderSentOn";
     public static final String INVITE_EMAIL_SENT = "inviteEmailSent";
+    /** "Joined" to the family who joined; {@link #JOINED_HOST_EMAIL_SENT} to the family whose lesson it is (2026-11-23). */
     public static final String JOINED_EMAIL_SENT = "joinedEmailSent";
+    public static final String JOINED_HOST_EMAIL_SENT = "joinedHostEmailSent";
     /** On the coach's profile. */
     public static final String MORNING_EMAIL_SENT_ON = "morningEmailSentOn";
 
     private static final List<String> SEAT_GUARDS = List.of(CONFIRMATION_SENT, PAYMENT_REMINDER_SENT, REMINDED_ON,
-            SETTLE_REMINDER_SENT_ON, INVITE_EMAIL_SENT, JOINED_EMAIL_SENT);
+            SETTLE_REMINDER_SENT_ON, INVITE_EMAIL_SENT, JOINED_EMAIL_SENT, JOINED_HOST_EMAIL_SENT);
 
     private final TenantClients clients;
     private final String table;
@@ -138,7 +143,7 @@ public final class NotifyRepository {
             return new LeaveRow(new ShareRepository.PendingLeave(FamilyItems.str(p, "leaveId"), FamilyItems.str(p, "leftStudentId"),
                     FamilyItems.str(p, "leftStudentName"), Instant.parse(FamilyItems.str(p, "leftAt")),
                     FamilyItems.str(p, "stayingStudentId"), Instant.parse(FamilyItems.str(p, "answerBy"))),
-                    p.containsKey("emailSent"));
+                    sent(p.get("emailSent")));
         });
     }
 
@@ -151,7 +156,7 @@ public final class NotifyRepository {
         return new EndRow(m.get("SK").s(), ShareRepository.Ended.valueOf(FamilyItems.str(m, "seatOutcome")),
                 FamilyItems.str(m, "studentId"), FamilyItems.str(m, "studentName"), FamilyItems.str(m, "clientId"),
                 FamilyItems.str(m, "invitedByClientId"), FamilyItems.str(m, "inviteId"), Instant.parse(FamilyItems.str(m, "endedAt")),
-                m.containsKey("emailSent"));
+                sent(m.get("emailSent")));
     }
 
     /**
@@ -221,6 +226,56 @@ public final class NotifyRepository {
         });
     }
 
+    /**
+     * A {@code PENDING} claim older than this belongs to a run that stopped mid-send: {@code consumer-change-notifier} times
+     * out after a minute (infra/lib/consumers.ts), so no live run holds one this old (2026-11-23).
+     */
+    public static final Duration LINE_CLAIM_ABANDONED = Duration.ofMinutes(2);
+
+    /** What became of a claim on a recipient's lead line. */
+    public enum LineClaim {
+        /** This run holds it: send. */
+        CLAIMED,
+        /** Another run claimed it under {@link #LINE_CLAIM_ABANDONED} ago and may still be sending: fail, so the event is retried. */
+        IN_PROGRESS,
+        /** Sent or refused already, or the line is gone: nothing to do. */
+        DONE
+    }
+
+    /**
+     * Claims one recipient's email of a batch: its lead line becomes {@code PENDING} with {@code claimedAt} (ADR-MASTER
+     * section 13, "Notification state"), if it has no state yet or its claim was abandoned by a run that stopped. A run
+     * that stopped mid-send may have sent it, so the retry can send it a second time; never not at all.
+     */
+    public LineClaim claimLine(String coachId, String sk, Instant now) {
+        Map<String, AttributeValue> key = FamilyItems.key("COACH#" + coachId, sk);
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(key)
+                    .conditionExpression("attribute_exists(SK) AND (attribute_not_exists(notificationStatus) OR "
+                            + "(notificationStatus = :p AND (attribute_not_exists(claimedAt) OR claimedAt <= :stale)))")
+                    .updateExpression("SET notificationStatus = :p, claimedAt = :now")
+                    .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"), ":now", FamilyItems.s(sortable(now)),
+                            ":stale", FamilyItems.s(sortable(now.minus(LINE_CLAIM_ABANDONED)))))
+                    .build());
+            return LineClaim.CLAIMED;
+        } catch (ConditionalCheckFailedException e) {
+            Map<String, AttributeValue> line = db().getItem(GetItemRequest.builder().tableName(table).key(key).consistentRead(true).build()).item();
+            boolean pending = line != null && "PENDING".equals(FamilyItems.str(line, "notificationStatus"));
+            return pending ? LineClaim.IN_PROGRESS : LineClaim.DONE;
+        }
+    }
+
+    /** Gives a claim back when its email wasn't accepted, so the event's retry sends it; a line already stamped stays. */
+    public void releaseLine(String coachId, String sk) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
+                    .conditionExpression("notificationStatus = :p").updateExpression("REMOVE notificationStatus, claimedAt")
+                    .expressionAttributeValues(Map.of(":p", FamilyItems.s("PENDING"))).build());
+        } catch (ConditionalCheckFailedException e) {
+            // not ours to give back
+        }
+    }
+
     /** Stamps the notification state on lines (ADR-MASTER section 13, "Notification state"). */
     public void markLines(String coachId, List<String> lineSks, String status, String failureReason, Instant at) {
         for (String sk : lineSks) {
@@ -234,7 +289,8 @@ public final class NotifyRepository {
                 set += ", failureReason = :r";
             }
             db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, sk))
-                    .conditionExpression("attribute_exists(SK)").updateExpression(failureReason == null ? set + " REMOVE failureReason" : set)
+                    .conditionExpression("attribute_exists(SK)")
+                    .updateExpression(set + (failureReason == null ? " REMOVE claimedAt, failureReason" : " REMOVE claimedAt"))
                     .expressionAttributeValues(v).build());
         }
     }
@@ -242,46 +298,139 @@ public final class NotifyRepository {
     // ---------------------------------------------------------------------- guards
 
     /**
-     * Sets {@code attr = value} on an item that exists, unless it already has that value. {@code true} means this caller
-     * claimed it and should send; {@code false}, someone already did (or the item is gone).
+     * Every email's guard is claimed {@code PENDING@<scope>@<claimed at>} and takes its sent value only once SES has taken
+     * the email (2026-11-23; {@code docs/tla/EmailGuard.tla}). A run that finds a fresh {@code PENDING} claim fails, so it
+     * is retried; one older than the claiming function's timeout belongs to a run that stopped mid-send and is taken
+     * again. So a stopped run never loses an email; one that stopped after SES took it can mean a second copy.
      */
-    public boolean claim(String pk, String sk, String attr, String value) {
-        try {
-            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(pk, sk))
-                    .conditionExpression("attribute_exists(SK) AND (attribute_not_exists(#g) OR #g <> :v)")
-                    .updateExpression("SET #g = :v").expressionAttributeNames(Map.of("#g", attr))
-                    .expressionAttributeValues(Map.of(":v", FamilyItems.s(value))).build());
-            return true;
-        } catch (ConditionalCheckFailedException e) {
-            return false;
+    public static final String PENDING = "PENDING@";
+
+    /** For the consumers' guards: they time out after a minute (infra/lib/consumers.ts). */
+    public static final Duration CONSUMER_CLAIM_ABANDONED = Duration.ofMinutes(2);
+
+    /** For the reminder jobs' guards: they time out after 5 minutes (infra/lib/jobs.ts). */
+    public static final Duration JOB_CLAIM_ABANDONED = Duration.ofMinutes(6);
+
+    /** What a guard's claim found. */
+    public enum GuardClaim {
+        /** This run holds it: send, then {@link #confirm} or {@link #release}. */
+        CLAIMED,
+        /** Another run claimed it moments ago and may still be sending: fail, so the run is retried. */
+        IN_PROGRESS,
+        /** Sent or refused already, or the item is gone: nothing to do. */
+        DONE
+    }
+
+    /**
+     * One email's guard on one item. {@code path}: the attribute, or a map's attribute ({@code pendingLeave.emailSent}).
+     * {@code scope}: empty for a once-only guard; the date (or {@code true}) for a dated one, which the next date claims
+     * again. {@code sent}: its value once the email has gone. {@code pending}: this claim's value. {@code also}: a further
+     * condition on the item, with its values.
+     */
+    public record Guard(String pk, String sk, List<String> path, String scope, AttributeValue sent, String pending, String also,
+                        Map<String, AttributeValue> alsoValues) {
+
+        String prefix() {
+            return PENDING + scope + "@";
+        }
+
+        String name() {
+            List<String> n = new ArrayList<>();
+            for (int i = 0; i < path.size(); i++) {
+                n.add("#a" + i);
+            }
+            return String.join(".", n);
+        }
+
+        Map<String, String> names() {
+            Map<String, String> m = new HashMap<>();
+            for (int i = 0; i < path.size(); i++) {
+                m.put("#a" + i, path.get(i));
+            }
+            return m;
         }
     }
 
-    /** Takes a claim back when the email wasn't accepted, so the next run tries again. */
-    public void release(String pk, String sk, String attr, String value) {
-        try {
-            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(pk, sk))
-                    .conditionExpression("#g = :v").updateExpression("REMOVE #g").expressionAttributeNames(Map.of("#g", attr))
-                    .expressionAttributeValues(Map.of(":v", FamilyItems.s(value))).build());
-        } catch (ConditionalCheckFailedException e) {
-            // someone else's claim now: leave it
-        }
+    /** A once-only guard ({@code confirmationSent}, {@code paymentReminderSent}, {@code inviteEmailSent}, the joined guards). */
+    public static Guard once(String pk, String sk, String attr, Instant now) {
+        return new Guard(pk, sk, List.of(attr), "", FamilyItems.s(now.toString()), PENDING + "@" + sortable(now), null, Map.of());
+    }
+
+    /**
+     * A dated guard ({@code remindedOn}, {@code settleReminderSentOn}, {@code morningEmailSentOn}; an ended invitation's
+     * {@code emailSent} with {@code true}): its value is {@code value} once sent, and a later value claims it again.
+     */
+    public static Guard dated(String pk, String sk, String attr, String value, Instant now) {
+        return new Guard(pk, sk, List.of(attr), value, FamilyItems.s(value), PENDING + value + "@" + sortable(now), null, Map.of());
     }
 
     /** The "keep or cancel" email's guard, on the pending leave itself, so a new leave on the same lesson is emailed again. */
-    public boolean claimLeaveEmail(String coachId, LocalDate date, LocalTime start, String leaveId, boolean take) {
-        try {
-            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key("COACH#" + coachId, LessonTime.key(date, start)))
-                    .conditionExpression(take ? "pendingLeave.leaveId = :id AND attribute_not_exists(pendingLeave.emailSent)"
-                            : "pendingLeave.leaveId = :id")
-                    .updateExpression(take ? "SET pendingLeave.emailSent = :t" : "REMOVE pendingLeave.emailSent")
-                    .expressionAttributeValues(take ? Map.of(":id", FamilyItems.s(leaveId), ":t", AttributeValue.fromBool(true))
-                            : Map.of(":id", FamilyItems.s(leaveId)))
-                    .build());
-            return true;
-        } catch (ConditionalCheckFailedException e) {
-            return false;
+    public static Guard leaveEmail(String coachId, LocalDate date, LocalTime start, String leaveId, Instant now) {
+        return new Guard("COACH#" + coachId, LessonTime.key(date, start), List.of("pendingLeave", "emailSent"), "",
+                AttributeValue.fromBool(true), PENDING + "@" + sortable(now), "#a0.leaveId = :leaveId",
+                Map.of(":leaveId", FamilyItems.s(leaveId)));
+    }
+
+    /** Claims {@code g}: free, a dated one of another value, or a {@code PENDING} claim older than {@code abandonedAfter}. */
+    public GuardClaim claim(Guard g, Instant now, Duration abandonedAfter) {
+        Map<String, AttributeValue> v = new HashMap<>(g.alsoValues());
+        v.put(":pending", FamilyItems.s(g.pending()));
+        v.put(":pfx", FamilyItems.s(g.prefix()));
+        v.put(":stale", FamilyItems.s(g.prefix() + sortable(now.minus(abandonedAfter))));
+        String n = g.name();
+        String free = "attribute_not_exists(" + n + ")";
+        if (!g.scope().isEmpty()) {
+            v.put(":sent", g.sent());
+            free += " OR (" + n + " <> :sent AND NOT begins_with(" + n + ", :pfx))";
         }
+        String condition = (g.also() == null ? "attribute_exists(SK)" : g.also())
+                + " AND (" + free + " OR (begins_with(" + n + ", :pfx) AND " + n + " <= :stale))";
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(g.pk(), g.sk()))
+                    .conditionExpression(condition).updateExpression("SET " + n + " = :pending")
+                    .expressionAttributeNames(g.names()).expressionAttributeValues(v).build());
+            return GuardClaim.CLAIMED;
+        } catch (ConditionalCheckFailedException e) {
+            Map<String, AttributeValue> item = db().getItem(GetItemRequest.builder().tableName(table)
+                    .key(FamilyItems.key(g.pk(), g.sk())).consistentRead(true).build()).item();
+            AttributeValue at = item == null || item.isEmpty() ? null : AttributeValue.fromM(item);
+            for (String part : g.path()) {
+                at = at == null || at.m() == null ? null : at.m().get(part);
+            }
+            boolean pending = at != null && at.s() != null && at.s().startsWith(g.prefix());
+            return pending ? GuardClaim.IN_PROGRESS : GuardClaim.DONE;
+        }
+    }
+
+    /** The email has gone (or there was nobody to tell): the claim takes the guard's sent value, if it is still this one. */
+    public void confirm(Guard g) {
+        Map<String, AttributeValue> v = new HashMap<>(Map.of(":pending", FamilyItems.s(g.pending()), ":sent", g.sent()));
+        update(g, "SET " + g.name() + " = :sent", v);
+    }
+
+    /** Takes a claim back when the email wasn't accepted, so the retry tries again; someone else's claim is left. */
+    public void release(Guard g) {
+        update(g, "REMOVE " + g.name(), new HashMap<>(Map.of(":pending", FamilyItems.s(g.pending()))));
+    }
+
+    private void update(Guard g, String expression, Map<String, AttributeValue> values) {
+        try {
+            db().updateItem(UpdateItemRequest.builder().tableName(table).key(FamilyItems.key(g.pk(), g.sk()))
+                    .conditionExpression(g.name() + " = :pending").updateExpression(expression)
+                    .expressionAttributeNames(g.names()).expressionAttributeValues(values).build());
+        } catch (ConditionalCheckFailedException e) {
+            // no longer this claim: taken over after it was abandoned, or the item is gone
+        }
+    }
+
+    /** Whether a guard's stored value means the email has gone: set, and not a claim still {@code PENDING}. */
+    static boolean sent(AttributeValue v) {
+        return v != null && (v.s() == null || !v.s().startsWith(PENDING));
+    }
+
+    /** An instant as text that sorts as time does: always three decimals ({@code Instant#toString} drops them at .000). */
+    static String sortable(Instant t) {
+        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(java.time.ZoneOffset.UTC).format(t);
     }
 
     // --------------------------------------------------------------------- helpers

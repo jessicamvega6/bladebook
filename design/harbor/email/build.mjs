@@ -247,6 +247,14 @@ for (const t of TEMPLATES) {
   if (misses.size) problems.push(`${t.name}: no sample value for ${[...misses].join(', ')}`);
   if (Buffer.byteLength(html) > 100_000) problems.push(`${t.name}: HTML is over 100 KB; Gmail clips at 102 KB`);
   gallery.push({ ...meta(t), source: { subject, html, text }, ...r });
+  /* More samples of the same template, each its own gallery entry: the same SES template, other data. */
+  for (const v of t.variants ?? []) {
+    const vm = new Set();
+    const vr = { subject: render(subject, v.sample, vm), html: render(html, v.sample, vm), text: render(text, v.sample, vm) };
+    if (vm.size) problems.push(`${t.name} (${v.label}): no sample value for ${[...vm].join(', ')}`);
+    gallery.push({ ...meta(t), name: `${t.name}--${v.slug}`, template: t.name, title: `${t.title}: ${v.label}`, when: v.when ?? t.when,
+      source: { subject, html, text }, ...vr });
+  }
 }
 
 const cognitoOut = {};

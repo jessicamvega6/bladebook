@@ -134,7 +134,7 @@ const CLIENT = 'CLIENT#';
  * email guards (owner, 2026-11-18). No PutItem or DeleteItem.
  */
 export const INVITE_ATTRIBUTES = ['PK', 'SK', 'partnerName', 'partnerStatus', 'invitedClientId', 'GSI1PK', 'GSI1SK',
-  'choiceAnswerBy', 'inviteEmailSent', 'joinedEmailSent', 'emailSent'];
+  'choiceAnswerBy', 'freedPlace', 'inviteEmailSent', 'joinedEmailSent', 'joinedHostEmailSent', 'emailSent'];
 
 /**
  * ADR-MASTER §2's role table, written from what each consumer's code calls (owner, 2026-11-18): the actions it uses,
@@ -153,13 +153,14 @@ export const CONSUMERS: readonly ConsumerSpec[] = [
   },
   {
     name: 'consumer-schedule-change', handler: 'ScheduleChange', event: 'ScheduleChanged', templates: [],
-    dynamo: (t) => [allow(['GetItem', 'Query', 'PutItem', 'UpdateItem', 'DeleteItem'], [COACH], t)],
+    // ConditionCheckItem: a re-price checks the seats it was planned for in its transaction (2026-11-21).
+    dynamo: (t) => [allow(['GetItem', 'Query', 'PutItem', 'UpdateItem', 'DeleteItem', 'ConditionCheckItem'], [COACH], t)],
     timeout: Duration.minutes(5),
   },
   {
     name: 'consumer-change-notifier', handler: 'ChangeNotifier', event: 'LessonsChanged',
     templates: ['lesson-cancelled-by-coach', 'schedule-change', 'coach-lessons-passed', 'share-dates-cancelled',
-      'coach-late-cancellation', 'share-cancelled-no-answer', 'share-other-cant-make-it'],
+      'coach-late-cancellation', 'share-other-cant-make-it'],
     dynamo: (t) => [allow(['GetItem', 'Query'], [COACH, CLIENT], t), allow(['UpdateItem'], [COACH], t)],
   },
   {

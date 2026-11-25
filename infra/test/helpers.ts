@@ -19,7 +19,8 @@ export function withTestZones(cfg: EnvConfig): EnvConfig {
 }
 
 export const testDev = withTestZones(dev);
-export const testProd = withTestZones(prod);
+/** Production's email domain is set in Batch 29; until then the tests stand one in, as production can't build without it. */
+export const testProd = withTestZones({ ...prod, emailDomain: prod.emailDomain ?? { name: 'bladebook.org' } });
 
 export interface Built {
   readonly stacks: EnvStacks;

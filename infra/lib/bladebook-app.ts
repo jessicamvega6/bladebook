@@ -15,6 +15,10 @@ export interface EnvStacks {
 }
 
 export function addEnvironment(app: App, given: EnvConfig): EnvStacks {
+  // Production with no email domain would send no email at all, every event and job still succeeding (2026-11-21).
+  if (given.retainData && !given.emailDomain) {
+    throw new Error(`${given.envName}: production sends email, so it needs emailDomain in lib/config.ts (Batch 29)`);
+  }
   const cfg = withAlarmsOverride(app, withWafOverride(app, given));
   const env = { account: cfg.account, region: cfg.region };
   const prefix = resourcePrefix(cfg);
