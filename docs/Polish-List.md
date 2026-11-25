@@ -23,6 +23,10 @@ prefer if you know.
   it like any other schedule change and reuse what exists today, i.e. the same review
   (`ChangeReview`, from `previewWeekly` with no blocks), cancellations, schedule-change emails
   and save status as editing the weekly schedule (owner, 2026-11-23).
+- [ ] **Lessons** and **Payments**: picking a date a year or more ahead in the date range shows
+  a full-page error with no way back. Handle it on the page instead (an inline message on the
+  date field, like the existing range error) so the coach can just pick another date
+  (`web/src/coach/pages/Lessons.tsx:87`, `web/src/coach/pages/Payments.tsx:92`).
 
 ## Family app
 
