@@ -2,7 +2,7 @@
   "product": "BladeBook rinkside app",
   "demoTitle": "Dana Whitfield · BladeBook rinkside demo",
   "demoBar": "<b>Interactive demo</b> · sample data · Wed, Oct 14 at Pelham Civic Center",
-  "demoBarControls": "<span>Signal: <a href=\"#today\" data-act=\"rkSignal\" data-arg='[true]'>on</a> · <a href=\"#today\" data-act=\"rkSignal\" data-arg='[false]'>off</a> (no signal since 6:15 AM; meanwhile one family cancels)</span><span>Clock: <a href=\"#today\" data-act=\"rkClock\" data-arg='[2]'>5:45 AM</a> · <a href=\"#today\" data-act=\"rkClock\" data-arg='[0]'>6:35 AM</a> · <a href=\"#today\" data-act=\"rkClock\" data-arg='[1]'>8:40 AM</a></span><span><a href=\"#today\" data-act=\"rkNotLoaded\">Open with nothing loaded</a> · <a href=\"#signin\">Log in page</a></span>",
+  "demoBarControls": "<span>Signal: <a href=\"#today\" data-act=\"rkSignal\" data-arg='[true]'>on</a> · <a href=\"#today\" data-act=\"rkSignal\" data-arg='[false]'>off</a> (no signal since 6:15 AM; meanwhile one family cancels)</span><span>Clock: <a href=\"#today\" data-act=\"rkClock\" data-arg='[2]'>5:45 AM</a> · <a href=\"#today\" data-act=\"rkClock\" data-arg='[0]'>6:35 AM</a> · <a href=\"#today\" data-act=\"rkClock\" data-arg='[1]'>8:40 AM</a></span><span><a href=\"#today\" data-act=\"rkNotLoaded\">Open with nothing loaded</a> · <a href=\"#signin\" data-act=\"rkCleared\">Open after Safari cleared it</a> · <a href=\"#signin\">Log in page</a></span>",
   "galleryTitle": "BladeBook Rinkside Pages",
   "galleryIntro": "Coach Dana Whitfield's phone at Pelham Civic Center. Today in the samples is Wednesday, October 14, 2026, 6:35 AM.",
   "groups": [
@@ -12,8 +12,8 @@
     "Cancel",
     "Account"
   ],
-  "demoUrl": "https://claude.ai/artifact/SUYQBvoKcSBmEKgWEeGesH",
+  "demoUrl": "https://claude.ai/artifact/LWjhoxEcXQ5eCGiU2Bi74p",
   "artifactLinks": {
-    "../../coach/demo/index.html#today": "https://claude.ai/artifact/DMhn8sn8YW29P7cCTd9k93"
+    "../../coach/demo/index.html#today": "https://claude.ai/artifact/4h2xTStPhawGCNJzCjgdHB"
   }
 }

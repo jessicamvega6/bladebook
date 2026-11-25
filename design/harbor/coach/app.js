@@ -92,7 +92,7 @@ SCREENS.forgot = () => authShell(card(state.auth.step === 0 ? `
   <p class="fine center"><a class="link" data-act="forgotSend">Send a new code</a> · ${A_('login', 'Back to log in')}</p>`),
   help('No email?', 'Check spam for a message from BladeBook. The code goes to your <b>login</b> email, not your business email.'), { right: `Remembered it? <a class="link" href="${href('login')}">Log in</a>` });
 Object.assign(ACTIONS, {
-  login() { state.auth.error = ''; state.auth.notice = ''; go('today'); state.authed = true; },
+  login() { state.auth.error = ''; state.auth.notice = ''; if (state.profile.mfa) { mfaUi().wrong = false; go('login-code'); return; } go('today'); state.authed = true; },
   logout() { state.authed = false; state.auth = { step: 0, email: state.profile.loginEmail }; go('login'); },
   forgotSend() { state.auth.step = 1; state.screen = 'forgot'; },
   forgotDone() { state.auth.step = 0; state.auth.notice = 'Password changed. Log in with your new password.'; go('login'); },
