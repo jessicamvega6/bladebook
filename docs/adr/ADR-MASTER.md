@@ -1355,7 +1355,7 @@ never sent.
 
 ## 15. Sign-in and sessions
 
-*Sources: ADR-016 d3–4 (amended 2026-11-06 and 2026-11-09), ADR-023 d2, d4–7, d9–11.*
+*Sources: ADR-016 d3–4 (amended 2026-11-06 and 2026-11-09), ADR-023 d2, d4–7, d9–11 (amended 2026-11-25: revocation).*
 
 - **BladeBook's own sign-in forms, talking to Cognito directly** (ADR-023 d11, 2026-11-09). Every
   page that asks for an email, password or code is BladeBook's own: creating the account,
@@ -1381,6 +1381,12 @@ never sent.
 - **`api-client` requires the `Client` group** on every route, in the same kind of shared check,
   and refuses a token without it with 403 (ADR-023 d7). A coach's token can't use the family
   website's routes.
+- **A signed-out session stops working at once** (owner, 2026-11-25; ADR-023). The websites send the access token in
+  `X-BladeBook-Access` beside the ID token. After the checks above, each API verifies it (signature, `token_use =
+  access`, its own app client's `client_id`, the same `sub` as the ID token) and calls Cognito's `GetUser` with it: a
+  revoked, missing or mismatched one gets **401**; Cognito unreachable or throttled gets **503**, never a pass. *Log
+  out*, the three-wrong-passwords sign-out (I33) and Cognito's own global sign-outs all count. A *Log out* with no
+  signal can't reach Cognito; that token lives until it expires.
 - **These checks cover every route that needs a sign-in.** `api-client`'s coach-code lookup
   before sign-up and `/health` take no token (ADR-023 d7, amended 2026-10-24).
 - **A new account gets its group when its email is confirmed** (ADR-023 d10): a Cognito
@@ -1925,7 +1931,7 @@ database-gate tests; reproducing an incident (masked build).
   money arithmetic; `requireActive` outcomes, the ownership condition, the `LinkedSkater`
   ArchUnit rule, the security event's content; each session limit and that a refreshed token
   keeps `auth_time`; every `api-coach` route, rinkside included, refuses no token and a `Client`
-  token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); the rinkside queue (survives reload, duplicate dropped, failed stays
+  token (403), and every `api-client` route refuses a `Coach` token (403); each API refuses a token from the other website's app client (403), even with the right group (ADR-023 d9); a revoked access token gets 401 on every route, and Cognito unavailable gets 503, never a pass (ADR-023, 2026-11-25); the rinkside queue (survives reload, duplicate dropped, failed stays
   visible, future time rejected, both outcomes); no recorded outcome is never a no-show (Payments, the lesson list and the
   unpaid reminder); multi-coach (per-coach `linkStatus`, clash warning, one coach's failure, a
   contact change reaching every coach); shared lessons (a seat never in another family's

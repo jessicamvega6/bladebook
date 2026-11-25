@@ -135,6 +135,35 @@ the family site's pages. The coaches are the older users, so they get the plain 
 and the bare domain redirects there. The Vite builds move each site to the root of its own host,
 and the rinkside service worker's scope becomes `/rinkside/`, with the deploy (Batch 17b).
 
+**Amended — 2026-11-25.** *Decided by the owner.* **A signed-out session stops working at once.** Until now an ID
+token kept working until it expired, up to 60 minutes after *Log out*. Found while testing ZAP's sign-in in dev: after
+Cognito signed both test accounts out of every session, their ID tokens still got 200 from the API. API Gateway's
+Cognito authorizer checks only a token's signature and expiry, and caches its answer for 5 minutes; Cognito offers no
+way to ask whether an ID token has been revoked. It can only answer for an **access token**: revoking a refresh token,
+which *Log out* already does, revokes the access tokens issued from it, and a global sign-out revokes all of them.
+- **The websites send both tokens:** the ID token in `Authorization`, as now (the authorizer and decision 9's checks
+  are unchanged), and the access token in an `X-BladeBook-Access` header. CloudFront already forwards every header to
+  the API. Both come from the same session in the tab's own storage; nothing new is stored.
+- **Every signed-in request asks Cognito whether the session is live.** After the existing checks, the API verifies
+  the access token's signature and expiry against the pool's keys, requires `token_use = access`, its `client_id` to be
+  that API's app client, and its `sub` to equal the ID token's; then calls Cognito's `GetUser` with it. A revoked token
+  gets **401**, and the website shows its sign-in page, as for an expired one. A missing or mismatched access token gets
+  401 too.
+- **Fail closed.** If Cognito can't be reached or refuses the call for a rate limit, the request fails (503) rather
+  than skip the check. Errors and throttles are counted and alarmed ([ADR-010](ADR-010-availability-and-reliability.md)).
+- **What counts as signing out:** the website's *Log out*, the sign-out after three wrong passwords before a schedule
+  save (I33), and any sign-out done in Cognito itself (an operator's global sign-out of a lost phone's account).
+- **Cost:** `GetUser` is free; one call per signed-in request, tens of milliseconds, well inside Cognito's default
+  request quota at this scale (checked when built). The API Lambdas already reach AWS services without a VPC.
+- **What it can't cover:** a *Log out* tapped with no signal (the rinkside page at a rink). The tab's sign-in is
+  cleared on the phone at once, but the revoke can't reach Cognito, so a copy of the token taken earlier works until
+  it expires. Signing out from another device with signal (a global sign-out) closes it.
+- **Turned down:** *BladeBook's own signed-out record in the table*, checked on every request: a new item type and
+  new database-gate rows, and Cognito's own sign-outs wouldn't count. *Shorter tokens* (5 minutes, Cognito's least):
+  narrows the window but doesn't close it.
+- **Tests** (ADR-013 decision 4): a revoked access token gets 401 on every route of both APIs; another user's access
+  token, the other website's, an ID token in its place, or none gets 401; Cognito unavailable gets 503, never a pass.
+
 ---
 
 ## Context
