@@ -589,6 +589,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 .bb .card__note { display: block; }
 .bb .card__note .ic { display: inline-block; vertical-align: -2px; margin: 0 6px 0 0; }
 .bb .card--flush .card__body > .toggle-row:first-child { padding-top: 16px; }
+.bb .ctl--code { font-size: 20px; letter-spacing: .3em; font-variant-numeric: tabular-nums; }
 .bb .scrim { z-index: 5; } .bb .dialog, .bb .sheet { z-index: 6; }
 .bb .wbar .brand { color: var(--text); }
 
@@ -708,6 +709,8 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const LENGTHS = [30, 45, 60, 90, 120];
 const NOW = new Date(2026, 9, 14, 8, 15);   // demo "now": Wed Oct 14 2026, 8:15 AM (matches the coach demo)
+const TODAY_ISO = '2026-10-14';
+const LOGIN_EMAIL = 'dana.whitfield@gmail.com';
 const NOTICE_H = 24;
 const WARN_PCT = 50;                          // demo threshold for the big-price warning
 const MAX_SKATERS = 2;                        // most skaters per lesson; a configuration value that may be raised later (ADR-026 d1)
@@ -734,6 +737,7 @@ function freshState() {
     { id: 'b8', iso: '2026-12-23', t: 420, len: 30, who: 'Ella A.', price: 50 },
     { id: 'b9', iso: '2026-12-21', t: 900, len: 60, who: 'Priya R.', price: 80 },
     { id: 'b10', iso: '2026-11-02', t: 360, len: 30, who: 'Mia C.', price: 50 },
+    { id: 'b11', iso: '2026-11-20', t: 420, len: 30, who: 'Ella A.', price: 50 },
   ];
   state = {
     screen: 'dashboard', mode: 'default', previewMode: 'all', ack: false, apply: null, flash: '', reviewing: null,
@@ -747,7 +751,8 @@ function freshState() {
       { id: 'tg', kind: 'timeoff', name: 'Thanksgiving break', sd: '2026-11-22', ed: '2026-11-28' },
     ],
     temp: null,
-    away: { name: '', sd: '2026-10-26', ed: '2026-10-27' },
+    away: { id: null, orig: null, name: '', sd: '2026-10-26', ed: '2026-10-27' },
+    reauth: null,   // the "Confirm it's you" box before a save: { mfa, wrong: 'pw' | 'code' | '' } (ADR-MASTER §15; Batch 28)
   };
   SAVED = {}; SAVED_MAX = {};
   for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) { SAVED[b.id] = b.cost; SAVED_MAX[b.id] = b.maxSkaters; }
@@ -793,7 +798,9 @@ function verdict() {
     if (start <= NOW) continue;
     let block = null;
     if (state.reviewing === 'timeoff' || state.screen === 'timeoff') {
-      if (inRange(bk.iso, state.away.sd, state.away.ed)) out.cancel.push(bk);
+      // Editing time off (G-30): only the dates it adds can cancel a lesson; its old dates have none.
+      const o = state.away.orig;
+      if (inRange(bk.iso, state.away.sd, state.away.ed) && !(o && inRange(bk.iso, o.sd, o.ed))) out.cancel.push(bk);
       continue;
     }
     if (isTemp()) {
@@ -865,9 +872,23 @@ function awayErrors() {
   const a = state.away, bad = [];
   if (!a.sd || !a.ed) bad.push('Time off needs a first and last day.');
   else if (a.ed < a.sd) bad.push('The last day is before the first day.');
-  else bad.push(...overlapErrors(a.sd, a.ed, state.temps));
+  else if (a.orig && a.ed < TODAY_ISO) bad.push('The last day can’t be before today.');
+  else bad.push(...overlapErrors(a.sd, a.ed, state.temps.filter(t => t.id !== a.id)));
   return bad;
 }
+/** Time off that has already begun keeps its first day: those days are past (G-30). */
+const awayStarted = () => !!(state.away.orig && state.away.orig.sd <= TODAY_ISO);
+const awayUnchanged = () => { const a = state.away, o = a.orig; return !!o && a.sd === o.sd && a.ed === o.ed && (a.name || '') === (o.name || ''); };
+/** Dates from today on that are in range a but not in range b, as [first, last] runs. */
+function onlyIn(a, b) {
+  const out = []; let run = null;
+  for (let d = parse(a.sd); d <= parse(a.ed); d.setDate(d.getDate() + 1)) {
+    const iso = toIso(d), only = iso >= TODAY_ISO && !inRange(iso, b.sd, b.ed);
+    if (only) { if (run) run[1] = iso; else out.push(run = [iso, iso]); } else run = null;
+  }
+  return out;
+}
+const runsText = runs => runs.map(([x, y]) => rng(x, y)).join(' and ');
 
 /* ---------- UI pieces ---------- */
 const set = fn => { fn(); render(); };
@@ -906,7 +927,7 @@ function dashboard() {
       <button type="button" class="action-card" onclick="go('choose')"><span class="action-card__icon">${ic('calOff', 22)}</span><span class="action-card__title">Add time off or a special schedule</span><span class="action-card__sub">Vacation, a tournament, a camp or holiday hours — for a set range of dates.</span><span class="action-card__meta">Add dates ${ic('arrowR')}</span></button>
     </div>
     ${card(state.temps.map(x => row(`<span class="roundicon${x.kind === 'special' ? ' roundicon--alt' : ''}">${ic(x.kind === 'special' ? 'spark' : 'calOff', 16)}</span>${rowTitle(esc(x.name), x.kind === 'special' ? 'Special schedule' : 'No lessons')}`,
-      `<span class="muted num">${rng(x.sd, x.ed)}</span>${x.kind === 'special' ? btn('Edit', 'ghost', `openTemp('${x.id}')`, { sm: true }) : ''}`)).join(''), { title: 'Time off and special schedules', flush: true })}
+      `<span class="muted num">${rng(x.sd, x.ed)}</span>${btn('Edit', 'ghost', x.kind === 'special' ? `openTemp('${x.id}')` : `editAway('${x.id}')`, { sm: true })}`)).join(''), { title: 'Time off and special schedules', flush: true })}
     ${tryThis()}`);
 }
 function tryThis() {
@@ -914,33 +935,42 @@ function tryThis() {
     <li>Edit the weekly schedule and change Morning ice to <b>$5</b>. The review asks you to confirm a 90% price cut.</li>
     <li>Switch off <b>Wednesday</b> for Morning ice and see which booked lesson would be cancelled.</li>
     <li>Set Afternoon power hours to start at <b>11:00 AM</b> to trigger a clash on Mondays.</li>
-    <li>Add time off for <b>Nov 23 – 24</b> to see the overlap with Thanksgiving break.</li></ul></aside>`;
+    <li>Add time off for <b>Nov 23 – 24</b> to see the overlap with Thanksgiving break.</li>
+    <li>Edit <b>Thanksgiving break</b> to run <b>Nov 20 – 26</b>. Only the lesson on the added Nov 20 is cancelled, and Nov 27 – 28 open again.</li></ul></aside>`;
 }
 
 function chooseAway() {
   return shell(`
     ${head('Add dates', 'What’s different about these dates?', back('dashboard', 'Your schedule'))}
     <div class="grid2">
-      <button type="button" class="choice" onclick="openAway()"><span class="choice__icon">${ic('calOff', 24)}</span><span class="choice__title">No lessons</span><span class="choice__sub">Vacation, a tournament, an absence you know about in advance. Just a name and dates.</span><span class="choice__go">${ic('arrowR', 18)}</span></button>
+      <button type="button" class="choice" onclick="newAway()"><span class="choice__icon">${ic('calOff', 24)}</span><span class="choice__title">No lessons</span><span class="choice__sub">Vacation, a tournament, an absence you know about in advance. Just a name and dates.</span><span class="choice__go">${ic('arrowR', 18)}</span></button>
       <button type="button" class="choice" onclick="newTemp()"><span class="choice__icon">${ic('spark', 24)}</span><span class="choice__title">Special schedule</span><span class="choice__sub">A camp or holiday hours — different times, lengths or prices for a set of dates.</span><span class="choice__go">${ic('arrowR', 18)}</span></button>
     </div>
     ${banner('info', 'Sick today?', 'Use <b>Cancel this day</b> on your week view instead. It cancels lessons without changing your schedule, and you choose whether the slots can be rebooked.')}`);
 }
 
 function timeOff() {
-  const a = state.away, errs = awayErrors(), v = errs.length ? null : verdict();
+  const a = state.away, edit = !!a.id, errs = awayErrors(), same = awayUnchanged(), v = errs.length ? null : verdict();
+  const started = awayStarted(), back2 = edit ? 'dashboard' : 'choose';
+  const added = edit && !errs.length ? onlyIn(a, a.orig) : [], freed = edit && !errs.length ? onlyIn(a.orig, a) : [];
+  const status = errs.length ? banner('danger', 'These dates can’t be used', errs.join('<br>'))
+    : same ? banner('info', 'Nothing has changed yet', 'Change the name or a date to review it.')
+    : v.cancel.length ? banner('warning', `${plural(v.cancel.length, 'booked lesson')} will be cancelled`, `${edit ? `On the dates you’ve added (${runsText(added)}). ` : ''}You’ll see exactly which on the next step. Nothing changes until you accept.`)
+    : banner('success', edit && added.length ? `No booked lessons on the dates you’ve added (${runsText(added)})` : 'No booked lessons on these dates');
   return shell(`
-    ${head('Time off', 'Every date in this range becomes a day with no lessons. Families can’t book them.', back('choose', 'Add dates'))}
+    ${head(edit ? `Edit ${esc(a.orig.name)}` : 'Time off', edit ? 'Change the name or the dates. Only dates you add or take away change anything for families.' : 'Every date in this range becomes a day with no lessons. Families can’t book them.', back(back2, edit ? 'Your schedule' : 'Add dates'),
+      edit ? `<span class="badge badge--neutral">${ic('calOff', 12)}Now ${rng(a.orig.sd, a.orig.ed)}</span>` : '')}
     ${card(`
       ${field('away-name', 'Name <span class="label__opt">Optional</span>', `<input id="away-name" class="ctl" maxlength="40" value="${esc(a.name)}" placeholder="e.g. Fall break" onchange="set(()=>state.away.name=this.value)">`)}
       <div class="grid2">
-        ${field('away-sd', 'First day off', `<input id="away-sd" type="date" class="ctl${errs.length ? ' is-error' : ''}" value="${a.sd}" onchange="set(()=>state.away.sd=this.value)">`)}
+        ${started
+          ? field('away-sd', 'First day off', `<input id="away-sd" type="date" class="ctl ctl--locked" value="${a.sd}" readonly>`, `${ic('lock', 12)}Already started, so the first day stays.`)
+          : field('away-sd', 'First day off', `<input id="away-sd" type="date" class="ctl${errs.length ? ' is-error' : ''}" value="${a.sd}" onchange="set(()=>state.away.sd=this.value)">`)}
         ${field('away-ed', 'Last day off', `<input id="away-ed" type="date" class="ctl${errs.length ? ' is-error' : ''}" value="${a.ed}" onchange="set(()=>state.away.ed=this.value)">`)}
       </div>
-      ${errs.length ? banner('danger', 'These dates can’t be used', errs.join('<br>'))
-        : v.cancel.length ? banner('warning', `${plural(v.cancel.length, 'booked lesson')} will be cancelled`, 'You’ll see exactly which on the next step. Nothing changes until you accept.')
-        : banner('success', 'No booked lessons on these dates')}`)}
-    <div class="actions">${btn('Back', 'secondary', "go('choose')")}${btn('Review changes', 'primary', 'reviewAway()', { iconR: 'arrowR', disabled: errs.length })}</div>`);
+      ${status}
+      ${freed.length ? banner('info', `${runsText(freed)} ${freed.length === 1 && freed[0][0] === freed[0][1] ? 'goes' : 'go'} back to your weekly schedule`, 'Families can book those dates again. Nobody is emailed.') : ''}`)}
+    <div class="actions">${btn('Back', 'secondary', `go('${back2}')`)}${btn('Review changes', 'primary', 'reviewAway()', { iconR: 'arrowR', disabled: errs.length || same })}</div>`);
 }
 
 function builder() {
@@ -1033,7 +1063,8 @@ function review() {
   const backTo = kind === 'timeoff' ? 'timeoff' : 'build';
   const what = kind === 'default' ? 'Weekly schedule · repeats every week until you change it'
     : kind === 'temp' ? `${esc(state.temp.name) || 'Special schedule'} · ${rng(state.temp.sd, state.temp.ed)} · weekly schedule resumes after ${dlabel(state.temp.ed)}`
-    : `${esc(state.away.name) || 'Time off'} · no lessons ${rng(state.away.sd, state.away.ed)}`;
+    : `${esc(state.away.name) || 'Time off'} · no lessons ${rng(state.away.sd, state.away.ed)}${state.away.orig ? ` · was ${rng(state.away.orig.sd, state.away.orig.ed)}` : ''}`;
+  const freed = kind === 'timeoff' && state.away.orig ? onlyIn(state.away.orig, state.away) : [];
   const blocked = big.length && !state.ack;
   const ups = v.reprice.filter(b => b.newPrice > b.price), downs = v.reprice.filter(b => b.newPrice < b.price);
   const lessonRow = (b, side) => row(`<span class="avatar avatar--sm">${initials(b.who)}</span>${rowTitle(esc(b.who), whenOf(b))}`, side);
@@ -1047,6 +1078,7 @@ function review() {
     ${v.cancel.length ? card(v.cancel.map(b => lessonRow(b, '<span class="badge badge--danger">Cancelled</span>')).join(''), { title: `${plural(v.cancel.length, 'lesson')} will be cancelled`, sub: `Each family is emailed with a link to book another time.${kind === 'timeoff' ? ' These times stop existing, so nobody can rebook them.' : ''}`, flush: true }) : ''}
     ${v.reprice.length ? card(v.reprice.map(b => lessonRow(b, delta(b))).join('') + `<div class="card__note">${[ups.length ? 'Families with a price increase are emailed the new price.' : '', downs.length ? 'Families with a decrease are told: “Good news — some lessons are now cheaper.”' : ''].filter(Boolean).join(' ')}</div>`, { title: `${plural(v.reprice.length, 'upcoming lesson')} will change price`, flush: true }) : ''}
     ${v.kept.length ? card(v.kept.map(b => lessonRow(b, `<span class="muted">stays ${money(b.price)}</span>`)).join('') + `<div class="card__note">${ic('info', 14)}A price increase never reaches a lesson inside your ${NOTICE_H}-hour notice period.</div>`, { title: `Not changed — inside your ${NOTICE_H}-hour notice`, flush: true }) : ''}
+    ${freed.length ? card(freed.map(([x, y]) => row(`<span class="roundicon">${ic('calendar', 16)}</span>${rowTitle(rng(x, y), 'Your weekly schedule applies again')}`, '<span class="badge badge--success">Open to book</span>')).join(''), { title: 'Dates given back', sub: 'Families can book these again. Nobody is emailed about them.', flush: true }) : ''}
     ${!v.cancel.length && !v.reprice.length && !v.kept.length ? banner('success', 'No booked lessons are affected', 'Families won’t be emailed.') : ''}
     <div class="stickybar">${btn('Back', 'secondary', `go('${backTo}')`)}<span class="stickybar__note">Nothing changes until you accept.</span>${btn(blocked ? 'Tick the box above to continue' : families.size ? `Accept & email ${plural(families.size, 'family', 'families')}` : 'Accept & save', 'primary', 'accept()', { lg: true, disabled: blocked })}</div>`);
 }
@@ -1072,6 +1104,9 @@ function newTemp() { const id = 't' + (++uid); const bid = ++uid;
   state.temp = { id, kind: 'special', name: '', sd: '2026-10-12', ed: '2026-10-16', active: bid, blocks: [{ id: bid, name: '', sod: 600, eod: 840, len: 60, cost: 80, maxSkaters: 1, ice: '', days: [1, 1, 1, 1, 1, 1, 1], off: {} }] };
   state.editSnapshot = clone(state.temp); set(() => { state.mode = 'temp'; state.screen = 'build'; state.reviewing = null; state.flash = ''; window.scrollTo(0, 0); }); }
 function openAway() { set(() => { state.screen = 'timeoff'; state.reviewing = null; state.flash = ''; }); }
+function newAway() { state.away = { id: null, orig: null, name: '', sd: '2026-10-26', ed: '2026-10-27' }; openAway(); }
+/** Edit time off (G-30): the form opens with its saved name and dates. */
+function editAway(id) { const t = state.temps.find(x => x.id === id); state.away = { id, orig: { name: t.name, sd: t.sd, ed: t.ed }, name: t.name, sd: t.sd, ed: t.ed }; openAway(); window.scrollTo(0, 0); }
 function reviewAway() { set(() => { state.reviewing = 'timeoff'; state.screen = 'review'; state.ack = false; window.scrollTo(0, 0); }); }
 function resetEdit() { if (!state.editSnapshot) return; if (isTemp()) state.temp = clone(state.editSnapshot); else state.def = clone(state.editSnapshot); render(); }
 function toggleSlot(id, i, t) { const b = blks().find(x => x.id === id), k = offKey(i, t); if (b.off[k]) delete b.off[k]; else b.off[k] = 1; cur().active = id; render(); }
@@ -1083,7 +1118,10 @@ function accept() {
   const lessons = v.cancel.length + v.reprice.length;
   const gone = new Set(v.cancel.map(b => b.id));
   BOOKINGS = BOOKINGS.filter(b => !gone.has(b.id)).map(b => { const r = v.reprice.find(x => x.id === b.id); return r ? { ...b, price: r.newPrice } : b; });
-  if (kind === 'timeoff') { state.temps.push({ id: 'a' + (++uid), kind: 'timeoff', name: state.away.name || 'Time off', sd: state.away.sd, ed: state.away.ed }); state.temps.sort((a, b) => a.sd < b.sd ? -1 : 1); }
+  if (kind === 'timeoff') {
+    const a = state.away, saved = { id: a.id || 'a' + (++uid), kind: 'timeoff', name: a.name || 'Time off', sd: a.sd, ed: a.ed };
+    state.temps = state.temps.filter(t => t.id !== a.id).concat(saved).sort((x, y) => x.sd < y.sd ? -1 : 1);
+  }
   else if (kind === 'temp') { const i = state.temps.findIndex(t => t.id === state.temp.id); const saved = clone(state.temp); if (!saved.name) saved.name = 'Special schedule'; if (i >= 0) state.temps[i] = saved; else state.temps.push(saved); state.temps.sort((a, b) => a.sd < b.sd ? -1 : 1); }
   for (const b of [...state.def.blocks, ...state.temps.flatMap(t => t.blocks || [])]) { SAVED[b.id] = b.cost; SAVED_MAX[b.id] = b.maxSkaters; }
   state.mode = 'default';
@@ -1095,12 +1133,31 @@ function accept() {
 }
 function resetAll() { freshState(); render(); window.scrollTo(0, 0); }
 
+/* ---------- "Confirm it's you" before a save (ADR-MASTER §15; the built box, web/src/coach/pages/Schedule.tsx) ----------
+   A save more than 15 minutes after signing in is refused, and the website asks again. With MFA (multi-factor
+   authentication) on, the same box asks for the authenticator code too: one box, both answers, so the coach isn't sent
+   through two steps to save (Batch 28). Three wrong passwords sign the coach out, unsaved changes lost (I33). */
+function reauthBox() {
+  const r = state.reauth; if (!r) return '';
+  const err = r.wrong === 'pw' ? 'That password isn’t right. Try again.' : r.wrong === 'code' ? 'That code didn’t work. Open the app and type the code it shows now.' : '';
+  return `<div class="scrim"></div><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="reauth-title">
+    <h2 class="h2" id="reauth-title">Confirm it’s you</h2>
+    <p class="muted">Saving your schedule needs a sign-in from the last 15 minutes. Your changes are kept.</p>
+    ${err ? banner('danger', '', err) : ''}
+    ${field('ra-pw', 'Password', `<input id="ra-pw" type="password" class="ctl${r.wrong === 'pw' ? ' is-error' : ''}" autocomplete="current-password" value="${r.wrong === 'code' ? '••••••••••' : ''}">`, `For ${LOGIN_EMAIL}`)}
+    ${r.mfa ? field('ra-code', 'Code from your authenticator app', `<input id="ra-code" class="ctl ctl--code${r.wrong === 'code' ? ' is-error' : ''}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 digits">`, 'The app shows a new code every 30 seconds. Any code it shows now works.') : ''}
+    <p class="fine">Warning: several wrong passwords will sign you out, and your changes won’t be saved.</p>
+    <div class="dialog__actions">${btn('Not now', 'secondary', 'set(()=>state.reauth=null)')}${btn('Sign in again and save', 'primary', 'set(()=>state.reauth=null)')}</div>
+  </div>`;
+}
+
 function render() {
   const s = state.screen;
-  document.getElementById('app').innerHTML = s === 'dashboard' ? dashboard() : s === 'choose' ? chooseAway() : s === 'timeoff' ? timeOff() : s === 'review' ? review() : s === 'status' ? statusScreen() : builder();
+  document.getElementById('app').innerHTML = (s === 'dashboard' ? dashboard() : s === 'choose' ? chooseAway() : s === 'timeoff' ? timeOff() : s === 'review' ? review() : s === 'status' ? statusScreen() : builder()) + reauthBox();
 }
 freshState();
-function route() { const h = location.hash.slice(1); if (h === 'weekly') { openWeekly(); return; } if (h === 'away') { go('choose'); return; } if (h === 'special') { openTemp('camp'); return; } render(); }
+function route() { const h = location.hash.slice(1); if (h === 'weekly') { openWeekly(); return; } if (h === 'away') { go('choose'); return; } if (h === 'special') { openTemp('camp'); return; } if (h === 'edit-time-off') { editAway('tg'); return; }
+  if (h === 'reauth' || h === 'reauth-code') { openWeekly(); state.def.blocks[0].cost = 55; state.reauth = { mfa: h === 'reauth-code', wrong: '' }; go('review'); return; } render(); }
 addEventListener('hashchange', route);
 route();
 

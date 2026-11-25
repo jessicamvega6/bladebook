@@ -81,3 +81,6 @@
 .bb .rk-seat { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .bb .rk-seat .rk-namebtn { align-self: flex-start; }
 .bb .rk-pick__n small { display: block; font-size: 12px; font-weight: var(--w-reg); color: var(--text-3); }
+/* The notice after the page saves its offline copy again (G-32, Batch 25). */
+.bb .pbanner--info { background: var(--info-soft); border: 1px solid var(--info-border); } .bb .pbanner--info .ic { color: var(--primary); }
+.bb .rk-fresh .btn { align-self: flex-start; margin-top: 8px; }
