@@ -700,14 +700,15 @@ function rec(eventName: string, pk: string, sk: string, newImage?: Image, oldIma
 }
 
 const SEAT = 'SEAT#2026-11-23#06:00#s1';
+const MARKER = 'BOOKED#f#11111111-1111-4111-8111-111111111111';
 /** Each event's records: the ones it must match, and near misses it mustn't. */
 const SAMPLES: Record<string, { match: object[]; miss: object[] }> = {
   LessonBooked: {
-    match: [rec('INSERT', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }),
-      rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }, { seatStatus: 'INVITED' })],
-    miss: [rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }, { seatStatus: 'BOOKED' }),
-      rec('INSERT', 'COACH#c', SEAT, { seatStatus: 'INVITED' }), rec('REMOVE', 'COACH#c', SEAT, undefined, { seatStatus: 'BOOKED' }),
-      rec('INSERT', 'COACH#c', 'SEATEND#2026-11-23#06:00#s1#t', { seatStatus: 'BOOKED' })],
+    match: [rec('INSERT', 'COACH#c', MARKER, { clientId: 'f' }), rec('MODIFY', 'COACH#c', MARKER, { clientId: 'f' }, { clientId: 'f' })],
+    miss: [rec('REMOVE', 'COACH#c', MARKER, undefined, { clientId: 'f' }),
+      rec('INSERT', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }),
+      rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'BOOKED' }, { seatStatus: 'INVITED' }),
+      rec('INSERT', 'CLIENT#f', MARKER, { clientId: 'f' })],
   },
   CheckInRecorded: {
     match: [rec('MODIFY', 'COACH#c', SEAT, { seatStatus: 'CHECKED_IN' }, { seatStatus: 'BOOKED' })],
@@ -754,8 +755,8 @@ describe('the event backbone (ADR-MASTER §2, §3, I6)', () => {
     }
   });
   test('no event matches another event\'s records unless both consumers want them', () => {
-    // A booked seat is also a shared-lesson seat change: consumer-invite checks for a partner. Nothing else overlaps.
-    const allowed = new Set(['LessonBooked>SharedLessonChanged', 'CheckInRecorded>SharedLessonChanged']);
+    // A checked-in seat is also a shared-lesson seat change: consumer-invite checks for a partner. Nothing else overlaps.
+    const allowed = new Set(['CheckInRecorded>SharedLessonChanged']);
     for (const [owner, { match }] of Object.entries(SAMPLES)) {
       for (const r of match) {
         for (const other of Object.keys(EVENT_PATTERNS)) {

@@ -128,6 +128,13 @@ public final class NotifyRepository {
         return get("COACH#" + coachId, seatKey).map(NotifyRepository::seatRow);
     }
 
+    /** The seat keys a booking request's marker lists ({@link BookingRepository#markBooked}); empty if it's gone. */
+    public List<String> bookedSeatKeys(String coachId, String markerKey) {
+        return get("COACH#" + coachId, markerKey)
+                .map(m -> m.containsKey("seatKeys") ? m.get("seatKeys").l().stream().map(AttributeValue::s).toList() : List.<String>of())
+                .orElse(List.of());
+    }
+
     /** Every seat of one lesson time, invited ones included. */
     public List<SeatRow> seatsAt(String coachId, LocalDate date, LocalTime start) {
         return queryPrefix("COACH#" + coachId, SeatItems.SEAT + date + "#" + start + "#").stream().map(NotifyRepository::seatRow).toList();
