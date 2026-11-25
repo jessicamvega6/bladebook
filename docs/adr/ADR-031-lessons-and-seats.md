@@ -454,8 +454,11 @@ content, not an architecture decision.*
 
 ### 14. Details settled while updating the docs (2026-10-13)
 
-- **`LessonBooked` fires per seat**, when a seat becomes `BOOKED`, so each skater's family gets
-  its own confirmation (as each booking did).
+- ~~**`LessonBooked` fires per seat**, when a seat becomes `BOOKED`, so each skater's family gets
+  its own confirmation (as each booking did).~~ *Replaced 2026-11-25 (owner): each seat's own event sent a
+  family one email per lesson. `LessonBooked` now matches one `BOOKED#` marker per booking request, written
+  after its seats, and the family gets one email listing the request's lessons, a series as one line
+  (ADR-MASTER §3).*
 - **Reminders and the report count only `BOOKED`, `CHECKED_IN` and `NO_SHOW` seats.** *The end-of-day report is Phase 2 (2026-11-11).* A seat
   gets its GSI2 keys only when it becomes `BOOKED`; `INVITED` and `AWAITING_COACH` seats have
   none. *Since ADR-033 (2026-10-20): `INVITED` seats only.* (A pending leave is always settled before the lesson day, because its answer-by is no

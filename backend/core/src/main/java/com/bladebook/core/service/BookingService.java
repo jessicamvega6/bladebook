@@ -242,6 +242,7 @@ public final class BookingService {
             byKey.put(t.key(), t);
         }
         List<PickResult> out = new ArrayList<>();
+        List<String> bookedSeats = new ArrayList<>();
         int sharedDates = 0;
         for (BookingRequest.Occurrence o : dates) {
             AvailableTime t = byKey.get(LessonTime.key(o.date(), o.startTime()));
@@ -249,9 +250,18 @@ public final class BookingService {
             if (t == null || !t.free()) {
                 // Gone, or taken already: skip the write, and say whose by the family's own seat.
                 outcome = bookings.attribute(ctx, skater, o.date(), o.startTime(), request.idempotencyKey());
+                if (outcome == BookingOutcome.BOOKED) {
+                    bookedSeats.add(Seat.key(o.date(), o.startTime(), skater.studentId()));
+                }
             } else {
                 BookingRepository.Partner partner = share != null && t.shareable() ? share.partner() : null;
                 outcome = bookings.book(ctx, skater, t, request.idempotencyKey(), now, o.recurrenceId(), o.intervalWeeks(), partner);
+                if (outcome == BookingOutcome.BOOKED) {
+                    bookedSeats.add(Seat.key(o.date(), o.startTime(), skater.studentId()));
+                    if (partner != null && partner.sibling() != null) {
+                        bookedSeats.add(Seat.key(o.date(), o.startTime(), partner.studentId()));
+                    }
+                }
                 if (outcome == BookingOutcome.BOOKED && partner != null) {
                     sharedDates++;
                     events.seatsChanged(skater.coachId(), o.date(), o.startTime());
@@ -277,6 +287,10 @@ public final class BookingService {
                             Recurrence.Status.ACTIVE));
                 }
             });
+        }
+        // After the dates and the series headers: one confirmation for the whole request (LessonBooked matches the marker).
+        if (!bookedSeats.isEmpty()) {
+            bookings.markBooked(ctx, skater, request.idempotencyKey(), bookedSeats, now);
         }
         return new BookingResult(coach.firstName(), skater.studentName(), out, series,
                 share == null || sharedDates == 0 ? null : new Shared(share.displayName(), share.sibling(), sharedDates));

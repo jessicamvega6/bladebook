@@ -41,10 +41,11 @@ const becomes = (attr: string, value: string): Pattern => ({
  * guard, so a pattern may match a little more than its event; it must never miss one.
  */
 export const EVENT_PATTERNS: Record<string, Pattern> = {
-  // A seat becoming BOOKED (one per seat).
+  // A booking request's marker written (one per request, listing the seats it booked; owner, 2026-11-25). A retry of the
+  // request writes it again: the consumer's guards send nothing twice.
   LessonBooked: {
     eventName: ['INSERT', 'MODIFY'],
-    dynamodb: { Keys: { ...key('PK', 'COACH#'), ...key('SK', 'SEAT#') }, ...becomes('seatStatus', 'BOOKED') },
+    dynamodb: { Keys: { ...key('PK', 'COACH#'), ...key('SK', 'BOOKED#') } },
   },
   // An attendance write of CHECKED_IN.
   CheckInRecorded: {

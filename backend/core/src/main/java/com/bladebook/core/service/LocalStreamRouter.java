@@ -1,5 +1,6 @@
 package com.bladebook.core.service;
 
+import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.LocalStream;
 
 import java.time.LocalDate;
@@ -19,8 +20,8 @@ import java.util.logging.Logger;
  * each written item to the consumers that care about it, by its key (ADR-MASTER section 2).
  * <ul>
  *   <li>{@code CHANGEBATCH#…}: the change notifier;</li>
- *   <li>{@code SEAT#…}: the booking confirmation, the payment reminder ({@code CheckInRecorded}) and {@code consumer-invite}'s
- *       emails for that lesson;</li>
+ *   <li>{@code BOOKED#…}: the booking confirmation, one per booking request ({@code LessonBooked});</li>
+ *   <li>{@code SEAT#…}: the payment reminder ({@code CheckInRecorded}) and {@code consumer-invite}'s emails for that lesson;</li>
  *   <li>{@code SEATEND#…}: {@code consumer-invite}'s emails for that lesson.</li>
  * </ul>
  * The "keep or cancel" email goes with the leaving family's {@code CHANGEBATCH#} header (G-38, 2026-11-13), so a series
@@ -54,6 +55,7 @@ public final class LocalStreamRouter {
     void route(List<LocalStream.Key> keys) {
         Map<String, List<String>> batches = new LinkedHashMap<>();
         Map<String, List<String>> seats = new LinkedHashMap<>();
+        Map<String, List<String>> markers = new LinkedHashMap<>();
         Set<List<String>> lessons = new LinkedHashSet<>();
         for (LocalStream.Key k : keys) {
             if (!k.pk().startsWith("COACH#")) {
@@ -63,6 +65,8 @@ public final class LocalStreamRouter {
             String[] p = k.sk().split("#");
             if (k.sk().startsWith("CHANGEBATCH#")) {
                 batches.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
+            } else if (k.sk().startsWith(BookingRepository.BOOKED)) {
+                markers.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
             } else if (k.sk().startsWith("SEAT#") && p.length >= 4) {
                 seats.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
                 lessons.add(List.of(coachId, p[1], p[2]));
@@ -71,10 +75,9 @@ public final class LocalStreamRouter {
             }
         }
         batches.forEach((coachId, sks) -> sks.forEach(sk -> safely("change notifier", () -> notifications.changeBatch(coachId, sk))));
-        seats.forEach((coachId, sks) -> {
-            safely("booking confirmation", () -> notifications.confirmBookings(coachId, sks));
-            sks.forEach(sk -> safely("payment reminder", () -> notifications.paymentReminder(coachId, sk)));
-        });
+        markers.forEach((coachId, sks) -> sks.forEach(sk -> safely("booking confirmation",
+                () -> notifications.confirmBooking(coachId, sk))));
+        seats.forEach((coachId, sks) -> sks.forEach(sk -> safely("payment reminder", () -> notifications.paymentReminder(coachId, sk))));
         for (List<String> l : lessons) {
             safely("consumer-invite", () -> notifications.sharedLesson(l.get(0), LocalDate.parse(l.get(1)), LocalTime.parse(l.get(2))));
         }

@@ -2,6 +2,7 @@ package com.bladebook.core.events;
 
 import com.bladebook.core.data.AccessContext;
 import com.bladebook.core.data.AccessLog;
+import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.CloudWatchAccessLog;
 import com.bladebook.core.data.CoachRepository;
 import com.bladebook.core.data.NotifyRepository;
@@ -199,8 +200,9 @@ public final class EventConsumers {
     Outcome handle(Event event, TableRecord r) {
         String coachId = r.partitionId();
         return switch (event) {
-            case LessonBooked -> onCoachSeat(r, event, "confirmations sent",
-                    () -> notifications.confirmBookings(coachId, List.of(r.sk())));
+            case LessonBooked -> r.pk().startsWith("COACH#") && r.sk().startsWith(BookingRepository.BOOKED) && r.hasNewImage()
+                    ? new Outcome(event, "confirmations sent", notifications.confirmBooking(coachId, r.sk()))
+                    : skipped(event);
             case CheckInRecorded -> onCoachSeat(r, event, "reminders sent",
                     () -> notifications.paymentReminder(coachId, r.sk()) ? 1 : 0);
             case ScheduleChanged -> scheduleChanged(r);

@@ -219,6 +219,37 @@ class NotificationServiceTest {
     }
 
     @Test
+    void aSeriesIsOneEmailWithOneLineGivingItsStartHowOftenAndEnd() {
+        bookSeries(park, ava, null, 4);
+        List<Email> sent = drain();
+        assertThat(sent).hasSize(1);
+        Email e = only(sent, "booking-confirmation");
+        assertThat(e.data()).containsEntry("lessonCount", "4").containsEntry("repeats", true).containsEntry("oneLesson", false);
+        assertThat(list(e, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("series", true)
+                .containsEntry("date", "Mon, Nov 16").containsEntry("time", "6:00 AM").containsEntry("frequency", "Every week")
+                .containsEntry("until", "Mon, Dec 7").containsEntry("price", "$50 each"));
+    }
+
+    @Test
+    void aSeriesEveryTwoWeeksSaysSo() {
+        booking.book(park, BookingRequest.parse(dana.coachId(), ava, UUID.randomUUID().toString(),
+                List.of(new BookingRequest.PickInput(MON.toString(), "06:00")), true, 2, MON.plusWeeks(4).toString()), null);
+        Email e = only(drain(), "booking-confirmation");
+        assertThat(list(e, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("frequency", "Every 2 weeks")
+                .containsEntry("until", "Mon, Dec 14"));
+        assertThat(e.data()).containsEntry("lessonCount", "3");
+    }
+
+    @Test
+    void oneOffDatesAreEachTheirOwnLine() {
+        book(park, ava, null, SIX, MON, MON.plusWeeks(1));
+        Email e = only(drain(), "booking-confirmation");
+        assertThat(list(e, "lessons")).hasSize(2).allSatisfy(l -> assertThat(l).containsEntry("series", false)
+                .doesNotContainKeys("frequency", "until"));
+        assertThat(e.data()).containsEntry("repeats", false);
+    }
+
+    @Test
     void aConfirmationRefusedIsSentOnTheNextRun() {
         refuse.set(true);
         book(park, ava, null, SIX, MON);

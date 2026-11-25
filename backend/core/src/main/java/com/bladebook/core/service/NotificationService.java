@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -105,7 +107,18 @@ public final class NotificationService {
     // ------------------------------------------------------------ booking confirmation
 
     /**
-     * {@code consumer-booking-confirmation}: one email per family for the seats of one coach that are now {@code BOOKED} and
+     * {@code consumer-booking-confirmation}, on {@code LessonBooked}: the booking request's marker names the seats it booked,
+     * and the family gets one email for all of them ({@link #confirmBookings}).
+     *
+     * @return emails sent
+     */
+    public int confirmBooking(String coachId, String markerKey) {
+        List<String> seats = repo.bookedSeatKeys(coachId, markerKey);
+        return seats.isEmpty() ? 0 : confirmBookings(coachId, seats);
+    }
+
+    /**
+     * One email per family for the seats of one coach that are now {@code BOOKED} and
      * not yet confirmed (guard {@code confirmationSent}). A seat that joined through an invitation gets the "joined" email
      * instead ({@link #sharedLesson}).
      *
@@ -152,17 +165,50 @@ public final class NotificationService {
             return 0;
         }
         mine.sort(Comparator.comparing((SeatRow r) -> r.seat().lessonDate()).thenComparing(r -> r.seat().startTime()));
-        List<Map<String, Object>> lessons = new ArrayList<>();
-        int notice = coach.requiredNoticeHours();
+        // One line per lesson, except a series: one line with its start, how often and its last date (owner, 2026-11-25).
+        Map<String, List<Seat>> lines = new LinkedHashMap<>();
         for (SeatRow r : mine) {
             Seat s = r.seat();
-            Optional<LessonTime> t = repo.lesson(coachId, s.lessonDate(), s.startTime());
-            List<SeatRow> in = repo.seatsAt(coachId, s.lessonDate(), s.startTime());
+            String line = s.recurrenceId() == null ? s.key() : "SERIES#" + s.recurrenceId() + "#" + s.studentId();
+            lines.computeIfAbsent(line, k -> new ArrayList<>()).add(s);
+        }
+        List<Map<String, Object>> lessons = new ArrayList<>();
+        int notice = coach.requiredNoticeHours();
+        boolean repeats = false;
+        for (List<Seat> dates : lines.values()) {
+            Seat s = dates.get(0);
+            Optional<LessonTime> t = Optional.empty();
+            List<SeatRow> in = List.of();
+            SortedSet<Integer> prices = new TreeSet<>();
+            String currency = null;
+            for (Seat d : dates) {
+                Optional<LessonTime> dt = repo.lesson(coachId, d.lessonDate(), d.startTime());
+                List<SeatRow> din = repo.seatsAt(coachId, d.lessonDate(), d.startTime());
+                if (d == s) {
+                    t = dt;
+                    in = din;
+                }
+                if (dt.isPresent()) {
+                    prices.add(share(dt.get(), d.studentId(), din));
+                    currency = dt.get().currency();
+                    notice = dt.get().requiredNoticeHours();
+                }
+            }
             Map<String, Object> l = lessonLine(s, t);
-            l.put("price", t.map(x -> EmailFormat.money(share(x, s.studentId(), in), x.currency())).orElse(""));
             sharedWith(s, in).ifPresent(w -> l.put("sharedWith", w));
+            String cur = currency;
+            String price = prices.isEmpty() ? "" : EmailFormat.money(prices.first(), cur)
+                    + (prices.size() > 1 ? " to " + EmailFormat.money(prices.last(), cur) : "");
+            boolean series = dates.size() > 1;
+            l.put("series", series);
+            if (series) {
+                repeats = true;
+                l.put("frequency", frequency(s.bookedIntervalWeeks()));
+                l.put("until", EmailFormat.date(dates.get(dates.size() - 1).lessonDate()));
+                price = price.isEmpty() ? "" : price + " each";
+            }
+            l.put("price", price);
             lessons.add(l);
-            notice = t.map(LessonTime::requiredNoticeHours).orElse(notice);
         }
         List<String> skaters = mine.stream().map(r -> EmailFormat.first(r.seat().studentName())).distinct().toList();
         Seat first = mine.get(0).seat();
@@ -174,11 +220,7 @@ public final class NotificationService {
         d.put("firstDate", EmailFormat.date(first.lessonDate()));
         d.put("firstTime", EmailFormat.time(first.startTime()));
         d.put("rink", RINK);
-        boolean repeats = mine.stream().anyMatch(r -> r.seat().recurrenceId() != null);
         d.put("repeats", repeats);
-        if (repeats) {
-            d.put("repeatsUntil", EmailFormat.date(mine.get(mine.size() - 1).seat().lessonDate()));
-        }
         d.put("noticeHours", Integer.toString(notice));
         d.put("lessons", lessons);
         int sent = claims.send(mailer, Email.toFamily("booking-confirmation", family.get().email(), coach, d)) ? 1 : 0;
@@ -880,6 +922,11 @@ public final class NotificationService {
 
     private static String replyTo(CoachProfile coach) {
         return coach.businessEmail() != null ? coach.businessEmail() : coach.loginEmail();
+    }
+
+    /** "Every week", "Every 2 weeks": how often a series repeats, from the interval its seats were booked with. */
+    static String frequency(int intervalWeeks) {
+        return intervalWeeks <= 1 ? "Every week" : "Every " + intervalWeeks + " weeks";
     }
 
     private static Map<String, Object> lessonLine(Seat s, Optional<LessonTime> t) {
