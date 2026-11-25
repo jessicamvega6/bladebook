@@ -250,6 +250,10 @@ model's enumerations are defined here, in [Enumerated values](#enumerated-values
 | **SQLi** | SQL injection | A WAF-blocked attack class. Largely inapplicable to DynamoDB, but the managed rule set covers it anyway. |
 | **SQL** | Structured Query Language | Relational query language. Not used — DynamoDB isn't relational. |
 | **XSS** | Cross-Site Scripting | Injecting script into a page another user views. Covered by WAF managed rules. |
+| **SAST** | Static Application Security Testing | *Added 2026-11-25 (ADR-032).* Scanning the source code for security flaws without running it. BladeBook's is GitHub's **CodeQL**, on every pull request and merge into `main`; a high or critical finding blocks the merge. |
+| **DAST** | Dynamic Application Security Testing | *Added 2026-11-25 (ADR-032).* Attacking the running app from outside, as an attacker would, to find flaws the code alone doesn't show. BladeBook runs it **against dev only, never production**, on seed data, from the owner's machine (ZAP). |
+| **OWASP** | Open Worldwide Application Security Project | A non-profit that publishes web-security guidance and free tools, ZAP among them. |
+| **ZAP** | Zed Attack Proxy | *Added 2026-11-25 (ADR-032).* OWASP's free DAST scanner. BladeBook runs its container image, pinned by digest, against dev before launch and before security-relevant releases. |
 
 ---
 

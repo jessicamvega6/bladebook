@@ -1972,6 +1972,16 @@ database-gate tests; reproducing an incident (masked build).
      (owner, 2026-11-17, I13; ADR-032).
 - **Building dev by hand** with `build-dev` and the owner's Identity Center sign-in is allowed
   before that setup exists.
+- **Security scanning** (owner, 2026-11-25; ADR-032; Batch 30):
+  1. **secret scanning with push protection** on the repository;
+  2. **Dependabot alerts and security updates** for Maven, both npm projects and the pinned actions; its pull
+     requests pass the usual checks and the owner merges them;
+  3. **CodeQL (SAST)** in its default setup on every pull request and merge into `main`; `main`'s ruleset blocks a
+     merge on a high or critical finding;
+  4. **ZAP (DAST) against dev only, never production**: seed data only, never a masked build; signed in as the test
+     coach and family and signed out; firewall off, then on once. Before launch and before any release that changes
+     sign-in, the database gate, the firewall or a route's access checks. Run from the owner's machine; reports
+     never committed or put in a public run log. High and critical findings are fixed before that release.
 
 ---
 
