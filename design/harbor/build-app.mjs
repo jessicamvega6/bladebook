@@ -58,10 +58,13 @@ html, body { margin: 0; background: var(--sp-bg); }
 const OUT = path.join(DIR, 'static');
 fs.mkdirSync(OUT, { recursive: true });
 for (const f of fs.readdirSync(OUT)) if (f.endsWith('.html')) fs.unlinkSync(path.join(OUT, f));
+/* Strip tags until none are left, so a nested one like <<b>script> can't survive one pass (CodeQL
+   js/incomplete-multi-character-sanitization; Batch 30b). */
+const stripTags = s => { let prev; do { prev = s; s = s.replace(/<[^>]+>/g, ''); } while (s !== prev); return s; };
 order.forEach((p, i) => {
   const prev = order[(i - 1 + order.length) % order.length], next = order[(i + 1) % order.length];
   const bar = `<header class="sp-bar"><span>${cfg.product} · Harbor · ${p.group}</span><b>${p.title}</b><span class="sp-bar__note">${p.note || ''}</span><nav class="sp-bar__nav"><a href="${prev.file}.html">← ${prev.title}</a><a href="index.html">All pages</a><a href="${next.file}.html">${next.title} →</a></nav></header>`;
-  const head = `<title>${p.title.replace(/<[^>]+>/g, '')} · ${cfg.product} (Harbor)</title>\n${FONTS}\n<style>\n${CSS}\n${STATIC_CSS}\n</style>`;
+  const head = `<title>${stripTags(p.title)} · ${cfg.product} (Harbor)</title>\n${FONTS}\n<style>\n${CSS}\n${STATIC_CSS}\n</style>`;
   fs.writeFileSync(path.join(OUT, p.file + '.html'), doc(head, `${bar}\n<div class="sp-page"><div class="bb" data-layout="top">${fixLinks(p.html)}</div></div>`));
 });
 

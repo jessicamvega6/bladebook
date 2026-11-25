@@ -62,6 +62,7 @@ the decisions still in force. When a batch merges, update §2 and §4 here, and 
 | [17c](../infra/README.md) | Infrastructure, part 3: the family read allowlist, the gate tests against dev's real table and roles (76 of 76), each website at its host's root and uploaded by the stack, Figtree from BladeBook's own files, and the Content Security Policy (I11, I14, I17, I30, I31). No batch log; its record is `infra/README.md` | #63 |
 | 18 | Real sign-in on both websites and the rinkside page, with every stand-in removed (I31, I32), and three wrong passwords before a schedule save signing the coach out (I33). No batch log | #64 |
 | 30a | Security scanning, the repository settings: secret scanning with push protection, Dependabot alerts and security updates, CodeQL, and `main`'s ruleset blocking a merge on a high or critical finding. No batch log; its record is `docs/runbooks/security-scanning.md` | #83 |
+| 30b | Security scanning, the first findings: every day-one alert decided (three dismissed as false positives, nine fixed, the rest fixed before). No batch log; each decision is in `docs/runbooks/security-scanning.md` | #86 |
 
 **Under way:** no batch. Not a batch: PR #72, the state-machine fixes found by modelling them in TLA+ (`docs/tla/`).
 
@@ -96,14 +97,13 @@ Click through every signed-in page in dev, then set it to `enforce` (17c, I17). 
 ## 4. What's left to build, in order
 
 Batch numbers are names, not order. The rows below are the build order (owner, 2026-11-12, 2026-11-13 and 2026-11-16).
-**Ready now:** 30b, then 31, then 19 and 20, then 30d and 30c. 21, 25 and 28 are ready too: their Harbor designs were drawn
+**Ready now:** 31, then 19 and 20, then 30d and 30c. 21, 25 and 28 are ready too: their Harbor designs were drawn
 2026-11-23 (`876c236`); where they go in the order is the owner's call. The rest wait on a design, a decision or the production account
 (owner, 2026-11-23: unblock them next). *30 added 2026-11-25 (ADR-032 amended): 30a–30b go first because the
 repository is already public and nothing scans it for leaked secrets.*
 
 | # | Batch | Waits on |
 |---|---|---|
-| 30b | **Security scanning: the first findings.** Every alert the settings raise on day one is fixed or dismissed with a written reason: secret scanning's scan of the **whole history** (a real credential is rotated first, then the alert closed; rewriting history doesn't unpublish it), Dependabot's alerts (merge its pull requests, or record why not), CodeQL's first findings. A finding too big for this batch goes in the root `README.md`'s gaps. **Checked by:** no open alert without a decision. | — (30a merged, #83) |
 | 31 | **A signed-out session stops working at once** (G-34; ADR-023, amended 2026-11-25). `web/src/shared/auth` hands the API client the access token beside the ID token, sent as `X-BladeBook-Access`. In both APIs, after the existing token rules: verify the access token (signature, expiry, `token_use = access`, that API's app client in `client_id`, the ID token's `sub`) and call Cognito's `GetUser` with it; revoked, missing or mismatched → 401, Cognito unreachable or throttled → 503. One shared piece both APIs use, with Cognito behind an interface so the tests fake it. The API roles gain nothing: `GetUser` is authorized by the access token itself. A metric and alarm on `GetUser` errors and throttles (ADR-010). **Checked by:** the ADR-023 tests in both APIs; in dev, *Log out* then the old tokens get 401 at once, and an operator's global sign-out does the same. | — |
 | 19 | **The clash warning across coaches** (G-22; ADR-025 d5): a time that overlaps the skater's lesson or pick with another coach is marked, and the confirm pop-up lists every clash (B7). | — |
 | 20 | **A warning before the 60-minute sign-in runs out** (G-7), so the coach can stay signed in instead of hitting the next request's sign-in. | — (Batch 18 merged) |

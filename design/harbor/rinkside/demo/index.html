@@ -1430,7 +1430,7 @@ const dLong = iso => { const d = parseIso(iso); return `${DOW_LONG[d.getDay()]},
 const dFull = iso => { const d = parseIso(iso); return `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
 const money = n => '$' + n.toLocaleString('en-US');
 const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 /** Lesson start compared with "now". */
 const isPast = l => l.iso < TODAY || (l.iso === TODAY && l.t + l.len <= NOW_MIN);

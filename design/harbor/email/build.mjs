@@ -91,10 +91,13 @@ function blockHtml(b) {
    ends with one spare newline to keep the blank line after it. */
 /* The text part is not HTML, so it uses triple braces: SES (Handlebars) would otherwise turn & into &amp;. */
 const raw = s => s.replace(/\{\{(?![{#/!]|else\}\})\s*([^{}]+?)\s*\}\}/g, '{{{$1}}}');
-const plain = s => raw(s
+/* Strip tags until none are left, so a nested one like <<b>script> can't survive one pass (CodeQL
+   js/incomplete-multi-character-sanitization; Batch 30b). */
+const stripTags = s => { let prev; do { prev = s; s = s.replace(/<[^>]+>/g, ''); } while (s !== prev); return s; };
+const plain = s => raw(stripTags(s
   .replace(/<s>(.*?)<\/s>\s*/g, 'was $1, now ')
   .replace(/<a [^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g, '$2 ($1)')
-  .replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' '));
+  .replace(/<br\s*\/?>/g, '\n')).replace(/&nbsp;/g, ' '));
 
 function blockText(b) {
   if (typeof b === 'string') return plain(b) + '\n\n';
