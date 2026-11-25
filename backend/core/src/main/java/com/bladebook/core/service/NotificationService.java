@@ -530,7 +530,10 @@ public final class NotificationService {
      */
     public int sharedLesson(String coachId, LocalDate date, LocalTime start) {
         List<SeatRow> seats = repo.seatsAt(coachId, date, start);
-        List<EndRow> endings = repo.endings(coachId, date, start).stream().filter(e -> !e.emailed()).toList();
+        // Declined and withdrawn go once per action, from its marker (endedFor); only an expiry, at its own lesson's start, goes
+        // from its date.
+        List<EndRow> endings = repo.endings(coachId, date, start).stream()
+                .filter(e -> !e.emailed() && e.outcome() == ShareRepository.Ended.EXPIRED).toList();
         boolean invites = seats.stream().anyMatch(r -> r.seat().seatStatus() == Seat.Status.INVITED && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
         if (!invites && endings.isEmpty()) {
             return 0;
@@ -594,6 +597,22 @@ public final class NotificationService {
         }
         unsent.throwIfAny();
         return sent;
+    }
+
+    /**
+     * {@code consumer-invite}, on an {@code ENDED#} marker: one family's decline or withdrawal, written after every date it
+     * ended. One email for all those dates (owner, 2026-11-25).
+     *
+     * @return emails sent
+     */
+    public int endedFor(String coachId, String inviteId, ShareRepository.Ended outcome) {
+        Optional<EndRow> first = repo.endingsOf(coachId, inviteId, outcome).stream().filter(e -> !e.emailed())
+                .min(Comparator.comparing(EndRow::sk));
+        if (first.isEmpty()) {
+            return 0;
+        }
+        CoachProfile coach = repo.coach(coachId).orElse(null);
+        return coach != null && ended(coach, first.get()) ? 1 : 0;
     }
 
     /** The seat keys a booking request's marker lists, for {@code consumer-invite}'s copies before its emails. */

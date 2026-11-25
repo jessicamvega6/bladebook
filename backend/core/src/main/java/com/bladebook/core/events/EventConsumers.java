@@ -275,6 +275,13 @@ public final class EventConsumers {
 
     /** A seat, an ended invitation or a lesson time's {@code pendingLeave}: that lesson's copies, then its emails. */
     private Outcome sharedLessonChanged(TableRecord r) {
+        if (r.pk().startsWith("COACH#") && r.sk().startsWith(BookingRepository.ENDED)) {
+            String[] m = r.sk().split("#");
+            return r.hasNewImage() && m.length == 4
+                    ? new Outcome(Event.SharedLessonChanged, "emails sent",
+                            notifications.endedFor(r.partitionId(), m[2], ShareRepository.Ended.valueOf(m[3])))
+                    : skipped(Event.SharedLessonChanged);
+        }
         boolean booked = r.sk().startsWith(BookingRepository.BOOKED);
         if (r.pk().startsWith("COACH#") && (booked || r.sk().startsWith(BookingRepository.JOINED))) {
             return r.hasNewImage() ? marker(r.partitionId(), r.sk(), booked) : skipped(Event.SharedLessonChanged);

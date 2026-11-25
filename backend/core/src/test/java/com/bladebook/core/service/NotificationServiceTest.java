@@ -712,6 +712,34 @@ class NotificationServiceTest {
     }
 
     @Test
+    void aDeclineWaitsForItsMarkerSoEveryDateIsInOneEmail() {
+        // Each date's ending fires its own event; declined and withdrawn go once, from the action's marker (2026-11-25).
+        bookSeries(park, ava, miaCode, 3);
+        drain();
+        String inviteId = shares.invitations(chen).get(0).inviteId();
+        shares.decline(chen, inviteId);
+        stream.drain(); // the events, handed to the consumers below instead
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero();
+        assertThat(outbox.list()).isEmpty();
+        assertThat(notifications.endedFor(dana.coachId(), inviteId, ShareRepository.Ended.DECLINED)).isEqualTo(1);
+        Email e = only(drain(), "share-invitation-declined");
+        assertThat(list(e, "lessons")).hasSize(3);
+        assertThat(notifications.endedFor(dana.coachId(), inviteId, ShareRepository.Ended.DECLINED)).isZero(); // sent
+    }
+
+    @Test
+    void stoppingASeriesWhileItsInvitationWaitsWithdrawsItInOneEmail() {
+        bookSeries(park, ava, miaCode, 3);
+        drain();
+        String rid = booking.myBookings(park).series().get(0).recurrence().recurrenceId();
+        series.change(park, dana.coachId(), rid, "STOP", null, null);
+        List<Email> sent = drain();
+        Email e = only(sent, "share-invitation-withdrawn");
+        assertThat(e.to()).isEqualTo("grace@example.com");
+        assertThat(list(e, "lessons")).hasSize(3);
+    }
+
+    @Test
     void aWithdrawnSeriesInvitationIsOneEmail() {
         bookSeries(park, ava, miaCode, 2);
         drain();

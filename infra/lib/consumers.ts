@@ -76,13 +76,13 @@ export const EVENT_PATTERNS: Record<string, Pattern> = {
     dynamodb: { Keys: { ...key('PK', 'CLIENT#'), SK: { S: ['PROFILE', { prefix: 'SKATER#' }] } } },
   },
   // Any seat or ended invitation, or a lesson time whose pendingLeave is written or cleared (ADR-MASTER §8). Also the
-  // markers a booking request and an accepted invitation write after their dates: the booking's invitation and the "joined"
-  // emails are each sent once, from them (owner, 2026-11-25).
+  // markers a booking request, an accepted invitation and a decline or withdrawal write after their dates: the booking's
+  // invitation, the "joined" emails and "declined" or "withdrawn" are each sent once, from them (owner, 2026-11-25).
   SharedLessonChanged: {
     dynamodb: { Keys: key('PK', 'COACH#') },
     $or: [
       { dynamodb: { Keys: key('SK', 'SEAT#', 'SEATEND#') } },
-      { eventName: ['INSERT', 'MODIFY'], dynamodb: { Keys: key('SK', 'BOOKED#', 'JOINED#') } },
+      { eventName: ['INSERT', 'MODIFY'], dynamodb: { Keys: key('SK', 'BOOKED#', 'JOINED#', 'ENDED#') } },
       { dynamodb: { Keys: key('SK', 'LESSON#'), NewImage: { pendingLeave: { M: { leaveId: { S: [{ exists: true }] } } } } } },
       { dynamodb: { Keys: key('SK', 'LESSON#'), OldImage: { pendingLeave: { M: { leaveId: { S: [{ exists: true }] } } } } } },
     ],

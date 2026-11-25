@@ -12,6 +12,8 @@ import com.bladebook.core.domain.Seat;
 import com.bladebook.core.domain.Sharing;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 /**
@@ -21,8 +23,15 @@ import java.util.UUID;
  */
 final class FamilyCancels {
 
-    /** What one cancel did. {@code done}: written; {@code late}: inside the notice period; {@code leave}: what it did to the lesson. */
-    record Done(boolean done, boolean late, Sharing.Leave leave) {
+    /**
+     * What one cancel did. {@code done}: written; {@code late}: inside the notice period; {@code leave}: what it did to the
+     * lesson; {@code withdrawn}: the invitation it withdrew, or null.
+     */
+    record Done(boolean done, boolean late, Sharing.Leave leave, String withdrawn) {
+
+        Done(boolean done, boolean late, Sharing.Leave leave) {
+            this(done, late, leave, null);
+        }
     }
 
     private final CancellationRepository cancels;
@@ -54,6 +63,16 @@ final class FamilyCancels {
         if (done && leave != Sharing.Leave.RELEASE) {
             events.seatsChanged(skater.coachId(), seat.lessonDate(), seat.startTime());
         }
-        return new Done(done, late, leave);
+        return new Done(done, late, leave, done && leave == Sharing.Leave.WITHDRAW ? seat.share().inviteId() : null);
+    }
+
+    /**
+     * After every date of one action: one marker per invitation it withdrew, so the invited family gets one email for all
+     * of them (owner, 2026-11-25).
+     */
+    void markWithdrawn(ClientContext ctx, LinkedSkater skater, Collection<String> inviteIds, Instant now) {
+        for (String inviteId : new LinkedHashSet<>(inviteIds)) {
+            cancels.markWithdrawn(ctx, skater, inviteId, now);
+        }
     }
 }

@@ -254,6 +254,10 @@ public final class ShareService {
         if (!joined.isEmpty()) {
             bookings.markJoined(ctx, skater, inviteId, joined, now);
         }
+        // Likewise a decline: one "declined" email for every date it ended (2026-11-25).
+        if (!accept && !done.isEmpty()) {
+            bookings.markEnded(ctx, skater, inviteId, ShareRepository.Ended.DECLINED, now);
+        }
         // Nothing changed: never reported as done. A decline whose dates had all started is skipped, as it always was;
         // one whose write was refused (answered in another window meanwhile) is no longer available, as for accepting.
         if (done.isEmpty() && (accept || refused)) {
@@ -317,6 +321,8 @@ public final class ShareService {
         if (done.isEmpty()) {
             throw DomainException.conflict("Their family has already answered, so the invitation can’t be withdrawn.");
         }
+        // After every date: one "withdrawn" email for all of them (2026-11-25).
+        bookings.markEnded(ctx, host, inviteId, ShareRepository.Ended.WITHDRAWN, now);
         return new Answered(host.studentName(), host.coachFirstName(), mine.get(0).share().partnerName(), done, skipped);
     }
 

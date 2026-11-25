@@ -286,6 +286,23 @@ public final class BookingRepository {
         return JOINED + clientId + "#" + inviteId;
     }
 
+    /** An invitation ended by one family's action: {@code COACH#<coachId> / ENDED#<clientId>#<inviteId>#<outcome>}. */
+    public static final String ENDED = "ENDED#";
+
+    public static String endedMarkerKey(String clientId, String inviteId, ShareRepository.Ended outcome) {
+        return ENDED + clientId + "#" + inviteId + "#" + outcome.name();
+    }
+
+    /**
+     * An invitation's dates ended by one action of this family (declined, or withdrawn), written after all of them: {@code
+     * consumer-invite} sends that email once, for every date (owner, 2026-11-25). It names the invitation and the outcome;
+     * the endings themselves are found by those.
+     */
+    public void markEnded(ClientContext ctx, LinkedSkater skater, String inviteId, ShareRepository.Ended outcome, Instant now) {
+        putMarker(db(ctx, skater.coach()), table, skater.coachId(), endedMarkerKey(skater.clientId(), inviteId, outcome),
+                skater.clientId(), List.of(), now);
+    }
+
     /**
      * The request's marker, written once its seats are: the seat keys it booked, so {@code consumer-booking-confirmation}
      * sends the family one email for the whole request ({@code LessonBooked} matches this item, not each seat). A retry of
@@ -304,12 +321,17 @@ public final class BookingRepository {
     }
 
     private void putMarker(ClientContext ctx, LinkedSkater skater, String sk, List<String> seatKeys, Instant now) {
-        Map<String, AttributeValue> item = new HashMap<>(FamilyItems.key("COACH#" + skater.coachId(), sk));
-        item.put("clientId", FamilyItems.s(skater.clientId()));
+        putMarker(db(ctx, skater.coach()), table, skater.coachId(), sk, skater.clientId(), seatKeys, now);
+    }
+
+    /** One marker item in the coach's partition, removed by TTL after {@link #MARKER_LIFETIME}. */
+    static void putMarker(DynamoDbClient db, String table, String coachId, String sk, String clientId, List<String> seatKeys, Instant now) {
+        Map<String, AttributeValue> item = new HashMap<>(FamilyItems.key("COACH#" + coachId, sk));
+        item.put("clientId", FamilyItems.s(clientId));
         item.put("seatKeys", AttributeValue.fromL(seatKeys.stream().map(FamilyItems::s).toList()));
         item.put("bookedAt", FamilyItems.s(now.truncatedTo(ChronoUnit.SECONDS).toString()));
         item.put("expiresAt", AttributeValue.fromN(Long.toString(now.plus(MARKER_LIFETIME).getEpochSecond())));
-        db(ctx, skater.coach()).putItem(PutItemRequest.builder().tableName(table).item(item).build());
+        db.putItem(PutItemRequest.builder().tableName(table).item(item).build());
     }
 
     /** Why a date didn't book, from the family's own seat for that skater and time, read strongly consistent. */
