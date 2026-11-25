@@ -142,8 +142,8 @@ class FinancialSummaryTest {
         String csv = FinancialSummary.csv(s, "USD");
         String[] lines = csv.split("\r\n");
         assertThat(lines).hasSize(14);
-        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (USD),Of which for lessons in earlier years (USD),"
-                + "Taken off for earlier years' lessons marked unpaid (USD)");
+        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (USD),Paid in 2025 for 2024 lessons (USD),"
+                + "Taken off in 2025 for 2024 lessons marked unpaid (USD)");
         assertThat(lines[1]).isEqualTo("January 2025,0,0.00,0.00,0.00");
         assertThat(lines[2]).isEqualTo("February 2025,2,75.01,0.00,0.00");
         assertThat(lines[12]).isEqualTo("December 2025,0,0.00,0.00,0.00");
@@ -166,8 +166,8 @@ class FinancialSummaryTest {
         FinancialSummary.Summary s = FinancialSummary.of(2026, List.of(), CHICAGO, TODAY);
         String[] lines = FinancialSummary.csv(s, "CAD").split("\r\n");
         assertThat(lines).hasSize(13);
-        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (CAD),Of which for lessons in earlier years (CAD),"
-                + "Taken off for earlier years' lessons marked unpaid (CAD)");
+        assertThat(lines[0]).isEqualTo("Month,Paid lessons,Gross received (CAD),Paid in 2026 for 2025 lessons (CAD),"
+                + "Taken off in 2026 for 2025 lessons marked unpaid (CAD)");
         assertThat(lines[11]).isEqualTo("November 2026 (to Nov 13),0,0.00,0.00,0.00");
         assertThat(lines[12]).isEqualTo("2026 to date,0,0.00,0.00,0.00");
         assertThat(FinancialSummary.fileName(2026)).isEqualTo("bladebook-summary-2026.csv");
