@@ -275,8 +275,9 @@ public final class EventConsumers {
 
     /** A seat, an ended invitation or a lesson time's {@code pendingLeave}: that lesson's copies, then its emails. */
     private Outcome sharedLessonChanged(TableRecord r) {
-        if (r.pk().startsWith("COACH#") && r.sk().startsWith(BookingRepository.BOOKED)) {
-            return r.hasNewImage() ? bookingInvitations(r.partitionId(), r.sk()) : skipped(Event.SharedLessonChanged);
+        boolean booked = r.sk().startsWith(BookingRepository.BOOKED);
+        if (r.pk().startsWith("COACH#") && (booked || r.sk().startsWith(BookingRepository.JOINED))) {
+            return r.hasNewImage() ? marker(r.partitionId(), r.sk(), booked) : skipped(Event.SharedLessonChanged);
         }
         String[] p = r.sk().split("#");
         boolean lessonKey = r.sk().startsWith("SEAT#") || r.sk().startsWith("SEATEND#") || r.sk().startsWith("LESSON#");
@@ -290,10 +291,10 @@ public final class EventConsumers {
     }
 
     /**
-     * A booking request's marker: its dates' copies first (each date's own event may not have run yet), then one invitation
-     * for every date it shared (owner, 2026-11-25).
+     * A booking request's or an accepted invitation's marker: its dates' copies first (each date's own event may not have run
+     * yet), then one email for every date: the booking's invitation, or "joined" to both families (owner, 2026-11-25).
      */
-    private Outcome bookingInvitations(String coachId, String markerKey) {
+    private Outcome marker(String coachId, String markerKey, boolean booked) {
         Set<String> lessons = new LinkedHashSet<>();
         for (String seat : notifications.bookedSeatKeys(coachId, markerKey)) {
             String[] p = seat.split("#");
@@ -301,7 +302,9 @@ public final class EventConsumers {
                 inviteSync.seatsChanged(coachId, LocalDate.parse(p[1]), LocalTime.parse(p[2]));
             }
         }
-        return new Outcome(Event.SharedLessonChanged, "invitations sent", notifications.bookingInvitations(coachId, markerKey));
+        return booked
+                ? new Outcome(Event.SharedLessonChanged, "invitations sent", notifications.bookingInvitations(coachId, markerKey))
+                : new Outcome(Event.SharedLessonChanged, "joined emails sent", notifications.joinedFor(coachId, markerKey));
     }
 
     private static Outcome skipped(Event event) {

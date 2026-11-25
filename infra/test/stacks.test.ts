@@ -742,9 +742,9 @@ const SAMPLES: Record<string, { match: object[]; miss: object[] }> = {
     match: [rec('MODIFY', 'COACH#c', SEAT, {}, {}), rec('INSERT', 'COACH#c', 'SEATEND#2026-11-23#06:00#s1#t', {}),
       rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', { pendingLeave: { leaveId: 'l1' } }, {}),
       rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, { pendingLeave: { leaveId: 'l1' } }),
-      rec('INSERT', 'COACH#c', MARKER, { clientId: 'f' })],
+      rec('INSERT', 'COACH#c', MARKER, { clientId: 'f' }), rec('INSERT', 'COACH#c', 'JOINED#f#i1', { clientId: 'f' })],
     miss: [rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, {}), rec('MODIFY', 'CLIENT#f', 'SEAT#x', {}, {}),
-      rec('REMOVE', 'COACH#c', MARKER, undefined, { clientId: 'f' })],
+      rec('REMOVE', 'COACH#c', MARKER, undefined, { clientId: 'f' }), rec('REMOVE', 'COACH#c', 'JOINED#f#i1', undefined, { clientId: 'f' })],
   },
 };
 

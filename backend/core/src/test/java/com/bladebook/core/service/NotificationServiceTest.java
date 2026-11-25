@@ -611,10 +611,11 @@ class NotificationServiceTest {
         book(park, ava, miaCode, SIX, MON);
         drain();
         refuse.set(true);
-        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        String inviteId = shares.invitations(chen).get(0).inviteId();
+        shares.accept(chen, inviteId);
         assertThat(drain()).isEmpty();
         refuse.set(false);
-        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(2);
+        assertThat(notifications.joinedFor(dana.coachId(), BookingRepository.joinedMarkerKey(chen.clientId(), inviteId))).isEqualTo(2);
         assertThat(drain()).extracting(Email::template).containsOnly("share-joined");
     }
 
@@ -623,14 +624,16 @@ class NotificationServiceTest {
         book(park, ava, miaCode, SIX, MON);
         drain();
         refuseTo.set("sarah@example.com"); // the host family; the family who joined is grace@example.com
-        shares.accept(chen, shares.invitations(chen).get(0).inviteId());
+        String inviteId = shares.invitations(chen).get(0).inviteId();
+        String marker = BookingRepository.joinedMarkerKey(chen.clientId(), inviteId);
+        shares.accept(chen, inviteId);
         assertThat(drain()).extracting(Email::to).containsExactly("grace@example.com");
         refuseTo.set(null);
-        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isEqualTo(1);
+        assertThat(notifications.joinedFor(dana.coachId(), marker)).isEqualTo(1);
         Email retried = only(drain(), "share-joined");
         assertThat(retried.to()).isEqualTo("sarah@example.com");
         assertThat(retried.data()).containsEntry("isInviter", true);
-        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero(); // both sent: nothing more
+        assertThat(notifications.joinedFor(dana.coachId(), marker)).isZero(); // both sent: nothing more
     }
 
     @Test
@@ -651,8 +654,9 @@ class NotificationServiceTest {
         assertThat(sent).extracting(Email::template).containsOnly("share-joined");
         assertThat(sent).extracting(Email::to).containsExactlyInAnyOrder("grace@example.com", "sarah@example.com");
         assertThat(sent).allSatisfy(e -> {
-            assertThat(e.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3");
-            assertThat(list(e, "lessons")).hasSize(3);
+            assertThat(e.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3").containsEntry("share", "$25");
+            assertThat(list(e, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("series", true)
+                    .containsEntry("frequency", "Every week").containsEntry("until", "Mon, Nov 30").containsEntry("share", "$25 each"));
         });
         assertThat(drain()).isEmpty();
     }
@@ -673,6 +677,20 @@ class NotificationServiceTest {
         assertThat(inv.data()).containsEntry("lessonCount", "3");
         assertThat(list(inv, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("until", "Mon, Nov 30"));
         assertThat(notifications.bookingInvitations(dana.coachId(), marker)).isZero(); // sent: nothing more
+    }
+
+    @Test
+    void joinedEmailsWaitForTheAnswersMarkerSoEveryDateIsInOneEmail() {
+        // Accepting writes each date, then one marker: each date's own event leaves "joined" to it (owner, 2026-11-25).
+        bookSeries(park, ava, miaCode, 3);
+        drain();
+        String inviteId = shares.invitations(chen).get(0).inviteId();
+        shares.accept(chen, inviteId);
+        stream.drain(); // the events, handed to the consumers below instead
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero();
+        assertThat(outbox.list()).isEmpty();
+        assertThat(notifications.joinedFor(dana.coachId(), BookingRepository.joinedMarkerKey(chen.clientId(), inviteId))).isEqualTo(2);
+        assertThat(drain()).extracting(Email::template).containsExactly("share-joined", "share-joined");
     }
 
     @Test

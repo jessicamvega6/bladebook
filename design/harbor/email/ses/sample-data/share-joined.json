@@ -21,19 +21,12 @@
   "fullPrice": "$50",
   "lessons": [
     {
+      "series": true,
       "date": "Fri, Oct 16",
       "time": "8:30 AM",
-      "share": "$25"
-    },
-    {
-      "date": "Fri, Oct 23",
-      "time": "8:30 AM",
-      "share": "$25"
-    },
-    {
-      "date": "Fri, Oct 30",
-      "time": "8:30 AM",
-      "share": "$25"
+      "frequency": "Every week",
+      "until": "Fri, Oct 30",
+      "share": "$25 each"
     }
   ]
 }

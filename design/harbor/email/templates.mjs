@@ -323,7 +323,7 @@ export const TEMPLATES = [
   },
   {
     name: 'share-joined', group: 'shared', title: 'Shared lesson joined',
-    when: 'To both families, when the invited skater joins (ADR-031 d14). The same template, worded for each side by isInviter. One email to each family per answer, listing every date joined (G-38).', sender: 'λ Invite (consumer-invite)', always: true,
+    when: 'To both families, when the invited skater joins (ADR-031 d14). The same template, worded for each side by isInviter. One email to each family per answer, listing every date joined (G-38); a series is one line with its start, how often and its end date (owner, 2026-11-25).', sender: 'λ Invite (consumer-invite)', always: true,
     ...FROM_FAMILY, to: 'grace.chen@example.com and tom.okafor@example.com',
     subject: '{{#if isInviter}}{{otherSkater}} is sharing {{skater}}’s {{#if oneLesson}}lesson on {{date}}{{else}}{{lessonCount}} lessons from {{date}}{{/if}}{{else}}{{skater}} is booked to share {{#if oneLesson}}a lesson on {{date}}{{else}}{{lessonCount}} lessons from {{date}}{{/if}}{{/if}}',
     preheader: '{{skater}}’s share is {{share}}{{#if oneLesson}}{{else}} a lesson{{/if}}.',
@@ -335,7 +335,7 @@ export const TEMPLATES = [
       { if: 'oneLesson',
         then: [{ details: { rows: [['When', '{{date}} at {{time}}'], ['Where', '{{rink}}'], ['Skaters', '{{skater}} and {{otherSkater}}'], ['{{skater}}’s share', '<b>{{share}}</b> (the lesson is {{fullPrice}})']] } }],
         else: [
-          { lessons: { each: 'lessons', primary: '{{date}} · {{time}}', aside: '{{share}}' } },
+          { lessons: { each: 'lessons', primary: '{{#if series}}Starts {{/if}}{{date}} · {{time}}{{#if series}} · {{frequency}} until {{until}}{{/if}}', aside: '{{share}}' } },
           { details: { rows: [['Where', '{{rink}}'], ['Skaters', '{{skater}} and {{otherSkater}}'], ['Each lesson', '{{fullPrice}}, split between the skaters']] } },
         ] },
       'Need to cancel? Use My bookings. Cancelling within {{noticeHours}} hours of a lesson may mean a fee.',
@@ -345,9 +345,7 @@ export const TEMPLATES = [
       ...FAMILY, isInviter: true, otherFamily: 'Tom Okafor', skater: 'Mia', otherSkater: 'Zoe', oneLesson: false, lessonCount: '3', date: 'Fri, Oct 16', time: '8:30 AM',
       rink: 'Pelham Civic Center', share: '$25', fullPrice: '$50',
       lessons: [
-        { date: 'Fri, Oct 16', time: '8:30 AM', share: '$25' },
-        { date: 'Fri, Oct 23', time: '8:30 AM', share: '$25' },
-        { date: 'Fri, Oct 30', time: '8:30 AM', share: '$25' },
+        { series: true, date: 'Fri, Oct 16', time: '8:30 AM', frequency: 'Every week', until: 'Fri, Oct 30', share: '$25 each' },
       ],
     },
   },

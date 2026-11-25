@@ -236,6 +236,7 @@ public final class ShareService {
         }
         List<LocalDate> done = new ArrayList<>();
         List<LocalDate> skipped = new ArrayList<>();
+        List<String> joined = new ArrayList<>();
         boolean refused = false;
         for (Seat s : seats) {
             boolean started = s.hasStarted(now);
@@ -244,7 +245,14 @@ public final class ShareService {
             (ok ? done : skipped).add(s.lessonDate());
             if (ok) {
                 events.seatsChanged(s.coachId(), s.lessonDate(), s.startTime());
+                if (accept) {
+                    joined.add(s.key());
+                }
             }
+        }
+        // One marker for the whole answer, after its dates: each family's "joined" email goes once, for every date (2026-11-25).
+        if (!joined.isEmpty()) {
+            bookings.markJoined(ctx, skater, inviteId, joined, now);
         }
         // Nothing changed: never reported as done. A decline whose dates had all started is skipped, as it always was;
         // one whose write was refused (answered in another window meanwhile) is no longer available, as for accepting.

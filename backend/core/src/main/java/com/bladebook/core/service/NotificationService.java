@@ -532,8 +532,7 @@ public final class NotificationService {
         List<SeatRow> seats = repo.seatsAt(coachId, date, start);
         List<EndRow> endings = repo.endings(coachId, date, start).stream().filter(e -> !e.emailed()).toList();
         boolean invites = seats.stream().anyMatch(r -> r.seat().seatStatus() == Seat.Status.INVITED && !r.has(NotifyRepository.INVITE_EMAIL_SENT));
-        boolean joins = seats.stream().anyMatch(NotificationService::joinedUntold);
-        if (!invites && !joins && endings.isEmpty()) {
+        if (!invites && endings.isEmpty()) {
             return 0;
         }
         CoachProfile coach = repo.coach(coachId).orElse(null);
@@ -549,9 +548,6 @@ public final class NotificationService {
                 String invited = r.seat().share().invitedClientId();
                 sent += unsent.of(() -> invitation(coach, invited, sameInvitation(r, invited,
                         x -> x.seat().seatStatus() == Seat.Status.INVITED && !x.has(NotifyRepository.INVITE_EMAIL_SENT))) ? 1 : 0);
-            }
-            if (joinedUntold(r)) {
-                sent += unsent.of(() -> joinedEmails(coach, r));
             }
         }
         for (EndRow e : endings) {
@@ -619,10 +615,6 @@ public final class NotificationService {
         return r.seat().seatStatus() != Seat.Status.INVITED && r.seat().share().invitedByClientId() != null;
     }
 
-    /** A joined seat with either family's "joined" email still to go. */
-    private static boolean joinedUntold(SeatRow r) {
-        return joined(r) && !(r.has(NotifyRepository.JOINED_EMAIL_SENT) && r.has(NotifyRepository.JOINED_HOST_EMAIL_SENT));
-    }
 
     /** One date of an invitation, with what its email says about it. */
     private record Dated(Seat seat, LessonTime time, List<SeatRow> seats) {
@@ -669,33 +661,7 @@ public final class NotificationService {
         }
         Dated first = claimed.get(0);
         Seat host = host(first.seat(), first.seats());
-        // One line per date, except the inviting skater's series: one line with its start, how often and its last date
-        // (owner, 2026-11-25).
-        Map<String, List<Dated>> groups = new LinkedHashMap<>();
-        for (Dated x : claimed) {
-            Seat h = host(x.seat(), x.seats());
-            String line = h != null && h.recurrenceId() != null ? "SERIES#" + h.recurrenceId() : x.seat().key();
-            groups.computeIfAbsent(line, k -> new ArrayList<>()).add(x);
-        }
-        List<Map<String, Object>> lessons = new ArrayList<>();
-        for (List<Dated> dates : groups.values()) {
-            Dated x = dates.get(0);
-            Map<String, Object> l = dateLine(x.seat().lessonDate(), x.seat().startTime());
-            SortedSet<Integer> shares = new TreeSet<>();
-            dates.forEach(y -> shares.add(invitedShare(y)));
-            String cur = x.time().currency();
-            String share = EmailFormat.money(shares.first(), cur) + (shares.size() > 1 ? " to " + EmailFormat.money(shares.last(), cur) : "");
-            boolean series = dates.size() > 1;
-            l.put("series", series);
-            if (series) {
-                Seat h = host(x.seat(), x.seats());
-                l.put("frequency", frequency(h == null ? 1 : h.bookedIntervalWeeks()));
-                l.put("until", EmailFormat.date(dates.get(dates.size() - 1).seat().lessonDate()));
-                share += " each";
-            }
-            l.put("share", share);
-            lessons.add(l);
-        }
+        List<Map<String, Object>> lessons = seriesLines(claimed, NotificationService::invitedShare);
         Map<String, Object> d = familyData(coach, family);
         d.put("inviterName", Objects.requireNonNullElse(first.seat().share().invitedByName(), "Another family"));
         d.put("inviterSkater", host == null ? "their skater" : EmailFormat.first(host.studentName()));
@@ -726,8 +692,25 @@ public final class NotificationService {
      * {@code joinedHostEmailSent} for the family whose lesson it is), so one that isn't accepted gives back only its own
      * guard, and the retry sends only that one. Both are tried before the event fails.
      */
-    private int joinedEmails(CoachProfile coach, SeatRow trigger) {
-        List<SeatRow> rows = sameInvitation(trigger, trigger.seat().clientId(), NotificationService::joined);
+    /**
+     * {@code consumer-invite}, on an accepted invitation's marker: "joined" to both families, each one email for every date
+     * the answer joined (owner, 2026-11-25). Runs after the consumer's copies for those dates; reads each seat by its key.
+     *
+     * @return emails sent
+     */
+    public int joinedFor(String coachId, String markerKey) {
+        List<SeatRow> rows = new ArrayList<>();
+        for (String key : repo.bookedSeatKeys(coachId, markerKey)) {
+            repo.seat(coachId, key).filter(NotificationService::joined).ifPresent(rows::add);
+        }
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        CoachProfile coach = repo.coach(coachId).orElse(null);
+        if (coach == null) {
+            return 0;
+        }
+        rows.sort(Comparator.comparing((SeatRow r) -> r.seat().lessonDate()).thenComparing(r -> r.seat().startTime()));
         Sending.Unsent unsent = new Sending.Unsent();
         int sent = unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_EMAIL_SENT, false))
                 + unsent.of(() -> joinedEmail(coach, rows, NotifyRepository.JOINED_HOST_EMAIL_SENT, true));
@@ -763,12 +746,7 @@ public final class NotificationService {
 
     private Map<String, Object> joinedData(CoachProfile coach, FamilyProfile to, List<Dated> dates, Seat mine, Seat other, boolean isInviter,
                                            FamilyProfile otherFamily) {
-        List<Map<String, Object>> lessons = new ArrayList<>();
-        for (Dated x : dates) {
-            Map<String, Object> l = dateLine(x.seat().lessonDate(), x.seat().startTime());
-            l.put("share", EmailFormat.money(share(x.time(), mine.studentId(), x.seats()), x.time().currency()));
-            lessons.add(l);
-        }
+        List<Map<String, Object>> lessons = seriesLines(dates, x -> share(x.time(), mine.studentId(), x.seats()));
         LessonTime t = dates.get(0).time();
         Map<String, Object> d = familyData(coach, to);
         d.put("isInviter", isInviter);
@@ -776,8 +754,10 @@ public final class NotificationService {
         d.put("skater", EmailFormat.first(mine.studentName()));
         d.put("otherSkater", EmailFormat.first(other.studentName()));
         putDates(d, lessons);
+        d.put("oneLesson", dates.size() == 1);
+        d.put("lessonCount", Integer.toString(dates.size()));
         d.put("rink", RINK);
-        d.put("share", lessons.get(0).get("share"));
+        d.put("share", EmailFormat.money(share(t, mine.studentId(), dates.get(0).seats()), t.currency()));
         d.put("fullPrice", EmailFormat.money(t.priceMinor(), t.currency()));
         d.put("noticeHours", Integer.toString(t.requiredNoticeHours()));
         return d;
@@ -935,6 +915,39 @@ public final class NotificationService {
         l.put("date", EmailFormat.date(date));
         l.put("time", EmailFormat.time(start));
         return l;
+    }
+
+    /**
+     * A shared lesson's dates as email lines: one per date, except the inviting skater's series, one line with its start, how
+     * often and its last date (owner, 2026-11-25). {@code share} is the amount on each date; a series' line says "each".
+     */
+    private static List<Map<String, Object>> seriesLines(List<Dated> dates, java.util.function.ToIntFunction<Dated> share) {
+        Map<String, List<Dated>> groups = new LinkedHashMap<>();
+        for (Dated x : dates) {
+            Seat h = host(x.seat(), x.seats());
+            String line = h != null && h.recurrenceId() != null ? "SERIES#" + h.recurrenceId() : x.seat().key();
+            groups.computeIfAbsent(line, k -> new ArrayList<>()).add(x);
+        }
+        List<Map<String, Object>> lessons = new ArrayList<>();
+        for (List<Dated> group : groups.values()) {
+            Dated x = group.get(0);
+            Map<String, Object> l = dateLine(x.seat().lessonDate(), x.seat().startTime());
+            SortedSet<Integer> amounts = new TreeSet<>();
+            group.forEach(y -> amounts.add(share.applyAsInt(y)));
+            String cur = x.time().currency();
+            String amount = EmailFormat.money(amounts.first(), cur) + (amounts.size() > 1 ? " to " + EmailFormat.money(amounts.last(), cur) : "");
+            boolean series = group.size() > 1;
+            l.put("series", series);
+            if (series) {
+                Seat h = host(x.seat(), x.seats());
+                l.put("frequency", frequency(h == null ? 1 : h.bookedIntervalWeeks()));
+                l.put("until", EmailFormat.date(group.get(group.size() - 1).seat().lessonDate()));
+                amount += " each";
+            }
+            l.put("share", amount);
+            lessons.add(l);
+        }
+        return lessons;
     }
 
     /** The list, how many, and the first date and time, for the subject and the one-date wording (G-38). */
