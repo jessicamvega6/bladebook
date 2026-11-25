@@ -86,6 +86,9 @@ public final class CancellationService {
             ChangeBatch batch = new ChangeBatch(UUID.randomUUID().toString(), now, ChangeBatch.Source.LESSON, ChangeBatch.By.CLIENT,
                     ctx.clientId(), date, date, 1, 1, ChangeBatch.Execution.EXECUTED);
             FamilyCancels.Done d = one.cancel(ctx, skater, seat, time, batch, batch, now);
+            if (d.withdrawn() != null) {
+                one.markWithdrawn(ctx, skater, List.of(d.withdrawn()), now);
+            }
             if (d.done()) {
                 return new FamilyCancel(Outcome.CANCELLED, d.late(), skater.coachFirstName(), skater.studentName(), date, start, d.leave());
             }

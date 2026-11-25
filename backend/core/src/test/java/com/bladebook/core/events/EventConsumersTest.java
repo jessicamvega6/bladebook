@@ -231,6 +231,18 @@ class EventConsumersTest {
     }
 
     @Test
+    void aBookingMarkerReachesConsumerInviteAndItsRemovalDoesNot() {
+        String coachId = coach();
+        String pk = "COACH#" + coachId;
+        assertThat(consumers.run(EventConsumers.Event.SharedLessonChanged, record("INSERT", pk, "BOOKED#f1#k1",
+                "{\"clientId\":{\"S\":\"f1\"}}", null), "a").count()).isZero();
+        assertThat(consumers.run(EventConsumers.Event.SharedLessonChanged, record("REMOVE", pk, "BOOKED#f1#k1", null,
+                "{\"clientId\":{\"S\":\"f1\"}}"), "b").count()).isEqualTo(-1);
+        assertThat(outbox.list()).isEmpty();
+        assertThat(log.lines).extracting(AccessLog.Line::operation).containsExactly("SharedLessonChanged");
+    }
+
+    @Test
     void anApprovalUpdatesTheFamilysLinkAndSendsNoEmail() {
         String coachId = coach();
         EventConsumers.Outcome o = consumers.run(EventConsumers.Event.StudentChanged, record("MODIFY", "COACH#" + coachId, "STUDENT#s1",

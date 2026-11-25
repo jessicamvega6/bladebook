@@ -114,6 +114,7 @@ public final class RecurrenceService {
         int done = 0;
         boolean late = false;
         List<Seat> stillBooked = new ArrayList<>();
+        List<String> withdrawn = new ArrayList<>();
         ChangeBatch batch = null;
         boolean finished = false;
         try {
@@ -140,9 +141,13 @@ public final class RecurrenceService {
                     }
                     done++;
                     late |= d.late();
+                    if (d.withdrawn() != null) {
+                        withdrawn.add(d.withdrawn());
+                    }
                 }
                 cancels.finishForFamily(ctx, skater, batch.executed(done, done > 0 ? 1 : 0));
                 finished = true;
+                one.markWithdrawn(ctx, skater, withdrawn, now);
             }
         } catch (RuntimeException e) {
             // A failure part-way (a throttled read or write, say): the dates already cancelled are reported and emailed as
@@ -153,6 +158,11 @@ public final class RecurrenceService {
                 } catch (RuntimeException f) {
                     e.addSuppressed(f);
                 }
+            }
+            try {
+                one.markWithdrawn(ctx, skater, withdrawn, now); // the dates already withdrawn are emailed as usual
+            } catch (RuntimeException f) {
+                e.addSuppressed(f);
             }
             try {
                 bookings.recurrences().release(ctx, r, changeId);

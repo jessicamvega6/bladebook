@@ -46,6 +46,13 @@ public final class CancellationRepository {
     private final TenantClients clients;
     private final String table;
 
+    /** The marker for invitations this family's cancel withdrew ({@link BookingRepository#markEnded}), after all its dates. */
+    public void markWithdrawn(ClientContext ctx, LinkedSkater skater, String inviteId, Instant now) {
+        BookingRepository.putMarker(clients.clientFor(ctx, skater.coach()), table, skater.coachId(),
+                BookingRepository.endedMarkerKey(skater.clientId(), inviteId, ShareRepository.Ended.WITHDRAWN), skater.clientId(),
+                List.of(), now);
+    }
+
     public CancellationRepository(TenantClients clients, String table) {
         this.clients = clients;
         this.table = table;

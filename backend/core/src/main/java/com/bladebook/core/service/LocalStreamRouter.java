@@ -2,6 +2,7 @@ package com.bladebook.core.service;
 
 import com.bladebook.core.data.BookingRepository;
 import com.bladebook.core.data.LocalStream;
+import com.bladebook.core.data.ShareRepository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -20,7 +21,10 @@ import java.util.logging.Logger;
  * each written item to the consumers that care about it, by its key (ADR-MASTER section 2).
  * <ul>
  *   <li>{@code CHANGEBATCH#…}: the change notifier;</li>
- *   <li>{@code BOOKED#…}: the booking confirmation, one per booking request ({@code LessonBooked});</li>
+ *   <li>{@code BOOKED#…}: the booking confirmation ({@code LessonBooked}) and {@code consumer-invite}'s invitation, one each
+ *       per booking request;</li>
+ *   <li>{@code ENDED#…}: {@code consumer-invite}'s "declined" or "withdrawn" email, one per family's action;</li>
+ *   <li>{@code JOINED#…}: {@code consumer-invite}'s "joined" emails, one to each family per accepted invitation;</li>
  *   <li>{@code SEAT#…}: the payment reminder ({@code CheckInRecorded}) and {@code consumer-invite}'s emails for that lesson;</li>
  *   <li>{@code SEATEND#…}: {@code consumer-invite}'s emails for that lesson.</li>
  * </ul>
@@ -56,6 +60,8 @@ public final class LocalStreamRouter {
         Map<String, List<String>> batches = new LinkedHashMap<>();
         Map<String, List<String>> seats = new LinkedHashMap<>();
         Map<String, List<String>> markers = new LinkedHashMap<>();
+        Map<String, List<String>> joins = new LinkedHashMap<>();
+        Set<List<String>> ends = new LinkedHashSet<>();
         Set<List<String>> lessons = new LinkedHashSet<>();
         for (LocalStream.Key k : keys) {
             if (!k.pk().startsWith("COACH#")) {
@@ -67,6 +73,10 @@ public final class LocalStreamRouter {
                 batches.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
             } else if (k.sk().startsWith(BookingRepository.BOOKED)) {
                 markers.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
+            } else if (k.sk().startsWith(BookingRepository.ENDED) && p.length == 4) {
+                ends.add(List.of(coachId, p[2], p[3]));
+            } else if (k.sk().startsWith(BookingRepository.JOINED)) {
+                joins.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
             } else if (k.sk().startsWith("SEAT#") && p.length >= 4) {
                 seats.computeIfAbsent(coachId, x -> new ArrayList<>()).add(k.sk());
                 lessons.add(List.of(coachId, p[1], p[2]));
@@ -75,8 +85,14 @@ public final class LocalStreamRouter {
             }
         }
         batches.forEach((coachId, sks) -> sks.forEach(sk -> safely("change notifier", () -> notifications.changeBatch(coachId, sk))));
-        markers.forEach((coachId, sks) -> sks.forEach(sk -> safely("booking confirmation",
-                () -> notifications.confirmBooking(coachId, sk))));
+        markers.forEach((coachId, sks) -> sks.forEach(sk -> {
+            safely("booking confirmation", () -> notifications.confirmBooking(coachId, sk));
+            // Locally the API made the booking's copies in the request (InviteSyncService), so only the email is left.
+            safely("consumer-invite", () -> notifications.bookingInvitations(coachId, sk));
+        }));
+        ends.forEach(e -> safely("consumer-invite", () -> notifications.endedFor(e.get(0), e.get(1),
+                ShareRepository.Ended.valueOf(e.get(2)))));
+        joins.forEach((coachId, sks) -> sks.forEach(sk -> safely("consumer-invite", () -> notifications.joinedFor(coachId, sk))));
         seats.forEach((coachId, sks) -> sks.forEach(sk -> safely("payment reminder", () -> notifications.paymentReminder(coachId, sk))));
         for (List<String> l : lessons) {
             safely("consumer-invite", () -> notifications.sharedLesson(l.get(0), LocalDate.parse(l.get(1)), LocalTime.parse(l.get(2))));
