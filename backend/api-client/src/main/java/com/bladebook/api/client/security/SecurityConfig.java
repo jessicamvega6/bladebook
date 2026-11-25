@@ -38,6 +38,10 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, FamilyTokenRules rules, Clock clock)
             throws Exception {
+        // CSRF protection is off on purpose (CodeQL java/spring-disabled-csrf-protection, dismissed in Batch 30b): the API is
+        // stateless and authenticates only with a bearer token the website's JavaScript puts in the Authorization header
+        // (ADR-023). No cookie or session authenticates a request, so a cross-site request carries no credentials. Revisit
+        // if sign-in ever moves to a cookie. See docs/runbooks/security-scanning.md.
         http.csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> {
