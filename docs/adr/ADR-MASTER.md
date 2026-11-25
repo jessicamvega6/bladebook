@@ -123,7 +123,7 @@ ADR-023 (d10), ADR-025, ADR-026, ADR-031, ADR-033.*
 |---|---|---|
 | `api-coach` | API Gateway | Every coach-website and rinkside route. |
 | `api-client` | API Gateway | Every family-website route, plus the coach-code lookup before sign-in. |
-| `consumer-booking-confirmation` | `LessonBooked` | Confirmation email per seat. |
+| `consumer-booking-confirmation` | `LessonBooked` | One confirmation email per booking request, listing its lessons; a series is one line with its start, how often and its end date (owner, 2026-11-25). |
 | `consumer-payment-reminder` | `CheckInRecorded` | Payment-reminder email. |
 | `consumer-schedule-change` | `ScheduleChanged` (and direct invocation by `reconcile-schedule` and `sched-drift-check`) | Adds, removes, cancels and re-prices lesson times (§9); finishes a stuck change batch, including a coach's multi-lesson cancel (§10, §19). |
 | `consumer-change-notifier` | `LessonsChanged` | One message per family (or to the coach) per change batch; the coach's late-cancellation SMS. |
@@ -232,6 +232,7 @@ ADR-016, ADR-017, ADR-020, ADR-022, ADR-025, ADR-026, ADR-029, ADR-031, ADR-033.
 | Link (skater ↔ coach) | `CLIENT#<sub>` | `STUDENT#<coachId>#<studentId>` | `studentName`, status, the coach's name, `signedUpAt` (the coach's record's, so a decline deletes only the link it belonged to; 2026-11-21), `declineEmailAt` (the decline email's claim: the link goes only after the email, so a send SES doesn't accept is retried; 2026-11-23) |
 | Recurrence header | `CLIENT#<sub>` | `RECURRENCE#<coachId>#<recurrenceId>` | `studentId`, `clientId`, `weekday`, `startTime`, `intervalWeeks`, `endDate`, `startedOn`, `recurrenceStatus`, `changingId` and `changingSince` (a change in progress: claimed before any lesson is cancelled, so a second window's change is refused; counts as abandoned after 5 minutes; 2026-11-21) |
 | Share code | `SKATERCODE#<code>` | `CODE` | the skater's ID and display name |
+| Booking marker | `COACH#<coachId>` | `BOOKED#<clientId>#<idempotencyKey>` | `clientId`, `seatKeys` (the seats the request booked), `bookedAt`, `expiresAt` (30 days). Written by `api-client` after a booking request's seats and series headers; it is what `LessonBooked` matches, so a request gets one confirmation (owner, 2026-11-25) |
 
 The family profile is the **source of truth** for contact details, and the `SKATER#` item for who
 the skater is. The coach's `STUDENT#` record holds copies.
@@ -279,7 +280,7 @@ number had opted out, so no SMS was attempted.
 
 | Event | Source | Consumer |
 |---|---|---|
-| `LessonBooked` | A seat becoming `BOOKED` (one per seat) | `consumer-booking-confirmation` |
+| `LessonBooked` | A booking marker (`BOOKED#`) written: one per booking request, not per seat (owner, 2026-11-25; replaces ADR-031 d14's per-seat event) | `consumer-booking-confirmation` |
 | `ScheduleChanged` | A schedule or date-override write | `consumer-schedule-change` |
 | `LessonsChanged` | A `CHANGEBATCH#` header reaching `executionStatus = EXECUTED` (new image `EXECUTED`, old image absent or not `EXECUTED`) | `consumer-change-notifier` |
 | `CheckInRecorded` | Attendance write, `CHECKED_IN` | `consumer-payment-reminder` |
@@ -292,8 +293,8 @@ number had opted out, so no SMS was attempted.
 record on the bus **unchanged**: no enrichment function, no renaming. **Each event above is an EventBridge
 rule** of that name, whose pattern matches the raw record: the key's prefix (`prefix` on the `SK`), the new
 image's values and, for a transition, the old image's (`anything-but`, `exists: false`). For example,
-`LessonBooked` matches an `SK` starting `SEAT#`, a new `seatStatus` of `BOOKED` and an old one that is
-absent or not `BOOKED`. The event's name is the rule's name; the record on the bus is the stream record.
+`CheckInRecorded` matches an `SK` starting `SEAT#`, a new `seatStatus` of `CHECKED_IN` and an old one that is
+absent or not `CHECKED_IN`. The event's name is the rule's name; the record on the bus is the stream record.
 - **One Pipe, not one per event:** a stream should have at most two readers per shard, and the Pipe and
   `consumer-ttl-archiver` are those two.
 - **Each rule's pattern is tested** in Batch 17b: sample stream records (each event's match and its near
@@ -1271,7 +1272,7 @@ ADR-018, ADR-021, ADR-023, ADR-026, ADR-031 d14, ADR-033.*
 
 | Message | To | When | Rule |
 |---|---|---|---|
-| Booking confirmation | Family | Each seat becoming `BOOKED` | Guard `confirmationSent` on the seat |
+| Booking confirmation | Family | A booking request's marker (one email for the request's seats; a series is one line: start, how often, end date; 2026-11-25) | Guard `confirmationSent` on each seat |
 | Day-of reminder | Family | ~7:00am | ~~**One per lesson per skater**, no digest.~~ **One per family per coach per day**, listing each of that family's lessons with that coach (owner, 2026-11-13, G-37; per coach because each family email carries its coach's `Reply-To`). Guard `remindedOn` on every seat in it, keyed on (seat, date): all are claimed before sending and given back if it isn't accepted |
 | Coach's morning email | Coach | ~7:00am, only if the coach has lessons that day | Lists the day's lessons and links to the rinkside page (a plain link, no sign-in token). Same job as the day-of reminder. Guard `morningEmailSentOn` keyed on (coach, date). No off switch in MVP |
 | Payment reminder | Family | `CheckInRecorded` | The seat's amount and the coach's `paymentInstructions`. One per lesson |

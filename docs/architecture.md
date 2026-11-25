@@ -810,7 +810,8 @@ sequenceDiagram
             API->>DB: put the RECURRENCE#35; header in the client's partition, last (ADR-006 d4a)
         end
         API-->>P: 201 Created — each date booked, already booked for this student, or unavailable
-        DB->>Bus: (stream) LessonBooked — one per seat that becomes BOOKED
+        API->>DB: put the BOOKED#35; marker listing the request's seats, after the dates and header
+        DB->>Bus: (stream) LessonBooked — one per booking request (the marker)
         Bus->>Cf: route
         Cf->>SES: confirmation email
     end
@@ -1962,7 +1963,7 @@ jobs aren't events: Scheduler invokes each function directly, and each schedule 
 
 | Event | Source | Consumers |
 |---|---|---|
-| `LessonBooked` | A seat becoming `BOOKED` — **one per seat**, so each skater's family gets its own confirmation, as each booking did (ADR-031 d14) | Confirmation email |
+| `LessonBooked` | A booking request's `BOOKED#` marker, written after its seats — **one per booking request**, so the family gets one confirmation listing every lesson, a series as one line (start, how often, end date) (owner, 2026-11-25; replaces ADR-031 d14's one per seat) | Confirmation email |
 | `LessonsChanged` | **`CHANGEBATCH#` header reaching `executionStatus = EXECUTED`** (ADR-010 d5e, d5f — *not* the seat's move and *not* a line write) | Change notifier — covers cancellations and re-pricing (ADR-020); one message per client per batch, routed **by actor**: coach- and schedule-driven cancellations go to each affected client; client-driven ones go to the coach, only inside the coach's `requiredNoticeHours`; the hourly sweep's `NO_ANSWER` batches go to the staying family (ADR-031 d14) |
 | `ScheduleChanged` | Schedule / date-override write | Schedule change λ — adds, removes, cancels and re-prices lesson times (ADR-031 d11) |
 | `CheckInRecorded` | Attendance write, `CHECKED_IN` only | Payment reminder |

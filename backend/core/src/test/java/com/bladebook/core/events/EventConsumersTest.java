@@ -191,6 +191,9 @@ class EventConsumersTest {
                 student(coachId, "ACTIVE"), student(coachId, "ACTIVE")), "req-2").count()).isEqualTo(-1); // a name change
         assertThat(consumers.run(EventConsumers.Event.LessonBooked, record("MODIFY", "CLIENT#f1", "PROFILE", "{}", null), "r")
                 .count()).isEqualTo(-1);
+        // A seat is no longer the event: the request's marker is (one email per booking, 2026-11-25).
+        assertThat(consumers.run(EventConsumers.Event.LessonBooked, record("INSERT", "COACH#" + coachId, "SEAT#2026-11-23#06:00#s1",
+                "{}", null), "r").count()).isEqualTo(-1);
         assertThat(consumers.run(EventConsumers.Event.ScheduleChanged, record("INSERT", "COACH#" + coachId, "SCHEDULE#TEMP#t1", "{}",
                 null), "r").count()).isEqualTo(-1);
         assertThat(consumers.run(EventConsumers.Event.FamilyChanged, record("REMOVE", "CLIENT#f1", "PROFILE", null, "{}"), "r")
@@ -207,7 +210,7 @@ class EventConsumersTest {
     void eachEventReachesItsServiceAndAMissingItemSendsNothing() {
         String coachId = coach();
         String pk = "COACH#" + coachId;
-        assertThat(consumers.run(EventConsumers.Event.LessonBooked, record("MODIFY", pk, "SEAT#2026-11-23#06:00#s1", "{}", null), "a")
+        assertThat(consumers.run(EventConsumers.Event.LessonBooked, record("INSERT", pk, "BOOKED#f1#k1", "{\"clientId\":{\"S\":\"f1\"}}", null), "a")
                 .count()).isZero();
         assertThat(consumers.run(EventConsumers.Event.CheckInRecorded, record("MODIFY", pk, "SEAT#2026-11-23#06:00#s1", "{}", null), "b")
                 .count()).isZero();

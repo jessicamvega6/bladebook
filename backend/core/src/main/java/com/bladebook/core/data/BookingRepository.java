@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.Select;
@@ -23,6 +24,7 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 import software.amazon.awssdk.services.dynamodb.model.Update;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -265,6 +267,32 @@ public final class BookingRepository {
             }
             return attribute(ctx, skater, time.lessonDate(), time.startTime(), idempotencyKey);
         }
+    }
+
+    /** A booking request's marker: {@code COACH#<coachId> / BOOKED#<clientId>#<idempotencyKey>}. */
+    public static final String BOOKED = "BOOKED#";
+
+    /** How long a marker stays before TTL removes it: long enough for any retry or dead-letter replay. */
+    static final Duration MARKER_LIFETIME = Duration.ofDays(30);
+
+    public static String markerKey(String clientId, String idempotencyKey) {
+        return BOOKED + clientId + "#" + idempotencyKey;
+    }
+
+    /**
+     * The request's marker, written once its seats are: the seat keys it booked, so {@code consumer-booking-confirmation}
+     * sends the family one email for the whole request ({@code LessonBooked} matches this item, not each seat). A retry of
+     * the request writes it again with that try's seats; their guards stop a second email for any already confirmed.
+     */
+    public void markBooked(ClientContext ctx, LinkedSkater skater, String idempotencyKey, List<String> seatKeys, Instant now) {
+        Map<String, AttributeValue> item = new HashMap<>(FamilyItems.key("COACH#" + skater.coachId(),
+                markerKey(skater.clientId(), idempotencyKey)));
+        item.put("clientId", FamilyItems.s(skater.clientId()));
+        item.put("seatKeys", AttributeValue.fromL(seatKeys.stream().map(FamilyItems::s).toList()));
+        item.put("bookedAt", FamilyItems.s(now.truncatedTo(ChronoUnit.SECONDS).toString()));
+        item.put("expiresAt", AttributeValue.fromN(Long.toString(now.plus(MARKER_LIFETIME).getEpochSecond())));
+        db(ctx, skater.coach()).putItem(PutItemRequest.builder()
+                .tableName(table).item(item).build());
     }
 
     /** Why a date didn't book, from the family's own seat for that skater and time, read strongly consistent. */

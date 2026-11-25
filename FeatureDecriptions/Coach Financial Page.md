@@ -61,7 +61,8 @@ What counts as gross (decided by the owner, 2026-10-12):
   *Decided 2026-11-13 by the owner:* a lesson from a closed year marked paid afterwards counts in the year and month
     it was marked paid, flagged as for an earlier year. The usual case is a December lesson paid in January: it
     counts in January's gross. The page says so under the month and the year's total ("Includes $30 for 2025
-    lessons"), and the download has a column "Of which for lessons in earlier years". A year closes at midnight
+    lessons"), and the download has a column ~~"Of which for lessons in earlier years"~~ "Paid in 2026 for 2025
+    lessons" (renamed 2026-11-25, below). A year closes at midnight
     starting January 1 in the coach's time zone.
   *Decided 2026-11-13 by the owner (~~planned~~ built 2026-11-16, Batch 26):* a closed year's figures are saved once it
     closes, and the page and the download use the saved figures from then on. ~~Until then the figures are added up
@@ -92,6 +93,10 @@ What counts as gross (decided by the owner, 2026-10-12):
     Marking that lesson paid again later counts as a late payment, so the undo and the new payment cancel out.
     Undoing a late payment (a December lesson paid in January, then undone in February) just takes it back out of
       the year it was paid in; the closed year never had it.
+  *Ruled 2026-11-25 by the owner:* the two download columns name the years instead of saying "earlier years". In
+    the 2026 download they are "Paid in 2026 for 2025 lessons" (was "Of which for lessons in earlier years") and
+    "Taken off in 2026 for 2025 lessons marked unpaid" (was "Taken off for earlier years' lessons marked unpaid").
+    One year is always right: only last year's lessons can be paid late or undone (Batch 27, below).
   *Decided 2026-11-15 by the owner, built in Batch 27:* lessons from over a year back (dated before January 1 of
     last year) are view only on Payments: they can't be marked paid or undone, or have how they paid changed. So a
     late payment can only be for last year's lessons, which is all the page reads. An unpaid one can still be
@@ -123,9 +128,9 @@ Export (decided by the owner, 2026-10-12):
     year, this year or last: one row per month with gross received ~~, rink fees and net~~ and the number of paid
     lessons (rink fees and net join it in Phase 2; owner, 2026-11-12), plus year totals. *2026-11-13:* each row
     also says how much of its gross was paid for lessons in earlier years. *2026-11-16:* and how much was taken
-    off for earlier years' lessons marked unpaid. The columns: Month, Paid lessons, Gross received, Of which for
-    lessons in earlier years, Taken off for earlier years' lessons marked unpaid (amounts in the coach's
-    currency). It has
+    off for earlier years' lessons marked unpaid. The columns (2026 download; renamed 2026-11-25): Month, Paid
+    lessons, Gross received, Paid in 2026 for 2025 lessons, Taken off in 2026 for 2025 lessons marked unpaid
+    (amounts in the coach's currency). It has
     no skater names and no personal data. It covers what a tax preparer needs and lets the coach keep their own
     copy before records age out.
   Phase 2: past years on screen.

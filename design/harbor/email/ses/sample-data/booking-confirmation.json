@@ -9,35 +9,30 @@
   "familyFirst": "Grace",
   "noticeHours": "24",
   "oneLesson": false,
-  "plural": false,
-  "skaterNames": "Mia",
-  "lessonCount": "3",
+  "plural": true,
+  "skaterNames": "Mia and Noah",
+  "lessonCount": "4",
   "firstDate": "Wed, Oct 21",
   "firstTime": "6:30 AM",
   "rink": "Pelham Civic Center",
   "repeats": true,
-  "repeatsUntil": "Wed, Nov 4",
   "lessons": [
     {
+      "series": true,
       "date": "Wed, Oct 21",
       "time": "6:30 AM",
+      "frequency": "Every 2 weeks",
+      "until": "Wed, Nov 18",
       "skater": "Mia",
       "length": "30 min",
       "rink": "Pelham Civic Center",
-      "price": "$50"
+      "price": "$50 each"
     },
     {
-      "date": "Wed, Oct 28",
-      "time": "6:30 AM",
-      "skater": "Mia",
-      "length": "30 min",
-      "rink": "Pelham Civic Center",
-      "price": "$50"
-    },
-    {
-      "date": "Wed, Nov 4",
-      "time": "6:30 AM",
-      "skater": "Mia",
+      "series": false,
+      "date": "Thu, Oct 22",
+      "time": "7:00 AM",
+      "skater": "Noah",
       "length": "30 min",
       "rink": "Pelham Civic Center",
       "price": "$50"

@@ -100,6 +100,7 @@ export function App() {
 function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: () => Promise<void> }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [pwShown, setPwShown] = useState(false);
   const waiting = queue().length;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -132,8 +133,12 @@ function SignIn({ notice, onSignedIn }: { notice: string; onSignedIn: () => Prom
             <div className="field"><label className="label" htmlFor="rk-email">Login email</label>
               <input id="rk-email" type="email" className="ctl" value={email} autoComplete="username" onChange={(e) => { setEmail(e.target.value); setError(''); }} /></div>
             <div className="field"><label className="label" htmlFor="rk-pw">Password</label>
-              <input id="rk-pw" type="password" className="ctl" placeholder="••••••••" autoComplete="current-password" value={pw}
-                onChange={(e) => { setPw(e.target.value); setError(''); }} />
+              <div className="ctl-reveal">
+                <input id="rk-pw" type={pwShown ? 'text' : 'password'} className="ctl" placeholder="••••••••" autoComplete="current-password" value={pw}
+                  onChange={(e) => { setPw(e.target.value); setError(''); }} />
+                <button type="button" className="ctl-reveal__btn" aria-controls="rk-pw" aria-pressed={pwShown}
+                  aria-label={pwShown ? 'Hide password' : 'Show password'} onClick={() => setPwShown((v) => !v)}>{pwShown ? 'Hide' : 'Show'}</button>
+              </div>
               {error && <div className="hint hint--error"><Icon name="alert" size={14} />{error}</div>}</div>
             <Button type="submit" block lg disabled={busy}>Log in</Button>
           </form>
