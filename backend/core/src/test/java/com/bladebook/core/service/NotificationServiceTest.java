@@ -641,8 +641,10 @@ class NotificationServiceTest {
         Email inv = only(sent, "share-invitation");
         assertThat(inv.data()).containsEntry("oneLesson", false).containsEntry("lessonCount", "3").containsEntry("date", "Mon, Nov 16")
                 .containsEntry("share", "$25");
-        assertThat(list(inv, "lessons")).extracting(l -> l.get("date")).containsExactly("Mon, Nov 16", "Mon, Nov 23", "Mon, Nov 30");
-        assertThat(list(inv, "lessons")).allSatisfy(l -> assertThat(l).containsEntry("time", "6:00 AM").containsEntry("share", "$25"));
+        // The series is one line: its start, how often and its last date (owner, 2026-11-25).
+        assertThat(list(inv, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("series", true)
+                .containsEntry("date", "Mon, Nov 16").containsEntry("time", "6:00 AM").containsEntry("frequency", "Every week")
+                .containsEntry("until", "Mon, Nov 30").containsEntry("share", "$25 each"));
 
         shares.accept(chen, shares.invitations(chen).get(0).inviteId());
         sent = drain();
@@ -653,6 +655,32 @@ class NotificationServiceTest {
             assertThat(list(e, "lessons")).hasSize(3);
         });
         assertThat(drain()).isEmpty();
+    }
+
+    @Test
+    void aBookingsInvitationWaitsForItsMarkerSoEveryDateIsInOneEmail() {
+        // On AWS each date's own event can run before the later dates are written: those events leave the invitation to
+        // the request's marker, which runs once every date is (owner, 2026-11-25).
+        String key = UUID.randomUUID().toString();
+        booking.book(park, BookingRequest.parse(dana.coachId(), ava, key,
+                List.of(new BookingRequest.PickInput(MON.toString(), "06:00")), true, 1, MON.plusWeeks(2).toString()), miaCode);
+        stream.drain(); // the events, handed to the consumers below instead
+        assertThat(notifications.sharedLesson(dana.coachId(), MON, SIX)).isZero();
+        assertThat(outbox.list()).isEmpty();
+        String marker = BookingRepository.markerKey(park.clientId(), key);
+        assertThat(notifications.bookingInvitations(dana.coachId(), marker)).isEqualTo(1);
+        Email inv = only(drain(), "share-invitation");
+        assertThat(inv.data()).containsEntry("lessonCount", "3");
+        assertThat(list(inv, "lessons")).singleElement().satisfies(l -> assertThat(l).containsEntry("until", "Mon, Nov 30"));
+        assertThat(notifications.bookingInvitations(dana.coachId(), marker)).isZero(); // sent: nothing more
+    }
+
+    @Test
+    void oneOffSharedDatesAreEachTheirOwnLine() {
+        book(park, ava, miaCode, SIX, MON, MON.plusWeeks(1));
+        Email inv = only(drain(), "share-invitation");
+        assertThat(list(inv, "lessons")).hasSize(2).allSatisfy(l -> assertThat(l).containsEntry("series", false)
+                .containsEntry("share", "$25"));
     }
 
     @Test

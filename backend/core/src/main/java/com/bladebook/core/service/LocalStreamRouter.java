@@ -20,7 +20,8 @@ import java.util.logging.Logger;
  * each written item to the consumers that care about it, by its key (ADR-MASTER section 2).
  * <ul>
  *   <li>{@code CHANGEBATCH#…}: the change notifier;</li>
- *   <li>{@code BOOKED#…}: the booking confirmation, one per booking request ({@code LessonBooked});</li>
+ *   <li>{@code BOOKED#…}: the booking confirmation ({@code LessonBooked}) and {@code consumer-invite}'s invitation, one each
+ *       per booking request;</li>
  *   <li>{@code SEAT#…}: the payment reminder ({@code CheckInRecorded}) and {@code consumer-invite}'s emails for that lesson;</li>
  *   <li>{@code SEATEND#…}: {@code consumer-invite}'s emails for that lesson.</li>
  * </ul>
@@ -75,8 +76,11 @@ public final class LocalStreamRouter {
             }
         }
         batches.forEach((coachId, sks) -> sks.forEach(sk -> safely("change notifier", () -> notifications.changeBatch(coachId, sk))));
-        markers.forEach((coachId, sks) -> sks.forEach(sk -> safely("booking confirmation",
-                () -> notifications.confirmBooking(coachId, sk))));
+        markers.forEach((coachId, sks) -> sks.forEach(sk -> {
+            safely("booking confirmation", () -> notifications.confirmBooking(coachId, sk));
+            // Locally the API made the booking's copies in the request (InviteSyncService), so only the email is left.
+            safely("consumer-invite", () -> notifications.bookingInvitations(coachId, sk));
+        }));
         seats.forEach((coachId, sks) -> sks.forEach(sk -> safely("payment reminder", () -> notifications.paymentReminder(coachId, sk))));
         for (List<String> l : lessons) {
             safely("consumer-invite", () -> notifications.sharedLesson(l.get(0), LocalDate.parse(l.get(1)), LocalTime.parse(l.get(2))));

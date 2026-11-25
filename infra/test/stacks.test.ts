@@ -741,8 +741,10 @@ const SAMPLES: Record<string, { match: object[]; miss: object[] }> = {
   SharedLessonChanged: {
     match: [rec('MODIFY', 'COACH#c', SEAT, {}, {}), rec('INSERT', 'COACH#c', 'SEATEND#2026-11-23#06:00#s1#t', {}),
       rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', { pendingLeave: { leaveId: 'l1' } }, {}),
-      rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, { pendingLeave: { leaveId: 'l1' } })],
-    miss: [rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, {}), rec('MODIFY', 'CLIENT#f', 'SEAT#x', {}, {})],
+      rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, { pendingLeave: { leaveId: 'l1' } }),
+      rec('INSERT', 'COACH#c', MARKER, { clientId: 'f' })],
+    miss: [rec('MODIFY', 'COACH#c', 'LESSON#2026-11-23#06:00', {}, {}), rec('MODIFY', 'CLIENT#f', 'SEAT#x', {}, {}),
+      rec('REMOVE', 'COACH#c', MARKER, undefined, { clientId: 'f' })],
   },
 };
 
@@ -755,8 +757,10 @@ describe('the event backbone (ADR-MASTER §2, §3, I6)', () => {
     }
   });
   test('no event matches another event\'s records unless both consumers want them', () => {
-    // A checked-in seat is also a shared-lesson seat change: consumer-invite checks for a partner. Nothing else overlaps.
-    const allowed = new Set(['CheckInRecorded>SharedLessonChanged']);
+    // A checked-in seat is also a shared-lesson seat change: consumer-invite checks for a partner. A booking marker goes to
+    // both the confirmation and consumer-invite (the booking's invitation). Nothing else overlaps.
+    const allowed = new Set(['CheckInRecorded>SharedLessonChanged', 'LessonBooked>SharedLessonChanged',
+      'SharedLessonChanged>LessonBooked']);
     for (const [owner, { match }] of Object.entries(SAMPLES)) {
       for (const r of match) {
         for (const other of Object.keys(EVENT_PATTERNS)) {

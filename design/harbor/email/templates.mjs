@@ -229,7 +229,7 @@ export const TEMPLATES = [
   /* ---------- Shared lessons (ADR-026, ADR-031, ADR-033) ---------- */
   {
     name: 'share-invitation', group: 'shared', title: 'Invitation to share a lesson',
-    when: 'To the invited family, when another family enters their skater’s share code, or invites a skater onto a freed place (ADR-031 d10). One email per invitation, listing every date it covers (G-38, owner 2026-11-13).', sender: 'λ Invite (consumer-invite)', always: true,
+    when: 'To the invited family, when another family enters their skater’s share code, or invites a skater onto a freed place (ADR-031 d10). One email per invitation, listing every date it covers (G-38, owner 2026-11-13); a series is one line with its start, how often and its end date (owner, 2026-11-25).', sender: 'λ Invite (consumer-invite)', always: true,
     ...FROM_FAMILY, to: 'tom.okafor@example.com',
     subject: '{{inviterName}} invited {{skater}} to share {{#if oneLesson}}a lesson{{else}}{{lessonCount}} lessons{{/if}}',
     preheader: '{{#if oneLesson}}{{date}} at {{time}}{{else}}Starting {{date}} at {{time}}{{/if}} with Coach {{coachFirst}}. {{skater}}’s share is {{share}}{{#if oneLesson}}{{else}} a lesson{{/if}}.',
@@ -241,7 +241,7 @@ export const TEMPLATES = [
       { if: 'oneLesson',
         then: [{ details: { rows: [['When', '{{date}} at {{time}}'], ['Where', '{{rink}}'], ['Length', '{{length}}'], ['{{skater}}’s share', '<b>{{share}}</b> (the lesson is {{fullPrice}})']] } }],
         else: [
-          { lessons: { each: 'lessons', primary: '{{date}} · {{time}}', aside: '{{share}}' } },
+          { lessons: { each: 'lessons', primary: '{{#if series}}Starts {{/if}}{{date}} · {{time}}{{#if series}} · {{frequency}} until {{until}}{{/if}}', aside: '{{share}}' } },
           { details: { rows: [['Where', '{{rink}}'], ['Length', '{{length}}'], ['Each lesson', '{{fullPrice}}, split between the skaters']] } },
         ] },
       '{{#if oneLesson}}If you accept, {{skater}} is booked straight away. If nobody answers before the lesson starts, the invitation expires and nothing is booked.{{else}}You can accept or decline each date. Each date you accept is booked straight away; a date nobody answers before it starts expires, and nothing is booked for it.{{/if}}',
@@ -252,9 +252,7 @@ export const TEMPLATES = [
       ...FAMILY, familyFirst: 'Tom', inviterName: 'Grace Chen', inviterSkater: 'Mia', skater: 'Zoe',
       oneLesson: false, lessonCount: '3', date: 'Fri, Oct 16', time: '8:30 AM', rink: 'Pelham Civic Center', length: '30 min', share: '$25', fullPrice: '$50',
       lessons: [
-        { date: 'Fri, Oct 16', time: '8:30 AM', share: '$25' },
-        { date: 'Fri, Oct 23', time: '8:30 AM', share: '$25' },
-        { date: 'Fri, Oct 30', time: '8:30 AM', share: '$25' },
+        { series: true, date: 'Fri, Oct 16', time: '8:30 AM', frequency: 'Every week', until: 'Fri, Oct 30', share: '$25 each' },
       ],
       invitationUrl: 'https://family.bladebook.org/#/invite/8f2c1a',
     },
