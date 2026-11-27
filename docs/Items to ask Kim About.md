@@ -456,8 +456,9 @@ let one account be both a coach and a family, with one email and password (owner
 
 **What the answers decide:**
 
-- How much effort goes into the switch between the coach and family sides
-  (`FeatureDecriptions/Coach Who Is Also a Parent.md`, question 2).
+- ~~How much effort goes into the switch between the coach and family sides
+  (`FeatureDecriptions/Coach Who Is Also a Parent.md`, question 2).~~ *Decided by the owner
+  2026-11-26 without waiting for Kim:* two separate sign-ins, no link between the sites.
 - Whether a coach can book lessons with themselves, and whether their own skater needs approval
   (question 4).
 

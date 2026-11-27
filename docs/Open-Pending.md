@@ -102,7 +102,9 @@ chosen · **To-do** = decided, needs doing · *Deferred* = the owner has chosen 
   number of pending students. (ADR-002, amended)
 - **Open question: A coach who is also a parent.** *Decided by the owner 2026-10-23:* it will
   be built, with one account in both the `Coach` and `Client` groups, so one email and password
-  serve both sides. Still open: how the coach switches sides, which side opens first, whether a
+  serve both sides. *Decided by the owner 2026-11-26:* the coach signs in on each website
+  separately, and each sign-in opens that website's side (app.bladebook.org the coach app,
+  family.bladebook.org the family app); neither website links to the other. Still open: whether a
   coach can book lessons with themselves, how family sign-up proves the person owns an existing
   coach email without revealing who is a coach, MFA on the family side, the shared inbox, and
   what closing one side does to the other. See `FeatureDecriptions/Coach Who Is Also a Parent.md`.

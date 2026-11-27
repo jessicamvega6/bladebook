@@ -425,7 +425,8 @@ tests are what catch a skipped check.
   script, so a missed step can't leave families able to sign in.
 - **A person in both groups** (a coach who is also a parent, see
   `FeatureDecriptions/Coach Who Is Also a Parent.md`) signs in on each website separately. Each
-  token works on its own website's API only.
+  token works on its own website's API only. *Owner, 2026-11-26:* neither website links to the
+  other; the website signed in on decides the side.
 
 **Tests** ([ADR-013](ADR-013-testing-requirement.md)): every `api-coach` route refuses a token
 from the family app client with 403, even when it carries the `Coach` group; every

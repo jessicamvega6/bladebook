@@ -1,5 +1,6 @@
 Coach Who Is Also a Parent
-(Started 2026-10-22. Requirements are still being gathered. Decided so far: one account, 2026-10-23.)
+(Started 2026-10-22. Requirements are still being gathered. Decided so far: one account, 2026-10-23; two separate
+sign-ins with no link between the sites, 2026-11-26.)
 
 The case: a coach also has a skater of their own, or skates themselves, and books lessons through BladeBook as a
 family. Settled by the owner on 2026-10-22: this is a real case and it will be built. This page collects what is
@@ -27,9 +28,15 @@ Questions for the owner:
      with a different email acceptable?~~
      *Decided by the owner, 2026-10-23: one account, way B below.* Coaches and families are older, so the route
      with fewer barriers wins: one email, one password. A second email and a second password are barriers.
-  2. How does the coach move between the two sides? A "Switch to family" link, two separate
-     sign-ins, or a choice after signing in?
-  3. Which side is the default after sign-in?
+  2. ~~How does the coach move between the two sides? A "Switch to family" link, two separate
+     sign-ins, or a choice after signing in?~~
+     *Decided by the owner, 2026-11-26: two separate sign-ins, and no link to the other site on either website.*
+     The website decides the side: signing in on app.bladebook.org opens the coach app, and signing in on
+     family.bladebook.org opens the family app. Each website's token works only on its own API (ADR-023 d9), so
+     there is no switch to build.
+  3. ~~Which side is the default after sign-in?~~
+     *Answered by question 2, 2026-11-26:* there is no default. Each sign-in opens the side of the website it was
+     made on.
   4. Can a coach book lessons with themselves for their own skater, or only with other coaches?
      If with themselves: does their skater go through the usual approval (ADR-022 d6), or is it approved
      automatically? Is the lesson priced and reminded like any other?
@@ -53,7 +60,8 @@ Ways it could be built (B chosen 2026-10-23):
   B. **Chosen.** One account in both groups. Family sign-up with an existing coach email asks the person to prove they own
      the account (sign in with the coach password and MFA) before adding the Client group. The account then has
      both a coach record and a family record. Needs: the "email already exists" handling done without revealing
-     to strangers which emails have accounts; a way to switch sides; and a decision on question 6.
+     to strangers which emails have accounts; and a decision on question 6. (No way to switch sides is needed:
+     question 2, 2026-11-26.)
   C. ~~One person, two linked accounts. Separate Cognito accounts behind the scenes, joined so one sign-in can
      reach both. Most work; listed for completeness.~~ *Not chosen.*
 
@@ -68,7 +76,7 @@ What one account costs (to design before building):
   A new email or password changes both sides at once; the screens that change them should say so.
   Every check is tested with a token that has both groups.
   Two sign-ins: with two app clients (ADR-023 d9) the coach signs in on each website, with the same email and
-    password. That is still a barrier; see question 2.
+    password. Accepted by the owner, 2026-11-26 (question 2): no link between the sites.
 
 Things to check:
   The "email already exists" message must not let someone test which emails belong to coaches.

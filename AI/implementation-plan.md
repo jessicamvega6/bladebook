@@ -92,7 +92,7 @@ Click through every signed-in page in dev, then set it to `enforce` (17c, I17). 
 | Events (DynamoDB Streams → EventBridge) and scheduled jobs can't run locally | Locally they're called in-process or on a local timer (Question 4); in dev they run on AWS. |
 | Rink-fee calculation undecided (`docs/Q_Rink-Fees.md`) | **Phase 2** (owner, 2026-11-12). The financial page shows gross only and says rink fee calculation is coming. |
 | Which function sends the coach's SMS opt-in confirmation (ADR-007 d8) | The coach's late-cancellation text, and the *Text me on late cancellations* switch, aren't built. |
-| Coach who is also a parent: no screen, no ADR-MASTER section, questions 2–9 still open | Not built. |
+| Coach who is also a parent: no screen, no ADR-MASTER section, questions 4–9 still open (2 and 3 decided 2026-11-26: separate sign-ins, no link between the sites) | Not built. |
 
 ## 4. What's left to build, in order
 
